@@ -58,12 +58,28 @@ history audit — whether anyone changed the gated paths while it was missing.
 | `documentation_authority` | The `authority_map` gate checks the artefact. `SP052` additionally requires that gate whenever the control is required, closing the seam a level being a floor rather than a ceiling would otherwise open |
 | `deterministic_tests` | `SP053` — `implementation_reference` names a CI step; the checker confirms it exists, runs something, and **can fail** |
 | `contract_tests` | `SP053`, same way |
-| `overrides` | `SP055`/`SP056` — `implementation_reference` names a register directory; every record in it must validate against `override-record.schema.yaml` |
+| `overrides` | `SP055`/`SP056` — `implementation_reference` names a register directory; every record in it must validate against `override-record.schema.yaml`. `SP057` — each override's `method_run_id` resolves to a run |
 | `method_registry` | `SP055`/`SP056`, against `method-registry-entry.schema.yaml` |
-| `run_lineage` | `SP055`/`SP056`, against `method-run-lineage.schema.yaml` |
-| `provenance` | `SP055`/`SP056`, against the same record type as `run_lineage` |
+| `run_lineage` | `SP055`/`SP056`, against `method-run-lineage.schema.yaml`. `SP057` — each run's `method_id` **and `method_version`** resolve to a registry entry |
+| `provenance` | `SP055`/`SP056`, against the same record type as `run_lineage`. `SP057` — every id in a run's `overrides` resolves to an override record |
+| all four | `SP058` — no two records in one register claim one identity, and no record carries another application's `application_id` |
 
 **Every control this framework defines is now checked**, at every level. Nothing is declared-only.
+
+**How `provenance` and `run_lineage` differ.** They share a record type — provenance is its
+traceability, run lineage its reproducibility — so they are separated by **which reference each
+obliges**, not by which fields. `run_lineage` requires a run to resolve to the method that ran it;
+`provenance` requires it to resolve to every override that adjusted the result. Separating them by
+field content was tried and abandoned: `method-run-lineage.schema.yaml` already requires every hash
+and revision on a completed run, so both controls would have obliged nothing.
+
+**A cross-reference is only checked when the register it points into is declared here.** Obliging
+otherwise would make declaring one control silently require another, which is this framework
+deciding your scope. At `full` all four are required, so every reference is checked. Below that, a
+control whose target register is undeclared adds nothing beyond `SP055`/`SP056` — and the check
+**says so on the run** rather than letting a green line imply the references were examined. The same
+applies when a register holds a record that failed its schema: its index is incomplete, so
+references into it are reported as unchecked rather than as unresolved.
 
 **A deferral now expires.** `SP031` has always required a deferred control or gate to carry a
 `revisit_by` date; `SP054` reads it. A date that has passed is a finding, a date within 30 days is
@@ -101,7 +117,9 @@ failure this framework has already seen: a suite that runs, reports success and 
 because its exit code was discarded.
 
 For the four record-based controls it means every record filed is well-formed and complete against
-its schema. It does **not** mean any record is **true**: a run-lineage record can carry an input
+its schema, and that the records it names exist. It does **not** mean the record it names is the
+**right** one — a run may resolve to a registered method and still be a record of something else
+entirely. Nor does it mean any record is **true**: a run-lineage record can carry an input
 hash computed over nothing at all, and it will validate. Nor does it mean the register is complete —
 nothing can tell you that a run happened and went unrecorded.
 

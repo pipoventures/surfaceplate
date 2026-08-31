@@ -1,0 +1,78 @@
+# GOLDEN EXAMPLE - method registry entry
+#
+# A complete, valid method registry entry. Asserted by tests/validate_contracts.py.
+# Illustrative only. It is not a real method and confers no approval.
+#
+# This is the method that examples/method-run-lineage.example.yaml executes, and that
+# examples/override-record.approved.example.yaml adjusts. The three form one consistent
+# set: the run names this method_id at this method_version, and the conformance checker
+# requires that reference to resolve whenever both registers are declared (SP057).
+
+schema_version: "1.0"
+method_id: METHOD-SEASONALITY-001
+method_version: "2.3.0"
+method_kind: deterministic_method
+name: Regional seasonality factor
+intended_use: >-
+  Applies a fitted per-region seasonality multiplier to a demand baseline, for forecasts
+  that reach a published operational plan.
+owner: Named Owner
+lifecycle_status: active
+validation_status: passed
+approval_status: approved
+implementation_revision: 9f2c1ab
+input_contracts:
+  - contract/demand-baseline@3
+  - contract/seasonality-parameters@2
+output_contracts:
+  - contract/adjusted-demand@3
+data_dependencies:
+  - dataset/demand-history
+  - dataset/seasonality-parameters
+configuration_dependencies:
+  - config/forecast-horizon
+assumptions:
+  - Regional demand seasonality is stable across the fitted window.
+  - The prior-year baseline is free of duplicated records.
+limitations:
+  - >-
+    Not fitted for regions with fewer than eight quarters of history; those fall back to the
+    national factor, which is a different method.
+  - >-
+    The second assumption above is the one that failed in practice - see the override record,
+    which exists because a duplicated baseline reached the fit.
+revalidation_trigger: >-
+  Refit, a change to the parameter contract, or any data-quality defect found in the fitted
+  window.
+assurance_evidence:
+  - schema_version: "1.0"
+    evidence_id: EV-2026-0041
+    evidence_type: test
+    outcome: passed
+    reviewer_role: Method engineer
+    reviewer_identity: Named Engineer
+    reviewed_at: "2026-08-20T14:00:00Z"
+    scope: Deterministic reproduction across the fitted window.
+    reference: test/seasonality-reproduction-2026-08
+  - schema_version: "1.0"
+    evidence_id: EV-2026-0042
+    evidence_type: independent_validation
+    outcome: passed
+    reviewer_role: Independent validator
+    reviewer_identity: Named Validator
+    reviewed_at: "2026-08-22T11:30:00Z"
+    scope: Method logic and fitted parameters against the stated intended use.
+    reference: validation/seasonality-2026-08
+    independence_basis: >-
+      Validator sits outside the delivery team and did not contribute to the implementation.
+  - schema_version: "1.0"
+    evidence_id: EV-2026-0043
+    evidence_type: approval
+    outcome: passed
+    reviewer_role: Method owner
+    reviewer_identity: Named Approver
+    reviewed_at: "2026-08-25T09:00:00Z"
+    scope: Approval for use in published operational plans.
+    reference: approval/method-seasonality-001-v2.3.0
+findings:
+  - FIND-2026-0007

@@ -48,7 +48,7 @@ state, until 2026-08-31, that the space ended at `SP043` — after `SP046` and `
 added and while the person adding them was editing this file.
 
 ```text
-emitted:  SP001-SP035, SP037-SP043, SP046-SP056
+emitted:  SP001-SP035, SP037-SP043, SP046-SP058
 gap:      SP036
 reserved: SP044-SP045
 ```
@@ -88,6 +88,7 @@ an unknown number of releases with nothing noticing.
 | F21 | `dependency_lock` declared with nothing pinned, and CI not recording what it used | medium | Closed — `pyproject.toml`, `SP051` |
 | F22 | A deferral's revisit date was required to exist and never read again | medium | Closed for deferrals — `SP054`; **open** for gate exceptions |
 | F23 | A drift guard matched on line shape rather than on the thing it guards | medium | Closed — anchored to the block; the false green constructed and run |
+| F24 | A schema clause that could never add an obligation, grading the wrong axis | low | Closed — removed; `materiality` grades approval, not completeness |
 
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -990,6 +991,45 @@ weaker guarantee than a hash-bearing lock, and `pyproject.toml` says so rather t
 otherwise.
 
 ---
+
+## F24 — A schema clause that could never add an obligation, grading the wrong axis
+
+**Severity: low. Closed.**
+
+`schemas/method-run-lineage.schema.yaml` carried three `allOf` branches. The third required
+`input_hash`, `implementation_revision`, `configuration_hash` and `output_hash` of completed runs at
+medium or high materiality. **Both its condition and its consequent are subsets of the first
+branch's**, which requires those fields — and three more — of *every* completed run. It could never
+add an obligation to any instance.
+
+Inert, and not harmless. A schema is a **contract people read to learn what is required of them**,
+and this one told a reader that a low-materiality completed run escapes fields it does not escape.
+That is a contradictory-authority defect — the one this framework names most often — living inside a
+published schema rather than between two documents.
+
+**Which branch was the leftover could not be settled from history.** The public repository is one
+squashed commit (`DR-23`), and `CHANGELOG.md` had never mentioned materiality at all. The design
+evidence settled it:
+
+> `schemas/override-record.schema.yaml:45-48` is the **only** live use of `materiality` in any
+> schema, and it grades **approval** — a material override requires approval. It does not relax
+> record completeness: `evidence_reference`, `rollback_approach` and `calculation_impact` are
+> required of every override at every materiality.
+
+So where the framework actually expresses this principle, **materiality decides who must sign off,
+not how complete a record must be.** The run-lineage branch graded the wrong axis.
+
+**Closed by removing it**, not by making it real. Narrowing the first branch so low-materiality runs
+genuinely need less would loosen a published contract against the only place the principle is
+stated, and would grade completeness by a **self-declared** field — an incentive to classify
+everything `low`. No instance's validity moves, so the change is not breaking and the `$id` version
+segment stays at `0.7.0`.
+
+**What this says about the schemas generally**, and it is the reusable part: `materiality` is
+required on both record types and, after this change, is consequential in exactly one of them.
+Together with `F22` — where the only date on a gate exception records its creation and not its
+expiry — the pattern is that **these schemas collect a field far more readily than they give it
+force.** Worth checking before adding another.
 
 ## F23 — A drift guard matched on line shape rather than on the thing it guards
 

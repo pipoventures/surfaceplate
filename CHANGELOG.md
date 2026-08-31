@@ -1377,3 +1377,58 @@ fails loudly instead of matching nothing.
 
 This is the register's most-repeated shape — an instrument whose negative result does not establish
 what it appears to — and this instance was inside an instrument written to prevent exactly that.
+
+### `C2`: records must reference what they describe
+
+A JSON Schema sees one record at a time, so a run-lineage record naming a method nobody registered
+validates perfectly, and so does an override naming a run that never happened. `SP057` reads across
+the registers; `SP058` covers register integrity — no two records under one identity, no record
+carrying another application's `application_id`.
+
+**`provenance` and `run_lineage` are separated by reference direction**, and the first answer had to
+be withdrawn to get here. `DR-26` predicted they would be split by which optional fields each
+obliges. Re-reading the schema disproved it: `method-run-lineage` already requires `completed_at`,
+`input_hash`, `implementation_revision`, `configuration_version`, `configuration_hash` and
+`output_hash` on **every** completed run, and non-empty `input_references` on every run at all.
+There were no optional fields left to divide, so both controls would have obliged nothing — the
+collapse the split existed to prevent. `run_lineage` now requires a run to resolve to the method
+that ran it; `provenance` requires it to resolve to every override that adjusted the result.
+
+**A reference is checked only where the register it points into is declared here**, because
+obliging otherwise would make declaring one control silently require another. And a conditional
+check that falls silent is indistinguishable from one that passed, so the run **says** when a
+reference was not checked.
+
+**A defect the probe caught, in the design rather than the code.** The plan said records failing
+`SP056` are excluded from the index *"so one malformed record does not cascade"*. Excluding them is
+what causes the cascade: when the broken record is the reference **target**, a perfectly correct run
+suddenly resolves to nothing. The remedy is knowing the register is incomplete, not omitting a row —
+a reference into a register that could not be fully read is reported as **unchecked**, never as
+unresolved.
+
+Two worked examples now exist because they had to. `override-record.approved.example.yaml` has
+always named `RUN-2026-000412` and `METHOD-SEASONALITY-001`, and both were **dangling** — the
+example set was designed as a whole and a third of it was never written. Nothing noticed, because
+nothing read across records.
+
+### `F24`: a schema clause that could never add an obligation
+
+`method-run-lineage.schema.yaml`'s third `allOf` branch required four fields of completed runs at
+medium or high materiality. Both its condition and its consequent are **subsets** of the first
+branch's, which requires those fields — and three more — of every completed run.
+
+Inert, and not harmless: a schema is a contract people read to learn what is required of them, and
+this one implied a low-materiality completed run escapes fields it does not escape.
+
+History could not say which branch was the leftover — the repository is one squashed commit and the
+changelog had never mentioned materiality. The design evidence could: `override-record.schema.yaml`
+is the only live use of `materiality` in any schema, and it grades **approval**, not record
+completeness. So **materiality decides who must sign off, not how complete a record must be**, and
+the branch graded the wrong axis. Removed rather than made real; narrowing the first branch instead
+would loosen a published contract and grade completeness by a self-declared field.
+
+No instance's validity moves, so this is not breaking and the `$id` version segment is unchanged.
+
+Worth carrying forward: with `F22`, where a gate exception's only date records its creation rather
+than its expiry, the pattern is that **these schemas collect a field far more readily than they give
+it force.**

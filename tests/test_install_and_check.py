@@ -129,11 +129,18 @@ def verify(repo: Path, *extra: str) -> subprocess.CompletedProcess:
     return run([str(repo / ".standards" / "check_conformance.py"), "--repo", str(repo), *extra])
 
 
-# Worked records this repository already publishes, keyed by the control whose register they
-# belong in. Only `overrides` has one today; the others seed empty, which is the honest state
-# and the one pattern C is designed to accept.
+# Worked records this repository publishes, keyed by the control whose register they belong in.
+# The three are ONE CONSISTENT SET, and they have to be: the override names RUN-2026-000412, the
+# run names METHOD-SEASONALITY-001 at 2.3.0 and carries OVR-20260001 back. Seeding any one of them
+# without the others makes the golden fixture fail SP057 for a reason no test is about.
+#
+# `provenance` and `run_lineage` normally name the same directory, and the seeding below fills a
+# register only when it is empty, so the run record is written once rather than twice.
 EXAMPLES_BY_CONTROL: dict[str, Path] = {
     "overrides": ROOT / "examples" / "override-record.approved.example.yaml",
+    "method_registry": ROOT / "examples" / "method-registry-entry.example.yaml",
+    "run_lineage": ROOT / "examples" / "method-run-lineage.example.yaml",
+    "provenance": ROOT / "examples" / "method-run-lineage.example.yaml",
 }
 
 
@@ -870,11 +877,22 @@ def main() -> int:
             and "overrides: verified against governance/overrides (1 record(s)" in result.stdout,
             result.stdout[-500:],
         )
+        # The empty register, proved in ISOLATION rather than inside the full example - every
+        # register there now holds a worked record, and one control declared alone is the only
+        # arrangement in which "empty" cannot be confused with "its cross-references resolved".
+        (gates / "governance" / "empty-register").mkdir(parents=True, exist_ok=True)
+        lone_register = essential_src.replace(
+            "control_decisions:\n",
+            "control_decisions:\n  method_registry:\n    decision: required\n"
+            "    implementation_reference: governance/empty-register\n"
+            "    rationale: Probe.\n", 1)
+        empty_result = gate_check(lone_register)
         check(
             "an EMPTY register passes, and says what that does and does not establish",
-            "method_registry: verified against governance/method-registry (register is empty"
-            in result.stdout,
-            result.stdout[-500:],
+            "SP055" not in empty_result.stdout and "SP056" not in empty_result.stdout
+            and "method_registry: verified against governance/empty-register (register is empty"
+            in empty_result.stdout,
+            empty_result.stdout[-500:],
         )
         check(
             "a README beside a record is not read as a malformed record",
@@ -939,6 +957,126 @@ def main() -> int:
         subprocess.run(["git", "-C", str(gates), "rm", "-q", "--cached", "--",
                         "governance/run-lineage/misfiled.yaml"], capture_output=True)
         misfiled.unlink()
+
+        # ---- SP057 / SP058: pattern C2, records must reference what they describe (DR-27) ----
+        #
+        # A schema sees one record at a time, so a run naming a method nobody registered and an
+        # override naming a run that never happened both validate perfectly. These are the checks
+        # that read the register as a whole.
+        #
+        # The three seeded records are ONE CONSISTENT SET - the override names RUN-2026-000412,
+        # the run names METHOD-SEASONALITY-001 at 2.3.0 and carries OVR-20260001 back - so each
+        # probe below breaks exactly one edge and restores it.
+        run_record = gates / "governance" / "run-lineage" / "method-run-lineage.example.yaml"
+        method_record = (
+            gates / "governance" / "method-registry" / "method-registry-entry.example.yaml"
+        )
+        override_record = (
+            gates / "governance" / "overrides" / "override-record.approved.example.yaml"
+        )
+        run_src = run_record.read_text(encoding="utf-8")
+        method_src = method_record.read_text(encoding="utf-8")
+        override_src = override_record.read_text(encoding="utf-8")
+
+        result = gate_check(full_b)
+        check(
+            "the three worked records reference each other and pass",
+            "SP057" not in result.stdout and "SP058" not in result.stdout
+            and "record cross-references: 3 resolved" in result.stdout,
+            result.stdout[-500:],
+        )
+
+        for label, target, before, after in (
+            ("a method that is not registered at all", run_record,
+             "method_id: METHOD-SEASONALITY-001", "method_id: METHOD-NEVER-REGISTERED"),
+            ("a registered method at an unregistered version", run_record,
+             'method_version: "2.3.0"', 'method_version: "9.9.9"'),
+            ("an override nobody recorded", run_record,
+             "  - OVR-20260001", "  - OVR-99999999"),
+            ("a run that never happened", override_record,
+             "method_run_id: RUN-2026-000412", "method_run_id: RUN-2026-999999"),
+        ):
+            target.write_text(
+                (run_src if target is run_record else override_src).replace(before, after, 1),
+                encoding="utf-8")
+            result = gate_check(full_b)
+            check(
+                f"a record referencing {label} is rejected",
+                "SP057" in result.stdout,
+                result.stdout[-400:],
+            )
+            target.write_text(
+                run_src if target is run_record else override_src, encoding="utf-8")
+
+        # The version half of the method reference, asserted separately because matching on the
+        # id alone would have passed the second probe above and looked identical here.
+        result = gate_check(full_b)
+        check(
+            "and the restored set resolves again",
+            "SP057" not in result.stdout,
+            result.stdout[-300:],
+        )
+
+        # SP058: two records under one identity means every reference to it resolves to whichever
+        # was read last - the reference checks above become meaningless rather than wrong.
+        twin = gates / "governance" / "overrides" / "twin.yaml"
+        twin.write_text(override_src, encoding="utf-8")
+        subprocess.run(["git", "-C", str(gates), "add", "--",
+                        "governance/overrides/twin.yaml"], capture_output=True)
+        result = gate_check(full_b)
+        check(
+            "two records claiming one identity are rejected",
+            "SP058" in result.stdout,
+            result.stdout[-400:],
+        )
+        twin.write_text(
+            override_src.replace("application_id: example-forecast-service",
+                                 "application_id: some-other-application", 1)
+            .replace("override_id: OVR-20260001", "override_id: OVR-20260002", 1),
+            encoding="utf-8")
+        result = gate_check(full_b)
+        check(
+            "a record belonging to another application is rejected",
+            "SP058" in result.stdout,
+            result.stdout[-400:],
+        )
+        subprocess.run(["git", "-C", str(gates), "rm", "-q", "--cached", "--",
+                        "governance/overrides/twin.yaml"], capture_output=True)
+        twin.unlink()
+
+        # NEGATIVE CONTROL 1 - the conditionality. The same dangling reference must raise nothing
+        # when the register it points into is not declared, because obliging otherwise would make
+        # declaring one control silently require another.
+        run_record.write_text(
+            run_src.replace("method_id: METHOD-SEASONALITY-001",
+                            "method_id: METHOD-NEVER-REGISTERED", 1), encoding="utf-8")
+        undeclared = full_b.replace(
+            "  method_registry:\n    decision: required\n"
+            "    implementation_reference: governance/method-registry\n", "")
+        result = gate_check(undeclared)
+        check(
+            "a dangling reference into an undeclared register raises nothing",
+            "SP057" not in result.stdout,
+            result.stdout[-400:],
+        )
+        check(
+            "and the run says its references were not checked rather than staying silent",
+            "were not checked" in result.stdout,
+            result.stdout[-500:],
+        )
+        run_record.write_text(run_src, encoding="utf-8")
+
+        # NEGATIVE CONTROL 2 - no cascade. A record that failed its schema is excluded from the
+        # index, so one SP056 does not become a spray of SP057s about references that nothing was
+        # ever in a position to resolve.
+        method_record.write_text("schema_version: '1.0'\n", encoding="utf-8")
+        result = gate_check(full_b)
+        check(
+            "a schema-invalid record raises SP056 without an SP057 cascade",
+            "SP056" in result.stdout and "SP057" not in result.stdout,
+            result.stdout[-500:],
+        )
+        method_record.write_text(method_src, encoding="utf-8")
 
         # ---- F20 / DR-25: a pass must not read as verification ----
         #

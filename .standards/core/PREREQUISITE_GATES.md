@@ -300,6 +300,8 @@ catalogue and should be raised as a change to this standard.
 | `SP054` | A deferral or deferred gate has passed its `revisit_by`, or carries an unreadable one | Yes |
 | `SP055` | A record-based control names no register, or one that is missing, is a file, or holds untracked records | Yes |
 | `SP056` | A record in a declared register is unreadable or invalid against its schema | Yes |
+| `SP057` | A record references a method, run or override that is absent from the register it names | Yes |
+| `SP058` | Two records in one register claim the same identity, or a record carries another application's `application_id` | Yes |
 
 ## Worked examples
 
