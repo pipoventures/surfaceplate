@@ -72,7 +72,7 @@ an unknown number of releases with nothing noticing.
 | F5 | Three spellings of the organisation identifier; one does not resolve | medium | Closed — corrected, verified live |
 | F6 | Every integrity anchor sits inside the boundary being checked | high | **Open** |
 | F7 | `adoption.framework_digest` is never checked against anything | medium | Closed — `SP048`/`SP049`, `DR-14` |
-| F8 | The CI detector is inside the artefact it protects | medium | **Open** — documentation half discharged; remedy blocked (rulesets 403) |
+| F8 | The CI detector is inside the artefact it protects | medium | Closed — ruleset applied and demonstrated |
 | F9 | Remediation text names no pinned version | low | Closed — text scoped, installer reports upgrades |
 | F10 | The producer evidence record describes an artefact that no longer exists | medium | Closed — `DR-21` |
 | F11 | Nothing checks finding-code uniqueness or contiguity | low | Closed — `tests/check_code_registers.py` |
@@ -294,6 +294,48 @@ end state is all four status checks and a pull request required before merge on 
 That is a decision, not a control. This finding closes when the ruleset **exists and is shown to
 block a merge that fails a check** — not when it is configured. The gap between enabling something
 and demonstrating it is one this register has recorded repeatedly, most directly in `F13`.
+
+**Closed 2026-08-31, on demonstration.**
+
+`DR-23` was executed: surfaceplate is published at `github.com/pipoventures/surfaceplate`, and a
+ruleset `main-required-checks` targets the default branch. Read back from the API rather than
+trusted from the request that created it:
+
+- `enforcement: active`
+- **`bypass_actors: 0`** — nobody is exempt, including the maintainer
+- rules: `deletion`, `non_fast_forward`, `pull_request` (0 approvals), `required_status_checks`
+- contexts: `check`, `gitleaks`, `Contract and installer tests`, `Conformance check`
+- `strict_required_status_checks_policy: true`
+
+**Zero required approvals is deliberate, not an oversight.** A single maintainer cannot approve
+their own pull request, so requiring one would lock the repository rather than protect it. The
+control here is the checks; the pull request is what makes them run.
+
+**Demonstrated, twice, because a configured control is not a control:**
+
+| Probe | Result |
+|---|---|
+| Direct push to `main` | Refused — *"Changes must be made through a pull request"*, *"4 of 4 required status checks are expected"* |
+| Pull request with a deliberately corrupted manifest digest | `Contract and installer tests` **FAILURE**; merge refused — *"the base branch policy prohibits the merge"*; `main` unchanged |
+
+The probe branch was deleted immediately afterwards.
+
+**What this does and does not fix.** The finding was that the detector lives inside the artefact it
+protects — delete the workflow file and the check disappears. It now cannot: the requirement is held
+in the forge's settings, so deleting the workflow makes the merge impossible rather than making the
+check vanish. That is the structural change.
+
+**One limit, untested and stated rather than glossed.** Whether an explicit administrator override
+(`gh pr merge --admin`) is refused was **not** exercised. GitHub documents rulesets as binding
+administrators when the bypass list is empty, and the ordinary merge path *was* refused for the
+repository owner — but the override flag itself was not tried, because testing it would have meant
+merging a knowingly broken tree to a public branch to find out. Recorded as unverified rather than
+assumed either way. If it matters later, the safe test is a trivially revertible failure, not a
+corrupted manifest.
+
+**And what stays open regardless.** This protects *this* repository. It requires nothing of any
+adopting repository, which must apply its own ruleset. It also does nothing for `F6`: a ruleset
+stops the check being deleted; it does not give the check an anchor outside the repository.
 
 ---
 
