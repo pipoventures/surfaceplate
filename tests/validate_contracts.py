@@ -574,9 +574,25 @@ for bad in (
     assert_invalid("application-profile.schema.yaml", invalid)
 
 # The gate catalogue in the checker and the one in the standard must not drift apart.
+#
+# ANCHORED TO THE CATALOGUE BLOCK, not to a line shape. This originally matched every
+# four-space-indented `"key": "value"` line anywhere in the checker, which silently absorbed the
+# first unrelated module-level dict of that shape to be added - PATTERN_C_CONTROLS, in ACT-014.
+# It failed loudly that time, on the count, which is the only reason it was noticed. It does not
+# always: drop one gate and add a ONE-entry dict of the same shape and the count is 19 either way,
+# so the assertion passes while the set it iterates has silently lost a real gate and gained a
+# fake one. That was constructed and run, not reasoned about. A guard whose negative result does
+# not establish what it appears to is this project's most-repeated defect, and this was an
+# instance of it inside a guard. Recorded as F23.
 CHECKER = (ROOT / "scripts" / "check_conformance.py").read_text(encoding="utf-8")
 GATES_DOC = (ROOT / "core" / "PREREQUISITE_GATES.md").read_text(encoding="utf-8")
-catalogue_ids = re.findall(r'^    "([a-z0-9_]+)": "', CHECKER, re.MULTILINE)
+CATALOGUE_BLOCK = re.search(
+    r"^GATE_CATALOGUE: dict\[str, str\] = \{$(.*?)^\}$",
+    CHECKER,
+    re.MULTILINE | re.DOTALL,
+)
+assert CATALOGUE_BLOCK, "GATE_CATALOGUE is not where this guard expects it in the checker"
+catalogue_ids = re.findall(r'^    "([a-z0-9_]+)": "', CATALOGUE_BLOCK.group(1), re.MULTILINE)
 assert len(catalogue_ids) == 19, f"expected 19 catalogue gates, found {len(catalogue_ids)}"
 for gate_id in catalogue_ids:
     assert f"`{gate_id}`" in GATES_DOC, f"gate {gate_id} is not documented in PREREQUISITE_GATES.md"

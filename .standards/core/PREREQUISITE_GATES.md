@@ -298,6 +298,8 @@ catalogue and should be raised as a change to this standard.
 | `SP052` | `documentation_authority` is required without the `authority_map` gate | Yes |
 | `SP053` | A control's named CI step is missing, runs nothing, or cannot fail | Yes |
 | `SP054` | A deferral or deferred gate has passed its `revisit_by`, or carries an unreadable one | Yes |
+| `SP055` | A record-based control names no register, or one that is missing, is a file, or holds untracked records | Yes |
+| `SP056` | A record in a declared register is unreadable or invalid against its schema | Yes |
 
 ## Worked examples
 

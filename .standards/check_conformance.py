@@ -98,6 +98,10 @@ VERIFIED_CONTROLS: set[str] = {
     "assurance_findings",       # pattern A - SP051
     "deterministic_tests",      # pattern B - SP053
     "contract_tests",           # pattern B - SP053
+    "overrides",                # pattern C - SP055/SP056
+    "method_registry",          # pattern C - SP055/SP056
+    "run_lineage",              # pattern C - SP055/SP056
+    "provenance",               # pattern C - SP055/SP056
 }
 
 # The controls each level requires, mirroring core/CONFORMANCE_LEVELS.md. A level is a
@@ -865,6 +869,21 @@ PATTERN_A_CONTROLS: set[str] = {"dependency_lock", "assurance_findings"}
 # and can fail. DR-25's second pattern, reusing check_secret_hygiene's mechanism.
 PATTERN_B_CONTROLS: set[str] = {"deterministic_tests", "contract_tests"}
 
+# Controls verified by pattern C: the profile names a DIRECTORY of records, and the checker confirms
+# every record in it validates against the schema this framework ships for that type (DR-26).
+#
+# `provenance` and `run_lineage` share a record type deliberately. method-run-lineage already
+# requires input_references and input_hash, so traceability to inputs is a property of the same
+# record that carries reproducibility - DR-25 established that no separate provenance schema is
+# needed. They are two properties of one record, not two records. What separates the two CONTROLS
+# is which optional fields each obliges, and that is C2's work rather than this one's.
+PATTERN_C_CONTROLS: dict[str, str] = {
+    "overrides": "override-record.schema.yaml",
+    "method_registry": "method-registry-entry.schema.yaml",
+    "run_lineage": "method-run-lineage.schema.yaml",
+    "provenance": "method-run-lineage.schema.yaml",
+}
+
 
 def find_workflow_step(repo: Path, step_name: str) -> tuple[str | None, dict | None]:
     """Locate a named step across the repository's workflow files.
@@ -1136,6 +1155,189 @@ def check_control_implementations(
         else:
             notes.append(
                 "documentation_authority: verified via the authority_map gate"
+            )
+
+
+def check_pattern_c_controls(
+    repo: Path, profile: dict, findings: list[Finding], notes: list[str]
+) -> None:
+    """Verify that controls claiming pattern C name a register whose records validate (DR-26).
+
+    This closes the half of F20 that has been open since the architecture was written. A
+    repository could claim `full`, declare `provenance`, `run_lineage`, `method_registry` and
+    `overrides`, contain no records whatsoever, and draw no finding about any of them.
+
+    AN EMPTY REGISTER PASSES, AND THAT IS THE DESIGN RATHER THAN A HOLE IN IT. A validator that
+    demanded records would be a validator that rewarded inventing them, which is the one failure
+    this whole sequence is arranged to avoid: records are cheap and git-native, judgements are
+    where fabrication lives. So what a pass establishes here is "NO UNVALIDATED RECORD EXISTS IN
+    THIS REGISTER", never "records exist". core/CONFORMANCE_LEVELS.md says so in those words,
+    because a reader will otherwise infer the stronger claim from the same green line.
+
+    Nor does validity mean truth. A run-lineage record can name an input hash that was never
+    computed over anything, and it will validate. DR-25 records that boundary as permanent.
+    """
+    decisions = profile.get("control_decisions")
+    decisions = decisions if isinstance(decisions, dict) else {}
+
+    # One validator per SCHEMA rather than per control, because provenance and run_lineage share
+    # a record type and would otherwise parse and compile the same schema twice.
+    validators: dict[str, tuple[Any | None, str | None]] = {}
+
+    for control_id, schema_name in sorted(PATTERN_C_CONTROLS.items()):
+        entry = decisions.get(control_id)
+        if not isinstance(entry, dict) or entry.get("decision") != "required":
+            continue  # not required here; SP021/SP022 own whether it should have been
+
+        reference = entry.get("implementation_reference")
+        if not isinstance(reference, str) or not reference.strip():
+            findings.append(
+                Finding(
+                    "SP055",
+                    f"Control '{control_id}' is required but names no register",
+                    f"control_decisions.{control_id} has no implementation_reference, so there "
+                    f"is nowhere to look for the records it obliges.",
+                    "Add implementation_reference naming the directory that holds these records. "
+                    "An empty directory is acceptable and is the honest starting point; a "
+                    "directory that is not named at all is a control checked against nothing.",
+                    graceable=True,
+                )
+            )
+            continue
+
+        reference = reference.strip()
+        target = repo / reference
+
+        if target.is_file():
+            findings.append(
+                Finding(
+                    "SP055",
+                    f"Control '{control_id}' names a file where a register belongs",
+                    f"implementation_reference is {reference}, which is a file.",
+                    "Name the directory that holds the records. This control is satisfied by a "
+                    "register that grows, not by a single document.",
+                    graceable=True,
+                )
+            )
+            continue
+
+        if not target.is_dir():
+            findings.append(
+                Finding(
+                    "SP055",
+                    f"Control '{control_id}' names a register that does not exist",
+                    f"implementation_reference is {reference}, which is not present.",
+                    "Create the directory or correct the path. A reference that resolves to "
+                    "nothing is worse than none: it reads as evidence.",
+                    graceable=True,
+                )
+            )
+            continue
+
+        # Non-YAML files are ignored on purpose, so a register can carry a README explaining what
+        # it holds without the README being read as a malformed record.
+        records = sorted(target.glob("*.y*ml"))
+
+        # Tracked by git, asked PER RECORD rather than of the directory, and both halves of that
+        # matter. Git does not track empty directories, so demanding the directory be tracked
+        # would make an empty register impossible - forcing exactly the fabrication this control
+        # refuses to incentivise. And `ls-files --others --exclude-standard` was the first
+        # implementation here: it reports nothing for a register that is gitignored outright,
+        # which is the one case where every record is guaranteed to reach nobody. Asking
+        # --error-unmatch of each record answers the question actually being put.
+        if git_available(repo):
+            untracked = [
+                path.relative_to(repo).as_posix()
+                for path in records
+                if git(repo, "ls-files", "--error-unmatch", path.relative_to(repo).as_posix())[0]
+                != 0
+            ]
+            if untracked:
+                shown = ", ".join(untracked[:3])
+                more = f" (+{len(untracked) - 3} more)" if len(untracked) > 3 else ""
+                findings.append(
+                    Finding(
+                        "SP055",
+                        f"Control '{control_id}' names a register holding untracked records",
+                        f"{reference} contains untracked records: {shown}{more}.",
+                        "Commit them. A record present on one machine is not available to the "
+                        "reviewer, the auditor, or the next person.",
+                        graceable=True,
+                    )
+                )
+                continue
+
+        if validators.get(schema_name) is None:
+            validators[schema_name] = record_validator(
+                repo, f"{VENDOR_DIR}/schemas/{schema_name}"
+            )
+        validator, validator_error = validators[schema_name]
+
+        if validator is None:
+            # A negative result must establish that the observation succeeded. Falling silent here
+            # would report "no invalid records" from a look that could not have found one - and
+            # this is the exact handling SP043 already applies to gate exceptions.
+            findings.append(
+                Finding(
+                    "SP056",
+                    f"Control '{control_id}' could not be checked",
+                    validator_error or f"the validator for {schema_name} is unavailable",
+                    f"Restore {VENDOR_DIR}/schemas/{schema_name} and install jsonschema. Until "
+                    "then this control is unverified, which is not the same as satisfied.",
+                    graceable=True,
+                )
+            )
+            continue
+
+        invalid = False
+        for path in records:
+            rel = path.relative_to(repo).as_posix()
+            data, error = load_yaml(path)
+            if error:
+                findings.append(
+                    Finding(
+                        "SP056",
+                        f"Record '{rel}' is unreadable",
+                        error,
+                        "Correct or remove it. A record nobody can parse records nothing.",
+                        graceable=True,
+                    )
+                )
+                invalid = True
+                continue
+            errors = sorted(validator.iter_errors(data), key=lambda e: list(e.path))
+            if errors:
+                detail = "; ".join(
+                    f"{'/'.join(str(part) for part in e.path) or '(root)'}: {e.message}"
+                    for e in errors[:5]
+                )
+                findings.append(
+                    Finding(
+                        "SP056",
+                        f"Record '{rel}' is invalid for control '{control_id}'",
+                        detail,
+                        f"Correct it against {VENDOR_DIR}/schemas/{schema_name}, or move it to "
+                        "the register for the type it actually is.",
+                        graceable=True,
+                    )
+                )
+                invalid = True
+
+        if invalid:
+            continue
+
+        # The count is reported, and zero is reported as zero rather than as silence, so that
+        # "the register is clean" is distinguishable from "the register is empty" - the F3 defect
+        # in its natural habitat.
+        if records:
+            notes.append(
+                f"{control_id}: verified against {reference} "
+                f"({len(records)} record(s), all valid)"
+            )
+        else:
+            notes.append(
+                f"{control_id}: verified against {reference} (register is empty - this control "
+                f"establishes that nothing invalid is filed, not that anything is)"
             )
 
 
@@ -1718,8 +1920,18 @@ def commit_subject(repo: Path, sha: str) -> str:
     return out if code == 0 else sha[:8]
 
 
-def exception_validator(repo: Path) -> tuple[Any | None, str | None]:
-    schema, error = load_yaml(repo / EXCEPTION_SCHEMA_PATH)
+def record_validator(repo: Path, schema_rel: str) -> tuple[Any | None, str | None]:
+    """A schema validator for one installed record type.
+
+    Generalised from `exception_validator` when pattern C arrived (DR-26). Gate exceptions and
+    the four record-based controls are the same problem - a directory of YAML records validated
+    against a schema this framework ships - and a second loader would have been a second place
+    for the jsonschema-absent path to be got wrong.
+
+    The schema is read from the INSTALLED copy, whose integrity SP004/SP005 anchor, rather than
+    from wherever the checker happens to be running.
+    """
+    schema, error = load_yaml(repo / schema_rel)
     if error:
         return None, error
     try:
@@ -1733,6 +1945,10 @@ def exception_validator(repo: Path) -> tuple[Any | None, str | None]:
         ),
         None,
     )
+
+
+def exception_validator(repo: Path) -> tuple[Any | None, str | None]:
+    return record_validator(repo, EXCEPTION_SCHEMA_PATH)
 
 
 def validated_exception(
@@ -2523,6 +2739,7 @@ def run(repo: Path, today: _dt.date, no_grace: bool, staged: bool) -> int:
             exempt = placeholder_exemptions(repo, profile, findings, notes)
             check_control_implementations(repo, profile, findings, notes, exempt)
             check_pattern_b_controls(repo, profile, findings, notes)
+            check_pattern_c_controls(repo, profile, findings, notes)
             check_deferral_expiry(profile, findings, today, notes)
             check_pinned_identity(profile, record, findings)
             check_prerequisites(

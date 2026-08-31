@@ -58,8 +58,12 @@ history audit — whether anyone changed the gated paths while it was missing.
 | `documentation_authority` | The `authority_map` gate checks the artefact. `SP052` additionally requires that gate whenever the control is required, closing the seam a level being a floor rather than a ceiling would otherwise open |
 | `deterministic_tests` | `SP053` — `implementation_reference` names a CI step; the checker confirms it exists, runs something, and **can fail** |
 | `contract_tests` | `SP053`, same way |
+| `overrides` | `SP055`/`SP056` — `implementation_reference` names a register directory; every record in it must validate against `override-record.schema.yaml` |
+| `method_registry` | `SP055`/`SP056`, against `method-registry-entry.schema.yaml` |
+| `run_lineage` | `SP055`/`SP056`, against `method-run-lineage.schema.yaml` |
+| `provenance` | `SP055`/`SP056`, against the same record type as `run_lineage` |
 
-**`standard` is now fully checked**: every control it requires is verified rather than declared.
+**Every control this framework defines is now checked**, at every level. Nothing is declared-only.
 
 **A deferral now expires.** `SP031` has always required a deferred control or gate to carry a
 `revisit_by` date; `SP054` reads it. A date that has passed is a finding, a date within 30 days is
@@ -68,8 +72,23 @@ deferral would be permanent by accident. Gate exceptions are **not** covered: th
 only an optional creation date, so there is nothing declared to expire against, and inventing a
 lifetime would be this framework deciding on an adopter's behalf. See `F22`.
 
-**Currently declared only:** `provenance`, `run_lineage`, `method_registry`, `overrides` — the four
-record-based controls at `full`.
+**`full` is now fully checked too.** `provenance`, `run_lineage`, `method_registry` and `overrides`
+each name a **directory** in `implementation_reference`. `SP055` requires that directory to exist,
+to be a directory rather than a file, and to hold no untracked records; `SP056` requires every
+`.yaml` file in it to validate against the schema this framework ships for that record type —
+`override-record`, `method-registry-entry`, or `method-run-lineage` for both `run_lineage` and
+`provenance`, which are two properties of one record. Non-YAML files are ignored, so a register may
+carry a `README.md`.
+
+**An empty register passes, and that is a decision rather than a gap.** A check that demanded
+records would be a check that rewarded inventing them. So what a pass establishes here is that **no
+unvalidated record exists in that register** — never that records exist. If you have made no
+overrides, an empty overrides register is the correct and honest state, and it will stay correct
+until you make one.
+
+There is no live self-demonstration for this pattern. Surfaceplate sits at `standard`, has no
+material results, no governed methods and no overrides, so it declares none of these four. It is
+the first control in this framework proven only by fixture, and `DR-26` records that.
 
 **What being checked does and does not mean.** For `dependency_lock` it means a lock file is really
 there, tracked, and not a blank template. It does **not** mean the versions in it are the ones you
@@ -81,17 +100,28 @@ they assert anything at all — **a step running `true` would pass.** What it do
 failure this framework has already seen: a suite that runs, reports success and leaves the job green
 because its exit code was discarded.
 
-The checker reads a file's presence and shape, and a step's wiring. Never truthfulness.
+For the four record-based controls it means every record filed is well-formed and complete against
+its schema. It does **not** mean any record is **true**: a run-lineage record can carry an input
+hash computed over nothing at all, and it will validate. Nor does it mean the register is complete —
+nothing can tell you that a run happened and went unrecorded.
 
-This is recorded as finding `F20`, and `DR-25` decides the architecture that changes it: four
-patterns by which a control becomes provable, with `implementation_reference` naming where the
-control lives. Until a control appears in the *checked* list above, treat its presence in a level as
-an obligation the repository has accepted — not as something this framework has confirmed.
+The checker reads a file's presence and shape, a step's wiring, and a record's structure. Never
+truthfulness, and never completeness.
 
-**A limit that will remain after all of it is built.** Verification establishes that a record
-exists, is well-formed, is current, and is linked to what it describes. It never establishes that
-the record is **true**. Nothing here will check that a run happened the way its lineage record says
-it did.
+This was recorded as finding `F20` and is now closed. `DR-25` set out four patterns by which a
+control becomes provable, with `implementation_reference` naming where the control lives; `DR-26`
+completes the last of them. Every control is checked, so the list above is no longer partial.
+
+**A limit that remains now they are all built, stated more narrowly than it once was.**
+Verification establishes that a record exists, is well-formed, and is linked to what it describes.
+It never establishes that the record is **true**. Nothing here checks that a run happened the way
+its lineage record says it did.
+
+It does **not** establish that a record is *current* either, and that sentence used to appear here
+saying otherwise. None of the three record schemas carries an expiry or a review date —
+`method-registry-entry` has `revalidation_trigger`, but that is a free-text condition, not a
+deadline. There is nothing declared to check currency against, which is the same shape as the gate
+exceptions `F22` left open. `DR-25` is amended accordingly rather than corrected by a note.
 
 ## Levels
 
