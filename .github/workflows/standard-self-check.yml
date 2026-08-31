@@ -1,0 +1,135 @@
+name: Standard self-check
+
+# The standards repository must hold itself to the standard it publishes.
+#
+# Every check step carries `if: ${{ !cancelled() }}` so that a failure in one check does not
+# prevent the others from running. This is deliberate and is the remedy for F13: on 2026-08-30
+# `tests/check_identifiers.py` was found to have NEVER executed in CI since being added, because
+# an earlier step failed and Actions short-circuits the rest by default. Its conclusion was
+# recorded as `skipped`, which no summary distinguished from `passed`.
+#
+# It is NOT `continue-on-error`. That would mark a failed step as tolerated and turn the job
+# green over a real failure — weakening a control to obtain a pass. `!cancelled()` leaves every
+# step's own pass/fail intact and the job red if any check failed; it only removes the
+# short-circuit. The guard is on the CHECK steps only: checkout, Python and pip are
+# preconditions, and running a check without them would produce a meaningless result rather
+# than an honest one.
+#
+# The final step then verifies that each check actually ran, rather than assuming the guard
+# worked. A control that reports on itself is what F13 was about.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    name: Contract and installer tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install validation dependencies
+        run: python -m pip install --quiet --disable-pip-version-check pyyaml jsonschema
+
+      - name: Validate the control contracts
+        id: contracts
+        if: ${{ !cancelled() }}
+        run: python tests/validate_contracts.py
+
+      - name: Test the installer and the conformance checker end to end
+        id: installer
+        if: ${{ !cancelled() }}
+        run: python tests/test_install_and_check.py
+
+      - name: Verify the release manifest is current
+        id: manifest
+        if: ${{ !cancelled() }}
+        run: python scripts/build_release.py --verify-manifest
+
+      - name: Check organisation identifiers against their declared source of truth
+        id: identifiers
+        if: ${{ !cancelled() }}
+        run: python tests/check_identifiers.py
+
+      # F11's remedy. The registers declare a code space; nothing compared the declaration to
+      # the code that emits it, and on 2026-08-31 org/FINDINGS.md was carrying four false
+      # statements at once — each written by someone reading the file at the time.
+      - name: Check the identifier registers agree with reality
+        id: registers
+        if: ${{ !cancelled() }}
+        run: python tests/check_code_registers.py
+
+      # F12's remedy (ACT-003). The conformance step below runs the SOURCE checker; the hook
+      # and the installed workflow run the VENDORED one. That split is deliberate, but it only
+      # holds if the two copies are the same code — otherwise the two routes answer questions
+      # about two different checkers and nothing says so. Neither the integrity check nor
+      # --verify-manifest detects this; see the script's own header for why each looks as
+      # though it would.
+      - name: Check the vendored copy is current with source
+        id: vendored
+        if: ${{ !cancelled() }}
+        run: python tests/check_vendored_current.py
+
+      # Runs the SOURCE checker, not the vendored copy under .standards/.
+      #
+      # This is deliberate and is the mitigation for F12. The installed hook and the installed
+      # workflow both resolve `.standards/check_conformance.py` by path, so they exercise the
+      # frozen copy exactly as an adopter's would. Nothing else exercises the copy actually under
+      # development, which means a new finding code added to source could be violated here and
+      # reported as PASS by the vendored checker that cannot emit it. Two routes, two purposes,
+      # stated rather than accidental.
+      #
+      # This step returned WARN when it was added, because of F14 — SP032's placeholder
+      # detection could not tell a metavariable in prose from an unfilled template. That was
+      # fixed in DR-17 and the step now returns PASS. Note what the grace mechanism means
+      # here: graceable findings exit 0 until the window closes, so this step going green is
+      # not by itself evidence that nothing was found. Read the output, not the exit code.
+      - name: Check this repository against the standard it publishes
+        id: conformance
+        if: ${{ !cancelled() }}
+        run: python scripts/check_conformance.py --repo .
+
+      # F13 again, one level up: verify each check produced a result rather than trusting that it
+      # did. `skipped` and `success` are different things and must not summarise the same way.
+      # This step reads step outcomes through the environment rather than interpolating them into
+      # the script body, and has no `|| true` anywhere — an unreadable value must fail, not print
+      # a reassuring default.
+      - name: Confirm every check actually executed
+        if: ${{ !cancelled() }}
+        env:
+          OUTCOMES: >-
+            contracts=${{ steps.contracts.outcome }}
+            installer=${{ steps.installer.outcome }}
+            manifest=${{ steps.manifest.outcome }}
+            identifiers=${{ steps.identifiers.outcome }}
+            registers=${{ steps.registers.outcome }}
+            vendored=${{ steps.vendored.outcome }}
+            conformance=${{ steps.conformance.outcome }}
+        run: |
+          set -euo pipefail
+          status=0
+          for pair in $OUTCOMES; do
+            name=${pair%%=*}
+            outcome=${pair#*=}
+            case "$outcome" in
+              success)  echo "ran, passed : $name" ;;
+              failure)  echo "ran, FAILED : $name"; status=1 ;;
+              *)        echo "DID NOT RUN: $name (outcome='$outcome')"; status=1 ;;
+            esac
+          done
+          if [ "$status" -ne 0 ]; then
+            echo
+            echo "A check either failed or never produced a result. A check that did not run is"
+            echo "not a check that passed - see F13 in org/FINDINGS.md."
+          fi
+          exit "$status"

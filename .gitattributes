@@ -1,0 +1,6 @@
+# The release manifest records byte-level SHA-256 digests. If Git rewrote line
+# endings on checkout, a Windows clone would fail its own manifest verification.
+# Normalise to LF everywhere so a digest means the same thing on every machine.
+* text=auto eol=lf
+*.png binary
+*.zip binary

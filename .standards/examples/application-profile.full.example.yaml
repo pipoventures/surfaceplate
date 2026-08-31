@@ -1,0 +1,301 @@
+# GOLDEN EXAMPLE - conformance level `full`
+#
+# A complete, valid application profile for an application producing material
+# quantitative outputs relied upon outside the delivery team.
+# Asserted by tests/validate_contracts.py.
+#
+# Illustrative only. It is not a real adoption record and confers no approval.
+
+schema_version: "1.0"
+application_id: example-forecast-service
+display_name: Example Forecast Service
+owner: Named Owner
+stack:
+  language: Python
+  framework: FastAPI
+risk_profile: >-
+  Produces governed demand forecasts used in published operational plans.
+  Deterministic rule evaluation over versioned parameter data, with AI assistance confined
+  to implementation work and excluded from the calculation path.
+materiality_definition: >-
+  Any output that reaches a published plan, or that changes an approved forecast baseline,
+  is material. Unexpected deterministic output changes are an audit trigger.
+data_classification: confidential
+conformance_level: full
+
+adoption:
+  framework_version: 0.7.0
+  framework_digest: 1f895dd8f2646fabb878da01c83bd5aaabf1d0c2881661d00b1f06d9f5daec76
+  adoption_date: "2026-08-27"
+  review_by: "2027-02-23"             # 180 days on; the checker fails once this date passes
+  framework_maintainer: Named Maintainer
+  repository_classification: externally-published-output
+  decision_record_id: DR-0002
+  adoption_status: in_progress
+  status_rationale: >-
+    Method registry and run lineage are implemented; independent validation of the
+    approval-route logic is outstanding.
+  independent_validator: Named Independent Validator
+  deferrals: []
+
+baseline_controls:
+  agent_work_packets:
+    decision: required
+    rationale: All agent work is bounded, scoped, and reviewable.
+  actual_diff_review:
+    decision: required
+    rationale: Output-affecting changes require actual diff content.
+  secret_hygiene:
+    decision: required
+    rationale: Customer or personal data must not enter fixtures, logs, or examples.
+    scanner:
+      name: gitleaks
+      wired_in: [.github/workflows/secret-scan.yml]
+      notes: >-
+        Blocking, so a finding fails the build. A scan step that sets continue-on-error or
+        discards the scanner's exit code raises SP047: a scanner that cannot fail reports,
+        it does not gate.
+
+control_decisions:
+  deterministic_tests:
+    decision: required
+    rationale: Forecast outputs must be reproducible before they can be reviewed.
+  contract_tests:
+    decision: required
+    rationale: The API is consumed by a separate frontend and would break silently.
+  documentation_authority:
+    decision: required
+    rationale: Contradictory specification authority is treated as a blocking defect.
+  dependency_lock:
+    decision: required
+    rationale: Locked dependencies with an approved vulnerability check.
+  provenance:
+    decision: required
+    rationale: Every material figure must be traceable to its inputs and parameter version.
+  run_lineage:
+    decision: required
+    rationale: Material calculations must be reproducible from a recorded execution.
+  method_registry:
+    decision: required
+    rationale: Governed rules carry lifecycle, validation, and approval state.
+  overrides:
+    decision: required
+    rationale: A manual forecast adjustment must never be hidden in calculation code.
+  assurance_findings:
+    decision: required
+    rationale: Limitations are recorded rather than smoothed away.
+  x-example-forecast-service-approval-route:
+    decision: required
+    rationale: >-
+      Authority route derivation is application-specific and must bind an immutable
+      submitted snapshot to versioned approval policy.
+
+# Prerequisite gates: what this repository may not do yet. See core/PREREQUISITE_GATES.md.
+# At `full`, every catalogue gate must be decided one way or the other. Four are decided
+# `not_applicable` because this application has no user interface - which is a decision
+# the profile records, not a question it omits. Four more are decided `required` although
+# `full` does not demand them: a level is a floor, never a ceiling.
+builds_user_interface: false
+prerequisites:
+  # --- work and decisions ---
+  - id: work_registration
+    status: required
+    effective_from: "2026-08-27"
+    precondition:
+      artefacts: [docs/DEVELOPMENT_REGISTER.md]
+      description: A registered activity with an owner, a scope and an acceptance test.
+    gated_activity:
+      paths: ["src/**"]
+    enforcement: [history_audit, local_hook, review]
+
+  - id: work_contract
+    status: required
+    effective_from: "2026-08-27"
+    precondition:
+      artefacts: [docs/work-packets]
+      description: >-
+        A written work packet stating scope, constraints and acceptance criteria before
+        AI-assisted implementation begins. Unbounded agent work is not reviewable.
+    gated_activity:
+      paths: ["src/**"]
+    enforcement: [history_audit, review]
+
+  - id: risk_classification
+    status: required
+    effective_from: "2026-08-27"
+    precondition:
+      artefacts: [governance/risk-classification.yaml]
+      description: >-
+        The risk class of a change is decided before it is implemented. Classifying
+        afterwards rationalises the work that was already done.
+    gated_activity:
+      paths: ["src/forecast/**"]
+    enforcement: [history_audit, review]
+
+  - id: decision_before_implementation
+    status: required
+    effective_from: "2026-08-27"
+    precondition:
+      artefacts: [docs/decisions]
+      description: A decision record exists before a material change is implemented.
+    gated_activity:
+      paths: ["src/forecast/**", "src/approval/**"]
+    enforcement: [history_audit, review]
+
+  - id: register_currency
+    status: required
+    effective_from: "2026-08-27"
+    precondition:
+      artefacts: [docs/DEVELOPMENT_REGISTER.md]
+      description: The register and its generated views are current before handover.
+    gated_activity:
+      paths: ["docs/handover/**"]
+    enforcement: [history_audit, review]
+
+  # --- documentation authority ---
+  - id: authority_map
+    status: required
+    effective_from: "2026-08-27"
+    precondition:
+      artefacts: [governance/documentation-authority.yaml]
+      description: >-
+        A machine-readable map of which document governs which path. Without it,
+        "the documentation" is a claim rather than an addressable object.
+    gated_activity:
+      paths: ["docs/**", "src/**"]
+    enforcement: [history_audit, local_hook]
+
+  - id: authority_same_change
+    status: required
+    effective_from: "2026-08-27"
+    precondition:
+      artefacts: [governance/documentation-authority.yaml]
+      description: >-
+        A change to a governed path updates its controlling document in the same change,
+        not in a follow-up that never arrives.
+    gated_activity:
+      paths: ["src/forecast/**"]
+    enforcement: [history_audit, local_hook, review]
+
+  # --- tests and evidence ---
+  - id: test_convention
+    status: required
+    effective_from: "2026-08-27"
+    precondition:
+      artefacts: [docs/testing/TEST_CONVENTIONS.md]
+      description: A declared naming and location standard for tests.
+    gated_activity:
+      paths: ["tests/**"]
+    enforcement: [history_audit, local_hook]
+
+  - id: regression_before_merge
+    status: required
+    effective_from: "2026-08-27"
+    precondition:
+      artefacts: [docs/testing/REGRESSION_SUITES.md]
+      description: Named regression suites that must pass before critical logic merges.
+    gated_activity:
+      paths: ["src/forecast/**"]
+    enforcement: [history_audit, review]
+
+  - id: equivalence_evidence
+    status: required
+    effective_from: "2026-08-27"
+    precondition:
+      artefacts: [docs/testing/EQUIVALENCE_PROTOCOL.md]
+      description: >-
+        A protocol for demonstrating that a performance or refactoring change left
+        outputs unchanged. "It looked the same" is not evidence.
+    gated_activity:
+      paths: ["src/forecast/**"]
+    enforcement: [history_audit, review]
+
+  # --- data ---
+  - id: data_source_lifecycle
+    status: required
+    effective_from: "2026-08-27"
+    precondition:
+      artefacts: [governance/data-sources.yaml]
+      description: >-
+        A source carries validation and approval state before it can be selected. An
+        unapproved source that is merely present will eventually be used.
+    gated_activity:
+      paths: ["data/sources/**"]
+    enforcement: [history_audit, review]
+
+  - id: output_validation_before_external_use
+    status: required
+    effective_from: "2026-08-27"
+    precondition:
+      artefacts: [docs/OUTPUT_VALIDATION.md]
+      description: Generated outputs are validated and reviewed before leaving the team.
+    gated_activity:
+      paths: ["src/reporting/**"]
+    enforcement: [history_audit, review]
+
+  # --- dependencies and release ---
+  - id: dependency_output_delta
+    status: required
+    effective_from: "2026-08-27"
+    precondition:
+      artefacts: [docs/DEPENDENCY_REVIEW.md]
+      description: >-
+        A dependency change able to move outputs ships delta evidence and a review.
+        A lock file records what changed, not what it did.
+    gated_activity:
+      paths: ["requirements.txt", "requirements.lock"]
+    enforcement: [history_audit, review]
+
+  - id: records_before_release
+    status: required
+    effective_from: "2026-08-27"
+    precondition:
+      artefacts: [docs/RELEASE_CHECKLIST.md]
+      description: The records the risk class demands exist before release preparation.
+    gated_activity:
+      paths: ["release/**"]
+    enforcement: [history_audit, review]
+
+  - id: change_record_before_completion
+    status: required
+    effective_from: "2026-08-27"
+    precondition:
+      artefacts: [CHANGELOG.md]
+      description: A change is not complete until its change record exists.
+    gated_activity:
+      paths: ["src/**"]
+    enforcement: [history_audit, review]
+
+  # --- design and user interface ---
+  # This application is a headless API. The four interface gates are decided, not skipped.
+  - id: component_library
+    status: not_applicable
+    rationale: >-
+      The application exposes an HTTP API and renders nothing. The consuming frontend is
+      a separate repository which carries these gates in its own profile.
+  - id: design_authority
+    status: not_applicable
+    rationale: >-
+      No user interface is built here. See component_library.
+  - id: options_before_build
+    status: not_applicable
+    rationale: >-
+      This gate is scoped to designed surfaces, of which this application has none.
+      Design alternatives for calculation logic are handled by
+      decision_before_implementation instead.
+  - id: prerequisite_state_ui
+    status: not_applicable
+    rationale: >-
+      No screens exist, so no screen can present a workflow before its data is ready.
+
+human_roles:
+  - application owner
+  - method owner
+  - technical reviewer
+  - independent validator
+release_route: >-
+  Pull request review with actual-diff evidence, method-owner approval for calculation
+  changes, independent validation for material model changes, then release authorisation.
+exclusions:
+  - user-editable formula engine
+  - microservices unless justified

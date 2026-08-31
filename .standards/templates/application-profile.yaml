@@ -1,0 +1,108 @@
+# Application Profile TEMPLATE
+#
+# This template is a FILL-IN FORM. It intentionally does NOT validate against
+# schemas/application-profile.schema.yaml until every `replace-me` is replaced,
+# because a template that validated while still containing placeholders would let
+# an application adopt the framework without making a single decision.
+#
+# For complete, VALID reference instances see:
+#   examples/application-profile.essential.example.yaml
+#   examples/application-profile.full.example.yaml
+#
+# Those examples are asserted by tests/validate_contracts.py, so if the schema
+# changes and the examples are not updated, the build fails.
+#
+# Copy this file to the receiving repository's canonical governance location, e.g.
+#   config/governance/application-profile.yaml
+
+schema_version: "1.0"
+application_id: replace-me            # lowercase, digits, hyphen or underscore
+display_name: replace-me
+owner: replace-me                     # named human, not a team alias
+
+stack: {}                             # optional, free-form, purely descriptive
+
+risk_profile: describe intended use, uncertainty, and materiality
+materiality_definition: define which outputs or decisions are material
+data_classification: internal         # public | internal | confidential | restricted
+
+# See core/CONFORMANCE_LEVELS.md. The level determines which controls below must be
+# decided `required`. This is a human decision, not derived from the stack.
+conformance_level: essential          # essential | standard | full
+
+# Adoption identity. Mandated by SETUP_GUIDE.md Step 1 and the Definition of Done.
+# Recorded here, rather than only in a free-text decision record, so that adoption
+# state is machine-queryable across a portfolio of applications.
+adoption:
+  framework_version: replace-me       # e.g. 0.7.0
+  framework_digest: replace-me        # SHA-256 (64 hex chars) of the pinned release archive
+  adoption_date: replace-me           # YYYY-MM-DD
+  review_by: replace-me               # YYYY-MM-DD - when a human must re-read this profile.
+                                      # 180 days is the suggested interval; 400 is the maximum
+                                      # the checker will accept. Once it passes, the check fails.
+  framework_maintainer: replace-me    # named change authority
+  repository_classification: replace-me
+  decision_record_id: replace-me      # ID of the adoption decision record
+  adoption_status: in_progress        # in_progress | complete | blocked | deferred
+  # status_rationale is REQUIRED when adoption_status is blocked or deferred
+  independent_validator: null         # name, or null where Level 3 review does not apply
+  deferrals: []                       # every control decided `deferred` should appear here
+
+# These three cannot be excluded, deferred, or omitted at any conformance level.
+baseline_controls:
+  agent_work_packets:
+    decision: required
+    rationale: bounded work must be reviewable
+  actual_diff_review:
+    decision: required
+    rationale: material changes require actual content review
+  secret_hygiene:
+    decision: required
+    rationale: secrets and sensitive data must not enter uncontrolled storage
+
+# Keys must be a known control ID or a namespaced `x-<application-id>-<control>`.
+# Valid known IDs: deterministic_tests, contract_tests, provenance, run_lineage,
+# method_registry, overrides, assurance_findings, dependency_lock,
+# documentation_authority
+control_decisions:
+  dependency_lock:
+    decision: required
+    rationale: replace-me - explain why this control is required for this application
+
+# Prerequisite gates: rules of the shape "X must exist before Y may begin".
+# control_decisions above describe what this repository DOES. These describe what it
+# may NOT DO YET. See core/PREREQUISITE_GATES.md for the 19-gate catalogue.
+#
+# `essential` requires work_registration. `standard` and `full` require more, and also
+# require every catalogue gate to be DECLARED - required, deferred or not_applicable,
+# each with a reason. `not_applicable` is a legitimate answer; silence is not.
+#
+# A gate decided `required` is checked against git history from its effective_from date:
+# any commit since then that touched a gated path while a precondition artefact was
+# absent is reported. effective_from cannot be moved forward once recorded.
+#
+# builds_user_interface is NOT descriptive. It decides whether the four interface gates
+# are a floor at `standard` and `full`. Answer it honestly; a reviewer can falsify a
+# wrong answer in seconds.
+builds_user_interface: replace-me     # true | false
+prerequisites:
+  - id: work_registration
+    status: required
+    effective_from: replace-me        # YYYY-MM-DD - the date this gate starts binding.
+                                      # Use your adoption date. History before it is out
+                                      # of scope; that is what makes adoption possible
+                                      # without rewriting the past.
+    precondition:
+      artefacts: [replace-me]         # e.g. docs/DEVELOPMENT_REGISTER.md
+      description: replace-me - what must exist first, and why
+    gated_activity:
+      paths: [replace-me]             # e.g. "src/**" - git pathspecs
+      description: replace-me - what may not proceed until then
+    enforcement: [history_audit, review]
+
+human_roles: []
+release_route: describe human and platform release controls
+exclusions:
+  - generic plugin framework unless justified
+  - microservices unless justified
+  - workflow engine unless justified

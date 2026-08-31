@@ -1,0 +1,117 @@
+# GOLDEN EXAMPLE - conformance level `essential`
+#
+# A complete, valid application profile for a demonstrator whose outputs are not
+# relied upon outside the delivery team. Asserted by tests/validate_contracts.py.
+#
+# Illustrative only. It is not a real adoption record and confers no approval.
+
+schema_version: "1.0"
+application_id: example-demonstrator
+display_name: Example Demonstrator
+owner: Named Owner
+stack:
+  language: TypeScript
+  framework: React
+risk_profile: >-
+  Frontend-only demonstrator driven by preloaded static fixtures. No live customer data,
+  no runtime AI, no quantitative calibration. Outputs illustrate a workflow and are not
+  relied upon for any external conclusion.
+materiality_definition: >-
+  No output is material while the application remains fixture-driven and internal. Any
+  change introducing live data or an externally-facing quantitative output raises the
+  conformance level and requires a new adoption decision.
+data_classification: internal
+conformance_level: essential
+
+adoption:
+  framework_version: 0.7.0
+  framework_digest: 1f895dd8f2646fabb878da01c83bd5aaabf1d0c2881661d00b1f06d9f5daec76
+  adoption_date: "2026-08-27"
+  review_by: "2027-02-23"             # 180 days on; the checker fails once this date passes
+  framework_maintainer: Named Maintainer
+  repository_classification: internal-demonstrator
+  decision_record_id: DR-0001
+  adoption_status: in_progress
+  independent_validator: null
+  deferrals:
+    - control_id: run_lineage
+      rationale: >-
+        No runs are executed; the application renders preloaded fixtures. Lineage would
+        record nothing and would create the appearance of provenance where none exists.
+      owner: Named Owner
+      revisit_by: "2027-03-31"
+
+baseline_controls:
+  agent_work_packets:
+    decision: required
+    rationale: All agent work is bounded and reviewable.
+  actual_diff_review:
+    decision: required
+    rationale: Material changes require actual diff content, not a file list.
+  secret_hygiene:
+    decision: required
+    rationale: No secrets or customer data may enter the repository or fixtures.
+    scanner:
+      name: gitleaks
+      wired_in: [.github/workflows/secret-scan.yml]
+      notes: >-
+        The scanner is the adopting repository's own choice; this standard ships none and
+        takes no position on which tool. What SP046 and SP047 verify is that one is named
+        and wired somewhere that can fail - never that no secrets are present.
+
+control_decisions:
+  dependency_lock:
+    decision: required
+    rationale: Supply-chain exposure exists regardless of output materiality.
+  run_lineage:
+    decision: deferred
+    rationale: See adoption.deferrals - no runs are executed in this application.
+
+# Prerequisite gates: what this repository may not do yet. See core/PREREQUISITE_GATES.md.
+# `essential` requires only work_registration to be decided `required`, and does not
+# require every catalogue gate to be declared. This profile adds design_authority because
+# the application has a user interface.
+builds_user_interface: true
+prerequisites:
+  - id: work_registration
+    status: required
+    effective_from: "2026-08-27"
+    precondition:
+      artefacts: [docs/DEVELOPMENT_REGISTER.md]
+      description: An identified, registered activity with an owner and an acceptance test.
+    gated_activity:
+      paths: ["src/**"]
+      description: Implementation work in the application source tree.
+    enforcement: [history_audit, review]
+
+  - id: design_authority
+    status: required
+    effective_from: "2026-08-27"
+    precondition:
+      artefacts:
+        - docs/design/DESIGN_POLICY.md
+        - docs/design/page-templates
+      description: >-
+        A written design policy and a set of page templates. Screens are composed from
+        templates and library components; they are not invented one at a time.
+    gated_activity:
+      paths: ["src/pages/**", "src/components/**"]
+      description: Any user interface code.
+    enforcement: [history_audit, review]
+
+  - id: options_before_build
+    status: deferred
+    rationale: >-
+      The demonstrator reproduces an already-agreed workflow, so there are no design
+      options to weigh. This becomes required if the application is extended beyond the
+      agreed workflow.
+    owner: Named Owner
+    revisit_by: "2027-03-31"
+
+human_roles:
+  - application owner
+  - technical reviewer
+release_route: Pull request review, then internal demonstration only. No production route.
+exclusions:
+  - runtime AI unless justified
+  - microservices unless justified

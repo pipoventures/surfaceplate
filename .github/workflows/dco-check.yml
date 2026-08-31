@@ -1,0 +1,23 @@
+name: DCO Check
+
+# Enforces the Developer Certificate of Origin (DCO) sign-off on pull requests.
+# See CONTRIBUTING.md. Mario's own commits are exempted by author email so this
+# never adds friction to his direct-push workflow as sole committer, and would
+# not block a PR he happens to open against himself either.
+
+on:
+  pull_request:
+
+permissions: {}
+
+jobs:
+  check:
+    permissions:
+      contents: read
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: KineticCafe/actions-dco@5f160e3ee086af8fc0fb567b8add0937d074123e # v3.2.0
+        with:
+          config: |
+            exempt-authors = ["mario@pipoventures.com"]

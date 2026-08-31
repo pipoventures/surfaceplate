@@ -1,0 +1,98 @@
+# Authority map — which document governs which path.
+#
+# Required by the `authority_map` prerequisite gate, which is a floor at `standard`:
+# "A machine-readable map of which document governs which path must exist."
+# core/PREREQUISITE_GATES.md notes why it comes first: without the map, "the
+# documentation" is a claim rather than an addressable object, and
+# `authority_same_change` has nothing to check against.
+#
+# Read this as: if you change a path in `paths`, the document in `governed_by` is the
+# one that says what may and may not be done there, and is the one to update if the
+# change alters the rule rather than merely following it.
+#
+# Where two entries could match, the more specific path wins.
+
+schema_version: "1.0"
+
+authorities:
+  - paths: ["core/**"]
+    governed_by: core/CONTROL_PRINCIPLES.md
+    note: >-
+      The twelve control principles are the root authority for everything in core/.
+      A change to a core document that contradicts a principle changes the principle,
+      and that is a decision record, not an edit.
+
+  - paths: ["schemas/**", "examples/**", "templates/**"]
+    governed_by: NAMESPACE.md
+    note: >-
+      NAMESPACE.md is the declared source of truth for schema identity and states the
+      procedure for changing the base. tests/validate_contracts.py derives the expected
+      namespace from it rather than holding a copy, per DR-6.
+
+  - paths: ["scripts/check_conformance.py"]
+    governed_by: core/PREREQUISITE_GATES.md
+    note: >-
+      The checker's gate catalogue and the catalogue in the standard must not drift
+      apart; tests/validate_contracts.py cross-checks them. The document is the
+      authority and the code follows it.
+
+  - paths: ["scripts/install_standard.py"]
+    governed_by: INSTALL.md
+    note: >-
+      INSTALL.md states what an adopting repository receives and what installing costs.
+      It is the adopter-facing contract the installer must keep.
+
+  - paths: ["scripts/build_release.py", "scripts/verify_release.py", "MANIFEST.sha256"]
+    governed_by: org/decisions/DR-16.md
+    note: >-
+      DR-16 governs what the release payload contains, including the exclusion of files
+      the installer writes. DR-14 governs what an adopter pins to and is decided but not
+      implemented; when it is, it becomes a second authority over these paths.
+
+  - paths: ["standard/**"]
+    governed_by: INSTALL.md
+    note: >-
+      Everything under standard/ is installed verbatim into an adopting repository.
+      INSTALL.md is the table of what they receive; RECONCILIATION.md governs the case
+      where an adopter already has files at those paths.
+
+  - paths: ["org/decisions/**"]
+    governed_by: org/decisions/README.md
+    note: >-
+      The index states the numbering convention (sequential decision-record numbers, never
+      reused), the decision-maker convention, and which records are frozen as historical.
+
+  - paths: ["org/FINDINGS.md"]
+    governed_by: org/FINDINGS.md
+    note: >-
+      Self-governing by design. The file states its own numbering convention and the
+      rule that findings originating elsewhere keep their original codes and are cited
+      document-qualified rather than renumbered.
+
+  - paths: ["activity/**"]
+    governed_by: standard/.github/instructions/activity.instructions.md
+    note: >-
+      The activity instruction file is the standard's own rule for what a register entry
+      must carry and when it must be updated. This repository is bound by it in the same
+      way an adopter is.
+
+  - paths: ["governance/**"]
+    governed_by: schemas/application-profile.schema.yaml
+    note: >-
+      The application profile's shape is the schema's to define; its content is a human
+      declaration. core/CONFORMANCE_LEVELS.md governs which controls the declared level
+      obliges, and core/PREREQUISITE_GATES.md governs the gate declarations.
+
+  - paths: [".github/workflows/**"]
+    governed_by: org/decisions/DR-13.md
+    note: >-
+      DR-13 gates implementation on self-conformance and records the open question about
+      whether this repository's CI fails on its own non-conformance. Changes to what CI
+      runs are answers to that question and belong with it.
+
+  - paths: ["README.md", "INSTALL.md", "SECURITY.md", "CONTRIBUTING.md", "SETUP_GUIDE.md"]
+    governed_by: README.md
+    note: >-
+      Adopter-facing prose. README.md's "How enforcement actually works" is the claim the
+      others must not exceed; the standing copy constraint applies here most sharply,
+      because these are the surfaces a stranger reads first.

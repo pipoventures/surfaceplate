@@ -1,0 +1,39 @@
+# GOLDEN EXAMPLE - approved override record
+#
+# A complete, valid override record. Asserted by tests/validate_contracts.py.
+# Illustrative only. It is not a real override and confers no approval.
+#
+# For the fill-in form see templates/override-record.yaml.
+
+schema_version: "1.0"
+override_id: OVR-20260001
+application_id: example-forecast-service
+method_run_id: RUN-2026-000412
+classification: parameter_override
+affected_method: METHOD-SEASONALITY-001
+affected_scope: calculation
+original_value: 0.185
+override_value: 0.16
+description: >-
+  Seasonality factor reduced for one region after a recorded data-quality defect in the
+  prior-year baseline.
+rationale: >-
+  The baseline series for this region contained a known duplication, corrected upstream but
+  not yet reflected in the fitted factor. The default factor remains unchanged; the
+  adjustment applies to this region only.
+evidence_reference: decision/data-quality-2026-0001
+calculation_impact: Reduces the seasonality multiplier applied to the affected region.
+output_impact: Reduces the forecast volume for the affected region.
+materiality: high
+approval_required: true
+approval_status: approved
+owner: Named Owner
+reviewer_or_approver: Named Approver
+approval_evidence_reference: approval:decision-2026-0001
+approval_at: "2026-08-27T10:15:00Z"
+created_at: "2026-08-27T09:00:00Z"
+review_or_expiry_trigger: "2026-12-31"
+closure_condition: Superseded once the factor is refitted on the corrected baseline.
+rollback_approach: >-
+  Remove the override record and re-run the affected calculation against the default
+  factor version.

@@ -1,0 +1,76 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: urn:pipo-ventures:surfaceplate:0.7.0:override-record.schema.yaml
+title: Override Record
+type: object
+additionalProperties: false
+required: [schema_version, override_id, application_id, method_run_id, classification, affected_method, affected_scope, original_value, override_value, description, rationale, evidence_reference, calculation_impact, output_impact, materiality, approval_required, approval_status, owner, created_at, review_or_expiry_trigger, closure_condition, rollback_approach]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  override_id: {type: string, pattern: "^OVR-[0-9]+$"}
+  application_id: {type: string, minLength: 1}
+  method_run_id: {type: string, minLength: 1}
+  classification:
+    type: string
+    enum: [data_override, parameter_override, proxy_override, dq_override, exclusion_override, reporting_override, methodology_exception, operational_note]
+  affected_method: {type: string, minLength: 1}
+  affected_scope: {type: string, minLength: 1}
+  original_value: {}
+  override_value: {}
+  description: {type: string, minLength: 1}
+  rationale: {type: string, minLength: 1}
+  evidence_reference: {type: string, minLength: 1}
+  calculation_impact: {type: string, minLength: 1}
+  output_impact: {type: string, minLength: 1}
+  materiality: {type: string, enum: [low, medium, high, none]}
+  approval_required: {type: boolean}
+  approval_status: {type: string, enum: [pending, approved, rejected, not_required]}
+  owner: {type: string, minLength: 1}
+  reviewer_or_approver: {type: [string, 'null']}
+  approval_evidence_reference: {type: [string, 'null'], pattern: "^approval[:/].+"}
+  approval_at: {type: [string, 'null'], format: date-time}
+  created_at: {type: string, format: date-time}
+  review_or_expiry_trigger: {type: string, minLength: 1}
+  closure_condition: {type: string, minLength: 1}
+  rollback_approach: {type: string, minLength: 1}
+allOf:
+  - if:
+      properties:
+        calculation_impact: {not: {const: none}}
+    then:
+      properties: {approval_required: {const: true}}
+  - if:
+      properties: {output_impact: {not: {const: none}}}
+    then:
+      properties: {approval_required: {const: true}}
+  - if:
+      properties: {materiality: {enum: [medium, high]}}
+    then:
+      properties: {approval_required: {const: true}}
+  - if:
+      properties: {classification: {const: methodology_exception}}
+    then:
+      properties: {approval_required: {const: true}}
+  - if:
+      properties: {approval_status: {enum: [approved, rejected]}}
+    then:
+      required: [reviewer_or_approver]
+      properties:
+        approval_required: {const: true}
+        reviewer_or_approver: {type: string, minLength: 1}
+  - if:
+      properties: {approval_status: {const: approved}}
+    then:
+      required: [approval_evidence_reference, approval_at]
+      properties:
+        approval_evidence_reference: {type: string, pattern: "^approval[:/].+"}
+        approval_at: {type: string, format: date-time}
+  - if:
+      properties: {approval_required: {const: false}}
+    then:
+      properties:
+        approval_status: {const: not_required}
+        reviewer_or_approver: {type: 'null'}
+  - if:
+      properties: {approval_required: {const: true}}
+    then:
+      properties: {approval_status: {enum: [pending, approved, rejected]}}

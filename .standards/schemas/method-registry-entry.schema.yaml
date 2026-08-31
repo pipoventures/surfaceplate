@@ -1,0 +1,132 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: urn:pipo-ventures:surfaceplate:0.7.0:method-registry-entry.schema.yaml
+title: Method Registry Entry
+type: object
+additionalProperties: false
+required:
+  - schema_version
+  - method_id
+  - method_version
+  - method_kind
+  - name
+  - intended_use
+  - owner
+  - lifecycle_status
+  - validation_status
+  - approval_status
+  - input_contracts
+  - output_contracts
+  - assurance_evidence
+properties:
+  schema_version: {type: string, const: "1.0"}
+  method_id: {type: string, minLength: 1}
+  method_version: {type: string, minLength: 1}
+  method_kind:
+    type: string
+    enum: [deterministic_method, quantitative_model, ai_reasoning, external_service, rule, transformation, human_judgement]
+  name: {type: string, minLength: 1}
+  intended_use: {type: string, minLength: 1}
+  owner: {type: string, minLength: 1}
+  lifecycle_status:
+    type: string
+    enum: [draft, in_development, in_review, active, superseded, retired]
+  validation_status:
+    type: string
+    enum: [not_started, partial, passed, passed_with_conditions, failed, expired, not_applicable]
+  approval_status:
+    type: string
+    enum: [not_requested, pending, approved, approved_with_conditions, rejected, withdrawn]
+  implementation_revision: {type: string}
+  input_contracts: {type: array, items: {type: string}}
+  output_contracts: {type: array, items: {type: string}}
+  data_dependencies: {type: array, items: {type: string}}
+  configuration_dependencies: {type: array, items: {type: string}}
+  assumptions: {type: array, items: {type: string}}
+  limitations: {type: array, items: {type: string}}
+  dependencies: {type: array, items: {type: string}}
+  assurance_evidence:
+    type: array
+    items: {$ref: '#/$defs/assurance_evidence'}
+  findings: {type: array, items: {type: string}}
+  revalidation_trigger: {type: string}
+allOf:
+  - if:
+      properties: {validation_status: {const: passed}}
+    then:
+      properties:
+        assurance_evidence:
+          contains:
+            type: object
+            properties:
+              evidence_type:
+                enum: [test, benchmark, sensitivity, technical_review, independent_validation]
+              outcome:
+                const: passed
+            required: [evidence_type, outcome]
+  - if:
+      properties: {approval_status: {const: approved}}
+    then:
+      properties:
+        assurance_evidence:
+          contains:
+            type: object
+            properties:
+              evidence_type: {const: approval}
+              outcome: {const: passed}
+            required: [evidence_type, outcome]
+  - if:
+      properties: {validation_status: {const: passed_with_conditions}}
+    then:
+      properties:
+        assurance_evidence:
+          contains:
+            type: object
+            properties:
+              evidence_type:
+                enum: [test, benchmark, sensitivity, technical_review, independent_validation]
+              outcome:
+                enum: [passed_with_conditions, accepted_with_limitation]
+            required: [evidence_type, outcome]
+  - if:
+      properties: {approval_status: {const: approved_with_conditions}}
+    then:
+      properties:
+        assurance_evidence:
+          contains:
+            type: object
+            properties:
+              evidence_type: {const: approval}
+              outcome: {const: passed_with_conditions}
+            required: [evidence_type, outcome]
+$defs:
+  assurance_evidence:
+    type: object
+    additionalProperties: false
+    required: [schema_version, evidence_id, evidence_type, outcome, reviewer_role, reviewer_identity, reviewed_at, scope, reference]
+    properties:
+      schema_version: {type: string, const: "1.0"}
+      evidence_id: {type: string, minLength: 1}
+      evidence_type:
+        type: string
+        enum: [test, benchmark, sensitivity, technical_review, independent_validation, approval, release_check]
+      outcome: {type: string, enum: [passed, passed_with_conditions, failed, accepted_with_limitation]}
+      reviewer_role: {type: string, minLength: 1}
+      reviewer_identity: {type: string, minLength: 1}
+      reviewed_at: {type: string, format: date-time}
+      scope: {type: string, minLength: 1}
+      reference: {type: string, minLength: 1}
+      limitations: {type: array, items: {type: string}}
+      independence_basis: {type: string}
+    allOf:
+      - if:
+          properties: {evidence_type: {const: independent_validation}}
+        then:
+          required: [independence_basis]
+          properties: {independence_basis: {type: string, minLength: 1}}
+      - if:
+          properties:
+            outcome: {enum: [passed_with_conditions, accepted_with_limitation]}
+        then:
+          required: [limitations]
+          properties:
+            limitations: {type: array, minItems: 1, items: {type: string, minLength: 1}}

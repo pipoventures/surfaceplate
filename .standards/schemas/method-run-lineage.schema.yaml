@@ -1,0 +1,68 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: urn:pipo-ventures:surfaceplate:0.7.0:method-run-lineage.schema.yaml
+title: Method Run Lineage
+type: object
+additionalProperties: false
+required:
+  - schema_version
+  - run_id
+  - application_id
+  - method_id
+  - method_version
+  - method_kind
+  - started_at
+  - run_status
+  - materiality
+  - input_references
+  - output_references
+properties:
+  schema_version: {type: string, const: "1.0"}
+  run_id: {type: string, minLength: 1}
+  application_id: {type: string, minLength: 1}
+  method_id: {type: string, minLength: 1}
+  method_version: {type: string, minLength: 1}
+  method_kind:
+    type: string
+    enum: [deterministic_method, quantitative_model, ai_reasoning, external_service, rule, transformation, human_judgement]
+  input_references: {type: array, minItems: 1, items: {type: string}}
+  input_hash: {type: string, pattern: "^[0-9a-fA-F]{64}$"}
+  implementation_revision: {type: string, minLength: 1}
+  configuration_version: {type: string, minLength: 1}
+  configuration_hash: {type: string, pattern: "^[0-9a-fA-F]{64}$"}
+  ai_provider: {type: string, minLength: 1}
+  ai_model: {type: string, minLength: 1}
+  prompt_version: {type: string, minLength: 1}
+  started_at: {type: string, format: date-time}
+  completed_at: {type: string, format: date-time}
+  run_status:
+    type: string
+    enum: [queued, running, completed, completed_with_warnings, blocked, failed, cancelled]
+  materiality:
+    type: string
+    enum: [low, medium, high, none]
+  output_references: {type: array, items: {type: string}}
+  output_hash: {type: string, pattern: "^[0-9a-fA-F]{64}$"}
+  overrides: {type: array, items: {type: string}}
+  human_decisions: {type: array, items: {type: string}}
+  findings: {type: array, items: {type: string}}
+  error_summary: {type: string}
+allOf:
+  - if:
+      properties:
+        run_status: {enum: [completed, completed_with_warnings]}
+    then:
+      required: [completed_at, input_hash, implementation_revision, configuration_version, configuration_hash, output_hash, output_references]
+      properties:
+        output_references: {minItems: 1}
+  - if:
+      properties:
+        method_kind: {const: ai_reasoning}
+        run_status: {enum: [completed, completed_with_warnings]}
+    then:
+      required: [ai_provider, ai_model, prompt_version]
+  - if:
+      properties:
+        materiality: {enum: [medium, high]}
+        run_status: {enum: [completed, completed_with_warnings]}
+    then:
+      required: [input_hash, implementation_revision, configuration_hash, output_hash]

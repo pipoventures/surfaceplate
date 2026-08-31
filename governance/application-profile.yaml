@@ -1,0 +1,404 @@
+# Application Profile — surfaceplate
+#
+# This repository publishes the standard this profile declares against. It is bound by it
+# in the same way an adopting repository is: DR-13 gates all further implementation on
+# this repository conforming to what it publishes, and DR-16 records how the publisher
+# does that without packaging its own installed copy.
+#
+# Nothing here is a special case. The only publisher-specific arrangement is a build
+# setting in scripts/build_release.py, which no adopter runs.
+
+schema_version: "1.0"
+application_id: surfaceplate
+display_name: Surfaceplate
+owner: Mario Pipo
+
+stack:
+  language: Python 3.9+
+  runtime_dependencies: [PyYAML, jsonschema]
+  interface: command-line scripts only; no service, no database, no user interface
+
+risk_profile: >-
+  A governance framework installed into other repositories. It produces no numerical or
+  model output. Its material risk is not computational: it is that a repository is
+  described as conformant when it is not, or that a control is described as stronger
+  than it is. The framework's own README states the honest ceiling — detection, not
+  prevention — and the standing copy constraint exists to keep it there.
+materiality_definition: >-
+  Material means any change that alters what the framework claims about itself or about
+  an adopting repository: the conformance checker's behaviour, the schemas, the gate
+  catalogue, the install payload, or adopter-facing prose describing what is checked.
+  A change to internal tests or to a decision record's prose is not material by itself.
+data_classification: internal
+
+# See core/CONFORMANCE_LEVELS.md. A level is a floor, not a ceiling.
+#
+# `standard`, decided in the work packet for DR-13 item 0 and recorded here so the
+# judgement is reviewable rather than asserted:
+#
+#   `essential` is disqualified because it alone omits the full catalogue declaration.
+#   The publisher of a 19-gate catalogue cannot decline to state its position on its own
+#   gates; declaring one and staying silent on eighteen would be the exact defect this
+#   framework exists to catch.
+#
+#   `full` would require controls designed for applications producing material
+#   quantitative or AI outputs — provenance, run_lineage, method_registry, overrides.
+#   This repository produces none. Adopting them to look rigorous would breach
+#   core/CONTROL_PRINCIPLES.md principle 12, which requires deferring controls that do
+#   not reduce a demonstrated risk.
+#
+#   Where a `full` control is already met in substance it is recorded as met below
+#   rather than claimed as absent — see assurance_findings.
+conformance_level: standard
+
+adoption:
+  framework_version: 0.16.0
+  # DR-14's anchor, now implemented: sha256 of the MANIFEST.sha256 of the tree this
+  # repository installed from. It replaces the release archive's digest, which could not
+  # serve as a pin because build_release.py embeds file mtimes in the zip - so nobody,
+  # including the maintainer, could recompute the value they had recorded.
+  #
+  # SP049 now checks this against .standards/INSTALL.json. Two things worth knowing:
+  #
+  # It records the manifest of the tree installed FROM, which is a historical fact, not a
+  # live invariant. It does not track later edits to this working tree, and is not supposed
+  # to - an adopter's anchor does not track the framework's future changes either.
+  #
+  # For this repository specifically the two coincide, because it installs into itself, and
+  # this profile is inside the tree its own manifest covers. So the value below can never
+  # equal sha256 of the CURRENT MANIFEST.sha256: writing it changes the manifest. That is
+  # not a defect in the anchor, it is the publisher's self-installation showing through -
+  # the same self-reference F6 records structurally.
+  #
+  # Operational consequence, so it is not rediscovered each time: after re-running the
+  # installer against this repository, this value must be re-read from
+  # .standards/INSTALL.json. SP049 fails loudly if it is not, which is the intended
+  # behaviour. An adopter meets the same step only on upgrade, where re-pinning is exactly
+  # what should happen because the framework has changed.
+  framework_digest: 94dc68d5836de58d4f993212aa2572a45b54b2dfdfa25d982e23d45a23cdbb21
+  adoption_date: "2026-08-31"
+  review_by: "2027-02-27"
+  framework_maintainer: Mario Pipo
+  repository_classification: internal-framework-publisher
+  decision_record_id: DR-13
+  adoption_status: complete
+  status_rationale: >-
+    Self-conformance landed and was reviewed. DR-13's open question — whether this
+    repository's CI fails on its own non-conformance — is answered yes, and demonstrated
+    rather than asserted: run 33387146079 failed the first check step deliberately and
+    every later check step still executed. The maintainer merged PR #2 on 2026-08-31,
+    which is the review this field was waiting on. Complete describes the adoption, not
+    the repository: F5, F9, F11, F12, F13 and F16 remain open in org/FINDINGS.md, and
+    ACT-002, ACT-003 and ACT-005 remain live work.
+  independent_validator: null
+  deferrals:
+    - control_id: x-surfaceplate-work-contract-gate
+      rationale: >-
+        Work packets arrive through an operator conversation and are not committed to this
+        repository, so the work_contract gate has no artefact to check. Committing packets
+        is a real option and is not rejected — it is simply not decided.
+      owner: Mario Pipo
+      revisit_by: "2027-02-27"
+    - control_id: x-surfaceplate-risk-classification-gate
+      rationale: >-
+        Decision records carry a risk level; ordinary changes do not. Requiring the gate
+        today would fail honestly rather than pass, because most commits carry no
+        classification artefact.
+      owner: Mario Pipo
+      revisit_by: "2027-02-27"
+
+# These three cannot be excluded, deferred, or omitted at any conformance level.
+baseline_controls:
+  agent_work_packets:
+    decision: required
+    rationale: >-
+      All work in this repository arrives as a bounded packet with stated done-criteria.
+      This is how the repository has actually operated; the register now records it.
+  actual_diff_review:
+    decision: required
+    rationale: >-
+      Every change lands as a reviewed diff. core/CONTROL_PRINCIPLES.md principle 9
+      requires it and the framework performs it on nobody's behalf — it checks that a
+      repository declares it, never that a diff was read well.
+  secret_hygiene:
+    decision: required
+    rationale: >-
+      Required at every level. This declaration stood for a while with nothing behind it —
+      no scanner in this repository and no verification in the checker, a gap CHANGELOG.md
+      had recorded since 0.9.2 and this profile recorded again when it was first written.
+      DR-18 closed both halves: SP046/SP047 now verify the declaration below, and the
+      workflow it names actually runs.
+    scanner:
+      name: gitleaks
+      wired_in: [.github/workflows/secret-scan.yml]
+      notes: >-
+        Blocking, scoped to the pushed range, with a full-history fallback wherever the
+        range cannot be determined. Deliberately self-contained rather than sharing the
+        portfolio's tuned config, because a framework whose own security workflow cannot
+        run in a stranger's checkout demonstrates the wrong thing. What a pass here means
+        is narrow and worth stating: a scanner is named and wired somewhere that can fail.
+        It is not a statement that no secrets are present.
+
+control_decisions:
+  # `standard` floor
+  dependency_lock:
+    decision: required
+    rationale: >-
+      Supply-chain exposure exists regardless of output materiality. The runtime set is
+      two packages, named in every documented install line and in CI.
+  deterministic_tests:
+    decision: required
+    rationale: >-
+      tests/validate_contracts.py and tests/test_install_and_check.py both report an
+      executed-check count on success, so "everything passed" is distinguishable from
+      "nothing ran" — the defect recorded as F3 and fixed at 0.13.0.
+  contract_tests:
+    decision: required
+    rationale: >-
+      The schemas are the contract adopters validate against. tests/validate_contracts.py
+      asserts positive and negative cases, and derives the namespace from NAMESPACE.md
+      rather than restating it, so document and schemas cannot drift silently (DR-6).
+  documentation_authority:
+    decision: required
+    rationale: >-
+      governance/authority-map.yaml states which document governs which path. Contradictory
+      authority is the most common governance defect this framework names, and a publisher
+      with two authorities for one control would be an instance of it.
+
+  # Above the floor, because it is already met
+  assurance_findings:
+    decision: required
+    rationale: >-
+      A `full`-level control, met in substance and therefore recorded as met rather than
+      omitted because the level does not oblige it. org/FINDINGS.md is the single register,
+      states its own numbering convention, and currently carries open findings against this
+      repository including F5, F6, F7 and F8. A level is a floor, not a ceiling.
+
+builds_user_interface: false
+
+prerequisites:
+  # ---- Design and user interface (4) ----
+  # builds_user_interface is false, so all four are not_applicable. The checker rejects
+  # `required` or `deferred` here as self-contradictory, and rejects silence entirely.
+  - id: component_library
+    status: not_applicable
+    rationale: >-
+      This repository ships command-line scripts, schemas and documents. It renders no
+      screen and has no component library to gate a screen on.
+  - id: design_authority
+    status: not_applicable
+    rationale: >-
+      No user interface, so no design policy or screen templates to require before UI code.
+  - id: options_before_build
+    status: not_applicable
+    rationale: >-
+      Scoped to designed surfaces. Design alternatives for non-UI changes are recorded in
+      decision records under their own "Context and alternatives" heading, which the
+      decision_before_implementation gate covers.
+  - id: prerequisite_state_ui
+    status: not_applicable
+    rationale: >-
+      No screen, so no main workflow that could be presented before its data prerequisite
+      is satisfied.
+
+  # ---- Work and decisions (5) ----
+  - id: work_registration
+    status: required
+    effective_from: "2026-08-31"
+    precondition:
+      artefacts: [activity/register.md]
+      description: >-
+        An identified, registered activity with an owner, a definition of done and the
+        evidence it requires, before implementation begins.
+    gated_activity:
+      paths: ["scripts/**", "schemas/**", "standard/**", "tests/**"]
+      description: >-
+        Changes to the checker, the installer, the release tooling, the contracts, or the
+        payload installed into adopting repositories.
+    enforcement: [history_audit, local_hook, review]
+  - id: work_contract
+    status: deferred
+    rationale: >-
+      Work packets arrive through an operator conversation and are not committed here, so
+      there is no artefact for the gate to check. Deferred with an owner and a revisit
+      date rather than declared not_applicable, because the requirement is genuinely
+      applicable — the artefact is simply not where the gate could see it.
+    owner: Mario Pipo
+    revisit_by: "2027-02-27"
+  - id: risk_classification
+    status: deferred
+    rationale: >-
+      Decision records carry a risk level against core/REVIEW_AND_EVIDENCE.md's table, but
+      ordinary commits do not. core/PREREQUISITE_GATES.md warns this gate is the one most
+      often satisfied on paper while violated in spirit; declaring it required today would
+      be exactly that.
+    owner: Mario Pipo
+    revisit_by: "2027-02-27"
+  - id: decision_before_implementation
+    status: required
+    effective_from: "2026-08-31"
+    precondition:
+      artefacts: [org/decisions/README.md]
+      description: >-
+        A decision record must exist before implementation of a material change begins.
+        The index is the addressable artefact; individual records are cited from it.
+    gated_activity:
+      paths: ["scripts/**", "schemas/**"]
+      description: >-
+        Changes to the checker, the installer, the release tooling or the contracts —
+        the paths where behaviour visible to an adopter is decided.
+    enforcement: [history_audit, review]
+  - id: register_currency
+    status: required
+    effective_from: "2026-08-31"
+    precondition:
+      artefacts: [activity/register.md]
+      description: >-
+        The register must be current before work is handed back. This repository generates
+        no views from it, so the requirement reduces to the register itself being updated
+        in the same change as the work it describes.
+    gated_activity:
+      paths: ["activity/**"]
+      description: Changes to registered activities and their status.
+    enforcement: [review]
+
+  # ---- Documentation authority (2) ----
+  - id: authority_map
+    status: required
+    effective_from: "2026-08-31"
+    precondition:
+      artefacts: [governance/authority-map.yaml]
+      description: >-
+        A machine-readable map of which document governs which path. Without it,
+        "the documentation" is a claim rather than an addressable object.
+    gated_activity:
+      paths: ["core/**", "schemas/**", "standard/**"]
+      description: Changes to the normative documents, the contracts, or the payload.
+    enforcement: [history_audit, review]
+  - id: authority_same_change
+    status: deferred
+    rationale: >-
+      The map landed today; nothing yet demonstrates that governed changes reliably update
+      their controlling document in the same commit. Requiring it before the map has been
+      used would assert a discipline that has no evidence behind it. Revisit once the map
+      has governed real changes.
+    owner: Mario Pipo
+    revisit_by: "2027-02-27"
+
+  # ---- Tests and evidence (3) ----
+  - id: test_convention
+    status: required
+    effective_from: "2026-08-31"
+    precondition:
+      artefacts: [standard/.github/instructions/tests.instructions.md]
+      description: >-
+        The declared naming and location standard new tests must follow. This repository
+        publishes it and is bound by it.
+    gated_activity:
+      paths: ["tests/**"]
+      description: New or changed tests.
+    enforcement: [review]
+  - id: regression_before_merge
+    status: required
+    effective_from: "2026-08-31"
+    precondition:
+      artefacts: [.github/workflows/standard-self-check.yml]
+      description: >-
+        The named suites that must pass before a change to critical logic merges:
+        the contract tests, the installer and checker end-to-end tests, the manifest
+        check, the identifier check, and this repository's own conformance check.
+    gated_activity:
+      paths: ["scripts/**", "schemas/**"]
+      description: Changes to the checker, installer, release tooling or contracts.
+    enforcement: [ci, review]
+  - id: equivalence_evidence
+    status: not_applicable
+    rationale: >-
+      Scoped to performance or refactoring changes on a critical path that must ship
+      evidence that results are unchanged. This repository produces no numerical results
+      for such evidence to be about; the equivalent assurance is the contract tests, which
+      regression_before_merge already requires.
+
+  # ---- Data (2) ----
+  - id: data_source_lifecycle
+    status: not_applicable
+    rationale: >-
+      No data sources. The repository reads its own files and an adopting repository's
+      git history; neither is a selectable data source with a validation lifecycle.
+  - id: output_validation_before_external_use
+    status: required
+    effective_from: "2026-08-31"
+    precondition:
+      artefacts: [scripts/verify_release.py]
+      description: >-
+        The release archive is the only output used outside this repository. It must be
+        verifiable before an adopter relies on it, and verify_release.py is what does that
+        — integrity only, which it states plainly rather than implying more.
+    gated_activity:
+      paths: ["scripts/build_release.py", "MANIFEST.sha256"]
+      description: Changes to what is packaged or to the recorded digests.
+    enforcement: [ci, review]
+
+  # ---- Dependencies and release (3) ----
+  - id: dependency_output_delta
+    status: not_applicable
+    rationale: >-
+      The gate covers a dependency change able to move outputs, requiring delta evidence.
+      The two runtime dependencies parse YAML and validate JSON Schema; a change in either
+      moves no output of this repository, and a change that broke validation would fail the
+      contract tests rather than silently alter a result. dependency_lock covers the
+      supply-chain exposure, which is the real risk here.
+  - id: records_before_release
+    status: required
+    effective_from: "2026-08-31"
+    precondition:
+      artefacts: [CHANGELOG.md, org/decisions/README.md]
+      description: >-
+        The change and decision records the risk class requires must exist before release
+        preparation begins.
+    gated_activity:
+      paths: ["VERSION", "MANIFEST.sha256"]
+      description: A version bump or a regenerated manifest — the acts that constitute preparing a release.
+    enforcement: [history_audit, review]
+  - id: change_record_before_completion
+    status: required
+    effective_from: "2026-08-31"
+    precondition:
+      artefacts: [CHANGELOG.md]
+      description: A change record must exist before a change is treated as complete.
+    gated_activity:
+      paths: ["scripts/**", "schemas/**", "standard/**", "core/**"]
+      description: Changes to behaviour, contracts, the payload, or the normative documents.
+    enforcement: [history_audit, review]
+
+human_roles:
+  - >-
+    Maintainer — Mario Pipo. Sole change authority for this repository. Decides the
+    conformance level, the gate declarations, and release. org/decisions/README.md records
+    the consequence plainly: a single maintainer means no independent validator, no
+    separate technical reviewer and no separate release authority exists, and
+    self-approval would not be independence. The role is declared as one because it is
+    one, not split across titles to look like separation of duties.
+# F16 / DR-22. CHANGELOG.md is a precondition artefact for two gates and it documents the
+# placeholder control, so it necessarily contains the tokens that control looks for. Declared
+# here rather than worked around by refusing to name them: a changelog that cannot describe a
+# control is a worse artefact than one that needs an exemption. Reported as an advisory on
+# every run, so the narrowing is visible rather than silent.
+placeholder_scan_exemptions:
+  - artefact: CHANGELOG.md
+    rationale: >-
+      Documents SP032's placeholder detection and the F14/F15/F16 findings about it, and so
+      necessarily reproduces the tokens it detects. Existence and non-emptiness are still
+      checked; only the token scan is suppressed for this file.
+
+release_route: >-
+  scripts/build_release.py refuses to build unless the contract and installer suites pass,
+  writes MANIFEST.sha256, and produces a pinned archive. scripts/verify_release.py lets a
+  recipient verify an archive independently — integrity only, not authenticity or approval.
+  No organisation ruleset has ever been applied, so no server-side check is required of
+  this repository; that limitation is stated in README.md rather than implied away.
+exclusions:
+  - generic plugin framework unless justified
+  - microservices unless justified
+  - workflow engine unless justified
+  - hosting, servers, accounts, authentication or a database — permanently out of scope per DR-12

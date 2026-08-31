@@ -1,0 +1,35 @@
+#!/bin/sh
+
+repo_root=$(git rev-parse --show-toplevel 2>/dev/null)
+if [ -z "$repo_root" ]; then
+    echo "Surfaceplate: cannot determine the repository root." >&2
+    exit 2
+fi
+
+checker="$repo_root/.standards/check_conformance.py"
+if [ ! -f "$checker" ]; then
+    echo "Surfaceplate: $checker is missing; re-run the installer." >&2
+    exit 2
+fi
+
+if command -v python3 >/dev/null 2>&1 \
+    && python3 -c "import yaml, jsonschema" >/dev/null 2>&1; then
+    exec python3 "$checker" --repo "$repo_root" --staged
+fi
+if command -v python >/dev/null 2>&1 \
+    && python -c "import yaml, jsonschema" >/dev/null 2>&1; then
+    exec python "$checker" --repo "$repo_root" --staged
+fi
+if command -v py >/dev/null 2>&1 \
+    && py -3 -c "import yaml, jsonschema" >/dev/null 2>&1; then
+    exec py -3 "$checker" --repo "$repo_root" --staged
+fi
+
+echo "Surfaceplate: Python 3 with PyYAML and jsonschema is required." >&2
+echo "Install with:  python -m pip install pyyaml jsonschema" >&2
+echo "If that reports 'externally-managed-environment' or 'No module named pip'," >&2
+echo "use a virtual environment and put it on PATH before committing:" >&2
+echo "  python3 -m venv .venv && .venv/bin/python -m pip install pyyaml jsonschema" >&2
+echo "  . .venv/bin/activate" >&2
+echo "or install the distribution packages: python3-yaml python3-jsonschema" >&2
+exit 2

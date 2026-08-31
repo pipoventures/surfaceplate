@@ -1,0 +1,292 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: urn:pipo-ventures:surfaceplate:0.7.0:application-profile.schema.yaml
+title: Application Profile
+type: object
+additionalProperties: false
+required:
+  - schema_version
+  - application_id
+  - display_name
+  - owner
+  - risk_profile
+  - materiality_definition
+  - data_classification
+  - conformance_level
+  - adoption
+  - baseline_controls
+  - control_decisions
+properties:
+  schema_version: {type: string, const: "1.0"}
+  application_id: {type: string, pattern: "^[a-z0-9][a-z0-9_-]+$"}
+  display_name: {type: string, minLength: 1}
+  owner: {type: string, minLength: 1}
+  stack:
+    type: object
+    description: Optional technology description. The kit does not require a UI, API, or specific language.
+    additionalProperties: true
+  risk_profile: {type: string, minLength: 1}
+  materiality_definition: {type: string, minLength: 1}
+  data_classification:
+    type: string
+    enum: [public, internal, confidential, restricted]
+  conformance_level:
+    type: string
+    enum: [essential, standard, full]
+    description: >-
+      Proportionate control tier. See core/CONFORMANCE_LEVELS.md. The level determines
+      which selectable controls must be decided `required`. Semantic enforcement is in
+      tests/validate_contracts.py; the schema alone does not enforce the tier.
+  adoption:
+    type: object
+    description: >-
+      Adoption identity mandated by SETUP_GUIDE.md Step 1 and the Definition of Done.
+      Present so that adoption state is machine-queryable across a portfolio of
+      applications rather than surviving only in free-text decision records.
+    additionalProperties: false
+    required:
+      - framework_version
+      - framework_digest
+      - adoption_date
+      - framework_maintainer
+      - repository_classification
+      - decision_record_id
+      - adoption_status
+      - review_by
+    properties:
+      framework_version:
+        type: string
+        pattern: "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+      framework_digest:
+        type: string
+        pattern: "^[A-Fa-f0-9]{64}$"
+        description: >-
+          The distribution-identity anchor: sha256 of the framework's MANIFEST.sha256, as
+          recorded in .standards/INSTALL.json at install time. Lowercase or uppercase hex.
+          NOT the release archive's digest - the archive embeds file mtimes and so cannot be
+          reproduced, which meant nobody could recompute what they had recorded (DR-14). The
+          manifest is a pure function of tree content, so a third party holding the published
+          tree can recompute this on a machine that is not the adopter's. SP049 checks the
+          declared value against the install record; before that it was shape-checked and
+          nothing more (F7).
+      adoption_date: {type: string, format: date}
+      review_by:
+        type: string
+        format: date
+        description: >-
+          The date by which a human must re-read this profile and confirm it still
+          describes the repository. Semantic enforcement - overdue, and an upper bound
+          on how far ahead it may be set - is in check_conformance.py, because JSON
+          Schema cannot compare a value to today's date.
+      framework_maintainer: {type: string, minLength: 1}
+      repository_classification: {type: string, minLength: 1}
+      decision_record_id: {type: string, minLength: 1}
+      adoption_status:
+        type: string
+        enum: [in_progress, complete, blocked, deferred]
+      status_rationale: {type: string, minLength: 1}
+      independent_validator:
+        type: [string, "null"]
+        description: Required by the Setup Guide when the risk profile calls for Level 3 review.
+      deferrals:
+        type: array
+        items: {$ref: '#/$defs/deferral'}
+    allOf:
+      - if:
+          properties:
+            adoption_status: {enum: [blocked, deferred]}
+          required: [adoption_status]
+        then:
+          required: [status_rationale]
+  baseline_controls:
+    type: object
+    additionalProperties: false
+    required: [agent_work_packets, actual_diff_review, secret_hygiene]
+    properties:
+      agent_work_packets: {$ref: '#/$defs/baseline_decision'}
+      actual_diff_review: {$ref: '#/$defs/baseline_decision'}
+      secret_hygiene: {$ref: '#/$defs/secret_hygiene_decision'}
+  control_decisions:
+    type: object
+    minProperties: 1
+    propertyNames:
+      pattern: "^(deterministic_tests|contract_tests|provenance|run_lineage|method_registry|overrides|assurance_findings|dependency_lock|documentation_authority|x-[a-z0-9][a-z0-9_-]*)$"
+    additionalProperties:
+      type: object
+      additionalProperties: false
+      required: [decision, rationale]
+      properties:
+        decision: {type: string, enum: [required, optional, excluded, deferred]}
+        rationale: {type: string, minLength: 1}
+        implementation_reference: {type: string}
+  builds_user_interface:
+    type: boolean
+    description: >-
+      Whether this repository builds a user interface. Not descriptive: it decides whether
+      the four interface gates (component_library, design_authority, options_before_build,
+      prerequisite_state_ui) are a floor at `standard` and `full`. A repository that builds
+      screens either has decided its component library, design policy and page templates
+      before starting, or has not. Declaring `false` is a claim a reviewer can falsify in
+      seconds, which is why it is a better control than a rationale nobody reads.
+  prerequisites:
+    type: array
+    description: >-
+      Prerequisite gates: rules of the shape "artefact X must exist before activity Y
+      may begin". Distinct from control_decisions, which describe what a repository
+      does; a gate describes what a repository may not do yet. The conformance level
+      determines which gates must be decided `required`, and at `standard` and `full`
+      every catalogue gate must be decided one way or the other. See
+      core/PREREQUISITE_GATES.md. Semantic enforcement, including the git-history
+      audit, is in scripts/check_conformance.py.
+    items: {$ref: '#/$defs/prerequisite_gate'}
+  human_roles:
+    type: array
+    items: {type: string}
+  # F16 / DR-22. Placeholder detection reads whole file text, so it cannot tell a document
+  # that MENTIONS a token from one that CONTAINS an unfilled slot. A record documenting the
+  # control trips the control. The exemption is DECLARED here, in the profile, rather than
+  # marked inside the artefact - a template that could exempt itself would be exactly the
+  # hole SP032 exists to close. Every exemption is reported as an advisory on each run, so a
+  # narrowed control says it was narrowed.
+  placeholder_scan_exemptions:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required: [artefact, rationale]
+      properties:
+        artefact:
+          type: string
+          minLength: 1
+          description: >-
+            Repository-relative path. Exempt from the placeholder scan ONLY. It must still
+            exist and still be non-empty; SP032 continues to check both.
+        rationale:
+          type: string
+          minLength: 1
+          description: >-
+            Why this artefact legitimately contains the tokens. "It keeps failing" is not a
+            rationale; that it documents the tokens, or quotes a finding about them, is.
+  release_route: {type: string}
+  exclusions:
+    type: array
+    items: {type: string}
+$defs:
+  deferral:
+    type: object
+    additionalProperties: false
+    required: [control_id, rationale, owner, revisit_by]
+    properties:
+      control_id:
+        type: string
+        pattern: "^(deterministic_tests|contract_tests|provenance|run_lineage|method_registry|overrides|assurance_findings|dependency_lock|documentation_authority|x-[a-z0-9][a-z0-9_-]*)$"
+      rationale: {type: string, minLength: 1}
+      owner: {type: string, minLength: 1}
+      revisit_by: {type: string, format: date}
+  baseline_decision:
+    type: object
+    additionalProperties: false
+    required: [decision, rationale]
+    properties:
+      decision: {type: string, const: required}
+      rationale: {type: string, minLength: 1}
+      implementation_reference: {type: string}
+  # secret_hygiene carries a scanner declaration the other two baseline controls do not.
+  # `scanner` is deliberately NOT in `required`: making it mandatory here would turn a new
+  # obligation into an immediate schema violation for every existing profile, which is
+  # un-graceable. The checker requires it instead (SP046), graceably, so arriving adopters
+  # get the grace window this framework already provides. See DR-18.
+  secret_hygiene_decision:
+    type: object
+    additionalProperties: false
+    required: [decision, rationale]
+    properties:
+      decision: {type: string, const: required}
+      rationale: {type: string, minLength: 1}
+      implementation_reference: {type: string}
+      scanner:
+        type: object
+        additionalProperties: false
+        required: [name, wired_in]
+        properties:
+          name:
+            type: string
+            minLength: 1
+            description: >-
+              The scanner this repository has approved. The framework ships none and takes
+              no position on which tool; it checks only that one is named and wired.
+          wired_in:
+            type: array
+            minItems: 1
+            items: {type: string, minLength: 1}
+            description: >-
+              Repository-relative paths that invoke the scanner. Workflow files are
+              inspected structurally; anything else is checked for existence and mention
+              only, and no bypass finding is raised for it.
+          notes: {type: string, minLength: 1}
+  prerequisite_gate:
+    type: object
+    additionalProperties: false
+    required: [id, status]
+    properties:
+      id:
+        type: string
+        pattern: "^[a-z0-9][a-z0-9_]*$"
+        description: >-
+          A catalogue gate id from core/PREREQUISITE_GATES.md, or any repository-specific
+          id accompanied by catalogue_id: custom.
+      catalogue_id:
+        type: string
+        description: >-
+          Set to `custom` to declare a gate that is not in the catalogue. Otherwise omit;
+          the checker treats the id itself as the catalogue reference.
+      status:
+        type: string
+        enum: [required, deferred, not_applicable]
+      rationale:
+        type: string
+        minLength: 1
+        description: Mandatory when status is `deferred` or `not_applicable`.
+      owner: {type: string, minLength: 1}
+      revisit_by:
+        type: string
+        format: date
+        description: Mandatory, with owner, when status is `deferred`.
+      effective_from:
+        type: string
+        format: date
+        description: >-
+          The date from which this gate binds. Mandatory when status is `required`.
+          History before this date is out of scope, which is what makes adoption
+          possible without rewriting the past. The checker reads the profile's own git
+          history and refuses to let this date move forward, because doing so would
+          silently discard every violation in between.
+      precondition:
+        type: object
+        additionalProperties: false
+        description: What must exist before the gated activity may begin.
+        properties:
+          artefacts:
+            type: array
+            items: {type: string, minLength: 1}
+            description: >-
+              Repository-relative paths. Each must exist, be non-empty, and contain no
+              template placeholders when the gate is `required`.
+          description: {type: string, minLength: 1}
+      gated_activity:
+        type: object
+        additionalProperties: false
+        description: What may not proceed until the precondition holds.
+        properties:
+          paths:
+            type: array
+            items: {type: string, minLength: 1}
+            description: >-
+              Pathspecs passed to git log. Any commit since effective_from that touched
+              one of these while a precondition artefact was absent is a violation.
+          description: {type: string, minLength: 1}
+      enforcement:
+        type: array
+        description: How this gate is enforced. Honesty about `unenforced` is required.
+        items:
+          type: string
+          enum: [history_audit, local_hook, review, ci, unenforced]

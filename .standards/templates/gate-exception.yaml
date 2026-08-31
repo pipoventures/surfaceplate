@@ -1,0 +1,21 @@
+# Prerequisite Gate Exception TEMPLATE
+#
+# Copy to governance/exceptions/GX-NNNN.yaml and replace every `replace-me`.
+# Validates against schemas/gate-exception.schema.yaml.
+#
+# Read core/PREREQUISITE_GATES.md before using this. An exception is permanent and
+# attributable. It clears exactly the commits it names and nothing else, and a growing
+# pile of these records is evidence that the gate is wrongly scoped or the process is
+# wrong - not evidence of conformance.
+
+gate_id: replace-me                   # e.g. work_registration
+commits:
+  - replace-me                        # full or abbreviated commit SHA; one entry per commit
+owner: replace-me                     # named human, not a team alias
+rationale: >-
+  replace-me - why the gate was crossed without its precondition, and what was done
+  instead. This will be read by someone who was not there.
+raised_on: replace-me                 # YYYY-MM-DD
+remediation: >-
+  replace-me - what was done afterwards to restore the intended state.
+# decision_record_id: DR-NNNN         # where the exception warranted its own decision record
