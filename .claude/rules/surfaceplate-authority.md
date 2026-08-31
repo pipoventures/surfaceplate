@@ -1,5 +1,4 @@
 ---
-applyTo: "**"
 description: "Documentation authority resolution. One canonical authority per topic; contradictions are blocking defects."
 ---
 

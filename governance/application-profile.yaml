@@ -75,7 +75,7 @@ adoption:
   # .standards/INSTALL.json. SP049 fails loudly if it is not, which is the intended
   # behaviour. An adopter meets the same step only on upgrade, where re-pinning is exactly
   # what should happen because the framework has changed.
-  framework_digest: 7bdb9054bb376388a8fa237b53d5bbc7fb53f7f1999292679861169dbbe01b0c
+  framework_digest: 83687aeea9428adbc06b48e5f324897c14da797df6f22340c373b29220d0dffe
   adoption_date: "2026-08-31"
   review_by: "2027-02-27"
   framework_maintainer: Mario Pipo
@@ -299,7 +299,7 @@ prerequisites:
     status: required
     effective_from: "2026-08-31"
     precondition:
-      artefacts: [standard/.github/instructions/tests.instructions.md]
+      artefacts: [standard/agent-instructions/tests.md]
       description: >-
         The declared naming and location standard new tests must follow. This repository
         publishes it and is bound by it.

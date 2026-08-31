@@ -70,7 +70,7 @@ authorities:
       document-qualified rather than renumbered.
 
   - paths: ["activity/**"]
-    governed_by: standard/.github/instructions/activity.instructions.md
+    governed_by: standard/agent-instructions/activity.instructions.md
     note: >-
       The activity instruction file is the standard's own rule for what a register entry
       must carry and when it must be updated. This repository is bound by it in the same

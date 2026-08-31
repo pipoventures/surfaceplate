@@ -1,9 +1,15 @@
 {
-  "conformance_block_digest": "16836c8501daa0435310bb05cc95f647db935643aba8fa00217ea70f2bf86d2a",
+  "conformance_block_digest": "6c3a4a07b53cf23130e43f2745834f11374eaab8e875d8673989d8e994c48477",
   "executable_files": [
     ".githooks/pre-commit"
   ],
   "files": {
+    ".claude/rules/surfaceplate-activity.md": "5d097ec0b47ca456b5046be41dde25bd79b895c09e12a4193d48a197f529bde8",
+    ".claude/rules/surfaceplate-ai-workflow.md": "ce7af3af0dda92ebb9d6cb8495d78fb86715181934ae5b6dd0e3d746575a717e",
+    ".claude/rules/surfaceplate-authority.md": "943e1cfe14e2696184de13564b3d69c2413a13019637243e63cabf02421a05c8",
+    ".claude/rules/surfaceplate-provenance.md": "5d7a4c7326c8677576fdea009b61102bedb88911e1f6467b85dbd818f9012b7f",
+    ".claude/rules/surfaceplate-security.md": "9eb626f5d093b4c3da9aa43086e6f2d8ce00047d0027171d3852eb7717dd1ba1",
+    ".claude/rules/surfaceplate-tests.md": "cfe8aef16589b6e4a264648faba596ce2542f4390f53f62981277a7c7ddcb3fb",
     ".githooks/.gitattributes": "a79691a93b46e49ce460c26ef22afcc03d6eca1e63bf2edbc20e96159510f6c9",
     ".githooks/pre-commit": "9b4bd132273044783851948fb35aa5dca74cbd926a1bf7ba3ecd751bd49d5226",
     ".github/instructions/activity.instructions.md": "07fa27c132437e69d3ee37aeadf0f9f4a84662998420b211b6eecb7eb2bea16c",
@@ -24,8 +30,14 @@
     ".standards/adapters/python.md": "1ca5607d907f60e29ed9ec843a900384915f20b4fa114c14bd8923bc3e7d72bd",
     ".standards/adapters/r.md": "c4da3094ecbe5cc560a7b7aeb4171c72d7fc8e3e85df723e8ffbc8124049f50f",
     ".standards/adapters/typescript.md": "3f540700ee9647ac9f4a1ea8c6bd4131c948b00d42cdc9ea7f6eb93133727e76",
-    ".standards/check_conformance.py": "10f39c71b3b8f8b4d142767fe5f8603ed1c61ece35d84e3fa6ea0132abfa3a1d",
-    ".standards/conformance-block.md": "f98d04969c8bae8276b01e776346fcf7a3a7c9f17f659944f832bd9f2a69f247",
+    ".standards/agent-instructions/activity.md": "9b6274ac7915ec4707cb751c80da193636c63968508ff0263297e0cde73c96f1",
+    ".standards/agent-instructions/ai-workflow.md": "827cffee6117d33e2d2b725b7d0ab5b138c9b7ba93afd312bcb6f37cf0373c59",
+    ".standards/agent-instructions/authority.md": "3ad6916b01f436239a6b1d090aa5b2822112d08c96b2ab12bc61ea66f7463a2a",
+    ".standards/agent-instructions/provenance.md": "4337048f1ce3f630b4b122ca3b04a18780ad98fb0076a24aad572fc10beb4fef",
+    ".standards/agent-instructions/security.md": "4a0fba60fde19d7a6a8f1f75832993a1ea55a75674b2ba63a109e5bc4a31058c",
+    ".standards/agent-instructions/tests.md": "38c78e74025ba2c97d1e0cb9e583cc29fbd1e8dfbd6f05a73ae1f71cfc69e273",
+    ".standards/check_conformance.py": "8da2fd68390fccc6179ccfeb8ca2ee0733b96d7503a7a3a208439cfd2a0bc00c",
+    ".standards/conformance-block.md": "caa2b219c368ca85c4eb4a213f135eede1abcb2250a287c2b08cdc8243c50175",
     ".standards/core/AI_OPERATING_MODEL.md": "04b2d5951f841627fdb39bdf515ff17be81e9fe16beb580b025fafa85d393b02",
     ".standards/core/CONFORMANCE_LEVELS.md": "b6b24ff0ffe92f17acd50380d4ad623c8676b898d03437a477e8a1e90007b6af",
     ".standards/core/CONTROL_PRINCIPLES.md": "3e56c91c75f3e9aa43df2d1e052be1d35a9267f55c7026dab812bb7a72a94989",
@@ -51,9 +63,9 @@
     ".standards/templates/work-packet.md": "121f5270ee57740adee42ec82abd4b6b7b714093faf299efbb3ae6d78654be60"
   },
   "first_installed_at": "2026-08-31",
-  "framework_digest": "7bdb9054bb376388a8fa237b53d5bbc7fb53f7f1999292679861169dbbe01b0c",
+  "framework_digest": "83687aeea9428adbc06b48e5f324897c14da797df6f22340c373b29220d0dffe",
   "grace_expires": "2026-09-30",
-  "installed_at": "2026-08-31",
+  "installed_at": "2026-09-01",
   "profile_path": "governance/application-profile.yaml",
   "standard": "surfaceplate",
   "standard_version": "0.16.0"

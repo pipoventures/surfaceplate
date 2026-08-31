@@ -1,3 +1,8 @@
+# Agent instructions
+
+Repository-specific guidance goes outside the markers below. The block between the markers is managed by the Surfaceplate installer and will be overwritten on upgrade.
+
+<!-- BEGIN SURFACEPLATE -->
 ## Surfaceplate
 
 This repository operates under **Surfaceplate**, the Pipo Ventures Ltd software delivery
@@ -27,3 +32,4 @@ repository so every repository gets them.
 
 Everything outside these markers is this repository's own guidance and takes effect alongside the
 standard, except where it would weaken it.
+<!-- END SURFACEPLATE -->

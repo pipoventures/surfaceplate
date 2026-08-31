@@ -1,5 +1,5 @@
 ---
-applyTo: "**"
+scope: "**"
 description: "Activity-led execution. Work starts from a registered activity with an owner, dependencies, and a definition of done."
 ---
 

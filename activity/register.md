@@ -51,6 +51,7 @@ on an agent's authority.
 | `ACT-015` | Pattern C2: records must reference what they describe; `provenance` and `run_lineage` separated | maintainer | maintainer | `waiting_for_review` | `ACT-014` | hard | yes — it adds cross-register obligations at `full` and edits a published schema | medium — the mechanism is an index over records already loaded; the judgements are how the two controls are separated after the first answer was disproved, and whether a redundant contract clause is removed or made real | A run naming an unregistered method, an override naming a run that never happened, a duplicated identity and a foreign `application_id` are all rejected | The three negative controls carry the evidence — the worked example set passes, an undeclared target register raises nothing, and a record that failed its schema produces no reference cascade |
 | `ACT-016` | What the Plyego gate found: the exemption catch-22 and a misleading remedy (`F25`, `F26`) | maintainer | maintainer | `waiting_for_review` | `ACT-015` | medium | yes — it changes what the profile scan accepts, in every adopting repository | low — the mechanism mirrors `DR-22` exactly; the judgement is how narrow the exclusion is | An exemption may state its own rationale without failing the profile, and `SP032` names the remedy it has always had | Three negative controls — the scan still fires on `owner`, on a gate's rationale and on a deferral's — plus the Plyego probe re-run against the fixed checker |
 | `ACT-017` | The installer forbids what the standard permits: a recorded hook opt-out (`F27`) | maintainer | maintainer | `waiting_for_review` | `ACT-016` | medium | yes — it changes what the installer will do in every adopting repository | medium — the mechanism is small; the judgement is that declining must leave a trace rather than being a silent flag | A repository with its own hook system can adopt without surrendering it, and the check says on every run that nothing gates staged changes | Three negative controls — the default install still refuses a foreign hooks path and writes nothing, and `SP038` still catches a gate claiming a hook that was declined |
+| `ACT-018` | Agent neutrality: emit the instructions where each agent actually reads them (`F29`) | maintainer | maintainer | `waiting_for_review` | `ACT-017` | hard | yes — it changes what every adopting repository receives, and gives this repository its own instructions for the first time | medium — the emitter design follows the documented loading rules; the judgement is a block in `AGENTS.md` rather than owning the file | The instructions land in `.claude/rules/` and `AGENTS.md` as well as the Copilot paths, and surfaceplate is finally governed by its own | Three negative controls — Copilot emission unchanged, an adopter's `AGENTS.md` content preserved verbatim, and their `CLAUDE.md` never written |
 ## Notes on the entries
 
 `ACT-002` and `ACT-003` are both raised by `DR-16` and are deliberately **not** resolved by
@@ -147,7 +148,14 @@ fires only when a gate claims `local_hook`, so the standard has always permitted
 no surfaceplate hook — while the installer refused to produce one. Two parts of one framework
 disagreeing about the same obligation is the defect it names more often than any other.
 
-`ACT-005` to `ACT-017` were registered **before** implementation begins, not alongside it. `work_registration` is
+`ACT-018` is the most uncomfortable item in this register. Every packet before it was governed by
+doctrine loaded from the maintainer's own machine, never by the 501 lines of agent instructions this
+repository publishes and installs into others — because those sit in `.github/instructions/`, which
+the agent doing the work does not read, and this repository has no `CLAUDE.md` at all. The framework
+has been shipping instructions it has never itself been subject to. Raised by Plyego, like `ACT-016`
+and `ACT-017`, and unreachable from inside for the same reason all three were.
+
+`ACT-005` to `ACT-018` were registered **before** implementation begins, not alongside it. `work_registration` is
 live over `scripts/**` and `schemas/**`, which is exactly what item 4 changes, and a gate satisfied
 retrospectively is the failure mode `core/PREREQUISITE_GATES.md` warns is most common — satisfied on
 paper, violated in spirit.

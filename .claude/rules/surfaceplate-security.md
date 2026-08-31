@@ -1,5 +1,4 @@
 ---
-applyTo: "**"
 description: "Secrets, client data, AI confidentiality, and dependency supply chain."
 ---
 

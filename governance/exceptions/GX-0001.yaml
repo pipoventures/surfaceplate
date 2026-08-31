@@ -1,0 +1,44 @@
+# The first gate exception this repository has recorded, and it exists because a precondition
+# artefact was RENAMED rather than removed.
+#
+# `test_convention` names a testing-convention document as its precondition. That document has
+# existed continuously since 0.9.0. At 0.17.0 it moved from
+# `standard/.github/instructions/tests.instructions.md` to `standard/agent-instructions/tests.md`,
+# because the instructions were made agent-neutral (DR-30, F29).
+#
+# The history audit resolves the precondition by its CURRENT path, so every commit before the
+# rename now reads as "the artefact was absent" - nine of them. Nothing was actually violated:
+# the convention was in force the whole time, under a different name. This is a limitation of
+# the audit rather than a lapse in the gate, and it is recorded as F30.
+
+gate_id: test_convention
+commits:
+  # Quoted, every one: an abbreviated SHA that happens to be all digits - 7547482 here -
+  # parses as an integer and the schema rejects it. Caught by SP043, which is the point of it.
+  - "1b0df98"
+  - "7547482"
+  - "2bf3f2d"
+  - "535453b"
+  - "97d1065"
+  - "a5551a8"
+  - "4587b15"
+  - "c3e8ee1"
+  - "8724f78"
+owner: Mario Pipo
+rationale: >-
+  The precondition artefact was renamed, not removed. `standard/agent-instructions/tests.md` is
+  the same document that stood at `standard/.github/instructions/tests.instructions.md` for every
+  one of these commits, with its body unchanged - the move rewrote only the front-matter key, so
+  the instructions could be emitted in each agent's own format (DR-30). The history audit reads
+  the precondition at its current path, so a rename makes the whole history read as
+  non-compliant. Each of these nine commits had the testing convention in force and available;
+  none of them crossed the gate without it. Recorded rather than worked around, because the
+  alternative - moving effective_from forward - is refused by SP034 and would erase the record
+  instead of explaining it.
+raised_on: "2026-09-01"
+remediation: >-
+  None is owed for the commits themselves; the convention was never absent. The underlying
+  defect is recorded as F30: the audit cannot follow a rename, so any adopter renaming a
+  precondition artefact will see the same false history. Following renames through git is the
+  candidate remedy and is not built here.
+decision_record_id: DR-30
