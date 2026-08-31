@@ -1,10 +1,17 @@
 # ChatGPT Enterprise Audit Prompt
 
+> **Historical record, with inherited names redacted.** This document records checks that were
+> actually run, against a repository that had a different name. The internal product and
+> methodology names it originally carried have been **replaced with generic descriptions** — they
+> named someone else's product and meant nothing here. The redaction is disclosed rather than
+> silent: the substance of every check and finding is unchanged, only the proper nouns are. See
+> `F18`.
+
 You are performing an independent design and reuse re-audit of the complete ZIP attached to this message: `engineering-control-kit.zip`.
 
 ## Objective
 
-Assess whether this package is a sound, tool-agnostic foundation for AI-assisted engineering across multiple new applications, including AI Scenario Factory, without importing disproportionate PEM-specific architecture or claiming controls that are only documented.
+Assess whether this package is a sound, tool-agnostic foundation for AI-assisted engineering across multiple new applications, without importing disproportionate architecture from the predecessor application or claiming controls that are only documented.
 
 This is an audit, not an implementation task. Do not modify the ZIP, invent missing evidence, or approve production adoption.
 
@@ -34,7 +41,7 @@ This is an audit, not an implementation task. Do not modify the ZIP, invent miss
 
 - Can the core rules be used for Python, TypeScript, R, or another stack without changing their meaning?
 - Are stack-specific recommendations isolated in adapters?
-- Are PEM/R/Shiny/PCAF/client-branch assumptions excluded from the core?
+- Are predecessor-application, single-language, methodology-specific or client-specific assumptions excluded from the core?
 - Does the package avoid prescribing microservices, plugins, workflow engines, graph databases, or unnecessary infrastructure?
 - Can several application teams use it without creating a central platform team prematurely?
 

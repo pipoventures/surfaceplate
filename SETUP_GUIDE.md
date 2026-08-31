@@ -1,4 +1,4 @@
-# Engineering Control Kit Setup Guide
+# Surfaceplate Setup Guide
 
 This guide is the exact adoption sequence for a new repository. It is written to be independent of programming language, framework, database, CI provider, and AI vendor.
 
@@ -26,7 +26,7 @@ Choose one of these patterns:
 - **Pinned copy:** copy the kit into a controlled directory such as `engineering-control-kit/` and record the kit version and ZIP SHA-256 in the repository's decision record.
 - **Referenced release:** retain the kit ZIP in an approved internal artefact store and record its version and trusted digest. Do not depend on a mutable URL or an unpinned branch.
 
-Do not copy PEM application code, PCAF methodology, R/Shiny modules, client-branch rules, or PEM-specific UI patterns. Copy the control concepts and use the receiving repository's native implementation.
+Do not copy another application's code, its methodology, its modules, its client- or branch-specific rules, or its UI patterns. Copy the control concepts and use the receiving repository's native implementation. A control that arrives wearing someone else's domain is harder to apply and easier to misapply than one stated plainly.
 
 Record:
 

@@ -1,6 +1,13 @@
 # Prior Audit Remediation
 
-Source: independent ChatGPT Enterprise audit supplied to the PEM repository on 2026-08-21.
+> **Historical record, with inherited names redacted.** This document records checks that were
+> actually run, against a repository that had a different name. The internal product and
+> methodology names it originally carried have been **replaced with generic descriptions** — they
+> named someone else's product and meant nothing here. The redaction is disclosed rather than
+> silent: the substance of every check and finding is unchanged, only the proper nouns are. See
+> `F18`.
+
+Source: independent ChatGPT Enterprise audit supplied to the predecessor repository on 2026-08-21.
 
 | Finding | Disposition in 0.2.0 |
 |---|---|
@@ -39,7 +46,7 @@ The supplied second audit identified three blocking schema defects and five mate
 - Completed timestamps and AI provider/model/prompt fields are non-null when required; terminal failed/blocked/cancelled records may omit outputs.
 - Override approval requirement, approval status, and approval evidence are separate; high/material-impacting overrides require approval, pending/rejected states remain representable, and asserted approval requires an approver.
 - Application control decisions are a single keyed object rather than duplicated required/optional arrays.
-- The universal run schema has no Scenario Factory-specific fields; application-owned extensions are required for domain-specific lineage.
+- The universal run schema has no predecessor-application-specific fields; application-owned extensions are required for domain-specific lineage.
 - The reference tests now enable date-time format checking and cover the adversarial cases identified by the second audit.
 - A normative AI confidentiality and dependency baseline and a producer validation-results record were added.
 

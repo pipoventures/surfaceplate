@@ -82,6 +82,7 @@ an unknown number of releases with nothing noticing.
 | F15 | Two shipped templates were undetectable as templates | medium | Closed — obligation shipped; detection still not possible |
 | F16 | Placeholder detection cannot separate mentioning a token from containing one | low | Closed — `DR-22`, by declaration |
 | F17 | The identifier check reads every GitHub URL as a claim about this organisation | low | Closed — declared third parties |
+| F18 | Inherited product and methodology names throughout the public tree | medium | Closed — redacted, disclosed |
 
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -784,6 +785,55 @@ block makes the parser refuse to start rather than silently exempting nothing.
 asks a human to declare which owners are third parties. A third party added to a payload file
 without being declared still fails, which is the intended direction — the check fails loudly rather
 than tolerating silently — but it is friction, not detection.
+
+---
+
+## F18 — Inherited product and methodology names throughout the public tree
+
+**Severity: medium. Closed 2026-08-31.**
+
+Found while assessing the framework against two target adopter profiles, which is worth noting: it
+was invisible for as long as the only readers were people who knew what the names meant.
+
+The tree carried internal product and methodology names from the private repository this framework
+grew out of — in `adapters/r.md`, `adapters/typescript.md`, `SETUP_GUIDE.md`, four documents under
+`audit/`, `CHANGELOG.md`, `RECONCILIATION.md` and `org/decisions/DR-7.md`. `SETUP_GUIDE.md` was
+**titled** with the pre-`0.12.0` product name, and the adoption wizard prompt still called the
+product by it in live text.
+
+**Not a brand-policy breach** — these are product and methodology names, not the organisation. It
+is a comprehensibility defect, and it landed hardest exactly where an evaluating reader looks
+first: `adapters/r.md` is three lines long and spent a third of its length warning against copying
+a product the reader has never heard of.
+
+**What was done.** Every inherited name is replaced with a generic description. Live guidance was
+rewritten outright; historical records under `audit/` were redacted **with the redaction
+disclosed** in a note at the top of each, because the substance of what was checked and found is
+unchanged and only the proper nouns are.
+
+An earlier draft of this fix left the historical records untouched under a note explaining the
+names, on the reasoning that `DR-23` gives for not rewriting history. The maintainer overruled it:
+remove the references everywhere. Recorded because the reasoning matters and was not
+wrong — it was outweighed. The compromise that survives is disclosure: nothing was altered
+silently, and each redacted document says so.
+
+**What deliberately remains, and why:**
+
+| Retained | Reason |
+|---|---|
+| `Shiny` in `adapters/r.md` | A public R framework, named the way `pytest` or `React` would be. *"Keep calculation logic outside Shiny server orchestration"* is genuine R guidance, not inherited jargon |
+| The pre-rename product name in `CHANGELOG.md` | It records **this** product's own rename. Removing it would erase the record of the rename itself |
+| The same name in a historical `audit/` document title | This project's own history, in a record marked historical |
+| *"tool-agnostic"* lowercase | Ordinary English used as an adjective, not a product name |
+
+The line drawn: **someone else's names go; this product's own former name stays where it records
+history and goes from live guidance.** `SETUP_GUIDE.md`'s title and the wizard prompt were live
+guidance and were corrected.
+
+**Two things this does not fix.** The adapters remain 3 and 5 lines — thin for the audience they
+serve, and a quantitative team writing R would rely on `adapters/r.md`. And nothing prevents the
+same residue recurring; `tests/check_identifiers.py` guards the *organisation* identifier, not
+inherited product names, and no check was added here.
 
 ---
 

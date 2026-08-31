@@ -21,7 +21,7 @@ Separate two things that tend to sit in the same file:
 - **How work is controlled** — what must be true before a change merges; when to stop and ask; what
   evidence to produce. This is common across every repository, and it belongs to the standard.
 - **How work is done here** — the language, the package layout, the test runner, the methodology,
-  the client-branch model, the deployment target. This is specific, and it belongs to you.
+  your branching model, the deployment target. This is specific, and it belongs to you.
 
 Almost every existing skill file is a blend. Split it.
 

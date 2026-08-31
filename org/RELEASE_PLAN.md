@@ -104,8 +104,10 @@ verbatim, never one it makes on the human's behalf.
 **A naming collision this item must resolve, not duplicate.**
 `prompts/github-copilot-adoption-wizard.prompt.md` already exists, is already called "the wizard,"
 and is already referenced from `SETUP_GUIDE.md:7`. It is an LLM prompt for Copilot Chat, not a CLI,
-and it still names the pre-`0.12.0`-rename product ("Tool-Agnostic AI Engineering Control Kit"),
-confirming it predates the rename and has not been touched since. Item 2 is a different artefact —
+and it named the pre-`0.12.0`-rename product until `F18` corrected it, confirming it predates the
+rename and had not been touched since. It also omits `core/PREREQUISITE_GATES.md` and
+`core/CONFORMANCE_LEVELS.md` from its "read these first" list, which is why it carries a staleness
+banner rather than merely a corrected name. Item 2 is a different artefact —
 a deterministic questionnaire bound by the rule above, not an LLM-driven conversation. Building it
 without explicitly stating what happens to the existing prompt-wizard (retire it, fold its
 discovery flow into the new tool, or keep both with a stated division of labour) would leave two
