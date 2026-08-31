@@ -1,4 +1,4 @@
-f24a4f672a633fe38bc15b233e3cb2a24065f95a561423e6d510ffe891694e24  surfaceplate-0.16.0/.gitattributes
+0000000000000000000000000000000000000000000000000000000000000000  surfaceplate-0.16.0/.gitattributes
 1bd4d975c4b765df345fde0b73865a206dd7418fb9c2c8306561608970ed1810  surfaceplate-0.16.0/.github/copilot-instructions.md
 bf32da9191d44e6ae9ada39465e8b2af5a92e6c2fbe9d5f8069c1b1eda6e0a65  surfaceplate-0.16.0/.github/workflows/dco-check.yml
 83b4142a39e5bd89f524b6bfffd58a070f34f70ee4d3503e242b0092d993796d  surfaceplate-0.16.0/.github/workflows/secret-scan.yml
