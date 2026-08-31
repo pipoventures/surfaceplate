@@ -96,6 +96,8 @@ VERIFIED_CONTROLS: set[str] = {
     "documentation_authority",  # pattern D - the authority_map gate, plus SP052
     "dependency_lock",          # pattern A - SP051
     "assurance_findings",       # pattern A - SP051
+    "deterministic_tests",      # pattern B - SP053
+    "contract_tests",           # pattern B - SP053
 }
 
 # The controls each level requires, mirroring core/CONFORMANCE_LEVELS.md. A level is a
@@ -858,6 +860,141 @@ def check_pinned_identity(profile: dict, record: dict | None, findings: list[Fin
 # Controls verified by pattern A: the profile names an artefact, and the checker confirms it is
 # really there. DR-25's cheapest pattern, reusing SP032's artefact logic rather than restating it.
 PATTERN_A_CONTROLS: set[str] = {"dependency_lock", "assurance_findings"}
+
+# Controls verified by pattern B: the profile names a CI step, and the checker confirms it exists
+# and can fail. DR-25's second pattern, reusing check_secret_hygiene's mechanism.
+PATTERN_B_CONTROLS: set[str] = {"deterministic_tests", "contract_tests"}
+
+
+def find_workflow_step(repo: Path, step_name: str) -> tuple[str | None, dict | None]:
+    """Locate a named step across the repository's workflow files.
+
+    Returns (workflow path, step) or (None, None). Searches rather than requiring the adopter to
+    name a file too: a step name is what a human recognises, and which file holds it is an
+    implementation detail that moves.
+    """
+    for directory in (repo / ".github" / "workflows", repo / ".gitlab-ci.d"):
+        if not directory.is_dir():
+            continue
+        for path in sorted(directory.glob("*.y*ml")):
+            document, _ = load_yaml(path)
+            if not isinstance(document, dict):
+                continue
+            jobs = document.get("jobs")
+            if not isinstance(jobs, dict):
+                continue
+            for job in jobs.values():
+                if not isinstance(job, dict):
+                    continue
+                for step in job.get("steps") or []:
+                    if isinstance(step, dict) and step.get("name") == step_name:
+                        return path.relative_to(repo).as_posix(), step
+    return None, None
+
+
+def check_pattern_b_controls(
+    repo: Path, profile: dict, findings: list[Finding], notes: list[str]
+) -> None:
+    """Verify that controls claiming pattern B name a CI step that exists and can fail (DR-25).
+
+    WHAT THIS PROVES, and the limit is the whole of it: a named step exists, runs something, and
+    its failure is binding. NOT that the tests are deterministic, NOT that they are contract
+    tests, NOT that they assert anything. A step running `true` would pass this check.
+
+    That is the same boundary as SP046/SP047, which verify a scanner is wired and never that
+    secrets are absent - and it is why the bypass half matters. A workflow can run a suite,
+    report success and stay green while the suite failed, if the exit code is discarded. That is
+    an observed failure in this project's own history, not a hypothesis.
+
+    DR-25 predicted this reference would be a status-check name. It is a STEP name, amended in
+    that record: a status check is a job, one job here runs every suite, and both controls would
+    have pointed at the same name with an identical check - losing the distinction between them.
+    """
+    decisions = profile.get("control_decisions")
+    decisions = decisions if isinstance(decisions, dict) else {}
+
+    for control_id in sorted(PATTERN_B_CONTROLS):
+        entry = decisions.get(control_id)
+        if not isinstance(entry, dict) or entry.get("decision") != "required":
+            continue
+
+        reference = entry.get("implementation_reference")
+        if not isinstance(reference, str) or not reference.strip():
+            findings.append(
+                Finding(
+                    "SP053",
+                    f"Control '{control_id}' is required but names no CI step",
+                    f"control_decisions.{control_id} has no implementation_reference, so nothing "
+                    f"connects the declaration to anything that runs.",
+                    "Add implementation_reference naming the CI step that runs these tests. A "
+                    "control nobody can locate is a statement of intent.",
+                    graceable=True,
+                )
+            )
+            continue
+
+        reference = reference.strip()
+        workflow, step = find_workflow_step(repo, reference)
+        if step is None:
+            findings.append(
+                Finding(
+                    "SP053",
+                    f"Control '{control_id}' names a CI step that does not exist",
+                    f"No workflow contains a step named {reference!r}.",
+                    "Correct the name or add the step. A reference resolving to nothing reads as "
+                    "evidence and is not.",
+                    graceable=True,
+                )
+            )
+            continue
+
+        if not (step.get("run") or step.get("uses")):
+            findings.append(
+                Finding(
+                    "SP053",
+                    f"Control '{control_id}' names a CI step that runs nothing",
+                    f"{reference!r} in {workflow} has neither `run` nor `uses`.",
+                    "A named step that executes nothing satisfies a search and no one else.",
+                    graceable=True,
+                )
+            )
+            continue
+
+        if step.get("continue-on-error") is True:
+            findings.append(
+                Finding(
+                    "SP053",
+                    f"Control '{control_id}' names a step that cannot fail the build",
+                    f"{reference!r} in {workflow} sets continue-on-error: true, so a failing "
+                    f"test run is recorded as tolerated and the job stays green.",
+                    "Remove continue-on-error. A test whose failure is not binding reports, it "
+                    "does not control.",
+                    graceable=True,
+                )
+            )
+            continue
+
+        run = str(step.get("run") or "")
+        swallowed = [
+            line.strip() for line in run.splitlines()
+            if any(token in line for token in NEUTRALISING_SUFFIXES)
+        ]
+        if swallowed:
+            findings.append(
+                Finding(
+                    "SP053",
+                    f"Control '{control_id}' names a step that discards its exit code",
+                    f"{reference!r} in {workflow} swallows a non-zero status, so a failed run is "
+                    f"indistinguishable from a passing one.",
+                    "Let the exit code reach the job. If a non-blocking report is wanted, run it "
+                    "as a separate reporting step rather than disarming this one.",
+                    graceable=True,
+                )
+            )
+            continue
+
+        notes.append(f"{control_id}: verified against step {reference!r} in {workflow}")
+
 
 
 def check_control_implementations(
@@ -2305,6 +2442,7 @@ def run(repo: Path, today: _dt.date, no_grace: bool, staged: bool) -> int:
             # exactly the output that says a control was narrowed.
             exempt = placeholder_exemptions(repo, profile, findings, notes)
             check_control_implementations(repo, profile, findings, notes, exempt)
+            check_pattern_b_controls(repo, profile, findings, notes)
             check_pinned_identity(profile, record, findings)
             check_prerequisites(
                 repo,

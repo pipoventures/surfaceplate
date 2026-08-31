@@ -187,6 +187,31 @@ def seed_gate_artefacts(repo: Path, profile_text: str) -> None:
             capture_output=True,
         )
 
+    # The CI steps pattern-B controls name (DR-25, SP053). Written into a workflow the fixture
+    # would not otherwise have, for the same reason as everything else seeded here: a fixture
+    # unable to satisfy the control fails every unrelated test for a reason none is about.
+    pattern_b_steps = [
+        entry["implementation_reference"].strip()
+        for control_id, entry in (data.get("control_decisions") or {}).items()
+        if control_id in ("deterministic_tests", "contract_tests")
+        and isinstance(entry, dict)
+        and entry.get("decision") == "required"
+        and isinstance(entry.get("implementation_reference"), str)
+        and entry["implementation_reference"].strip()
+    ]
+    if pattern_b_steps:
+        workflow = repo / ".github" / "workflows" / "tests.yml"
+        workflow.parent.mkdir(parents=True, exist_ok=True)
+        steps = "".join(
+            f"      - name: {name}\n        run: echo running {name!r}\n"
+            for name in pattern_b_steps
+        )
+        workflow.write_text(
+            "name: Tests\non: [push]\njobs:\n  tests:\n    runs-on: ubuntu-latest\n"
+            "    steps:\n" + steps,
+            encoding="utf-8",
+        )
+
     for gate in data.get("prerequisites") or []:
         if not isinstance(gate, dict) or gate.get("status") != "required":
             continue
@@ -729,6 +754,40 @@ def main() -> int:
             result.stdout[-400:],
         )
 
+        # ---- SP053: pattern B (DR-25, amended to step granularity) ----
+        #
+        # A test step that cannot fail is the failure this mechanism exists for: a suite can run,
+        # report success and leave the job green while it failed, if the exit code is discarded.
+        # Observed in this project's own history with a scanner, not a hypothesis.
+        # Seeded for the FULL profile, which declares gates and steps the essential fixture does
+        # not have. Without this the probes below fail on missing gate artefacts rather than on
+        # the thing they are testing.
+        full_b = read_example("application-profile.full.example.yaml")
+        seed_gate_artefacts(gates, full_b)
+
+        for label, mutate in (
+            ("names no CI step",
+             lambda s: s.replace("    implementation_reference: Run the contract tests\n", "")),
+            ("names a step that does not exist",
+             lambda s: s.replace("implementation_reference: Run the contract tests",
+                                 "implementation_reference: No Such Step")),
+        ):
+            result = gate_check(mutate(full_b))
+            check(
+                f"a pattern B control that {label} is rejected",
+                "SP053" in result.stdout,
+                result.stdout[-300:],
+            )
+
+        # The negative direction, without which the two above are consistent with a check that
+        # fires on every profile.
+        result = gate_check(full_b)
+        check(
+            "a correctly referenced CI step raises no SP053",
+            "SP053" not in result.stdout,
+            result.stdout[-400:],
+        )
+
         # ---- F20 / DR-25: a pass must not read as verification ----
         #
         # The checker reports which of a level's required controls are declared rather than
@@ -746,14 +805,22 @@ def main() -> int:
             result.stdout[:400],
         )
 
-        # A level with controls that remain unverified must still say so. contract_tests and
-        # deterministic_tests are pattern B, unbuilt, so `standard` still has two.
+        # A level with controls that remain unverified must still say so. As each packet lands
+        # this has to move up a level: `standard` was fully verified by pattern B (ACT-012), so
+        # the only level with unverified controls now is `full` - its four record-based controls
+        # are pattern C, packet 4. When that lands, this assertion should be deleted rather than
+        # relocated, because there will be no level left for it to be true of.
         result = gate_check(essential_src.replace(
-            "conformance_level: essential", "conformance_level: standard"))
+            "conformance_level: essential", "conformance_level: full"))
         check(
             "a level with unverified controls still reports them",
             "DECLARED, not checked" in result.stdout,
             result.stdout[:400],
+        )
+        check(
+            "and names the pattern C controls specifically",
+            all(c in result.stdout for c in ("provenance", "run_lineage", "method_registry", "overrides")),
+            result.stdout[:500],
         )
 
         # ---- placeholder-scan exemptions: F16 / DR-22, and SP050 ----

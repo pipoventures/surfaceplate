@@ -45,6 +45,7 @@ on an agent's authority.
 | `ACT-009` | Implement the dual licence decided in `hermes` (`F19`) | maintainer | maintainer | `waiting_for_review` | — | hard | yes — it changes the terms under which every copied file is licensed, on a published artefact | low on mechanism, and the boundary is already locked; the judgement was made in `hermes` and is cited rather than retaken here | `LICENSE-DOCS` carries CC0-1.0, `NOTICE` exists, and `README.md` states which licence covers which paths | The CC0 text fetched from creativecommons.org and diffed byte-for-byte against the SPDX copy; suites and manifest accounted for; both checker copies PASS |
 | `ACT-010` | Architecture for provable controls, and say which are checked (`F20`) | maintainer | maintainer | `waiting_for_review` | — | hard | yes — it fixes the shape every future control validator must follow, and changes what a passing check reports | high — the architecture constrains eight validators that follow it, and the boundary between what can and cannot be proven is a judgement the whole design rests on | `DR-25` records four patterns and the meaning of `implementation_reference`; `CONFORMANCE_LEVELS.md` and the checker's output distinguish a checked control from a declared one | The demonstration reproduced — a profile claiming `full` with no records still passes, and the output now says why; suites and manifest accounted for |
 | `ACT-011` | Patterns D and A: three controls become checked; surfaceplate acquires a lock (`F21`) | maintainer | maintainer | `waiting_for_review` | `ACT-010` | hard | yes — it changes what a conformance result establishes, and pins the runtime for every adopting repository | medium — the patterns were fixed by `DR-25`; the judgement here was which versions to pin and whether to record the early start on item 1 | `dependency_lock`, `assurance_findings` and `documentation_authority` verified rather than declared; `pyproject.toml` pins both runtime dependencies; the level banner shrinks from 3 of 4 to 2 of 4 | Versions resolved in a clean environment with all five suites run against them before pinning; `SP051` and `SP052` seen to fail in five ways and pass in one; the drift guard seen to fail both ways |
+| `ACT-012` | Pattern B: `deterministic_tests` and `contract_tests` become checked | maintainer | maintainer | `waiting_for_review` | `ACT-011` | hard | yes — it adds an obligation on every adopter at `standard` and above, and amends a published decision | medium — the mechanism is `SP046`/`SP047` reused; the judgement was step versus job granularity, which amends `DR-25` | Both controls verified rather than declared; the level banner disappears at `standard`; `DR-25` amended in place | `SP053` seen to fail four ways and pass one; the banner absent afterwards, which is the packet's own scoreboard |
 ## Notes on the entries
 
 `ACT-002` and `ACT-003` are both raised by `DR-16` and are deliberately **not** resolved by
@@ -103,7 +104,13 @@ against the design rather than grounds for an exemption. It failed immediately: 
 was declared with nothing pinned at all. The design survived; the repository did not, and `F21`
 records it.
 
-`ACT-005` to `ACT-011` were registered **before** implementation begins, not alongside it. `work_registration` is
+`ACT-012` amends `DR-25` rather than working around it. That record predicted
+`implementation_reference` would carry a status-check name for pattern B; implementation showed a
+status check is a *job*, and one job here runs every suite, so both controls would have pointed at
+the same name and the check would have been identical for both. `DR-25` states that a pattern which
+does not fit means the record is wrong — so it is amended in place.
+
+`ACT-005` to `ACT-012` were registered **before** implementation begins, not alongside it. `work_registration` is
 live over `scripts/**` and `schemas/**`, which is exactly what item 4 changes, and a gate satisfied
 retrospectively is the failure mode `core/PREREQUISITE_GATES.md` warns is most common — satisfied on
 paper, violated in spirit.

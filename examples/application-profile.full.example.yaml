@@ -59,9 +59,11 @@ baseline_controls:
 control_decisions:
   deterministic_tests:
     decision: required
+    implementation_reference: Run the test suite
     rationale: Forecast outputs must be reproducible before they can be reviewed.
   contract_tests:
     decision: required
+    implementation_reference: Run the contract tests
     rationale: The API is consumed by a separate frontend and would break silently.
   documentation_authority:
     decision: required

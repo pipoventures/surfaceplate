@@ -75,7 +75,7 @@ adoption:
   # .standards/INSTALL.json. SP049 fails loudly if it is not, which is the intended
   # behaviour. An adopter meets the same step only on upgrade, where re-pinning is exactly
   # what should happen because the framework has changed.
-  framework_digest: 917b137a7ca4028ed6c87563cbdb8d05b6b34dc65efda19c56973f3acff50a53
+  framework_digest: 5389c2cafca5334869e1162a2141d5a16189d726128ac6cb15e8b4c17125e0c5
   adoption_date: "2026-08-31"
   review_by: "2027-02-27"
   framework_maintainer: Mario Pipo
@@ -154,12 +154,14 @@ control_decisions:
       resolved in a clean environment with all five suites run against them before pinning.
   deterministic_tests:
     decision: required
+    implementation_reference: Test the installer and the conformance checker end to end
     rationale: >-
       tests/validate_contracts.py and tests/test_install_and_check.py both report an
       executed-check count on success, so "everything passed" is distinguishable from
       "nothing ran" — the defect recorded as F3 and fixed at 0.13.0.
   contract_tests:
     decision: required
+    implementation_reference: Validate the control contracts
     rationale: >-
       The schemas are the contract adopters validate against. tests/validate_contracts.py
       asserts positive and negative cases, and derives the namespace from NAMESPACE.md
