@@ -298,8 +298,26 @@ def upsert_conformance_block(target_repo: Path, block: str, dry_run: bool) -> st
     return action
 
 
-def install(source: Path, target: Path, grace_days: int, dry_run: bool, replace_existing: bool) -> int:
+def install(
+    source: Path,
+    target: Path,
+    grace_days: int,
+    dry_run: bool,
+    replace_existing: bool,
+    no_hooks: bool = False,
+) -> int:
     payload = build_payload(source)
+    # F27. The hook is one enforcement route of three, and SP038 fires only when a gate
+    # actually claims `local_hook` - so the standard has always permitted a repository with no
+    # surfaceplate hook while the installer refused to produce one. Declining removes the hook
+    # from the payload entirely rather than writing a file nothing will call.
+    if no_hooks:
+        # The WHOLE directory, not just the hook. `.githooks/` also carries a `.gitattributes`,
+        # and removing only the hook left an orphan directory holding one file that governs a
+        # hook which is not there - caught by the probe rather than by reading the code.
+        payload = {
+            rel: src for rel, src in payload.items() if not rel.startswith(".githooks/")
+        }
 
     missing = verify_source(source, payload)
     if missing:
@@ -353,13 +371,19 @@ def install(source: Path, target: Path, grace_days: int, dry_run: bool, replace_
         print("      a deliberate upgrade and re-read the conformance result afterwards.")
         print()
 
-    hook_conflict = hook_configuration_conflict(target)
+    # Not consulted when hooks are declined: there is no conflict to have, because nothing
+    # will be configured. Checking anyway would refuse an install that touches no hook at all.
+    hook_conflict = None if no_hooks else hook_configuration_conflict(target)
     if hook_conflict:
         print("STOPPED - this repository already has a different Git hook configuration:")
         print(f"  {hook_conflict}")
         print()
-        print("Reconcile the existing hooks into .githooks without losing their behaviour, or")
-        print("remove the old hook configuration after deciding it is no longer needed.")
+        print("Three routes, and the third was missing until 0.17.0 (F27):")
+        print("  - Reconcile the existing hooks into .githooks without losing their behaviour.")
+        print("  - Remove the old hook configuration, having decided it is no longer needed.")
+        print("  - Re-run with --no-hooks: install everything else, keep your hook system, and")
+        print("    rely on history_audit and review. Nothing will then check staged changes")
+        print("    before they are committed, and the conformance check says so on every run.")
         print("Nothing has been written.")
         return 4
 
@@ -417,10 +441,13 @@ def install(source: Path, target: Path, grace_days: int, dry_run: bool, replace_
     action = upsert_conformance_block(target, block, dry_run)
     print(f"  {action:<7} {COPILOT_INSTRUCTIONS}")
 
-    hook_ok, hook_action = configure_standard_hook(target, dry_run)
-    print(f"  {hook_action}")
-    if not hook_ok:
-        return 2
+    if no_hooks:
+        print("  declined  the pre-commit hook, and core.hooksPath is left as it was")
+    else:
+        hook_ok, hook_action = configure_standard_hook(target, dry_run)
+        print(f"  {hook_action}")
+        if not hook_ok:
+            return 2
 
     profile = target / PROFILE_PATH
     if profile.is_file():
@@ -450,8 +477,14 @@ def install(source: Path, target: Path, grace_days: int, dry_run: bool, replace_
         # checked against; until this existed the field was shape-checked and nothing more (F7).
         "framework_digest": framework_anchor(source),
         "files": digests,
-        "executable_files": [HOOK_TARGET],
+        "executable_files": [] if no_hooks else [HOOK_TARGET],
     }
+    # Recorded rather than silent (F27, DR-29). A declination that leaves no trace is the shape
+    # this framework exists to catch: the check would pass and nothing would distinguish "staged
+    # changes are gated" from "nothing gates them". Absent means installed, so every record
+    # written before 0.17.0 reads correctly without migration.
+    if no_hooks:
+        record["hooks"] = "declined"
     record_text = json.dumps(record, indent=2, sort_keys=True) + "\n"
     if not dry_run:
         record_path.parent.mkdir(parents=True, exist_ok=True)
@@ -518,6 +551,15 @@ def main(argv: list[str] | None = None) -> int:
             "Only use this once you have decided the standard supersedes them."
         ),
     )
+    parser.add_argument(
+        "--no-hooks",
+        action="store_true",
+        help=(
+            "Do not install the pre-commit hook and do not touch core.hooksPath. For a "
+            "repository with its own hook system. The declination is recorded in INSTALL.json "
+            "and reported by every conformance check."
+        ),
+    )
     args = parser.parse_args(argv)
 
     source = Path(args.source).resolve() if args.source else repo_root()
@@ -536,7 +578,14 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 2
 
-    return install(source, target, args.grace_days, args.dry_run, args.replace_existing)
+    return install(
+        source,
+        target,
+        args.grace_days,
+        args.dry_run,
+        args.replace_existing,
+        no_hooks=args.no_hooks,
+    )
 
 
 if __name__ == "__main__":

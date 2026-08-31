@@ -39,6 +39,9 @@ COPILOT_INSTRUCTIONS = ".github/copilot-instructions.md"
 WORKFLOW_PATH = ".github/workflows/standards-conformance.yml"
 SCHEMA_PATH = f"{VENDOR_DIR}/schemas/application-profile.schema.yaml"
 EXCEPTION_SCHEMA_PATH = f"{VENDOR_DIR}/schemas/gate-exception.schema.yaml"
+# The hook the standard ships. Named here so SP038 can ask whether the hook Git will
+# actually run is THIS one, rather than merely whether some hook exists (F28).
+HOOK_TARGET = ".githooks/pre-commit"
 
 BLOCK_BEGIN = "<!-- BEGIN SURFACEPLATE -->"
 BLOCK_END = "<!-- END SURFACEPLATE -->"
@@ -792,6 +795,30 @@ def step_mentions(step: dict, scanner: str) -> bool:
         str(step.get(key, "")) for key in ("uses", "run", "name", "id")
     ).lower()
     return scanner.lower() in haystack
+
+
+def report_declined_hook(record: dict, notes: list[str]) -> None:
+    """Say, on every run, when the pre-commit hook was declined at install (F27, DR-29).
+
+    Declining is PERMITTED, not a defect: the hook is one enforcement route of three, and SP038
+    fires only when a gate actually claims `local_hook`. A repository with its own hook system
+    may keep it and rely on history_audit and review.
+
+    But it must not be silent. Without this line nothing anywhere distinguishes "staged changes
+    are gated before they are committed" from "nothing gates them" - the two summarise
+    identically, in the profile and in a passing check alike. That is the shape the machine-wide
+    delegation hook on the maintainer's own machine was written to prevent, in its own words:
+    "the gate reads as present because the file is still on disk, while git never calls it."
+
+    Absent means installed, so a record written before 0.17.0 reads correctly and says nothing.
+    """
+    if not isinstance(record, dict) or record.get("hooks") != "declined":
+        return
+    notes.append(
+        "the pre-commit hook was declined at install: nothing checks staged changes before they "
+        "are committed, and this repository relies on history_audit and review. A gate that "
+        "claims local_hook enforcement anyway is still a finding (SP038)."
+    )
 
 
 def check_pinned_identity(profile: dict, record: dict | None, findings: list[Finding]) -> None:
@@ -1862,16 +1889,34 @@ def git_history_available(repo: Path) -> bool:
     return code == 0
 
 
-def active_pre_commit_hook(repo: Path) -> tuple[bool, str]:
-    """Return whether Git's active hooks directory contains a pre-commit hook."""
+def active_pre_commit_hook(repo: Path, record: dict | None = None) -> tuple[bool, str]:
+    """Return whether the STANDARD'S pre-commit hook is what Git will actually run.
+
+    F28. This asked only whether an executable `pre-commit` existed in the active hooks
+    directory - ANY hook, from anyone. So a gate could claim `local_hook` enforcement and be
+    satisfied by an unrelated hook that formats code, or prints a message, and never runs the
+    conformance check at all. SP038's own words are "there is no hook", and what a passing
+    result established was "some hook exists" - not "staged changes are checked before they are
+    committed", which is the thing the enforcement claim asserts.
+
+    It predates the hook opt-out and was exposed by it: declining hooks left `core.hooksPath`
+    pointing at the adopter's own hook system, which satisfied the old test perfectly.
+
+    The remedy needs no new data. The install record already carries the digest of
+    `.githooks/pre-commit`, so the active hook can be compared against the hook this standard
+    shipped. A record with no such entry - because hooks were declined - cannot support the
+    claim, which is exactly right.
+    """
     code, configured = git(repo, "config", "--local", "--get", "core.hooksPath")
     if code == 0 and configured:
         hooks_dir = Path(configured)
         if not hooks_dir.is_absolute():
             hooks_dir = repo / hooks_dir
         hook = hooks_dir / "pre-commit"
-        active = hook.is_file() and (os.name == "nt" or os.access(hook, os.X_OK))
-        return active, f"core.hooksPath={configured!r}, expected executable hook {hook}"
+        present = hook.is_file() and (os.name == "nt" or os.access(hook, os.X_OK))
+        if not present:
+            return False, f"core.hooksPath={configured!r}, expected executable hook {hook}"
+        return standard_hook_installed(hook, record, f"core.hooksPath={configured!r}")
 
     code, default_hook = git(repo, "rev-parse", "--git-path", "hooks/pre-commit")
     if code != 0 or not default_hook:
@@ -1879,8 +1924,35 @@ def active_pre_commit_hook(repo: Path) -> tuple[bool, str]:
     hook = Path(default_hook)
     if not hook.is_absolute():
         hook = repo / hook
-    active = hook.is_file() and (os.name == "nt" or os.access(hook, os.X_OK))
-    return active, f"default hooks path, expected executable hook {hook}"
+    present = hook.is_file() and (os.name == "nt" or os.access(hook, os.X_OK))
+    if not present:
+        return False, f"default hooks path, expected executable hook {hook}"
+    return standard_hook_installed(hook, record, "default hooks path")
+
+
+def standard_hook_installed(
+    hook: Path, record: dict | None, where: str
+) -> tuple[bool, str]:
+    """Is the executable hook Git will run the one this standard shipped? (F28)"""
+    expected = (record or {}).get("files", {}).get(HOOK_TARGET)
+    if not expected:
+        declined = (record or {}).get("hooks") == "declined"
+        reason = (
+            "the pre-commit hook was declined at install"
+            if declined
+            else f"{INSTALL_RECORD} records no digest for {HOOK_TARGET}"
+        )
+        return False, f"{where}: {hook} is present, but {reason}"
+    try:
+        actual = sha256_text(normalise(hook.read_text(encoding="utf-8")))
+    except (OSError, UnicodeDecodeError):
+        actual = sha256_file(hook)
+    if actual != expected:
+        return False, (
+            f"{where}: {hook} is executable but is not the hook this standard installed, so "
+            f"nothing establishes that it runs the conformance check"
+        )
+    return True, f"{where}: {hook}"
 
 
 def staged_paths(
@@ -2492,6 +2564,7 @@ def check_prerequisites(
     notes: list[str],
     staged_snapshot: bool = False,
     exempt_from_placeholder: set[str] | None = None,
+    install_record: dict | None = None,
 ) -> None:
     """Prerequisite gates: artefact X must exist before activity Y may begin.
 
@@ -2537,7 +2610,7 @@ def check_prerequisites(
         for gate in gates_raw
     )
     hook_active, hook_detail = (
-        active_pre_commit_hook(repo)
+        active_pre_commit_hook(repo, install_record)
         if needs_hook_check
         else (True, "no gate claims local hook enforcement")
     )
@@ -2649,12 +2722,18 @@ def check_prerequisites(
             findings.append(
                 Finding(
                     "SP038",
-                    f"Gate '{gate_id}' claims hook enforcement, but there is no hook",
+                    # F28. This said "there is no hook", which was accurate only in one of the
+                    # three ways the claim can fail: no hook at all, a hook that is not this
+                    # standard's, or hooks declined at install. The last two leave an executable
+                    # pre-commit in place, and the old wording read as plainly wrong against a
+                    # repository that has one.
+                    f"Gate '{gate_id}' claims hook enforcement that is not in place",
                     f"enforcement lists 'local_hook', but {hook_detail}.",
                     f"Re-run the installer so {STANDARD_HOOKS_PATH}/pre-commit is installed and "
                     f"core.hooksPath is set to {STANDARD_HOOKS_PATH}, or remove the claim and "
-                    "rely on the history audit. Claiming an inactive control is worse than not "
-                    "having it.",
+                    "rely on the history audit. If this repository keeps its own hook system, "
+                    "that is a legitimate choice - install with --no-hooks and do not claim "
+                    "local_hook. Claiming an inactive control is worse than not having it.",
                     graceable=True,
                 )
             )
@@ -2987,6 +3066,7 @@ def run(repo: Path, today: _dt.date, no_grace: bool, staged: bool) -> int:
             )
             check_deferral_expiry(profile, findings, today, notes)
             check_pinned_identity(profile, record, findings)
+            report_declined_hook(record, notes)
             check_prerequisites(
                 repo,
                 profile,
@@ -2995,6 +3075,7 @@ def run(repo: Path, today: _dt.date, no_grace: bool, staged: bool) -> int:
                 notes,
                 staged_snapshot=staged,
                 exempt_from_placeholder=exempt,
+                install_record=record,
             )
             if staged:
                 check_staged_prerequisites(repo, profile, findings)

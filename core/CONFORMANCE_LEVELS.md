@@ -66,6 +66,14 @@ history audit — whether anyone changed the gated paths while it was missing.
 
 **Every control this framework defines is now checked**, at every level. Nothing is declared-only.
 
+**The pre-commit hook is one enforcement route of three, not a requirement.** A gate declares
+`enforcement`, and `history_audit`, `review` and `local_hook` are all valid answers. A repository
+with its own hook system may install with `--no-hooks`, keep it, and rely on the history audit —
+which catches a violation after the commit rather than before it. The declination is recorded at
+install and reported on every run, so a passing check never reads as "staged changes are gated" when
+they are not. Claiming `local_hook` without the standard's hook actually being what Git runs is a
+finding (`SP038`). See `F27` and `F28`.
+
 **An exemption may quote what it describes.** A `placeholder_scan_exemptions` entry must say why an
 artefact legitimately contains a placeholder token, and saying so usually means quoting it. That one
 field — the exemption's `rationale` — is excluded from the profile's own placeholder scan for that

@@ -1830,6 +1830,103 @@ def main() -> int:
             result.stdout[-700:],
         )
 
+        # ---- F27 / F28: declining the hook, and what SP038 actually establishes ----
+        #
+        # The installer refused outright in any repository with an existing hook system, while
+        # the standard has always permitted one: SP038 fires only when a gate CLAIMS local_hook.
+        # Two parts of one framework disagreeing about the same obligation.
+        foreign_hooks = tmp / "foreign-hooks"
+        foreign_hooks.mkdir(parents=True, exist_ok=True)
+        adopters_hook = foreign_hooks / "pre-commit"
+        adopters_hook.write_text("#!/bin/sh\necho \"the adopter's own hook ran\"\n",
+                                 encoding="utf-8")
+        adopters_hook.chmod(0o755)
+
+        declined = make_git_repo(tmp, "hooks-declined")
+        subprocess.run(["git", "-C", str(declined), "config", "core.hooksPath",
+                        str(foreign_hooks)], capture_output=True)
+
+        blocked = run([str(INSTALLER), "--target", str(declined)])
+        check(
+            "the default install still refuses a foreign hooks path, and writes nothing",
+            blocked.returncode == 4
+            and not (declined / ".standards").exists()
+            and not (declined / ".githooks").exists(),
+            (blocked.stdout + blocked.stderr)[-400:],
+        )
+        check(
+            "and the refusal now names the third route",
+            "--no-hooks" in blocked.stdout,
+            blocked.stdout[-500:],
+        )
+
+        allowed = run([str(INSTALLER), "--target", str(declined), "--no-hooks"])
+        hooks_path = subprocess.run(
+            ["git", "-C", str(declined), "config", "--get", "core.hooksPath"],
+            capture_output=True, text=True).stdout.strip()
+        record = read_record(declined)
+        check(
+            "--no-hooks installs, leaves core.hooksPath alone, and ships no .githooks",
+            allowed.returncode == 0
+            and hooks_path == str(foreign_hooks)
+            and not (declined / ".githooks").exists()
+            and not any("githooks" in rel for rel in record["files"])
+            and record.get("executable_files") == [],
+            (allowed.stdout + allowed.stderr)[-500:],
+        )
+        check(
+            "and the declination is recorded rather than silent",
+            record.get("hooks") == "declined",
+            str(sorted(record))[:300],
+        )
+
+        # The essential example claims no local_hook, which is what a repository relying on
+        # history_audit and review looks like. Used as-is.
+        declined_profile = read_example("application-profile.essential.example.yaml")
+        (declined / "governance" / "application-profile.yaml").write_text(
+            declined_profile, encoding="utf-8")
+        seed_gate_artefacts(declined, declined_profile)
+        result = verify(declined, "--no-grace")
+        check(
+            "a repository that declined the hook passes, and the run says so",
+            # The advisory NAMES SP038, so the finding marker is what must be absent - matching
+            # the bare code here would fail against the very line being asserted present.
+            "declined at install" in result.stdout and "[SP038]" not in result.stdout,
+            result.stdout[-600:],
+        )
+
+        # F28. SP038 asked only whether SOME executable pre-commit existed in the active hooks
+        # directory - so the adopter's own unrelated hook satisfied a local_hook claim, and the
+        # finding's negative result established "a hook exists" rather than "the conformance
+        # check runs before commit". Both remaining failure modes are asserted here.
+        claiming = declined_profile.replace(
+            "enforcement: [history_audit, review]",
+            "enforcement: [history_audit, local_hook, review]", 1)
+        (declined / "governance" / "application-profile.yaml").write_text(
+            claiming, encoding="utf-8")
+        result = verify(declined, "--no-grace")
+        check(
+            "claiming local_hook after declining is caught, though a hook is present",
+            "[SP038]" in result.stdout and "declined at install" in result.stdout,
+            result.stdout[-600:],
+        )
+
+        foreign = make_git_repo(tmp, "foreign-hook")
+        install(foreign)
+        subprocess.run(["git", "-C", str(foreign), "config", "core.hooksPath",
+                        str(foreign_hooks)], capture_output=True)
+        foreign_profile = claiming
+        (foreign / "governance" / "application-profile.yaml").write_text(
+            foreign_profile, encoding="utf-8")
+        seed_gate_artefacts(foreign, foreign_profile)
+        result = verify(foreign, "--no-grace")
+        check(
+            "an unrelated pre-commit hook does not satisfy a local_hook claim",
+            "[SP038]" in result.stdout
+            and "is not the hook this standard installed" in result.stdout,
+            result.stdout[-700:],
+        )
+
         # SP055's tracking branch, which needs a REAL repository - the gates fixture above has
         # only a fake .git directory, so git_available() is false there and this path is dead.
         # The pass above is therefore also pattern C's strongest negative control: four registers,
