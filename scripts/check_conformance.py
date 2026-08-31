@@ -1160,7 +1160,7 @@ def check_control_implementations(
 
 def check_pattern_c_controls(
     repo: Path, profile: dict, findings: list[Finding], notes: list[str]
-) -> None:
+) -> tuple[dict[str, list[tuple[str, dict]]], set[str]]:
     """Verify that controls claiming pattern C name a register whose records validate (DR-26).
 
     This closes the half of F20 that has been open since the architecture was written. A
@@ -1176,7 +1176,16 @@ def check_pattern_c_controls(
 
     Nor does validity mean truth. A run-lineage record can name an input hash that was never
     computed over anything, and it will validate. DR-25 records that boundary as permanent.
+
+    Returns the records that VALIDATED, keyed by control, plus the set of controls whose register
+    held something that did NOT validate. Both halves are needed and the second was learned the
+    hard way: excluding a malformed record from the index is what makes a reference INTO that
+    register look unresolved, so suppressing the cascade requires knowing the register is
+    incomplete, not merely omitting the bad row. A negative result has to establish that the look
+    succeeded, and a look into a register you could not fully read did not.
     """
+    registers: dict[str, list[tuple[str, dict]]] = {}
+    incomplete: set[str] = set()
     decisions = profile.get("control_decisions")
     decisions = decisions if isinstance(decisions, dict) else {}
 
@@ -1290,6 +1299,8 @@ def check_pattern_c_controls(
             continue
 
         invalid = False
+        valid: list[tuple[str, dict]] = []
+        registers[control_id] = valid
         for path in records:
             rel = path.relative_to(repo).as_posix()
             data, error = load_yaml(path)
@@ -1322,8 +1333,11 @@ def check_pattern_c_controls(
                     )
                 )
                 invalid = True
+                continue
+            valid.append((rel, data))
 
         if invalid:
+            incomplete.add(control_id)
             continue
 
         # The count is reported, and zero is reported as zero rather than as silence, so that
@@ -1338,6 +1352,207 @@ def check_pattern_c_controls(
             notes.append(
                 f"{control_id}: verified against {reference} (register is empty - this control "
                 f"establishes that nothing invalid is filed, not that anything is)"
+            )
+
+    return registers, incomplete
+
+
+# Which control's records must resolve into which other control's register (DR-27). This is what
+# separates `provenance` from `run_lineage`, and the separation is by DIRECTION rather than by
+# fields: the schema already requires every hash and revision on a completed run, so a split by
+# field content would have obliged nothing from either.
+#
+#   run_lineage -> method_registry   the recorded execution links to the thing executed
+#   provenance  -> overrides         a manual adjustment is an input the result traces back to
+#   overrides   -> run_lineage       an override adjusted a run that actually happened
+#
+# Each edge is inert unless the TARGET control is also declared. Obliging otherwise would make
+# declaring one control silently require another, which is the tool deciding an adopter's scope.
+# At `full` all four are required, so in practice every edge is live.
+
+
+def record_identity(control_id: str, data: dict) -> tuple | None:
+    """The identity two records in one register may not share (SP058)."""
+    if control_id == "overrides":
+        value = data.get("override_id")
+        return ("override_id", value) if isinstance(value, str) else None
+    if control_id == "method_registry":
+        mid, version = data.get("method_id"), data.get("method_version")
+        return ("method", mid, version) if isinstance(mid, str) and isinstance(version, str) else None
+    value = data.get("run_id")  # run_lineage and provenance share a record type
+    return ("run_id", value) if isinstance(value, str) else None
+
+
+def check_record_references(
+    repo: Path,
+    profile: dict,
+    registers: dict[str, list[tuple[str, dict]]],
+    incomplete: set[str],
+    findings: list[Finding],
+    notes: list[str],
+) -> None:
+    """Records must reference what they describe, and must not collide or belong elsewhere.
+
+    DR-25 put "reference what they describe" in pattern C's definition; C1 built the validation
+    and split this out. Without it a run may name a method that was never registered and an
+    override may name a run that never happened - both validate perfectly against their schemas,
+    because a schema can only see one record at a time.
+
+    WHAT THIS ESTABLISHES, and the limit is the point: that a named record EXISTS. Never that it
+    is the RIGHT one, that it is honest, or that the register is complete. An adopter who files
+    nothing still passes; that is C1's decision and this packet does not revisit it.
+    """
+    application_id = profile.get("application_id")
+
+    # Index by identity. Built from the records that VALIDATED, so a malformed record produces
+    # one SP056 rather than that plus a cascade of SP057s about references nothing could resolve.
+    index: dict[str, set[tuple]] = {}
+    for control_id, records in registers.items():
+        bucket: set[tuple] = set()
+        seen: dict[tuple, str] = {}
+        for rel, data in records:
+            identity = record_identity(control_id, data)
+            if identity is None:
+                continue
+            if identity in seen:
+                findings.append(
+                    Finding(
+                        "SP058",
+                        f"Two records in the '{control_id}' register claim one identity",
+                        f"{rel} and {seen[identity]} both claim "
+                        f"{' '.join(str(part) for part in identity[1:])}.",
+                        "Give them distinct identifiers. Two records under one identity means "
+                        "every reference to it resolves to whichever was read last.",
+                        graceable=True,
+                    )
+                )
+            else:
+                seen[identity] = rel
+            bucket.add(identity)
+
+            # A record carrying another application's id was copied here, and whatever it
+            # documents is not documented for THIS repository.
+            if isinstance(application_id, str) and data.get("application_id") not in (
+                None, application_id
+            ):
+                findings.append(
+                    Finding(
+                        "SP058",
+                        f"Record '{rel}' belongs to a different application",
+                        f"application_id is {data.get('application_id')!r}; this repository is "
+                        f"{application_id!r}.",
+                        "Correct it, or file the record with the application it describes. A "
+                        "register holding another application's records overstates this one.",
+                        graceable=True,
+                    )
+                )
+        index[control_id] = bucket
+
+    def declared(control_id: str) -> bool:
+        return control_id in registers
+
+    def readable(control_id: str) -> bool:
+        """Declared, and every record in it validated.
+
+        A reference into a register holding something unreadable cannot be judged: the index is
+        missing exactly the rows that could not be parsed, so an unresolved reference and a
+        reference to the broken record are indistinguishable. Reporting the first would be an
+        instrument whose negative result does not establish what it appears to - and this was a
+        real defect in the first implementation, caught by the probe written to prevent it.
+        """
+        return control_id in registers and control_id not in incomplete
+
+    def unresolved(rel: str, target: str, subject: str, hint: str) -> None:
+        findings.append(
+            Finding(
+                "SP057",
+                f"Record '{rel}' references something that does not exist",
+                f"{subject} is not in the '{target}' register.",
+                hint,
+                graceable=True,
+            )
+        )
+
+    resolved = 0
+
+    # run_lineage -> method_registry. The VERSION is part of the reference: a run against version
+    # 2.3.0 of a method registered only at 2.4.0 is not reproducible from the registry, and
+    # matching on the id alone would report that it is.
+    if declared("run_lineage") and readable("method_registry"):
+        methods = index.get("method_registry", set())
+        for rel, data in registers.get("run_lineage", []):
+            mid, version = data.get("method_id"), data.get("method_version")
+            if not isinstance(mid, str) or not isinstance(version, str):
+                continue
+            if ("method", mid, version) in methods:
+                resolved += 1
+                continue
+            same_id = sorted(str(e[2]) for e in methods if e[0] == "method" and e[1] == mid)
+            detail = (
+                f"registered version(s): {', '.join(same_id)}" if same_id
+                else "the method is not registered at any version"
+            )
+            unresolved(
+                rel, "method_registry", f"method {mid} at version {version}",
+                f"Register the method at this version, or correct the run - {detail}. A run "
+                "against an unregistered method has no recorded lifecycle, validation or "
+                "approval state behind it.",
+            )
+
+    # provenance -> overrides. An override is an input in the sense that matters here: a result
+    # cannot be traced to its inputs while an adjustment applied to it is unrecorded.
+    if declared("provenance") and readable("overrides"):
+        known = index.get("overrides", set())
+        for rel, data in registers.get("provenance", []):
+            for override_id in data.get("overrides") or []:
+                if not isinstance(override_id, str):
+                    continue
+                if ("override_id", override_id) in known:
+                    resolved += 1
+                    continue
+                unresolved(
+                    rel, "overrides", f"override {override_id}",
+                    "File the override record, or correct the run. A run naming an override "
+                    "nobody recorded is a result adjusted by something undocumented.",
+                )
+
+    # overrides -> the run records. Either register will do: run_lineage and provenance hold one
+    # record type, and an adopter normally points both at the same directory.
+    if readable("run_lineage") or readable("provenance"):
+        runs = index.get("run_lineage", set()) | index.get("provenance", set())
+        for rel, data in registers.get("overrides", []):
+            run_id = data.get("method_run_id")
+            if not isinstance(run_id, str):
+                continue
+            if ("run_id", run_id) in runs:
+                resolved += 1
+                continue
+            unresolved(
+                rel, "run_lineage", f"run {run_id}",
+                "File the run's lineage record, or correct the override. An override against a "
+                "run with no lineage record cannot be placed in any execution.",
+            )
+
+    if resolved:
+        notes.append(f"record cross-references: {resolved} resolved")
+
+    # Said explicitly, because silence here is indistinguishable from "everything resolved". A
+    # register with no counterpart declared is not a failure - it is the adopter's scope - but a
+    # reader should not take the green line as evidence the references were checked.
+    for source, target in (
+        ("run_lineage", "method_registry"),
+        ("provenance", "overrides"),
+        ("overrides", "run_lineage"),
+    ):
+        if target == "run_lineage" and readable("provenance"):
+            continue
+        if declared(source) and not readable(target):
+            reason = (
+                "it holds a record that did not validate" if target in incomplete
+                else "that control is not declared here"
+            )
+            notes.append(
+                f"{source}: references into '{target}' were not checked - {reason}"
             )
 
 
@@ -2739,7 +2954,10 @@ def run(repo: Path, today: _dt.date, no_grace: bool, staged: bool) -> int:
             exempt = placeholder_exemptions(repo, profile, findings, notes)
             check_control_implementations(repo, profile, findings, notes, exempt)
             check_pattern_b_controls(repo, profile, findings, notes)
-            check_pattern_c_controls(repo, profile, findings, notes)
+            registers, incomplete = check_pattern_c_controls(repo, profile, findings, notes)
+            check_record_references(
+                repo, profile, registers, incomplete, findings, notes
+            )
             check_deferral_expiry(profile, findings, today, notes)
             check_pinned_identity(profile, record, findings)
             check_prerequisites(

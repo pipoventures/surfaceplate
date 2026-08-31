@@ -60,9 +60,13 @@ allOf:
         run_status: {enum: [completed, completed_with_warnings]}
     then:
       required: [ai_provider, ai_model, prompt_version]
-  - if:
-      properties:
-        materiality: {enum: [medium, high]}
-        run_status: {enum: [completed, completed_with_warnings]}
-    then:
-      required: [input_hash, implementation_revision, configuration_hash, output_hash]
+# A third branch stood here until 0.17.0, requiring input_hash, implementation_revision,
+# configuration_hash and output_hash of completed runs at medium or high materiality. It was
+# STRICTLY REDUNDANT - both its condition and its consequent are subsets of the first branch
+# above, so it could never add an obligation - and it misled a reader of this contract into
+# believing a low-materiality completed run escapes fields it does not escape. Removed rather
+# than made real: in this framework materiality grades APPROVAL, not record completeness, which
+# is what override-record.schema.yaml does with the same field. See F24 and DR-27.
+#
+# Not a breaking change: no instance's validity moves, so the $id version segment is unchanged
+# (NAMESPACE.md).

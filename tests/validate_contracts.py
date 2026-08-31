@@ -546,6 +546,35 @@ assert full_example["conformance_level"] == "full"
 override_example = load_yaml(EXAMPLES_DIR / "override-record.approved.example.yaml")
 assert_valid("override-record.schema.yaml", override_example)
 
+method_example = load_yaml(EXAMPLES_DIR / "method-registry-entry.example.yaml")
+assert_valid("method-registry-entry.schema.yaml", method_example)
+
+run_example = load_yaml(EXAMPLES_DIR / "method-run-lineage.example.yaml")
+assert_valid("method-run-lineage.schema.yaml", run_example)
+
+# The three worked records are ONE SET, and SP057 makes that structural rather than editorial:
+# the conformance checker requires these references to resolve in any repository that declares
+# the registers. Asserted here so the set cannot drift apart in an edit to one file, which is
+# exactly how the override example came to name two records that did not exist (DR-27).
+CHECKS += 1
+assert override_example["method_run_id"] == run_example["run_id"], (
+    "the override example must name the run example"
+)
+CHECKS += 1
+assert (run_example["method_id"], run_example["method_version"]) == (
+    method_example["method_id"], method_example["method_version"]
+), "the run example must name the method example at its registered version"
+CHECKS += 1
+assert override_example["override_id"] in run_example["overrides"], (
+    "the run example must carry the override example back"
+)
+CHECKS += 1
+assert (
+    override_example["application_id"]
+    == run_example["application_id"]
+    == full_example["application_id"]
+), "all three worked records must belong to the application the full example describes"
+
 # --- Prerequisite gates (core/PREREQUISITE_GATES.md) -------------------------------
 
 gate = {
