@@ -651,6 +651,25 @@ def main() -> int:
             "# Register\n\nReal content.\n", encoding="utf-8"
         )
 
+        # ---- F20 / DR-25: a pass must not read as verification ----
+        #
+        # The checker reports which of a level's required controls are declared rather than
+        # checked. Both directions are pinned: the warning must appear while controls are
+        # unverified, and must NOT name a control that is genuinely checked - otherwise it
+        # would still be reporting after the verification exists, which is the same defect
+        # pointed the other way.
+        result = gate_check(essential_src)
+        check(
+            "a pass reports which required controls are declared rather than checked",
+            "DECLARED, not checked" in result.stdout,
+            result.stdout[:400],
+        )
+        check(
+            "and does not claim a verified control is merely declared",
+            "documentation_authority" not in result.stdout.split("A pass does not establish")[0].split("DECLARED, not checked")[-1],
+            result.stdout[:400],
+        )
+
         # ---- placeholder-scan exemptions: F16 / DR-22, and SP050 ----
         #
         # The exemption must be NARROW. Three of the four cases below exist to prove what it

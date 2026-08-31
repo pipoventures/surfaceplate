@@ -1156,3 +1156,51 @@ recall fails silently.
 out without ever consulting the repository holding a Class C decision with an explicit publication
 precondition. That precondition had in fact been discharged, so nothing was breached — but the
 answer came out clean by accident rather than by method.
+
+### `F20`: a pass no longer reads as verification it did not perform
+
+Claiming a conformance level proved nothing about the controls it demanded. **Demonstrated:** this
+repository was made to claim `full` and declare `provenance`, `run_lineage`, `method_registry` and
+`overrides` in a tree containing none of them, and the checker raised **zero** objections about any
+of them. Every finding it produced concerned gates.
+
+`SP021` and `SP022` verify two things about a control — that it is listed, and that it reads
+`required`. Nothing asks whether the thing exists. **A gate is checked against the repository; a
+control is checked against itself.** That is uniform: `dependency_lock` at `essential` was as
+unverified as `provenance` at `full`.
+
+Two changes, and neither is verification:
+
+`core/CONFORMANCE_LEVELS.md` now states the distinction **before** the level tables, where a reader
+meets them, rather than in an enforcement section further down.
+
+The checker now reports it in the result itself:
+
+```
+level     : full - 8 of 9 required controls are DECLARED, not checked
+            assurance_findings, contract_tests, dependency_lock, ...
+            A pass does not establish these exist. See F20.
+```
+
+The false claim above still passes — nothing was verified — but it can no longer be read as
+evidence.
+
+[DR-25](org/decisions/DR-25.md) decides the architecture that changes it: four patterns by which a
+control becomes provable, with `implementation_reference` — a field already in the schema and used
+by nothing — as the place an adopter says where a control lives. **Three of the four patterns are
+existing working code**, reused from `SP032`, `SP046`/`SP047` and the `authority_map` gate. Only the
+records validator is new.
+
+**No new schema is needed.** `provenance` appeared to require its own record type; it does not.
+`method-run-lineage.schema.yaml` already requires `input_references` and `input_hash`, so
+`provenance` and `run_lineage` are two properties of one record — traceability and reproducibility —
+and one validator serves both.
+
+**What will still not be provable when all of it is built:** that a record is true. Verification
+establishes that a record exists, is well-formed, is current and is linked. It never establishes
+that the run happened the way its lineage record says. `DR-25` records that as a boundary, not a gap
+to close later.
+
+`VERIFIED_CONTROLS` currently holds one member. Each later packet moves a control into it and the
+reporting shrinks by a line, so the output is derived from what is true rather than maintained
+beside it.

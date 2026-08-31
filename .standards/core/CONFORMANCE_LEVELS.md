@@ -32,6 +32,37 @@ obligations, and the reason they are unverified is that neither leaves an artefa
 can inspect without inspecting the quality of human work, which `core/CONTROL_PRINCIPLES.md`
 principle 9 places outside what a tool may claim.
 
+## What a control decision is, and what it is not
+
+**Read this before the tables below, because they will otherwise imply more than they mean.**
+
+A **control decision** is a *declaration*. The checker verifies that a control the level requires is
+listed and reads `required` (`SP021`, `SP022`). It does **not** verify that the thing exists. A
+repository can declare every control its level demands, possess none of them, and pass.
+
+A **prerequisite gate** is different in kind. The checker looks at reality: whether the named
+artefact exists, whether it is blank, whether it is still an unfilled template, and — through the
+history audit — whether anyone changed the gated paths while it was missing.
+
+| | Checked against |
+|---|---|
+| Prerequisite gate | The repository |
+| Control decision | Itself |
+
+**Currently checked:** `documentation_authority` alone, and indirectly, through the `authority_map`
+gate. **Currently declared only:** every other control at every level, including `dependency_lock`
+at `essential`.
+
+This is recorded as finding `F20`, and `DR-25` decides the architecture that changes it: four
+patterns by which a control becomes provable, with `implementation_reference` naming where the
+control lives. Until a control appears in the *checked* list above, treat its presence in a level as
+an obligation the repository has accepted — not as something this framework has confirmed.
+
+**A limit that will remain after all of it is built.** Verification establishes that a record
+exists, is well-formed, is current, and is linked to what it describes. It never establishes that
+the record is **true**. Nothing here will check that a run happened the way its lineage record says
+it did.
+
 ## Levels
 
 ### `essential`
