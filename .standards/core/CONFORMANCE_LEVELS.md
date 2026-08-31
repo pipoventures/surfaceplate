@@ -61,6 +61,13 @@ history audit — whether anyone changed the gated paths while it was missing.
 
 **`standard` is now fully checked**: every control it requires is verified rather than declared.
 
+**A deferral now expires.** `SP031` has always required a deferred control or gate to carry a
+`revisit_by` date; `SP054` reads it. A date that has passed is a finding, a date within 30 days is
+an advisory, and a malformed date fails — a deadline nobody can parse is not a deadline, and the
+deferral would be permanent by accident. Gate exceptions are **not** covered: their schema carries
+only an optional creation date, so there is nothing declared to expire against, and inventing a
+lifetime would be this framework deciding on an adopter's behalf. See `F22`.
+
 **Currently declared only:** `provenance`, `run_lineage`, `method_registry`, `overrides` — the four
 record-based controls at `full`.
 

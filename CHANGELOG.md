@@ -1287,3 +1287,37 @@ without which the four failures would be consistent with a check that fires on e
 
 `F20` now reads 5 of 9 controls checked. The four that remain are `provenance`, `run_lineage`,
 `method_registry` and `overrides` — pattern C, the only genuinely new mechanism, and the next packet.
+
+### `F22`: a deferral now expires on the date its author gave it
+
+`SP031` has always refused a deferred control or gate carrying no `revisit_by`, on the stated
+grounds that *"a deferral with no owner and no date is an omission wearing a decision's clothes."*
+Nothing then ever read the date:
+
+```
+revisit_by: "2020-01-01"   ->   PASS - all conformance checks satisfied.
+```
+
+Six years expired. The control that exists to prevent a permanent exclusion was creating one.
+
+`SP054` reads it. A passed date is a finding; a date within 30 days is an advisory, mirroring how
+`adoption.review_by` has always been treated; a malformed date fails, because a deadline nobody can
+parse is not a deadline.
+
+**Why this is recording rather than judging:** the date was declared by the adopter. Comparing it
+against today establishes whether a stated commitment has come due — it decides nothing for them.
+That is the same line that keeps per-change risk classification deferred.
+
+**Gate exceptions are deliberately out of scope, and the reason is the sharper half of the
+finding.** `schemas/gate-exception.schema.yaml` carries `raised_on` — optional, and a *creation*
+date rather than a deadline. So an exception is permanent by construction and no checking fixes it,
+because there is nothing declared to check against. Deferrals were unenforced; exceptions are
+**unenforceable**. The first was a gap in the checker, the second is a gap in the contract, and
+closing it means changing a published schema — a decision, not an implementation detail.
+
+Also recorded: this item was kept unconditionally by the scope review and ordered *before* the first
+record validator. Patterns D, A and B were a larger substitution for `G′` than that review
+anticipated, and this was overlooked — an agreed sequence departed from without anyone deciding to.
+
+`SP051` to `SP054` are now listed in `core/PREREQUISITE_GATES.md`'s code table, which had not been
+updated since `SP047`.
