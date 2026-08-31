@@ -6,7 +6,7 @@
 - Added typed assurance evidence and override schemas with conditional approval rules.
 - Removed `approved` from method lifecycle status and coupled final validation/approval states to evidence.
 - Strengthened completed, material, and AI run-lineage provenance requirements.
-- Removed mandatory frontend/backend/test-runner topology and Scenario Factory-specific assumptions from universal contracts.
+- Removed mandatory frontend/backend/test-runner topology and predecessor-application-specific assumptions from universal contracts.
 - Removed scenario/package fields from universal run lineage; applications must own domain extensions.
 - Coupled final assurance states to qualifying evidence type and outcome, including independence basis.
 - Made AI/completed provenance non-null when required, allowed failed runs without outputs, and corrected override approval lifecycle rules.
@@ -25,7 +25,7 @@ This release has not been approved for production or broad adoption. It requires
 - Allowed failed/blocked/cancelled runs to have no outputs.
 - Separated override approval requirement from lifecycle outcome and required approval for high/material-impacting overrides.
 - Made application control decisions a single keyed authority.
-- Removed Scenario Factory-specific fields from universal run lineage.
+- Removed predecessor-application-specific fields from universal run lineage.
 - Added semantic negative conformance cases, format checking, security baseline, and producer validation record.
 - Added conditional limitation/condition details, approval-specific override evidence and timestamp, mandatory baseline control IDs, execution-eligibility guidance, and canonical maintainer requirements.
 
@@ -1096,3 +1096,29 @@ it does nothing for `F6`: stopping the check being deleted is not the same as gi
 outside the repository.
 
 `README.md` is corrected in three places that said no ruleset had ever been applied.
+
+### `F18`: inherited product and methodology names removed from the public tree
+
+The tree carried internal product and methodology names from the private repository this framework
+grew out of — in both adapters, `SETUP_GUIDE.md` (which was **titled** with the pre-`0.12.0`
+product name), four documents under `audit/`, this changelog, `RECONCILIATION.md` and `DR-7`. The
+adoption wizard prompt still called the product by its old name in live text.
+
+Not a brand-policy matter — these are product and methodology names, not an organisation. It is a
+comprehensibility defect, and it was invisible for as long as the only readers were people who knew
+what the names meant. It landed hardest where an evaluating reader looks first: `adapters/r.md` is
+three lines and spent a third of its length warning against copying a product the reader has never
+heard of.
+
+Every inherited name is replaced with a generic description. Live guidance was rewritten outright;
+historical records under `audit/` were redacted **with the redaction disclosed** in a note at the
+top of each — the substance of what was checked and found is unchanged, only the proper nouns are.
+
+**What deliberately remains:** `Shiny` in `adapters/r.md`, which is a public R framework named the
+way `pytest` would be; and this product's own pre-rename name where it records the rename, because
+removing that would erase the record of the rename itself. The line: someone else's names go, and
+this product's own former name stays where it records history and goes from live guidance.
+
+**Not fixed:** the adapters are still 3 and 5 lines, which is thin for the audience they serve; and
+nothing prevents recurrence, since `check_identifiers.py` guards the organisation identifier rather
+than inherited product names.

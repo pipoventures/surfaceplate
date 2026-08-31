@@ -17,8 +17,10 @@
 
 Remove the fabricated adoption record from this repository in full.
 
-None of the three repositories this framework recorded as adopters — `ai_scenario_factory`,
-`RMS-NZ-Toolkit`, `PEM_pricing_tool` — exists. 43 references across 10 files rested on them.
+None of the three repositories this framework recorded as adopters exists. *(Their names are
+redacted here under `F18`: one carried an inherited product name, and the finding is that the
+repositories were fabricated, not what they were called — the substance is unaffected.)* 43
+references across 10 files rested on them.
 Three documents rested on them so completely that no correction short of deletion was available:
 
 - `org/CASE_FOR_ADOPTION.md` (583 lines) — argued for adoption from a named pilot and from the

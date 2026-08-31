@@ -1,5 +1,12 @@
 # Engineering Control Kit — Technical Pre-Audit Findings
 
+> **Historical record, with inherited names redacted.** This document records checks that were
+> actually run, against a repository that had a different name. The internal product and
+> methodology names it originally carried have been **replaced with generic descriptions** — they
+> named someone else's product and meant nothing here. The redaction is disclosed rather than
+> silent: the substance of every check and finding is unchanged, only the proper nouns are. See
+> `F18`.
+
 **Package:** `engineering-control-kit` v0.6.0
 **ZIP SHA-256:** `1F895DD8F2646FABB878DA01C83BD5AAABF1D0C2881661D00B1F06D9F5DAEC76`
 **Date:** 2026-08-27
@@ -26,7 +33,7 @@ release readiness. It is a technical pre-audit intended to reduce the cost of th
 | Schema meta-validity | `Draft202012Validator.check_schema` on all 5 schemas | **PASS** — 5/5 valid |
 | Kit conformance tests | `python tests/validate_contracts.py` | **PASS** (`CONTRACT_CONFORMANCE=PASS`, exit 0) |
 | Independent negative cases | 7 hand-built cases vs application-profile schema | **PASS** — 7/7 behaved correctly |
-| Tool-agnosticism | grep for PEM/PCAF/Shiny/scenario-factory leakage | **PASS** — all hits are "do not copy" guidance or audit scope |
+| Tool-agnosticism | grep for predecessor-application, methodology and framework leakage | **PASS** — all hits are "do not copy" guidance or audit scope |
 
 Environment: Python 3.14.3, jsonschema 4.26.0, PyYAML, referencing. Windows 11.
 
@@ -107,7 +114,7 @@ examples beside the templates and assert them in `tests/validate_contracts.py`.
 | Clear on human vs agent authority | **Strong** — the clearest part of the kit |
 | Sufficient for provenance/methods/runs/overrides | **Holds** at schema level; enforcement is the adopter's job and the kit says so |
 | Safe to share internally | **Holds** — no secrets, no client data |
-| Free of hidden PEM/PCAF assumptions | **Holds** |
+| Free of hidden predecessor-application or methodology assumptions | **Holds** |
 | Explicit about policy vs schema vs enforcement | **Strong** — repeatedly warns that a schema file is not enforcement |
 | Usable by many apps without a premature central platform | **Gap** — F1 and F3 are exactly the fleet-scale seams |
 
