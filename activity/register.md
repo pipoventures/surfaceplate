@@ -42,6 +42,7 @@ on an agent's authority.
 | `ACT-006` | Close `F9` and `F10`; discharge `F8`'s documentation half | maintainer | maintainer | `done` | — | hard | yes — `F10` removes a false claim from an evidence document, and `F9` changes adopter-facing remediation text | medium — the `F10` decision (retire vs regenerate) is a judgement about what producer evidence is for | `audit/VALIDATION_RESULTS.md` no longer asserts anything untrue; the `SP005` remedy names a version; the installer reports a version mismatch; `README.md`'s history-audit claim is corrected | A decision record for the `F10` outcome; the version-mismatch report seen to fire and seen to stay silent; suites and manifest accounted for |
 | `ACT-007` | Publication pass: sanitise, close `F13`/`F15`/`F16`, decide publication | maintainer | maintainer | `waiting_for_review` | — | hard | yes — it changes a published control (`SP032`), ships two new obligations to adopters, and decides where the project lives | high — publication is not reversible, and the history question had three plausible answers with very different costs | The working tree carries no reference to the former organisation; `F13`, `F15` and `F16` are closed or their obligations shipped; `DR-22` and `DR-23` recorded; the full-history sweep is runnable | Seen-to-fail probes in both directions for the exemption mechanism; the 403s read live; the former organisation's footprint counted across all commits; a full backup bundle taken before any of it |
 | `ACT-008` | Remove inherited internal jargon from the public tree (`F18`) | maintainer | maintainer | `waiting_for_review` | — | hard | yes — `adapters/**` and `SETUP_GUIDE.md` are adopter-facing, and `adapters/` is in the install payload | low for the live guidance; the judgement is in what NOT to touch — the audit records are true statements about a repository that had that name | No inherited product or methodology name remains in live guidance; historical audit records keep their text under an explanatory note | A grep showing the remaining occurrences are confined to `audit/`, each under a note; suites and manifest accounted for; both checker copies PASS after reinstall |
+| `ACT-009` | Implement the dual licence decided in `hermes` (`F19`) | maintainer | maintainer | `waiting_for_review` | — | hard | yes — it changes the terms under which every copied file is licensed, on a published artefact | low on mechanism, and the boundary is already locked; the judgement was made in `hermes` and is cited rather than retaken here | `LICENSE-DOCS` carries CC0-1.0, `NOTICE` exists, and `README.md` states which licence covers which paths | The CC0 text fetched from creativecommons.org and diffed byte-for-byte against the SPDX copy; suites and manifest accounted for; both checker copies PASS |
 ## Notes on the entries
 
 `ACT-002` and `ACT-003` are both raised by `DR-16` and are deliberately **not** resolved by
@@ -84,7 +85,12 @@ full cost without achieving the goal. `DR-23` records the reversal and the reaso
 itself is deliberately not recorded here; what it produced that belongs in the repository is a
 defect, and defects go in `org/FINDINGS.md`.
 
-`ACT-005` to `ACT-008` were registered **before** implementation begins, not alongside it. `work_registration` is
+`ACT-009` implements a decision taken elsewhere. The reasoning is recorded in `hermes` and is cited
+rather than restated here, per the standing constraint that commercial rationale does not live in
+this repository. What belongs here is the architectural consequence: which licence covers which
+paths.
+
+`ACT-005` to `ACT-009` were registered **before** implementation begins, not alongside it. `work_registration` is
 live over `scripts/**` and `schemas/**`, which is exactly what item 4 changes, and a gate satisfied
 retrospectively is the failure mode `core/PREREQUISITE_GATES.md` warns is most common — satisfied on
 paper, violated in spirit.

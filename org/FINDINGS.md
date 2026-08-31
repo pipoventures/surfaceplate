@@ -83,6 +83,7 @@ an unknown number of releases with nothing noticing.
 | F16 | Placeholder detection cannot separate mentioning a token from containing one | low | Closed — `DR-22`, by declaration |
 | F17 | The identifier check reads every GitHub URL as a claim about this organisation | low | Closed — declared third parties |
 | F18 | Inherited product and methodology names throughout the public tree | medium | Closed — redacted, disclosed |
+| F19 | A licence decision recorded in another repository, never implemented in this one | medium | Closed — `DR-24` |
 
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -834,6 +835,45 @@ guidance and were corrected.
 serve, and a quantitative team writing R would rely on `adapters/r.md`. And nothing prevents the
 same residue recurring; `tests/check_identifiers.py` guards the *organisation* identifier, not
 inherited product names, and no check was added here.
+
+---
+
+## F19 — A licence decision recorded in another repository, never implemented in this one
+
+**Severity: medium. Closed by `DR-24`.**
+
+Found by a pre-check demanded during a scope review, not by anything in this repository. That is the
+finding's whole shape: nothing here could have caught it, because the decision was never here.
+
+On 2026-08-30 a Class C decision was recorded in `hermes` licensing surfaceplate **by artefact
+type** — Apache-2.0 for software, and a separate licence for the documents, amended the same day
+from CC BY 4.0 to CC0-1.0 on the reasoning that attribution and change-indication duties are real
+friction on files copied into a corporate repository. It required a `LICENSE-DOCS`, a `NOTICE`, and
+a README statement of which licence covers what.
+
+**None of it existed.** The root `LICENSE` carried Apache-2.0 correctly; `LICENSE-DOCS` and `NOTICE`
+were absent, and `README.md` contained no occurrence of the word "licence" at all. **The repository
+was made public in that state**, so every template and agent skill shipped under a code licence the
+decision says should not govern prose.
+
+**This is the fourth instance of one shape**, and the register should say so plainly: a decision
+recorded in one place and not implemented where it applies. `DR-14` stood decided-not-implemented
+until `F7` forced it; `DR-15`'s remedy is still unimplemented; `DR-11` reserved codes for a
+generator that does not exist. Those three were at least visible *inside* this repository. This one
+was not, and no check here could have found it — the decision lives in a repository this one does
+not read.
+
+**A near miss recorded alongside it, because it was luck rather than method.** The same pre-check
+asked whether publication had violated a locked sequencing control. It had not — a same-day entry
+discharged the cross-provider review requirement. But `DR-23` was written and publication carried
+out **without ever consulting `hermes`**, where a Class C decision with an explicit publication
+precondition was sitting. The answer came out clean by accident. Had it not, a locked control would
+have been breached by an agent that never looked for it.
+
+**What is not fixed.** Nothing checks that decisions recorded elsewhere are implemented here.
+`governance/authority-map.yaml` maps paths to governing documents *within* this repository; it has
+no concept of an external authority. Whether that is worth building is not decided — but the
+absence is now recorded rather than assumed away.
 
 ---
 

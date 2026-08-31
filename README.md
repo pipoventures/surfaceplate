@@ -215,6 +215,30 @@ Namespace and versioning decisions, and how to reverse them: [`NAMESPACE.md`](NA
 
 ---
 
+## Licensing
+
+**Two licences, split by artefact type: software is Apache-2.0, documents are CC0-1.0.**
+
+The split exists so that copying a governance document into your repository carries no obligation.
+CC0 is a public-domain dedication — no attribution, no licence link, no indication of changes. A
+file you copy is a file you stop having to reason about.
+
+| Licence | What it covers |
+|---|---|
+| **Apache-2.0** — [`LICENSE`](LICENSE) | `scripts/`, `tests/`, `schemas/`, `adapters/`, `standard/.githooks/`, `standard/.github/workflows/`, and everything not listed opposite |
+| **CC0-1.0** — [`LICENSE-DOCS`](LICENSE-DOCS) | `core/` (the standard text), `templates/`, `standard/.github/instructions/`, `standard/.github/skills/`, `standard/conformance-block.md` |
+
+Apache-2.0 rather than MIT for the software, because of its express patent grant, and because it
+grants no trademark rights. The code is open; the name is not.
+
+**Schemas and adapters are software, not documents**, despite installing alongside the documents and
+being written in YAML and Markdown. They are contracts a program parses and stack-specific technical
+guidance, so they carry the patent grant with them.
+
+[`NOTICE`](NOTICE) is present as Apache-2.0 requires.
+
+---
+
 ## Maintenance
 
 **One maintainer, part-time, best effort: Mario Pipo.** This is one of several projects the
