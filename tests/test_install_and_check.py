@@ -162,6 +162,31 @@ def seed_gate_artefacts(repo: Path, profile_text: str) -> None:
                 encoding="utf-8",
             )
 
+    # The artefacts pattern-A controls name (DR-25, SP051), derived from the profile on the same
+    # principle as everything else here. A fixture that could not satisfy the control would fail
+    # every unrelated test for a reason none of them is about.
+    for control_id, entry in (data.get("control_decisions") or {}).items():
+        if not isinstance(entry, dict) or entry.get("decision") != "required":
+            continue
+        reference = entry.get("implementation_reference")
+        if not isinstance(reference, str) or not reference.strip():
+            continue
+        target = repo / reference.strip()
+        if target.exists():
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(
+            f"# {target.stem}\n\nSeeded by the test harness for control {control_id}.\n",
+            encoding="utf-8",
+        )
+        # SP051 requires the file to be tracked, so a fixture that is a real git repository
+        # needs it in the index. Lightweight fixtures have only a fake .git directory and this
+        # fails harmlessly - existence is what those tests exercise.
+        subprocess.run(
+            ["git", "-C", str(repo), "add", "--", reference.strip()],
+            capture_output=True,
+        )
+
     for gate in data.get("prerequisites") or []:
         if not isinstance(gate, dict) or gate.get("status") != "required":
             continue
@@ -651,6 +676,59 @@ def main() -> int:
             "# Register\n\nReal content.\n", encoding="utf-8"
         )
 
+        # ---- SP051 / SP052: pattern A and pattern D (DR-25) ----
+        #
+        # Both directions for each. A control that names a file is only verified if the file is
+        # really there - the four failure modes below are the ways "really there" can be false
+        # while the declaration looks identical.
+        for label, mutate in (
+            ("names nothing to check",
+             lambda s: s.replace("    implementation_reference: requirements.txt\n", "")),
+            ("names a file that does not exist",
+             lambda s: s.replace("implementation_reference: requirements.txt",
+                                 "implementation_reference: docs/NOWHERE.txt")),
+        ):
+            result = gate_check(mutate(essential_src))
+            check(
+                f"a required control that {label} is rejected",
+                result.returncode == 1 and "SP051" in result.stdout,
+                result.stdout[-300:],
+            )
+
+        (gates / "requirements.txt").write_text("", encoding="utf-8")
+        result = gate_check(essential_src)
+        check(
+            "a required control naming an empty file is rejected",
+            result.returncode == 1 and "SP051" in result.stdout,
+            result.stdout[-300:],
+        )
+        (gates / "requirements.txt").write_text("PyYAML==6.0.3\n", encoding="utf-8")
+        subprocess.run(["git", "-C", str(gates), "add", "--", "requirements.txt"],
+                       capture_output=True)
+
+        # Pattern D: the control is verified BY the gate, so requiring it without the gate
+        # leaves it verified by nothing - the seam a level being a floor rather than a ceiling
+        # opens up.
+        with_control = essential_src.replace(
+            "control_decisions:\n",
+            "control_decisions:\n  documentation_authority:\n    decision: required\n"
+            "    rationale: Probe.\n", 1)
+        result = gate_check(with_control)
+        check(
+            "documentation_authority required without its gate is rejected",
+            result.returncode == 1 and "SP052" in result.stdout,
+            result.stdout[-300:],
+        )
+
+        # The negative direction for both, without which the four assertions above would be
+        # equally consistent with a check that fires on everything.
+        result = gate_check(essential_src)
+        check(
+            "a correctly referenced control raises neither SP051 nor SP052",
+            "SP051" not in result.stdout and "SP052" not in result.stdout,
+            result.stdout[-400:],
+        )
+
         # ---- F20 / DR-25: a pass must not read as verification ----
         #
         # The checker reports which of a level's required controls are declared rather than
@@ -658,15 +736,23 @@ def main() -> int:
         # unverified, and must NOT name a control that is genuinely checked - otherwise it
         # would still be reporting after the verification exists, which is the same defect
         # pointed the other way.
+        # At `essential` the only required control is dependency_lock, which pattern A now
+        # verifies - so the banner must NOT print. That is the negative direction, and it only
+        # became testable once a control was genuinely checked.
         result = gate_check(essential_src)
         check(
-            "a pass reports which required controls are declared rather than checked",
-            "DECLARED, not checked" in result.stdout,
+            "no declared-not-checked banner when every required control is verified",
+            "DECLARED, not checked" not in result.stdout,
             result.stdout[:400],
         )
+
+        # A level with controls that remain unverified must still say so. contract_tests and
+        # deterministic_tests are pattern B, unbuilt, so `standard` still has two.
+        result = gate_check(essential_src.replace(
+            "conformance_level: essential", "conformance_level: standard"))
         check(
-            "and does not claim a verified control is merely declared",
-            "documentation_authority" not in result.stdout.split("A pass does not establish")[0].split("DECLARED, not checked")[-1],
+            "a level with unverified controls still reports them",
+            "DECLARED, not checked" in result.stdout,
             result.stdout[:400],
         )
 
