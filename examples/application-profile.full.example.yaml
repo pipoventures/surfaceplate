@@ -74,15 +74,20 @@ control_decisions:
     rationale: Locked dependencies with an approved vulnerability check.
   provenance:
     decision: required
+    implementation_reference: governance/run-lineage
     rationale: Every material figure must be traceable to its inputs and parameter version.
+      Provenance and run lineage are two properties of one record, so they name one register.
   run_lineage:
     decision: required
+    implementation_reference: governance/run-lineage
     rationale: Material calculations must be reproducible from a recorded execution.
   method_registry:
     decision: required
+    implementation_reference: governance/method-registry
     rationale: Governed rules carry lifecycle, validation, and approval state.
   overrides:
     decision: required
+    implementation_reference: governance/overrides
     rationale: A manual forecast adjustment must never be hidden in calculation code.
   assurance_findings:
     decision: required

@@ -25,6 +25,13 @@ ROOT = Path(__file__).resolve().parent.parent
 
 sys.path.insert(0, str(ROOT / "scripts"))
 import install_standard as _installer  # noqa: E402
+import check_conformance as _checker  # noqa: E402
+
+# Derived from the checker rather than restated, so the harness cannot seed a pattern-C register
+# as a file the moment a control moves between patterns (DR-6). This is a fixture reading the real
+# definition - NOT a test asserting the two agree, which would be tautological in the way the
+# installer/checker contract guard was before it was replaced.
+PATTERN_C = set(_checker.PATTERN_C_CONTROLS)
 
 # The pin an install from THIS tree actually records.
 #
@@ -122,6 +129,14 @@ def verify(repo: Path, *extra: str) -> subprocess.CompletedProcess:
     return run([str(repo / ".standards" / "check_conformance.py"), "--repo", str(repo), *extra])
 
 
+# Worked records this repository already publishes, keyed by the control whose register they
+# belong in. Only `overrides` has one today; the others seed empty, which is the honest state
+# and the one pattern C is designed to accept.
+EXAMPLES_BY_CONTROL: dict[str, Path] = {
+    "overrides": ROOT / "examples" / "override-record.approved.example.yaml",
+}
+
+
 def seed_gate_artefacts(repo: Path, profile_text: str) -> None:
     """Create the precondition artefacts that a profile's `required` gates name.
 
@@ -168,6 +183,8 @@ def seed_gate_artefacts(repo: Path, profile_text: str) -> None:
     for control_id, entry in (data.get("control_decisions") or {}).items():
         if not isinstance(entry, dict) or entry.get("decision") != "required":
             continue
+        if control_id in PATTERN_C:
+            continue  # a directory, seeded below - writing it as a file would raise SP055
         reference = entry.get("implementation_reference")
         if not isinstance(reference, str) or not reference.strip():
             continue
@@ -210,6 +227,34 @@ def seed_gate_artefacts(repo: Path, profile_text: str) -> None:
             "name: Tests\non: [push]\njobs:\n  tests:\n    runs-on: ubuntu-latest\n"
             "    steps:\n" + steps,
             encoding="utf-8",
+        )
+
+    # The registers pattern-C controls name (DR-26, SP055/SP056). Seeded with one REAL record
+    # where an example of the right type exists, and left empty otherwise. Both states are
+    # deliberate: an empty register must pass, and a populated one must be validated, so the
+    # golden fixture exercises the pass in both of its forms rather than only the weaker one.
+    for control_id, entry in (data.get("control_decisions") or {}).items():
+        if control_id not in PATTERN_C:
+            continue
+        if not isinstance(entry, dict) or entry.get("decision") != "required":
+            continue
+        reference = entry.get("implementation_reference")
+        if not isinstance(reference, str) or not reference.strip():
+            continue
+        register = repo / reference.strip()
+        register.mkdir(parents=True, exist_ok=True)
+        (register / "README.md").write_text(
+            f"# {register.name}\n\nSeeded by the test harness for control {control_id}.\n",
+            encoding="utf-8",
+        )
+        sample = EXAMPLES_BY_CONTROL.get(control_id)
+        if sample is not None and not any(register.glob("*.y*ml")):
+            (register / sample.name).write_text(
+                sample.read_text(encoding="utf-8"), encoding="utf-8"
+            )
+        subprocess.run(
+            ["git", "-C", str(repo), "add", "--", reference.strip()],
+            capture_output=True,
         )
 
     for gate in data.get("prerequisites") or []:
@@ -809,6 +854,92 @@ def main() -> int:
             result.stdout[-400:],
         )
 
+        # ---- SP055 / SP056: pattern C, the record registers (DR-26, closes F20) ----
+        #
+        # The full example declares all four record-based controls, and seed_gate_artefacts has
+        # already created their registers - one holding a real override record, the rest empty.
+        # Both states must pass, and that pair is the whole point: an empty register passing is a
+        # DECISION, because a validator that demanded records would reward inventing them.
+        overrides_dir = gates / "governance" / "overrides"
+        runs_dir = gates / "governance" / "run-lineage"
+
+        result = gate_check(full_b)
+        check(
+            "a populated register passes and reports its record count",
+            "SP055" not in result.stdout and "SP056" not in result.stdout
+            and "overrides: verified against governance/overrides (1 record(s)" in result.stdout,
+            result.stdout[-500:],
+        )
+        check(
+            "an EMPTY register passes, and says what that does and does not establish",
+            "method_registry: verified against governance/method-registry (register is empty"
+            in result.stdout,
+            result.stdout[-500:],
+        )
+        check(
+            "a README beside a record is not read as a malformed record",
+            (overrides_dir / "README.md").is_file() and "SP056" not in result.stdout,
+            result.stdout[-300:],
+        )
+
+        for label, mutate in (
+            ("names no register",
+             lambda s: s.replace(
+                 "    implementation_reference: governance/method-registry\n", "")),
+            ("names a register that does not exist",
+             lambda s: s.replace("implementation_reference: governance/method-registry",
+                                 "implementation_reference: governance/no-such-register")),
+            ("names a file where a register belongs",
+             lambda s: s.replace("implementation_reference: governance/method-registry",
+                                 "implementation_reference: README.md")),
+        ):
+            result = gate_check(mutate(full_b))
+            check(
+                f"a pattern C control that {label} is rejected",
+                "SP055" in result.stdout,
+                result.stdout[-300:],
+            )
+
+        # The untracked-record case cannot be probed here: this fixture has only a fake .git
+        # directory, so git_available() is false and the tracking branch never runs. It is
+        # exercised against a real repository further down, beside the full worked example.
+
+        for label, name, body in (
+            ("unreadable", "broken.yaml", "a: [1\n"),
+            ("invalid against its schema", "thin.yaml", "schema_version: '1.0'\n"),
+        ):
+            probe = overrides_dir / name
+            probe.write_text(body, encoding="utf-8")
+            subprocess.run(["git", "-C", str(gates), "add", "--",
+                            f"governance/overrides/{name}"], capture_output=True)
+            result = gate_check(full_b)
+            check(
+                f"a record that is {label} is rejected",
+                "SP056" in result.stdout,
+                result.stdout[-300:],
+            )
+            subprocess.run(["git", "-C", str(gates), "rm", "-q", "--cached", "--",
+                            f"governance/overrides/{name}"], capture_output=True)
+            probe.unlink()
+
+        # A VALID record of the WRONG type. This is the case that distinguishes pattern C from a
+        # check that merely counts files: the record below is a perfectly good override record,
+        # and it is a defect because it is filed in the run-lineage register.
+        misfiled = runs_dir / "misfiled.yaml"
+        misfiled.write_text(
+            read_example("override-record.approved.example.yaml"), encoding="utf-8")
+        subprocess.run(["git", "-C", str(gates), "add", "--",
+                        "governance/run-lineage/misfiled.yaml"], capture_output=True)
+        result = gate_check(full_b)
+        check(
+            "a valid record filed in the wrong register is rejected",
+            "SP056" in result.stdout and "run_lineage" in result.stdout,
+            result.stdout[-400:],
+        )
+        subprocess.run(["git", "-C", str(gates), "rm", "-q", "--cached", "--",
+                        "governance/run-lineage/misfiled.yaml"], capture_output=True)
+        misfiled.unlink()
+
         # ---- F20 / DR-25: a pass must not read as verification ----
         #
         # The checker reports which of a level's required controls are declared rather than
@@ -826,22 +957,25 @@ def main() -> int:
             result.stdout[:400],
         )
 
-        # A level with controls that remain unverified must still say so. As each packet lands
-        # this has to move up a level: `standard` was fully verified by pattern B (ACT-012), so
-        # the only level with unverified controls now is `full` - its four record-based controls
-        # are pattern C, packet 4. When that lands, this assertion should be deleted rather than
-        # relocated, because there will be no level left for it to be true of.
+        # The assertion that USED to sit here - "a level with unverified controls still reports
+        # them" - was deleted when pattern C landed (ACT-014), and deleted rather than relocated
+        # because there is no level left for it to be true of. Every control at every level is
+        # now verified, so the banner cannot fire.
+        #
+        # Recorded here rather than silently dropped, because that leaves the banner as LATENT
+        # code: a mechanism that claims to warn, which nothing now proves still works. It is kept
+        # for the next control added ahead of its validator, and DR-26 records it as an open
+        # limitation. Restoring an assertion for it would mean manufacturing a fake unverified
+        # level, which tests the fixture rather than the framework.
+        #
+        # The positive direction below stays, and is now the stronger claim: at `full` - every
+        # control this framework defines - the banner is silent because all of them are checked.
         result = gate_check(essential_src.replace(
             "conformance_level: essential", "conformance_level: full"))
         check(
-            "a level with unverified controls still reports them",
-            "DECLARED, not checked" in result.stdout,
+            "no declared-not-checked banner at full: every control is now verified",
+            "DECLARED, not checked" not in result.stdout,
             result.stdout[:400],
-        )
-        check(
-            "and names the pattern C controls specifically",
-            all(c in result.stdout for c in ("provenance", "run_lineage", "method_registry", "overrides")),
-            result.stdout[:500],
         )
 
         # ---- placeholder-scan exemptions: F16 / DR-22, and SP050 ----
@@ -1493,6 +1627,25 @@ def main() -> int:
             result.returncode == 0 and "SP038" not in result.stdout,
             result.stdout[-700:],
         )
+
+        # SP055's tracking branch, which needs a REAL repository - the gates fixture above has
+        # only a fake .git directory, so git_available() is false there and this path is dead.
+        # The pass above is therefore also pattern C's strongest negative control: four registers,
+        # one of them holding a genuine record, all tracked, on a repository git can actually read.
+        #
+        # Asked per record rather than of the directory, because git does not track empty
+        # directories: demanding the directory itself would make an empty register impossible and
+        # force exactly the fabrication this control refuses to incentivise.
+        untracked = full_hook / "governance" / "overrides" / "untracked.yaml"
+        untracked.write_text(
+            read_example("override-record.approved.example.yaml"), encoding="utf-8")
+        result = verify(full_hook, "--no-grace")
+        check(
+            "a register holding an untracked record is rejected",
+            "SP055" in result.stdout,
+            result.stdout[-400:],
+        )
+        untracked.unlink()
 
         print("\nprerequisite gates - history audit")
 

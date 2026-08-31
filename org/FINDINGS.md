@@ -48,7 +48,7 @@ state, until 2026-08-31, that the space ended at `SP043` — after `SP046` and `
 added and while the person adding them was editing this file.
 
 ```text
-emitted:  SP001-SP035, SP037-SP043, SP046-SP054
+emitted:  SP001-SP035, SP037-SP043, SP046-SP056
 gap:      SP036
 reserved: SP044-SP045
 ```
@@ -84,9 +84,10 @@ an unknown number of releases with nothing noticing.
 | F17 | The identifier check reads every GitHub URL as a claim about this organisation | low | Closed — declared third parties |
 | F18 | Inherited product and methodology names throughout the public tree | medium | Closed — redacted, disclosed |
 | F19 | A licence decision recorded in another repository, never implemented in this one | medium | Closed — `DR-24` |
-| F20 | A control is checked against itself, never against reality | high | **Open** — 5 of 9 controls now checked; `full`'s four record-based controls remain |
+| F20 | A control is checked against itself, never against reality | high | Closed — all 9 controls checked; `DR-26` completes pattern C |
 | F21 | `dependency_lock` declared with nothing pinned, and CI not recording what it used | medium | Closed — `pyproject.toml`, `SP051` |
 | F22 | A deferral's revisit date was required to exist and never read again | medium | Closed for deferrals — `SP054`; **open** for gate exceptions |
+| F23 | A drift guard matched on line shape rather than on the thing it guards | medium | Closed — anchored to the block; the false green constructed and run |
 
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -882,7 +883,7 @@ absence is now recorded rather than assumed away.
 
 ## F20 — A control is checked against itself, never against reality
 
-**Severity: high. Open.** Architecture decided in `DR-25`; the verification it describes is unbuilt.
+**Severity: high. Closed 2026-08-31**, when the last of `DR-25`'s four patterns was built (`DR-26`).
 
 **Demonstrated, not argued.** This repository was made to claim `full` and declare `provenance`,
 `run_lineage`, `method_registry` and `overrides`, in a tree containing no such records. **The
@@ -914,19 +915,33 @@ documentation did nothing to prevent that inference.
 The checker references **none** of them. The framework wrote down what the evidence should look like
 and then never looked.
 
-**Closed in this packet:** the inference. `core/CONFORMANCE_LEVELS.md` and the checker's output now
-distinguish a control that is *checked* from one that is *declared*, so a pass reports what it
-means. That is honesty, not verification, and the entry stays open until the verification exists.
+**How it was closed, in four packets rather than one.** `DR-25` fixed four patterns and made
+`implementation_reference` — a field already in the schema and used by nothing — the place an
+adopter says where a control lives.
 
-**Decided, not yet built:** `DR-25` fixes four patterns — declared artefact, declared CI check,
-declared records, already-a-gate — and makes `implementation_reference`, a field already in the
-schema and used by nothing, the place an adopter says where a control lives. Three of the four
-patterns are existing working code. Only the records validator is new.
+| Packet | Pattern | Controls | Codes |
+|---|---|---|---|
+| `ACT-011` | D — already a gate; A — declared artefact | `documentation_authority`, `dependency_lock`, `assurance_findings` | `SP051`, `SP052` |
+| `ACT-012` | B — declared CI step | `deterministic_tests`, `contract_tests` | `SP053` |
+| `ACT-014` | C — declared records | `overrides`, `method_registry`, `run_lineage`, `provenance` | `SP055`, `SP056` |
 
-**What will still not be provable when all of it is built.** That a record is **true**. The
-verification establishes that a record exists, is well-formed, is current and is linked to what it
-describes — never that it is honest. `DR-25` records this as a boundary rather than a gap to close
-later.
+The four schemas noted above as written and never read are now read: `override-record`,
+`method-registry-entry` and `method-run-lineage` validate the registers, and `assurance-evidence` is
+consumed within the method-registry schema that embeds it.
+
+**Two claims in this entry did not survive being built**, and are corrected here rather than left
+standing:
+
+- *"is current"* — appears twice above. It is **not** provable for these record types, because no
+  record schema carries an expiry or review date. `DR-25` is amended in place; `DR-26` records why.
+- *"Only the records validator is new"* was right about the code and wrong about the difficulty.
+  The judgement in pattern C is not the validation — it is that an **empty register must pass**,
+  because a check demanding records is a check rewarding invented ones.
+
+**What is still not provable, now stated at its real width.** That a record is **true**: a lineage
+record can carry an input hash computed over nothing. And that a register is **complete**: nothing
+detects a run that happened and went unrecorded, so an adopter who files nothing passes forever.
+`DR-25` records the first as a permanent boundary; `DR-26` adds the second.
 
 ---
 
@@ -975,6 +990,45 @@ weaker guarantee than a hash-bearing lock, and `pyproject.toml` says so rather t
 otherwise.
 
 ---
+
+## F23 — A drift guard matched on line shape rather than on the thing it guards
+
+**Severity: medium. Closed.**
+
+`tests/validate_contracts.py` asserts that the gate catalogue in the checker and the one in
+`core/PREREQUISITE_GATES.md` do not drift apart. It found the catalogue with:
+
+```python
+re.findall(r'^    "([a-z0-9_]+)": "', CHECKER, re.MULTILINE)
+```
+
+That matches any four-space-indented `"key": "value"` line **anywhere in the file**. It was not
+reading the gate catalogue; it was reading a line shape that the gate catalogue happened to have
+exclusively. Adding `PATTERN_C_CONTROLS` — an unrelated module-level dictionary of the same shape —
+put four non-gates into "the gate catalogue".
+
+**It failed, and that is the only reason it was noticed**: the count went 19 → 23 and the assertion
+tripped. The failure was luck, not design. Constructed and run rather than reasoned about:
+
+| Mutation | Old guard | New guard |
+|---|---|---|
+| Drop one gate, add a **one-entry** dict of the same shape | **19 — passes** | 18 — fails |
+
+The set the old guard then iterates has silently lost `component_library` and gained `not_a_gate`,
+and every assertion downstream — including *"every catalogue gate is documented"* — runs against it
+and passes. A false green on the guard whose whole purpose is to prevent silent divergence.
+
+**Closed** by anchoring the search to the `GATE_CATALOGUE` block itself, so a dictionary elsewhere
+in the file cannot be absorbed and a renamed or moved block fails loudly rather than matching
+nothing. Verified in both directions: the real tree still reads 19 with `PATTERN_C_CONTROLS`
+present, a removed gate reads 18, and a decoy dictionary changes nothing.
+
+**Why it is recorded rather than quietly fixed.** This is the register's most-repeated shape — an
+instrument whose negative result does not establish what it appears to — and this instance was
+*inside an instrument*, in a guard written specifically to stop something drifting. `F14` was the
+same shape in the placeholder check, `F21` in a control that named its own absence, `F12` in the
+vendored-copy comparison. The lesson that generalises: **a check anchored on incidental syntax is
+measuring a coincidence**, and it keeps passing after the coincidence ends.
 
 ## F22 — A deferral's revisit date was required to exist and never read again
 

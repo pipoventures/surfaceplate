@@ -1321,3 +1321,59 @@ anticipated, and this was overlooked — an agreed sequence departed from withou
 
 `SP051` to `SP054` are now listed in `core/PREREQUISITE_GATES.md`'s code table, which had not been
 updated since `SP047`.
+
+### `F20` closed: every control is now checked
+
+`DR-25`'s last pattern is built. `overrides`, `method_registry`, `run_lineage` and `provenance`
+name a **register** — a directory — in `implementation_reference`. `SP055` requires it to exist, to
+be a directory rather than a file, and to hold no untracked records. `SP056` requires every `.yaml`
+in it to validate against the schema this framework already ships for that record type. Non-YAML
+files are ignored, so a register may carry a `README.md`.
+
+With this, **no control at any level is declared-only.** The banner that reported how many were is
+now unable to fire.
+
+**An empty register passes, and that is the decision this packet exists to make.** A check that
+demanded records would be a check that rewarded inventing them. A repository that has made no
+overrides has an empty overrides register, and that is the correct state. So a pass establishes
+that **no unvalidated record exists in that register** — never that records exist. The cost is
+stated rather than minimised: an adopter who files nothing passes forever, and nothing here detects
+a run that happened and went unrecorded.
+
+**Two of `DR-25`'s claims did not survive implementation**, and that record is amended in place:
+
+- **Currency is not provable.** No record schema carries an expiry or a review date;
+  `revalidation_trigger` is a free-text condition, not a deadline. Nothing is declared to check
+  against — the same shape as the gate exceptions `F22` left open, found again one packet later in
+  a different contract. Twice in two packets is worth naming: **this framework's schemas record
+  when something was created far more often than when it stops being good.**
+- **`provenance` and `run_lineage` would have collapsed into one control.** One record type serves
+  both; one *check* serving both does not follow, and would have made declaring either
+  indistinguishable from declaring the other. They are separated in the next packet.
+
+**The first thing the new check caught was this project's own golden example**, which declares all
+four controls and named no register.
+
+`schemas/method-run-lineage.schema.yaml`, `override-record` and `method-registry-entry` are read by
+the checker for the first time. `exception_validator` is generalised into `record_validator` rather
+than copied, because the `jsonschema`-absent path is the one that must not fall silent.
+
+### `F23`: a drift guard was matching on line shape, not on the thing it guards
+
+Found while building the above. `tests/validate_contracts.py` located the checker's gate catalogue
+with `^    "([a-z0-9_]+)": "` — every four-space-indented `"key": "value"` line **anywhere in the
+file**. The new `PATTERN_C_CONTROLS` dictionary has that shape, so four non-gates joined "the gate
+catalogue" and the count went 19 → 23.
+
+It tripped, and that was luck rather than design. Constructed and run:
+
+| Mutation | Old guard | New guard |
+|---|---|---|
+| Drop one gate, add a **one-entry** dictionary of the same shape | **19 — passes** | 18 — fails |
+
+The set it then iterates has silently lost a real gate and gained a fake one, and every assertion
+downstream passes against it. Fixed by anchoring to the `GATE_CATALOGUE` block, so a renamed block
+fails loudly instead of matching nothing.
+
+This is the register's most-repeated shape — an instrument whose negative result does not establish
+what it appears to — and this instance was inside an instrument written to prevent exactly that.

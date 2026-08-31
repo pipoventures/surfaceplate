@@ -47,6 +47,7 @@ on an agent's authority.
 | `ACT-011` | Patterns D and A: three controls become checked; surfaceplate acquires a lock (`F21`) | maintainer | maintainer | `waiting_for_review` | `ACT-010` | hard | yes — it changes what a conformance result establishes, and pins the runtime for every adopting repository | medium — the patterns were fixed by `DR-25`; the judgement here was which versions to pin and whether to record the early start on item 1 | `dependency_lock`, `assurance_findings` and `documentation_authority` verified rather than declared; `pyproject.toml` pins both runtime dependencies; the level banner shrinks from 3 of 4 to 2 of 4 | Versions resolved in a clean environment with all five suites run against them before pinning; `SP051` and `SP052` seen to fail in five ways and pass in one; the drift guard seen to fail both ways |
 | `ACT-012` | Pattern B: `deterministic_tests` and `contract_tests` become checked | maintainer | maintainer | `waiting_for_review` | `ACT-011` | hard | yes — it adds an obligation on every adopter at `standard` and above, and amends a published decision | medium — the mechanism is `SP046`/`SP047` reused; the judgement was step versus job granularity, which amends `DR-25` | Both controls verified rather than declared; the level banner disappears at `standard`; `DR-25` amended in place | `SP053` seen to fail four ways and pass one; the banner absent afterwards, which is the packet's own scoreboard |
 | `ACT-013` | `H`: deferrals and deferred gates expire (`F22`) | maintainer | maintainer | `waiting_for_review` | — | hard | yes — a deadline that adopters declared starts being enforced | medium — the mechanism is small; the judgement is what is IN scope, and gate exceptions are deliberately out | A deferral or deferred gate whose `revisit_by` has passed raises `SP054`; one dated in the future does not | `2020-01-01` fails and surfaceplate's own `2027-02-27` passes — the second mattering more, since a check firing on every deferral would pass the first test too |
+| `ACT-014` | Pattern C1: the four record-based controls acquire a register that is checked (`F20`) | maintainer | maintainer | `waiting_for_review` | `ACT-010` | hard | yes — it adds a real obligation on every adopter at `full`, and closes the half of `F20` that has been open since the architecture was written | medium — the mechanism reuses the gate-exception record loader; the judgement is that an EMPTY register must pass, and that `DR-25`'s claim about currency is wrong | Each of the four controls names a directory that exists, is tracked, and holds nothing that fails its schema; `full` becomes fully checked | The four negative controls carry the evidence — an empty register passes, a `README.md` beside a record is ignored, a valid record passes, and a valid record of the WRONG type fails |
 ## Notes on the entries
 
 `ACT-002` and `ACT-003` are both raised by `DR-16` and are deliberately **not** resolved by
@@ -116,7 +117,14 @@ ordered it before the first record validator; patterns D, A and B were a larger 
 `G′` than that review anticipated, and `H` was overlooked in the process. Recorded plainly because
 the sequence was agreed and then departed from without anyone deciding to.
 
-`ACT-005` to `ACT-013` were registered **before** implementation begins, not alongside it. `work_registration` is
+`ACT-014` is the first pattern surfaceplate cannot demonstrate on itself. It sits at `standard`
+and has no material results, no governed methods and no overrides, so there is nothing genuine for
+it to record. Declaring the four controls against four empty directories would demonstrate only that
+an empty register passes — the weakest thing pattern C can prove — while making the published
+profile look like it holds records it does not. The proof is by fixture instead, and the absence of
+a live self-demonstration is recorded in `DR-26` rather than left to be noticed.
+
+`ACT-005` to `ACT-014` were registered **before** implementation begins, not alongside it. `work_registration` is
 live over `scripts/**` and `schemas/**`, which is exactly what item 4 changes, and a gate satisfied
 retrospectively is the failure mode `core/PREREQUISITE_GATES.md` warns is most common — satisfied on
 paper, violated in spirit.
