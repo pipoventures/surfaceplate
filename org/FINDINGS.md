@@ -95,6 +95,7 @@ an unknown number of releases with nothing noticing.
 | F28 | `SP038` accepted any pre-commit hook as satisfying a `local_hook` claim | high | Closed — the active hook is compared against the one installed |
 | F29 | The agent instructions the framework ships are not read by the agent that uses it | high | Closed — emitted per agent; surfaceplate finally subject to its own |
 | F30 | The history audit resolves a precondition by its current path, so a rename falsifies the whole history | medium | **Open** — cleared by exception `GX-0001`; following renames is unbuilt |
+| F31 | The history audit ran against a depth-1 clone in CI and reported nothing wrong | high | Closed — `fetch-depth: 0`, and a shallow clone is now reported |
 
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -997,6 +998,42 @@ weaker guarantee than a hash-bearing lock, and `pyproject.toml` says so rather t
 otherwise.
 
 ---
+
+## F31 — The history audit ran against a depth-1 clone and reported nothing wrong
+
+**Severity: high. Closed.**
+
+`actions/checkout@v4` fetches **one commit** unless told otherwise, and neither this repository's
+self-check workflow nor the one it installs into adopters said otherwise.
+
+`git_history_available()` verifies `HEAD` and returns true, because a shallow clone has a perfectly
+good `HEAD`. So the audit ran, examined the single commit it had been given, found no gate
+violations, and said nothing — while `SP035` and `SP036` were, in CI, incapable of firing at all.
+
+**Every green CI run this project has ever had reported a clean history audit from a look that
+could not have found anything.** The advisory written for exactly this situation — *"This is an
+absence of evidence, not evidence of conformance"* — never fired, because history *was* available.
+Just almost none of it.
+
+**How it surfaced**, and it is worth recording because nothing was going to surface it otherwise:
+`GX-0001` names nine historical commits, and CI could not resolve one of them —
+`'1b0df98': fatal: Needed a single revision`. The exception mechanism failed loudly on a shallow
+clone, and that failure is the only reason the audit's silence was examined. A control that fails
+closed exposed one that had been failing open.
+
+**Closed** two ways, because either alone leaves the defect somewhere:
+
+- `fetch-depth: 0` in both this repository's self-check workflow **and** the one installed into
+  every adopter. Without the second, every adopter inherits the same false green.
+- The checker now detects a shallow clone with `git rev-parse --is-shallow-repository` and says so,
+  in the same terms as the unavailable-history note. A workflow is configuration an adopter can
+  change; the checker saying what it could and could not see is not.
+
+**The shape, and its worst form.** An instrument whose negative result does not establish what it
+appears to — `F12`, `F14`, `F21`, `F23`, `F25`, `F28`. This instance is the most complete: the
+control was present, configured, running, and green, in the repository that publishes the control,
+for its entire history. Nothing failed. The audit's silence was indistinguishable from success, and
+only an unrelated check refusing to pass on the same missing data made anyone look.
 
 ## F30 — A renamed precondition artefact makes a gate's entire history read as non-compliant
 

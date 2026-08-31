@@ -1585,3 +1585,25 @@ small, and is left open rather than half-built.
 **A trap found on the way.** The exception listed abbreviated SHAs unquoted, and `7547482` — seven
 digits, no letters — parsed as an integer. `SP043` rejected the record. The check did its job, and
 the trap waits for any adopter whose abbreviated SHA happens to be all digits.
+
+### `F31`: the history audit had been running against one commit
+
+`actions/checkout@v4` fetches a **depth-1 clone** unless told otherwise, and neither this
+repository's self-check workflow nor the one it installs into adopters told it otherwise.
+
+`git_history_available()` verifies `HEAD`, and a shallow clone has a perfectly good `HEAD`. So the
+prerequisite-gate audit ran, examined the single commit it had, found nothing, and said nothing —
+while `SP035` and `SP036` were incapable of firing in CI at all. **Every green run this project has
+had reported a clean history audit from a look that could not have found anything.** The advisory
+written for precisely this case never fired, because history *was* available; just almost none of
+it.
+
+It surfaced only because `GX-0001` names nine historical commits and CI could not resolve one:
+`'1b0df98': fatal: Needed a single revision`. **A control that fails closed exposed one that had
+been failing open.**
+
+Fixed in both places, because either alone leaves the defect somewhere: `fetch-depth: 0` in this
+repository's workflow *and* in the one installed into adopters, plus the checker now detecting a
+shallow clone via `git rev-parse --is-shallow-repository` and reporting it in the same terms as the
+unavailable-history note. A workflow is configuration an adopter can change; the checker saying what
+it could and could not see is not.

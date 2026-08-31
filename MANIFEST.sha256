@@ -2,7 +2,7 @@ f24a4f672a633fe38bc15b233e3cb2a24065f95a561423e6d510ffe891694e24  surfaceplate-0
 98b086b3d1054d0f929135857ad702d542bfb6d7226198fd1f928b2d780c2225  surfaceplate-0.16.0/.github/copilot-instructions.md
 bf32da9191d44e6ae9ada39465e8b2af5a92e6c2fbe9d5f8069c1b1eda6e0a65  surfaceplate-0.16.0/.github/workflows/dco-check.yml
 83b4142a39e5bd89f524b6bfffd58a070f34f70ee4d3503e242b0092d993796d  surfaceplate-0.16.0/.github/workflows/secret-scan.yml
-f285d07178f9556bfe0ff9984804f23d4acc50192aeaa9e3f81aeb40f74b6d5f  surfaceplate-0.16.0/.github/workflows/standard-self-check.yml
+003b3dfea1233c7da5530c80d5ca651a97b65d24e6865845728e208556077e19  surfaceplate-0.16.0/.github/workflows/standard-self-check.yml
 8a6056d884fed756d20ae3f71e8e62c78f9a38cad3af77915579abdf0d683879  surfaceplate-0.16.0/AGENTS.md
 7a7574ad5b938e3c69444579530aa3602c6f0403a5e5130012d872c063e27f28  surfaceplate-0.16.0/CHANGELOG.md
 fe2794afbef79f583a01ee8d55b87f354235a450af4cdb74a78b234abac48b25  surfaceplate-0.16.0/CLAUDE.md
@@ -39,7 +39,7 @@ b6b24ff0ffe92f17acd50380d4ad623c8676b898d03437a477e8a1e90007b6af  surfaceplate-0
 6479cabd3a6a0014401eb2898130701d99edfed46d7b80413c42e704881439b6  surfaceplate-0.16.0/examples/method-registry-entry.example.yaml
 edb20cbf3697618c82f54bd932ddd9f577ef7131516f94769e3dad63d6205f4d  surfaceplate-0.16.0/examples/method-run-lineage.example.yaml
 2e52ffc76fcad38c2949ce9f828c63a6acf28fd02b498d900bb49ccbb1f035eb  surfaceplate-0.16.0/examples/override-record.approved.example.yaml
-7cedc3b25350f13b56aba984164d653e7a198257768d20b24617996c964872fb  surfaceplate-0.16.0/governance/application-profile.yaml
+92c656dddba889022e1f0770a5ea8915bf037861f7cc881ba8ff392304676ae3  surfaceplate-0.16.0/governance/application-profile.yaml
 b019e17be23e403a2b013d931cf06ded8469c2bdcc4a079182238283033c2cb9  surfaceplate-0.16.0/governance/authority-map.yaml
 a4c77f0cc51a259b1bcf129ed3808052e2a4af611a1e3f9a858b4e280b9fabe3  surfaceplate-0.16.0/governance/exceptions/GX-0001.yaml
 9fdc0655ad8754e29b884356240f4ac9ab98da1f6c8bc9cf2db8a84ed00ca109  surfaceplate-0.16.0/org/FINDINGS.md
@@ -88,7 +88,7 @@ b4fa419b029adf72f54fb463213a168ec3a0d2a3744d1983dcdca9f63f01ca49  surfaceplate-0
 ac3cedf2bdc835685abde2cd12de2cb96d83a177d34be8c4b37449551266274b  surfaceplate-0.16.0/schemas/method-run-lineage.schema.yaml
 2c1616381eec6c99307bef740c6586f192e88cffd39cc66eacade0a9bfb47310  surfaceplate-0.16.0/schemas/override-record.schema.yaml
 fdfce5c365b32f299a4da231ed7b0b1f29e09ef7c2a3b560f74c1b2f4fece511  surfaceplate-0.16.0/scripts/build_release.py
-8da2fd68390fccc6179ccfeb8ca2ee0733b96d7503a7a3a208439cfd2a0bc00c  surfaceplate-0.16.0/scripts/check_conformance.py
+93a190bad4b5ffcd0e430bfb96eee4a14c280a795a00b3f87c104ba311a45234  surfaceplate-0.16.0/scripts/check_conformance.py
 fa49a2c4f5e3d3190831137a39747d7d9151626a29b7bba47ebe7c7de6cc3c66  surfaceplate-0.16.0/scripts/install_standard.py
 b2df56c079448c16c83d7500b941a692b46e2e1c34c788017369511fbe70cad0  surfaceplate-0.16.0/scripts/verify_release.py
 a79691a93b46e49ce460c26ef22afcc03d6eca1e63bf2edbc20e96159510f6c9  surfaceplate-0.16.0/standard/.githooks/.gitattributes
@@ -100,7 +100,7 @@ aafdb405a5598e22de2776140c8633c39d5ba53797c7e742fb7d979dd3d202a9  surfaceplate-0
 2397815dcab9c0feb5fb64437685b5028bcfd1acb7d1c1d129b69c2853334b32  surfaceplate-0.16.0/standard/.github/skills/release/SKILL.md
 b303e2740d3a0af2d51c671994e8a7d9de84622e21361420a05b7e2d721bb52f  surfaceplate-0.16.0/standard/.github/skills/review/SKILL.md
 02d0531951ffa751ab9d7ed49d263236ce293cfbb7433d585b9b6e145363654b  surfaceplate-0.16.0/standard/.github/skills/security-review/SKILL.md
-ab255b07284fb21691d967325572a08b07f32dbb2c0f6491a7ef1a80bcfdf5f3  surfaceplate-0.16.0/standard/.github/workflows/standards-conformance.yml
+97b32a25ff8018e2b81e152f861d9f28091360078f9065766963881022b676c1  surfaceplate-0.16.0/standard/.github/workflows/standards-conformance.yml
 9b6274ac7915ec4707cb751c80da193636c63968508ff0263297e0cde73c96f1  surfaceplate-0.16.0/standard/agent-instructions/activity.md
 827cffee6117d33e2d2b725b7d0ab5b138c9b7ba93afd312bcb6f37cf0373c59  surfaceplate-0.16.0/standard/agent-instructions/ai-workflow.md
 3ad6916b01f436239a6b1d090aa5b2822112d08c96b2ab12bc61ea66f7463a2a  surfaceplate-0.16.0/standard/agent-instructions/authority.md

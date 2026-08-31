@@ -33,6 +33,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history. The default is a depth-1 clone, and the prerequisite-gate
+          # history audit then examines one commit and reports nothing wrong - a
+          # negative result from a look that could not have found anything (F31).
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:

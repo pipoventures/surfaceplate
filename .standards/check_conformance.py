@@ -1901,6 +1901,21 @@ def git_history_available(repo: Path) -> bool:
     return code == 0
 
 
+def shallow_clone(repo: Path) -> bool:
+    """Is this a truncated checkout? (F31)
+
+    A shallow clone verifies HEAD perfectly, so git_history_available() says yes and the audit
+    runs against whatever few commits were fetched - reporting no violations from a look that
+    could not have found any. `actions/checkout` defaults to depth 1, so this was the state of
+    this repository's own CI: a history audit examining one commit and calling it clean.
+
+    An absence of evidence, not evidence of conformance - the same sentence the unavailable-history
+    note already uses, for the same reason.
+    """
+    code, out = git(repo, "rev-parse", "--is-shallow-repository")
+    return code == 0 and out.strip() == "true"
+
+
 def active_pre_commit_hook(repo: Path, record: dict | None = None) -> tuple[bool, str]:
     """Return whether the STANDARD'S pre-commit hook is what Git will actually run.
 
@@ -2996,6 +3011,13 @@ def check_prerequisites(
             f"Git history was not available, so none of the {len(auditable)} auditable gate(s) "
             "were checked against the commits that crossed them. This is an absence of "
             "evidence, not evidence of conformance."
+        )
+    elif auditable and shallow_clone(repo):
+        notes.append(
+            f"This is a SHALLOW clone, so the {len(auditable)} auditable gate(s) were checked "
+            "against only the commits it contains - which may be one. A history audit that "
+            "found nothing here has established nothing. Fetch full history (for GitHub "
+            "Actions, actions/checkout with fetch-depth: 0) if this run is meant to be evidence."
         )
 
 
