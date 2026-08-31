@@ -41,7 +41,38 @@ validated. The audit gate (item 10) is undischarged.
 
 ---
 
-## 1.0 scope, ordered
+## Execution order
+
+**The numbers below are identities, not a sequence.** They are cited as "item 4", "item 7" and so
+on from decision records, findings and commit messages, so they are never renumbered. The order in
+which the remaining items are actually worked is stated here instead, decided 2026-08-31:
+
+**3 → 1 → 2 → 9 → 5 → 8 → 9 → 10**
+
+| Position | Item | Why here |
+|---|---|---|
+| 1st | **3** Agent neutrality | Changes *what* ships. Settle the payload's shape before deciding how it is distributed, or item 1 packages a moving target. Not urgent on honesty grounds — checked 2026-08-31, nothing on any public surface claims agent neutrality — so this is a feature, not a correction. |
+| 2nd | **1** Pip packaging | Where `repo_root()`-under-a-wheel finally gets solved, which `DR-10` flagged and left unfixed. It decides the install story everything after it depends on. |
+| 3rd | **2** CLI and wizard | A CLI is *delivered by* packaging — pip's entry point. Built before item 1 it would either assume a git clone and be rebuilt, or make the packaging decision implicitly instead of deliberately. |
+| 4th | **9** Adversarial review | **Before** real adopters, not after. Items 1–3 are the substance a reviewer examines, so reviewing earlier means reviewing a thing about to change shape — and installing an unreviewed framework into someone else's working repository is the failure this project would raise as a finding against anybody else. |
+| 5th | **5** Two real adopters | Only after review. This is the first time the framework meets a repository that is not its own. |
+| 6th | **8** Documentation for a stranger | Deliberately after adopters. Writing it earlier means guessing what a stranger needs; after item 5 there is evidence. Publication (`DR-23`) weakened that argument by putting strangers in front of the docs today, but the current documents are accurate — author-shaped, which is a quality gap rather than a correctness one. A bounded README front-door pass is available at any point without spending item 8. |
+| 7th | **9 again** Second adversarial review | Not repetition. The first review examines the design; the second has usage evidence from real adopters that the first could not have. Two instruments asking different questions, which is how nearly every finding in `org/FINDINGS.md` was actually found. |
+| 8th | **10** Independent audit | The final gate, and the only item that can close `F6`. |
+
+**On `F6` specifically, because it is easy to overstate.** An adversarial review *finds flaws*; it
+does not by itself close `F6`. Closure needs a party other than this repository to recompute
+`sha256(MANIFEST.sha256)` from a published tree and **attest** to it. That is item 10's shape, or a
+review explicitly scoped to include attestation. `F6`'s own entry says "items 9 and 10" and means
+both.
+
+---
+
+## 1.0 scope
+
+The numbers are **identities**, not a sequence — see [Execution order](#execution-order) above for
+the order the remaining items are worked in. They are cited from decision records and findings, so
+they are never renumbered.
 
 | # | Item | Why 1.0, not later |
 |---|---|---|
