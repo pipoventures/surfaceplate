@@ -653,6 +653,21 @@ def check_profile_semantics(
         check_profile_review(adoption, findings, today, notes)
 
     # Unfilled template placeholders mean the profile was installed, not adopted.
+    #
+    # ONE FIELD IS EXCLUDED, and F25 is why. A placeholder-scan exemption (DR-22) must state why an
+    # artefact legitimately contains one of these tokens - which means quoting it. Scanning that
+    # rationale made declaring an exemption fail the profile, so the remedy for the defect could
+    # not be used without causing it. Found in Plyego, not here: this repository's own exemptions
+    # describe the tokens without reproducing them, so the trap was invisible from inside.
+    #
+    # The exclusion is deliberately one field rather than one record: the `artefact` path beside it
+    # is still scanned, as is every other rationale in the profile - a gate's, a deferral's, a
+    # control decision's. Those have no reason to quote a placeholder and every reason to be caught
+    # carrying one.
+    #
+    # What it costs: a rationale reading only "TODO" now passes. That is DR-22's already-recorded
+    # limitation - nothing checks that a rationale is a real one - and is not new here.
+    EXEMPT_FROM_PROFILE_SCAN = re.compile(r"^placeholder_scan_exemptions\[\d+\]\.rationale$")
     placeholders: list[str] = []
 
     def walk(node: Any, path: str) -> None:
@@ -663,6 +678,8 @@ def check_profile_semantics(
             for index, value in enumerate(node):
                 walk(value, f"{path}[{index}]")
         elif isinstance(node, str) and PLACEHOLDER_PATTERN.search(node):
+            if EXEMPT_FROM_PROFILE_SCAN.match(path):
+                return
             placeholders.append(f"{path} = {node!r}")
 
     walk(profile, "")
@@ -1384,7 +1401,6 @@ def record_identity(control_id: str, data: dict) -> tuple | None:
 
 
 def check_record_references(
-    repo: Path,
     profile: dict,
     registers: dict[str, list[tuple[str, dict]]],
     incomplete: set[str],
@@ -2701,7 +2717,18 @@ def check_prerequisites(
                             "SP032",
                             f"Gate '{gate_id}' names an unfinished precondition artefact",
                             f"{artefact} still contains template placeholders.",
-                            "Complete the artefact. A template is not a design policy.",
+                            # F26. This read "A template is not a design policy" for every one of
+                            # the nineteen gates - wording written for design_authority and copied
+                            # into the generic path, where it says nothing about a work register or
+                            # a changelog. It also named no remedy, though one has existed since
+                            # DR-22, so an adopter meeting a legitimate mention had nothing to go
+                            # on. Plyego is the evidence: a closed work item whose title quotes a
+                            # placeholder token because that literal string WAS the defect.
+                            "Complete the artefact. A template is not a finished artefact. If it "
+                            "legitimately quotes these tokens - a register recording a defect "
+                            "about one, a changelog describing this control - declare it in "
+                            "placeholder_scan_exemptions with a rationale; existence, "
+                            "non-emptiness and tracking stay checked.",
                             graceable=not (
                                 staged_snapshot
                                 and "local_hook" in (gate.get("enforcement") or [])
@@ -2956,7 +2983,7 @@ def run(repo: Path, today: _dt.date, no_grace: bool, staged: bool) -> int:
             check_pattern_b_controls(repo, profile, findings, notes)
             registers, incomplete = check_pattern_c_controls(repo, profile, findings, notes)
             check_record_references(
-                repo, profile, registers, incomplete, findings, notes
+                profile, registers, incomplete, findings, notes
             )
             check_deferral_expiry(profile, findings, today, notes)
             check_pinned_identity(profile, record, findings)

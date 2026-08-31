@@ -1432,3 +1432,52 @@ No instance's validity moves, so this is not breaking and the `$id` version segm
 Worth carrying forward: with `F22`, where a gate exception's only date records its creation rather
 than its expiry, the pattern is that **these schemas collect a field far more readily than they give
 it force.**
+
+### The Plyego gate: the framework met a repository it did not write, and passed
+
+Installed into a throwaway clone of a 3,049-file repository — Python and TypeScript, a user
+interface, 1,092 markdown files, its own governance conventions — and returned:
+
+```
+PASS - all conformance checks satisfied.
+```
+
+At `essential`. Working without being tuned for it: `SP046`/`SP047` found the repository's real
+blocking `gitleaks` step and confirmed its exit code is not discarded, `SP051` verified its lock
+file, `SP030` refused `standard` on six gates, and `SP052` caught `documentation_authority`
+declared without the gate that verifies it. **The four interface gates ran for the first time** —
+surfaceplate sets `builds_user_interface: false`, so nothing here could ever have exercised them.
+
+Nothing was written to that repository, and it is not adopted. `DR-28` records both the result and
+what adoption would cost it.
+
+### `F25`: declaring a placeholder-scan exemption made the profile fail the placeholder scan
+
+`SP020` scanned every string in the application profile. An exemption's rationale must say why an
+artefact legitimately contains a placeholder token — which means quoting it. **So declaring the
+exemption failed the profile: the remedy for the defect could not be used without causing it.**
+
+Fifth instance of the self-quotation shape in this register, and the first that is *structurally
+unavoidable* rather than incidental. The earlier four were documents that happened to describe a
+defect; each could be reworded or exempted. Here the mechanism built to fix the defect was itself
+the trigger.
+
+It was invisible from inside: this repository's own two exemptions describe the tokens without
+reproducing them, a habit formed by `F14` and `F15`. The trap needed an adopter who wrote the
+natural sentence.
+
+Fixed by excluding `placeholder_scan_exemptions[*].rationale` from the profile walk — one field, not
+one record. The artefact path beside it and every other rationale stay scanned, and three negative
+controls hold that line. A rationale reading only `TODO` now passes, which is `DR-22`'s already
+recorded limitation rather than a new one.
+
+### `F26`: a remedy line that was wrong for seventeen of nineteen gates
+
+`SP032`'s placeholder branch read *"Complete the artefact. A template is not a design policy"* for
+every gate — wording written for `design_authority` and copied into the generic path, where it says
+nothing about a work register or a changelog. It also **named no remedy**, though one has existed
+since `DR-22`, so an adopter meeting a legitimate mention had nothing to act on. Now generic, and it
+names the exemption route.
+
+`org/RELEASE_PLAN.md` item 5 said no adopter had ever been exercised. That is now false in part, so
+it is **rewritten rather than annotated**: one has been exercised, none has adopted.

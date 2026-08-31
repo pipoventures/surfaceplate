@@ -66,6 +66,13 @@ history audit — whether anyone changed the gated paths while it was missing.
 
 **Every control this framework defines is now checked**, at every level. Nothing is declared-only.
 
+**An exemption may quote what it describes.** A `placeholder_scan_exemptions` entry must say why an
+artefact legitimately contains a placeholder token, and saying so usually means quoting it. That one
+field — the exemption's `rationale` — is excluded from the profile's own placeholder scan for that
+reason. Nothing else is: the artefact path beside it, and every other rationale in the profile, are
+still scanned. Before this, declaring the exemption failed the profile, so the remedy could not be
+used without causing the defect it fixes. See `F25`.
+
 **How `provenance` and `run_lineage` differ.** They share a record type — provenance is its
 traceability, run lineage its reproducibility — so they are separated by **which reference each
 obliges**, not by which fields. `run_lineage` requires a run to resolve to the method that ran it;

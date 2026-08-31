@@ -1164,6 +1164,70 @@ def main() -> int:
             result.stdout[-300:],
         )
 
+        # ---- F25: the exemption's own rationale may quote what it describes ----
+        #
+        # An exemption must state WHY an artefact legitimately carries a placeholder token, which
+        # means quoting it - and SP020 scanned every string in the profile, so declaring the
+        # exemption failed the profile. The remedy for the defect could not be used without
+        # causing it. Found in Plyego, unreachable from here: this repository's own exemptions
+        # describe the tokens without reproducing them, so the trap was invisible from inside.
+        (gates / "docs" / "DEVELOPMENT_REGISTER.md").write_text(
+            "# Register\n\n| ACT-395 | field was always 'tbd' - RESOLVED | Closed |\n",
+            encoding="utf-8",
+        )
+        quoting = essential_src.rstrip("\n") + (
+            "\nplaceholder_scan_exemptions:\n"
+            "  - artefact: docs/DEVELOPMENT_REGISTER.md\n"
+            "    rationale: >-\n"
+            "      ACT-395's title quotes the string 'tbd' because the defect it records WAS a\n"
+            "      field containing that literal. The register is live work items, not a template.\n"
+        )
+        result = gate_check(quoting)
+        check(
+            "an exemption whose rationale quotes the token does not fail the profile",
+            "SP020" not in result.stdout and "SP032" not in result.stdout,
+            result.stdout[-500:],
+        )
+
+        # The three negative controls. An exclusion that swallowed the whole profile - or any
+        # rationale anywhere in it - would pass the case above identically.
+        for label, mutate in (
+            ("a top-level field", lambda s: s.replace("owner: Named Owner", "owner: TODO")),
+            ("a string inside a gate",
+             lambda s: s.replace(
+                 "description: Implementation work in the application source tree.",
+                 "description: Implementation work in the application source tree. Scope TBD.")),
+            ("a deferral's rationale",
+             lambda s: s.replace("      rationale: >-\n", "      rationale: TODO - decide later\n",
+                                 1)),
+        ):
+            probe = mutate(quoting)
+            if probe == quoting:
+                continue  # the fixture did not contain the shape; the other two still bind
+            result = gate_check(probe)
+            check(
+                f"the profile scan still fires on {label}",
+                "SP020" in result.stdout,
+                result.stdout[-400:],
+            )
+
+        # ---- F26: SP032's remedy names the route out ----
+        #
+        # It read "A template is not a design policy" for every one of the nineteen gates, and
+        # named no remedy at all - so an adopter meeting a legitimate mention had nothing to act
+        # on, which is exactly what happened in Plyego.
+        result = gate_check(essential_src)
+        check(
+            "SP032's placeholder remedy names the exemption route",
+            "SP032" in result.stdout
+            and "placeholder_scan_exemptions" in result.stdout
+            and "design policy" not in result.stdout,
+            result.stdout[-500:],
+        )
+        (gates / "docs" / "DEVELOPMENT_REGISTER.md").write_text(
+            "# Register\n\nReal content.\n", encoding="utf-8"
+        )
+
         # ---- the declared pin: SP048 and SP049 (DR-14, closing F7) ----
         #
         # Before these, adoption.framework_digest was shape-checked against 64 hex characters

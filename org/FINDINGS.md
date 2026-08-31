@@ -89,6 +89,8 @@ an unknown number of releases with nothing noticing.
 | F22 | A deferral's revisit date was required to exist and never read again | medium | Closed for deferrals — `SP054`; **open** for gate exceptions |
 | F23 | A drift guard matched on line shape rather than on the thing it guards | medium | Closed — anchored to the block; the false green constructed and run |
 | F24 | A schema clause that could never add an obligation, grading the wrong axis | low | Closed — removed; `materiality` grades approval, not completeness |
+| F25 | Declaring a placeholder-scan exemption made the profile fail the placeholder scan | medium | Closed — the exemption's own rationale is excluded; found in Plyego |
+| F26 | `SP032`'s placeholder remedy was wrong for 17 of 19 gates and named no remedy | low | Closed — generic wording that names the exemption route |
 
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -991,6 +993,65 @@ weaker guarantee than a hash-bearing lock, and `pyproject.toml` says so rather t
 otherwise.
 
 ---
+
+## F26 — `SP032`'s placeholder remedy was wrong for most gates, and named no remedy
+
+**Severity: low. Closed.**
+
+`SP032`'s placeholder branch hard-coded *"Complete the artefact. A template is not a design
+policy."* — for **every one of the nineteen gates**. The wording was written for `design_authority`
+and copied into the generic path, where it says nothing sensible about a work register, a changelog,
+or a dependency review. Seventeen of the nineteen gates are not about design policy.
+
+The larger half is that it **named no remedy**. `placeholder_scan_exemptions` has existed since
+`DR-22`, and the finding that most often needs it never mentioned it. Plyego is the evidence: the
+remedy had to be recalled from a decision record, because the finding gave nothing to act on.
+
+**Closed** with generic wording — following `SP051`'s existing *"A template is not an implemented
+control"* — plus a sentence naming the exemption route and stating what it does not suppress.
+
+## F25 — Declaring a placeholder-scan exemption made the profile fail the placeholder scan
+
+**Severity: medium. Closed.**
+
+`SP020` walked **every string in the application profile** and raised a finding on any placeholder
+token. `SP032` does the same for a gate's precondition artefacts, and `DR-22` gave that one a
+remedy: declare `placeholder_scan_exemptions` with a rationale saying why the artefact legitimately
+contains the token.
+
+**The remedy could not be used.** A rationale explaining why an artefact contains a token has to
+quote it — and the rationale is a string in the profile, so `SP020` fired on the exemption itself.
+
+Observed end to end, and not here. Plyego's `activity/register.md` line 401:
+
+```
+| ACT-395 | debt | F080 appendix-card chapter_archetype always "tbd" in S2 — RESOLVED | Closed | |
+```
+
+A **closed** work item whose title quotes the literal string because that string *was* the defect,
+inside a 590-line live register. `SP032` flags the file. Declaring the exemption then failed
+`SP020`. A `PASS` was only obtained by wording around the token — precisely the workaround `DR-22`
+names as bad: *"a changelog that cannot describe a control is a worse artefact than one needing an
+exemption."*
+
+**This is the fifth instance of the self-quotation shape in this register, and the first that is
+structurally unavoidable.** The earlier four — `.gitleaksignore`, `ORGANISATION.md`, `CHANGELOG.md`,
+`DR-23` — were documents that happened to describe a defect and so reproduced it; each could be
+reworded or exempted. Here the **mechanism built to fix the defect cannot be used without causing
+it**. That is a different class of problem, and it is why this one is a finding rather than another
+instance of `F16`.
+
+**Why it was invisible from inside.** Surfaceplate declares two exemptions of its own, for
+`org/FINDINGS.md` and `CHANGELOG.md`, and both rationales *describe* the tokens without reproducing
+them — a habit formed by `F14` and `F15`. The trap needed an adopter who wrote the natural sentence.
+
+**Closed** by excluding `placeholder_scan_exemptions[*].rationale` from the profile walk, and
+nothing else. One field, not one record: the `artefact` path beside it is still scanned, as is every
+other rationale in the profile. Three negative controls hold that line.
+
+**What it costs.** A rationale reading only `TODO` now passes. That is `DR-22`'s already-recorded
+limitation — *"nothing checks that a rationale is a real one"* — and is cited rather than restated
+as new.
 
 ## F24 — A schema clause that could never add an obligation, grading the wrong axis
 
