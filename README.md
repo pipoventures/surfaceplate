@@ -3,9 +3,11 @@
 A single, installable definition of how software is built, reviewed, and released — and of how AI
 assistants are allowed to participate in that work.
 
-**Status: not independently audited; no adopting repositories; fails commits locally after
-activation in each clone, but not enforced server-side.** The installed pre-commit hook is bypassable with
-`--no-verify`, and no organisation ruleset has ever been applied — see
+**Status: not independently audited; no adopting repositories; enforced server-side on this
+repository only.** A branch ruleset on `main` requires all four status checks and a pull request,
+with no bypass actors — demonstrated to block a merge, not merely configured. That protects *this*
+repository. It says nothing about any adopting repository, which must apply its own. The installed
+pre-commit hook remains bypassable with `--no-verify`. See
 [Status and limitations](#status-and-limitations) and
 [How enforcement actually works](#how-enforcement-actually-works).
 
@@ -106,14 +108,24 @@ Four layers, doing four different jobs. Do not conflate them.
 4. **The organisation ruleset** is what makes the server-side check unavoidable. Without it, a
    repository admin can delete the workflow.
 
-> **Layer 4 is not running.** No organisation ruleset has ever been applied, so no check is
-> required of any repository. The conformance workflow runs where Actions is enabled — it executes
-> on this repository, confirmed 2026-08-30 by run `33327048783` — but a workflow that runs is only
-> layer 3; it becomes unavoidable only when a ruleset requires its status check, and none does.
+> **Layer 4 runs on this repository, and nowhere else.** A ruleset named `main-required-checks`
+> targets the default branch, requires a pull request and all four status checks, and lists **no
+> bypass actors** — so it binds the maintainer too. It was verified rather than assumed: a direct
+> push to `main` was refused with *"Changes must be made through a pull request"*, and a pull
+> request whose `Contract and installer tests` check failed was refused with *"the base branch
+> policy prohibits the merge"*. Both on 2026-08-31; the probe branch was deleted afterwards.
 >
-> **In practical terms the standard has bypassable local enforcement plus a self-administered CI
-> check, not organisation enforcement.** Layer 4 needs an organisation owner to apply the ruleset.
-> See [`org/ROLLOUT_RUNBOOK.md`](org/ROLLOUT_RUNBOOK.md).
+> **What that does not mean.** It protects this repository. It requires nothing of any adopting
+> repository, which must apply its own ruleset — `org/ROLLOUT_RUNBOOK.md` describes it. An adopter
+> who installs the standard and applies no ruleset has bypassable local enforcement plus a
+> self-administered CI check, which is layer 3, and this document should not be read as saying
+> otherwise.
+>
+> One limit is untested and stated rather than glossed: whether an explicit administrator override
+> (`gh pr merge --admin`) is refused. GitHub documents rulesets as binding admins when the bypass
+> list is empty, and the ordinary merge path was refused for the repository owner — but the
+> override flag itself was not exercised, because doing so would have required merging a knowingly
+> broken tree to a public branch to find out.
 
 Say this plainly to anyone relying on it. Do not let an installed workflow be mistaken for a
 running one.
@@ -189,7 +201,8 @@ Namespace and versioning decisions, and how to reverse them: [`NAMESPACE.md`](NA
 - **No independent security review has been performed either.** See
   [`SECURITY.md`](SECURITY.md) for how to report a vulnerability, what actually happens after a
   report, and what is and is not in scope.
-- **The organisation ruleset has never been applied.** It is untested configuration.
+- **A ruleset is applied to this repository only, and was demonstrated rather than assumed.** No
+  organisation-level ruleset exists, so nothing is required of any other repository.
 - **The local hook is bypassable** with `git commit --no-verify`, and `core.hooksPath` must be
   activated in each clone. After a bypass the history audit still detects a **prerequisite-gate**
   violation. It does **not** detect a modified standard-owned file: the audit is scoped to gates,

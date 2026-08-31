@@ -1062,3 +1062,37 @@ engagements, client proposals. They are now a generic forecast service. One chan
 corporate email domain is described rather than reproduced. `workflow_dispatch` is added to the
 secret-scan workflow so a full-history sweep can be run on demand; this repository ships no
 scheduled sweep, so previously there was no way to scan history at all.
+
+## Unreleased
+
+### `F8` closed: the check can no longer be deleted to make it stop
+
+Surfaceplate is published at `github.com/pipoventures/surfaceplate`, and a branch ruleset named
+`main-required-checks` requires a pull request and all four status checks on the default branch,
+with **no bypass actors** — so it binds the maintainer too.
+
+The finding was that the conformance check lives in a workflow file inside the repository it
+checks, so deleting the file removes the check. It now cannot: the requirement is held in the
+forge's settings, and deleting the workflow makes the merge impossible rather than making the check
+disappear.
+
+**Demonstrated, not merely configured** — the distinction this register has insisted on since
+`F13`:
+
+- a direct push to `main` was refused: *"Changes must be made through a pull request"*;
+- a pull request with a deliberately corrupted manifest digest failed `Contract and installer
+  tests`, and the merge was refused: *"the base branch policy prohibits the merge"*.
+
+Zero required approvals is deliberate: a single maintainer cannot approve their own pull request,
+so requiring one would lock the repository rather than protect it. The control is the checks.
+
+**Unverified and recorded as such:** whether an explicit administrator override is refused. GitHub
+documents rulesets as binding admins when the bypass list is empty, and the ordinary merge path was
+refused for the owner — but the override flag was not exercised, because testing it would have
+meant merging a knowingly broken tree to a public branch.
+
+**It protects this repository and requires nothing of any adopter**, who must apply their own. And
+it does nothing for `F6`: stopping the check being deleted is not the same as giving it an anchor
+outside the repository.
+
+`README.md` is corrected in three places that said no ruleset had ever been applied.
