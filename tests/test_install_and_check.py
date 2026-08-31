@@ -1412,9 +1412,15 @@ def main() -> int:
             result.returncode == 1 and "SP001" in result.stdout,
             result.stdout[-300:],
         )
+        # Enumerated rather than derived, and it drifted the moment the installer gained new
+        # destinations (DR-30 added .claude/rules/ and AGENTS.md). Kept explicit because this
+        # fixture is deliberately NOT an install - it reconstructs one in a tree git cannot read -
+        # but the list has to track what an install actually produces.
         shutil.copytree(repo / ".standards", no_history / ".standards")
         shutil.copytree(repo / ".github", no_history / ".github")
         shutil.copytree(repo / ".githooks", no_history / ".githooks")
+        shutil.copytree(repo / ".claude", no_history / ".claude")
+        shutil.copyfile(repo / "AGENTS.md", no_history / "AGENTS.md")
         (no_history / "governance").mkdir(parents=True)
         no_history_profile = no_history / "governance" / "application-profile.yaml"
         no_history_profile.write_text(essential_src, encoding="utf-8")
@@ -1828,6 +1834,104 @@ def main() -> int:
             "the full worked example passes with the installed hook active",
             result.returncode == 0 and "SP038" not in result.stdout,
             result.stdout[-700:],
+        )
+
+        # ---- F29 / DR-30: the instructions must land where each agent actually reads them ----
+        #
+        # They were emitted only as .github/instructions/*.instructions.md - GitHub Copilot's
+        # format. Claude Code loads CLAUDE.md, .claude/CLAUDE.md and .claude/rules/*.md, and
+        # nothing under .github/. So every adopter using Claude Code received 501 lines of
+        # governance instruction that were never loaded, and so did THIS repository, which had no
+        # CLAUDE.md at all for its entire development.
+        emitted = make_git_repo(tmp, "emitters")
+        install(emitted)
+        rules = sorted((emitted / ".claude" / "rules").glob("surfaceplate-*.md"))
+        copilot = sorted((emitted / ".github" / "instructions").glob("*.instructions.md"))
+        check(
+            "the instructions are emitted for Claude Code as well as Copilot",
+            len(rules) == 6 and len(copilot) == 6,
+            f"{len(rules)} rules, {len(copilot)} copilot files",
+        )
+
+        def body_of(path: Path) -> str:
+            text = path.read_text(encoding="utf-8")
+            return text.split("---", 2)[2] if text.startswith("---") else text
+
+        check(
+            "and both forms carry the identical body from one canonical source",
+            all(
+                body_of(rule) == body_of(emitted / ".github" / "instructions"
+                                         / f"{rule.stem.removeprefix('surfaceplate-')}"
+                                           ".instructions.md")
+                for rule in rules
+            ),
+            str([r.name for r in rules]),
+        )
+
+        # The regression guard. An emitter that changed Copilot's form while adding Claude's
+        # would break every existing adopter on upgrade, and every assertion above would still
+        # pass - so the front-matter key is asserted directly.
+        check(
+            "the Copilot form still uses applyTo, unchanged",
+            all("applyTo:" in f.read_text(encoding="utf-8") for f in copilot),
+            copilot[0].read_text(encoding="utf-8")[:120],
+        )
+
+        check(
+            "AGENTS.md is created and carries the managed block",
+            (emitted / "AGENTS.md").is_file()
+            and "BEGIN SURFACEPLATE" in (emitted / "AGENTS.md").read_text(encoding="utf-8"),
+            "",
+        )
+        check(
+            "and CLAUDE.md is never written - that file belongs to the adopter",
+            not (emitted / "CLAUDE.md").exists(),
+            "",
+        )
+
+        # NEGATIVE CONTROL. An emitter that simply overwrote agent files would pass everything
+        # above. Plyego's AGENTS.md is 293 lines of its own conventions; losing them silently is
+        # the failure this mechanism exists to avoid.
+        owned = make_git_repo(tmp, "owns-agents")
+        (owned / "AGENTS.md").write_text(
+            "# The adopter's own conventions\n\nProbe controls before trusting a negative.\n",
+            encoding="utf-8")
+        (owned / "CLAUDE.md").write_text("@AGENTS.md\n\n## Local\nMy own notes.\n",
+                                         encoding="utf-8")
+        install(owned)
+        agents_text = (owned / "AGENTS.md").read_text(encoding="utf-8")
+        check(
+            "an adopter's own AGENTS.md content survives, with the block appended",
+            "Probe controls before trusting a negative." in agents_text
+            and agents_text.count("BEGIN SURFACEPLATE") == 1,
+            agents_text[:200],
+        )
+        check(
+            "and their CLAUDE.md is left exactly as it was",
+            (owned / "CLAUDE.md").read_text(encoding="utf-8")
+            == "@AGENTS.md\n\n## Local\nMy own notes.\n",
+            (owned / "CLAUDE.md").read_text(encoding="utf-8"),
+        )
+
+        install(owned)
+        check(
+            "re-installing refreshes the block rather than duplicating it",
+            (owned / "AGENTS.md").read_text(encoding="utf-8").count("BEGIN SURFACEPLATE") == 1,
+            "",
+        )
+
+        tampered = (owned / "AGENTS.md").read_text(encoding="utf-8").replace(
+            "BEGIN SURFACEPLATE -->", "BEGIN SURFACEPLATE -->\nSmuggled line.")
+        (owned / "AGENTS.md").write_text(tampered, encoding="utf-8")
+        owned_profile = read_example("application-profile.essential.example.yaml")
+        (owned / "governance" / "application-profile.yaml").write_text(
+            owned_profile, encoding="utf-8")
+        seed_gate_artefacts(owned, owned_profile)
+        result = verify(owned)
+        check(
+            "an edited block in AGENTS.md is detected",
+            "SP008" in result.stdout and "AGENTS.md" in result.stdout,
+            result.stdout[-400:],
         )
 
         # ---- F27 / F28: declining the hook, and what SP038 actually establishes ----

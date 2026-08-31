@@ -20,6 +20,11 @@ jobs:
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
+        with:
+          # Full history. The default is a depth-1 clone, and the prerequisite-gate history
+          # audit would then examine one commit and report nothing wrong - a negative result
+          # from a look that could not have found anything. See F31.
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5

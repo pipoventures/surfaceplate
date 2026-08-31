@@ -1,5 +1,4 @@
 ---
-applyTo: "**"
 description: "Testing discipline. Tests are evidence, not an obstacle to a passing build."
 ---
 

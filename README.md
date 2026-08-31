@@ -60,7 +60,7 @@ If the installer stops because of existing files: **[RECONCILIATION.md](RECONCIL
 
 | Directory | Contents |
 |---|---|
-| `standard/.github/instructions/` | Six stack-neutral instruction files: AI workflow, authority, activity, provenance, tests, security. Copilot loads these automatically alongside a repository's own instructions. |
+| `standard/agent-instructions/` | Six stack-neutral instruction files: AI workflow, authority, activity, provenance, tests, security. Copilot loads these automatically alongside a repository's own instructions. |
 | `standard/.github/skills/` | Seven task workflows: `change`, `bug-fix`, `review`, `fix-ci`, `dependency-update`, `security-review`, `release`. Each states its required inputs, its gates, and its mandatory stops. |
 | `standard/.github/workflows/` | The conformance workflow installed into adopting repositories. |
 | `standard/.githooks/` | The pre-commit hook installed into adopting repositories. It checks the staged snapshot and runs the full conformance check before Git creates a commit. |
@@ -226,7 +226,7 @@ file you copy is a file you stop having to reason about.
 | Licence | What it covers |
 |---|---|
 | **Apache-2.0** — [`LICENSE`](LICENSE) | `scripts/`, `tests/`, `schemas/`, `adapters/`, `standard/.githooks/`, `standard/.github/workflows/`, and everything not listed opposite |
-| **CC0-1.0** — [`LICENSE-DOCS`](LICENSE-DOCS) | `core/` (the standard text), `templates/`, `standard/.github/instructions/`, `standard/.github/skills/`, `standard/conformance-block.md` |
+| **CC0-1.0** — [`LICENSE-DOCS`](LICENSE-DOCS) | `core/` (the standard text), `templates/`, `standard/agent-instructions/`, `standard/.github/skills/`, `standard/conformance-block.md` |
 
 Apache-2.0 rather than MIT for the software, because of its express patent grant, and because it
 grants no trademark rights. The code is open; the name is not.

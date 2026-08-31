@@ -1,5 +1,4 @@
 ---
-applyTo: "**"
 description: "Provenance taxonomy, overrides, and truthful labelling of non-live capability."
 ---
 

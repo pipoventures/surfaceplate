@@ -1,5 +1,4 @@
 ---
-applyTo: "**"
 description: "AI-assisted engineering operating model. Bounded agent work, evidence-first completion, and human-only decisions."
 ---
 

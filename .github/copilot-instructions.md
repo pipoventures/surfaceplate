@@ -7,14 +7,17 @@ Repository-specific guidance goes outside the markers below. The block between t
 
 This repository operates under **Surfaceplate**, the Pipo Ventures Ltd software delivery
 standard. The standard is installed, not copied: it lives in `.standards/`, and its files are
-integrity-checked in CI. Do not edit anything under `.standards/`, `.github/instructions/`, or
-`.github/skills/` — raise changes against the `surfaceplate` repository so every repository gets
-them.
+integrity-checked in CI. Do not edit anything under `.standards/`, `.claude/rules/`,
+`.github/instructions/`, or `.github/skills/` — raise changes against the `surfaceplate`
+repository so every repository gets them.
 
 **Binding rules, in force for every task in this repository:**
 
-- `.github/instructions/*.instructions.md` are mandatory. Read them before acting. Where anything in
-  this file contradicts them, they win.
+- **The standard's agent instructions are mandatory. Read them before acting.** Where anything in
+  this file contradicts them, they win. The same six documents are installed once per agent, each
+  in the location that agent actually loads: `.claude/rules/surfaceplate-*.md` for Claude Code,
+  `.github/instructions/*.instructions.md` for Copilot. If your agent reads neither, the canonical
+  copies are in `.standards/agent-instructions/` and you are responsible for loading them.
 - `.github/skills/` defines the workflow for each kind of task. Use the matching skill. Its required
   inputs, gates and mandatory stops are not optional.
 - **Stop and ask** before anything touching methodology, a material output, a public contract or

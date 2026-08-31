@@ -29,6 +29,7 @@ import datetime as _dt
 import hashlib
 import json
 import os
+import re
 import stat
 import shutil
 import subprocess
@@ -41,6 +42,9 @@ import check_conformance  # noqa: E402  (needs the sys.path insert above)
 VENDOR_DIR = ".standards"
 PROFILE_PATH = "governance/application-profile.yaml"
 COPILOT_INSTRUCTIONS = ".github/copilot-instructions.md"
+# The neutral canonical instruction file DR-12 committed to and never built. Read by Codex,
+# Cursor and others; Claude Code reads CLAUDE.md, so an adopter using it imports @AGENTS.md.
+AGENTS_FILE = "AGENTS.md"
 WORKFLOW_TARGET = ".github/workflows/standards-conformance.yml"
 HOOK_TARGET = ".githooks/pre-commit"
 
@@ -64,6 +68,34 @@ HOOK_TARGET = ".githooks/pre-commit"
 CLASS_ENFORCING = "enforcing"
 CLASS_CONTRACT = "contract"
 CLASS_REFERENCE = "reference"
+
+
+def split_front_matter(text: str) -> tuple[dict[str, str], str]:
+    """Split `---` front matter from the body. Values are kept verbatim, unparsed.
+
+    Deliberately not YAML: these files carry two scalar keys, and the emitted front matter must
+    reproduce the source's quoting exactly rather than round-trip through a parser that would
+    normalise it. A quoting change here would rewrite every adopter's instruction files on the
+    next upgrade for no reason.
+    """
+    match = re.match(r"^---\n(.*?)\n---\n(.*)$", text, re.S)
+    if not match:
+        return {}, text
+    front: dict[str, str] = {}
+    for line in match.group(1).splitlines():
+        if ":" in line:
+            key, _, value = line.partition(":")
+            front[key.strip()] = value.strip()
+    return front, match.group(2)
+
+
+def payload_text(src: "Path | str") -> str:
+    """A payload entry is either a file to copy or already-rendered content to write.
+
+    Rendered entries arrived with the per-agent emitters: the same instruction body is written to
+    two destinations with different front matter, so there is no single file on disk to copy.
+    """
+    return normalise(src if isinstance(src, str) else src.read_text(encoding="utf-8"))
 
 
 def classify(rel: str) -> str:
@@ -117,8 +149,32 @@ def build_payload(source: Path) -> dict[str, Path]:
     standard owns in an adopting repository."""
     payload: dict[str, Path] = {}
 
-    for path in sorted((source / "standard" / ".github" / "instructions").glob("*.instructions.md")):
-        payload[f".github/instructions/{path.name}"] = path
+    # ONE BODY, SEVERAL EMITTERS (F29, DR-30). The instructions live once, agent-neutrally, in
+    # standard/agent-instructions/. Each agent then receives them in the file IT ACTUALLY READS,
+    # with that agent's own front-matter key for path scoping.
+    #
+    # This was six Copilot-format files and nothing else, so every adopter using Claude Code
+    # received 501 lines of governance instruction that were never loaded - and so did this
+    # repository, for its entire development. The destination is the whole point; the content
+    # was never the problem.
+    for path in sorted((source / "standard" / "agent-instructions").glob("*.md")):
+        name = path.stem
+        front, body = split_front_matter(path.read_text(encoding="utf-8"))
+        scope = front.get("scope", '"**"')
+        description = front.get("description", "")
+        # GitHub Copilot: .github/instructions/*.instructions.md, scoped with `applyTo`.
+        payload[f".github/instructions/{name}.instructions.md"] = (
+            f"---\napplyTo: {scope}\ndescription: {description}\n---\n{body}"
+        )
+        # Claude Code: .claude/rules/*.md, scoped with `paths`. Additive by design - it cannot
+        # collide with an adopter's own CLAUDE.md the way writing that file would, and rules
+        # without a `paths` value load at launch with the same priority as .claude/CLAUDE.md.
+        paths_block = (
+            "" if scope.strip('"\' ') == "**" else f"paths:\n  - {scope}\n"
+        )
+        payload[f".claude/rules/surfaceplate-{name}.md"] = (
+            f"---\n{paths_block}description: {description}\n---\n{body}"
+        )
 
     for skill in sorted((source / "standard" / ".github" / "skills").iterdir()):
         if skill.is_dir() and (skill / "SKILL.md").is_file():
@@ -134,6 +190,11 @@ def build_payload(source: Path) -> dict[str, Path]:
     payload[f"{VENDOR_DIR}/check_conformance.py"] = source / "scripts" / "check_conformance.py"
     payload[f"{VENDOR_DIR}/VERSION"] = source / "VERSION"
     payload[f"{VENDOR_DIR}/conformance-block.md"] = source / "standard" / "conformance-block.md"
+
+    # The canonical, agent-neutral copies travel too. An agent this framework has never heard of
+    # can be pointed at one location instead of being told to guess which emitted form applies.
+    for path in sorted((source / "standard" / "agent-instructions").glob("*.md")):
+        payload[f"{VENDOR_DIR}/agent-instructions/{path.name}"] = path
 
     for schema in sorted((source / "schemas").glob("*.yaml")):
         payload[f"{VENDOR_DIR}/schemas/{schema.name}"] = schema
@@ -157,7 +218,14 @@ def build_payload(source: Path) -> dict[str, Path]:
 
 
 def verify_source(source: Path, payload: dict[str, Path]) -> list[str]:
-    return [str(src) for src in payload.values() if not src.is_file()]
+    # Rendered entries have no file to verify - they are generated from a canonical body
+    # that IS verified, under its own payload key. Checking them would look for a path that
+    # was never meant to exist.
+    return [
+        str(src)
+        for src in payload.values()
+        if not isinstance(src, str) and not src.is_file()
+    ]
 
 
 def detect_collisions(target: Path, payload: dict[str, Path], previous: dict) -> list[str]:
@@ -266,14 +334,23 @@ def configure_standard_hook(target: Path, dry_run: bool) -> tuple[bool, str]:
     return True, "configure core.hooksPath=.githooks"
 
 
-def upsert_conformance_block(target_repo: Path, block: str, dry_run: bool) -> str:
-    """Insert or refresh the conformance block. Content outside the markers is preserved."""
-    path = target_repo / COPILOT_INSTRUCTIONS
+def upsert_conformance_block(
+    target_repo: Path, block: str, dry_run: bool, rel: str = COPILOT_INSTRUCTIONS,
+    header_title: str = "Copilot instructions",
+) -> str:
+    """Insert or refresh the conformance block. Content outside the markers is preserved.
+
+    Used for more than one destination since DR-30. An adopter's AGENTS.md is THEIRS - Plyego's
+    is 293 lines of repo-specific convention - so the standard takes a marker-delimited block
+    inside it rather than owning the file. Everything outside the markers survives, and a
+    re-install refreshes only what is between them.
+    """
+    path = target_repo / rel
     wrapped = f"{BLOCK_BEGIN}\n{block.strip()}\n{BLOCK_END}"
 
     if not path.is_file():
         header = (
-            "# Copilot instructions\n\n"
+            f"# {header_title}\n\n"
             "Repository-specific guidance goes outside the markers below. The block between the "
             "markers is managed by the Surfaceplate installer and will be "
             "overwritten on upgrade.\n\n"
@@ -417,7 +494,7 @@ def install(
     changed_by_class = {CLASS_ENFORCING: [], CLASS_CONTRACT: [], CLASS_REFERENCE: []}
     digests: dict[str, str] = {}
     for rel, src in payload.items():
-        content = normalise(src.read_text(encoding="utf-8"))
+        content = payload_text(src)
         digests[rel] = sha256_text(content)
         if write_file(target / rel, content, dry_run):
             changed += 1
@@ -438,8 +515,10 @@ def install(
                 path.unlink()
 
     block = (source / "standard" / "conformance-block.md").read_text(encoding="utf-8")
-    action = upsert_conformance_block(target, block, dry_run)
-    print(f"  {action:<7} {COPILOT_INSTRUCTIONS}")
+    for rel, title in ((COPILOT_INSTRUCTIONS, "Copilot instructions"),
+                       (AGENTS_FILE, "Agent instructions")):
+        action = upsert_conformance_block(target, block, dry_run, rel=rel, header_title=title)
+        print(f"  {action:<7} {rel}")
 
     if no_hooks:
         print("  declined  the pre-commit hook, and core.hooksPath is left as it was")

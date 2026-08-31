@@ -36,6 +36,10 @@ VENDOR_DIR = ".standards"
 INSTALL_RECORD = f"{VENDOR_DIR}/INSTALL.json"
 PROFILE_PATH = "governance/application-profile.yaml"
 COPILOT_INSTRUCTIONS = ".github/copilot-instructions.md"
+# The neutral canonical instruction file (DR-30). Checked on the same terms as the Copilot one:
+# the block must be present and must match what was installed. The file itself belongs to the
+# adopter - only what sits between the markers is the standard's.
+AGENTS_FILE = "AGENTS.md"
 WORKFLOW_PATH = ".github/workflows/standards-conformance.yml"
 SCHEMA_PATH = f"{VENDOR_DIR}/schemas/application-profile.schema.yaml"
 EXCEPTION_SCHEMA_PATH = f"{VENDOR_DIR}/schemas/gate-exception.schema.yaml"
@@ -391,46 +395,54 @@ def check_integrity(repo: Path, record: dict, findings: list[Finding]) -> None:
 
 
 def check_conformance_block(repo: Path, record: dict, findings: list[Finding]) -> None:
-    path = repo / COPILOT_INSTRUCTIONS
-    if not path.is_file():
-        findings.append(
-            Finding(
-                "SP006",
-                "No Copilot instructions file",
-                f"{COPILOT_INSTRUCTIONS} is missing.",
-                "Re-run the installer; it creates the file and inserts the conformance block.",
-                graceable=False,
-            )
-        )
-        return
+    """The managed block, in every file the installer maintains one in (DR-30).
 
-    text = normalise(path.read_text(encoding="utf-8"))
-    if BLOCK_BEGIN not in text or BLOCK_END not in text:
-        findings.append(
-            Finding(
-                "SP007",
-                "The conformance block is absent from the Copilot instructions",
-                f"{COPILOT_INSTRUCTIONS} has no {BLOCK_BEGIN} / {BLOCK_END} markers.",
-                "Re-run the installer. It inserts the block without touching your own content.",
-                graceable=False,
+    Was Copilot-only, because the block was. F29: a block delivered solely to
+    .github/copilot-instructions.md reaches an agent that reads it and nobody else, and the file
+    the checker was policing was one the agent doing the work never loads.
+    """
+    for rel in (COPILOT_INSTRUCTIONS, AGENTS_FILE):
+        path = repo / rel
+        if not path.is_file():
+            findings.append(
+                Finding(
+                    "SP006",
+                    f"No agent instruction file at {rel}",
+                    f"{rel} is missing.",
+                    "Re-run the installer; it creates the file and inserts the conformance block.",
+                    graceable=False,
+                )
             )
-        )
-        return
+            continue
 
-    body = text.split(BLOCK_BEGIN, 1)[1].split(BLOCK_END, 1)[0]
-    expected = record.get("conformance_block_digest")
-    if expected and sha256_text(body.strip()) != expected:
-        findings.append(
-            Finding(
-                "SP008",
-                "The conformance block has been altered",
-                f"The content between the markers in {COPILOT_INSTRUCTIONS} does not match the "
-                "installed standard.",
-                "Restore it by re-running the installer. Your own content outside the markers is "
-                "left untouched.",
-                graceable=False,
+        text = normalise(path.read_text(encoding="utf-8"))
+        if BLOCK_BEGIN not in text or BLOCK_END not in text:
+            findings.append(
+                Finding(
+                    "SP007",
+                    f"The conformance block is absent from {rel}",
+                    f"{rel} has no {BLOCK_BEGIN} / {BLOCK_END} markers.",
+                    "Re-run the installer. It inserts the block without touching your own "
+                    "content.",
+                    graceable=False,
+                )
             )
-        )
+            continue
+
+        body = text.split(BLOCK_BEGIN, 1)[1].split(BLOCK_END, 1)[0]
+        expected = record.get("conformance_block_digest")
+        if expected and sha256_text(body.strip()) != expected:
+            findings.append(
+                Finding(
+                    "SP008",
+                    f"The conformance block in {rel} has been altered",
+                    f"The content between the markers in {rel} does not match the installed "
+                    "standard.",
+                    "Restore it by re-running the installer. Your own content outside the "
+                    "markers is left untouched.",
+                    graceable=False,
+                )
+            )
 
 
 def check_workflow(repo: Path, findings: list[Finding]) -> None:
@@ -1889,6 +1901,21 @@ def git_history_available(repo: Path) -> bool:
     return code == 0
 
 
+def shallow_clone(repo: Path) -> bool:
+    """Is this a truncated checkout? (F31)
+
+    A shallow clone verifies HEAD perfectly, so git_history_available() says yes and the audit
+    runs against whatever few commits were fetched - reporting no violations from a look that
+    could not have found any. `actions/checkout` defaults to depth 1, so this was the state of
+    this repository's own CI: a history audit examining one commit and calling it clean.
+
+    An absence of evidence, not evidence of conformance - the same sentence the unavailable-history
+    note already uses, for the same reason.
+    """
+    code, out = git(repo, "rev-parse", "--is-shallow-repository")
+    return code == 0 and out.strip() == "true"
+
+
 def active_pre_commit_hook(repo: Path, record: dict | None = None) -> tuple[bool, str]:
     """Return whether the STANDARD'S pre-commit hook is what Git will actually run.
 
@@ -2984,6 +3011,13 @@ def check_prerequisites(
             f"Git history was not available, so none of the {len(auditable)} auditable gate(s) "
             "were checked against the commits that crossed them. This is an absence of "
             "evidence, not evidence of conformance."
+        )
+    elif auditable and shallow_clone(repo):
+        notes.append(
+            f"This is a SHALLOW clone, so the {len(auditable)} auditable gate(s) were checked "
+            "against only the commits it contains - which may be one. A history audit that "
+            "found nothing here has established nothing. Fetch full history (for GitHub "
+            "Actions, actions/checkout with fetch-depth: 0) if this run is meant to be evidence."
         )
 
 

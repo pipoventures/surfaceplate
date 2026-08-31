@@ -69,7 +69,7 @@ def main() -> int:
         # the installer applies on write. Comparing raw bytes would report every file as
         # diverged on a CRLF checkout - a check that fails for a reason unrelated to the
         # thing it is about is worse than no check.
-        source_text = install_standard.normalise(src.read_text(encoding="utf-8"))
+        source_text = install_standard.payload_text(src)
         installed_text = install_standard.normalise(installed.read_text(encoding="utf-8"))
         if source_text != installed_text:
             diverged.append(rel)
