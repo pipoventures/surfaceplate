@@ -1139,6 +1139,86 @@ def check_control_implementations(
             )
 
 
+def check_deferral_expiry(
+    profile: dict, findings: list[Finding], today: _dt.date, notes: list[str]
+) -> None:
+    """A deferral expires on the date its author gave it (F22, DR-25's `H`).
+
+    SP031 requires a deferred control or gate to carry `revisit_by`, and until now nothing ever
+    read it again. A deferral dated 2020 passed in 2026. This framework's own phrase for that
+    state is "an omission wearing a decision's clothes" - which SP031 uses while failing to
+    prevent the thing it describes.
+
+    WHY THIS IS RECORDING AND NOT JUDGING. The date was declared by the adopter. Comparing a
+    declared date against today establishes whether a stated commitment has come due; it does
+    not decide anything on the adopter's behalf.
+
+    GATE EXCEPTIONS ARE DELIBERATELY OUT OF SCOPE. `schemas/gate-exception.schema.yaml` carries
+    only `raised_on`, and it is optional - there is no declared expiry, so a lifetime would have
+    to be invented. That would be the tool deciding rather than recording. The absence is a real
+    gap and is recorded in F22 rather than papered over here; giving exceptions an expiry is a
+    contract change and deserves its own decision.
+    """
+    def assess(label: str, raw: object, remedy: str) -> None:
+        try:
+            due = _dt.date.fromisoformat(str(raw)[:10])
+        except ValueError:
+            findings.append(
+                Finding(
+                    "SP054",
+                    f"{label} has an unreadable revisit date",
+                    f"revisit_by is {raw!r}, which is not an ISO date.",
+                    "Use the YYYY-MM-DD form. A malformed date is not a deadline - nothing can "
+                    "come due, so the deferral is permanent by accident.",
+                    graceable=True,
+                )
+            )
+            return
+
+        overdue = (today - due).days
+        if overdue > 0:
+            findings.append(
+                Finding(
+                    "SP054",
+                    f"{label} passed its revisit date",
+                    f"revisit_by was {due.isoformat()}, {overdue} day(s) ago.",
+                    remedy,
+                    graceable=True,
+                )
+            )
+        elif -overdue <= REVIEW_WARN_DAYS:
+            notes.append(
+                f"{label} is due for revisit on {due.isoformat()} "
+                f"({-overdue} day(s) away)."
+            )
+
+    adoption = profile.get("adoption")
+    if isinstance(adoption, dict):
+        for deferral in adoption.get("deferrals") or []:
+            if not isinstance(deferral, dict):
+                continue
+            control = deferral.get("control_id") or "a deferral"
+            if deferral.get("revisit_by") is not None:
+                assess(
+                    f"Deferral '{control}'",
+                    deferral["revisit_by"],
+                    "Revisit it: adopt the control, or set a new date with a reason that "
+                    "survives someone who did not write the first one. A deferral nobody "
+                    "revisits is an exclusion.",
+                )
+
+    for gate in profile.get("prerequisites") or []:
+        if not isinstance(gate, dict) or gate.get("status") != "deferred":
+            continue
+        if gate.get("revisit_by") is not None:
+            assess(
+                f"Deferred gate '{gate.get('id', 'unnamed')}'",
+                gate["revisit_by"],
+                "Require the gate, or set a new date and say why. SP031 made you give this a "
+                "date; this is the date arriving.",
+            )
+
+
 def check_secret_hygiene(repo: Path, profile: dict, findings: list[Finding]) -> None:
     """Verify that a secret scanner is declared and non-bypassably wired.
 
@@ -2443,6 +2523,7 @@ def run(repo: Path, today: _dt.date, no_grace: bool, staged: bool) -> int:
             exempt = placeholder_exemptions(repo, profile, findings, notes)
             check_control_implementations(repo, profile, findings, notes, exempt)
             check_pattern_b_controls(repo, profile, findings, notes)
+            check_deferral_expiry(profile, findings, today, notes)
             check_pinned_identity(profile, record, findings)
             check_prerequisites(
                 repo,

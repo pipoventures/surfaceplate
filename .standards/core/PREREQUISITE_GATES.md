@@ -294,6 +294,10 @@ catalogue and should be raised as a change to this standard.
 | `SP037` | `builds_user_interface` absent at `standard`/`full`, or contradicted by an interface gate's status | Yes |
 | `SP046` | `secret_hygiene` names no scanner, or names wiring that is absent or never invokes it | Yes |
 | `SP047` | The declared scanner's step cannot fail the job | Yes |
+| `SP051` | A control's implementation reference is missing, unresolvable, empty, or a template | Yes |
+| `SP052` | `documentation_authority` is required without the `authority_map` gate | Yes |
+| `SP053` | A control's named CI step is missing, runs nothing, or cannot fail | Yes |
+| `SP054` | A deferral or deferred gate has passed its `revisit_by`, or carries an unreadable one | Yes |
 
 ## Worked examples
 

@@ -754,6 +754,27 @@ def main() -> int:
             result.stdout[-400:],
         )
 
+        # ---- SP054: a deferral expires on the date its author gave it (F22) ----
+        #
+        # The negative case is the one that matters. A check firing on every deferral would pass
+        # the "expired date fails" test identically, so the future-dated case is what separates
+        # a working check from one that simply always fires.
+        deferred_src = essential_src.replace(
+            "  work_contract:\n    status: deferred",
+            "  work_contract:\n    status: deferred", 1)
+        for label, date, expect in (
+            ("expired", "2020-01-01", True),
+            ("unreadable", "not-a-date", True),
+            ("far future", "2099-01-01", False),
+        ):
+            probe = re.sub(r'revisit_by: "?[^"\n]+"?', f'revisit_by: "{date}"', deferred_src)
+            result = gate_check(probe)
+            check(
+                f"a deferral dated {label} {'raises' if expect else 'does not raise'} SP054",
+                ("SP054" in result.stdout) is expect,
+                result.stdout[-300:],
+            )
+
         # ---- SP053: pattern B (DR-25, amended to step granularity) ----
         #
         # A test step that cannot fail is the failure this mechanism exists for: a suite can run,

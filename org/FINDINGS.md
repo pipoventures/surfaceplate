@@ -48,7 +48,7 @@ state, until 2026-08-31, that the space ended at `SP043` — after `SP046` and `
 added and while the person adding them was editing this file.
 
 ```text
-emitted:  SP001-SP035, SP037-SP043, SP046-SP053
+emitted:  SP001-SP035, SP037-SP043, SP046-SP054
 gap:      SP036
 reserved: SP044-SP045
 ```
@@ -86,6 +86,7 @@ an unknown number of releases with nothing noticing.
 | F19 | A licence decision recorded in another repository, never implemented in this one | medium | Closed — `DR-24` |
 | F20 | A control is checked against itself, never against reality | high | **Open** — 5 of 9 controls now checked; `full`'s four record-based controls remain |
 | F21 | `dependency_lock` declared with nothing pinned, and CI not recording what it used | medium | Closed — `pyproject.toml`, `SP051` |
+| F22 | A deferral's revisit date was required to exist and never read again | medium | Closed for deferrals — `SP054`; **open** for gate exceptions |
 
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -972,6 +973,46 @@ protects against an unexpected new release rather than a compromised re-upload o
 PyPI does not permit re-uploading a version, which makes that largely theoretical — but it is a
 weaker guarantee than a hash-bearing lock, and `pyproject.toml` says so rather than implying
 otherwise.
+
+---
+
+## F22 — A deferral's revisit date was required to exist and never read again
+
+**Severity: medium. Closed for deferrals; open for gate exceptions.**
+
+`SP031` refuses a deferred control or gate that carries no `revisit_by`, on the stated grounds that
+*"a deferral with no owner and no date is an omission wearing a decision's clothes."* Nothing then
+ever read the date. Demonstrated before the fix:
+
+```
+revisit_by: "2020-01-01"   ->   PASS - all conformance checks satisfied.
+```
+
+Six years expired. The control that exists to prevent a permanent exclusion was creating one.
+
+**Closed by `SP054`** for `adoption.deferrals[].revisit_by` and for deferred prerequisite gates. A
+date that has passed raises a finding; a date within 30 days produces an advisory, mirroring how
+`adoption.review_by` has always been treated; a malformed date fails, because a date that cannot be
+parsed is not a deadline and the deferral would be permanent by accident.
+
+**Why this is recording rather than judging.** The date was declared by the adopter. Comparing it
+against today establishes whether a stated commitment has come due — it decides nothing on their
+behalf. That distinction is what kept `I` (per-change risk classification) deferred and what keeps
+gate exceptions out of scope below.
+
+**Open: gate exceptions have no expiry mechanism at all.** `schemas/gate-exception.schema.yaml`
+carries `raised_on`, and it is **optional** — a creation date, not a deadline. So an exception is
+permanent by construction, and no amount of checking fixes that, because there is nothing declared
+to check against. Giving exceptions an expiry means adding a field to a published contract, which is
+a decision rather than an implementation detail, and it is not taken here.
+
+That is the sharper version of this finding: deferrals were unenforced, exceptions are
+**unenforceable**. The first was a gap in the checker; the second is a gap in the schema.
+
+**Recorded about the sequence, not the code.** The scope review kept this item unconditionally and
+ordered it *before* the first record validator. Patterns D, A and B were a larger substitution for
+`G′` than that review anticipated, and this was overlooked in the process — an agreed sequence
+departed from without anyone deciding to.
 
 ---
 
