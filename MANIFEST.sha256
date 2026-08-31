@@ -4,7 +4,7 @@ bf32da9191d44e6ae9ada39465e8b2af5a92e6c2fbe9d5f8069c1b1eda6e0a65  surfaceplate-0
 83b4142a39e5bd89f524b6bfffd58a070f34f70ee4d3503e242b0092d993796d  surfaceplate-0.16.0/.github/workflows/secret-scan.yml
 003b3dfea1233c7da5530c80d5ca651a97b65d24e6865845728e208556077e19  surfaceplate-0.16.0/.github/workflows/standard-self-check.yml
 8a6056d884fed756d20ae3f71e8e62c78f9a38cad3af77915579abdf0d683879  surfaceplate-0.16.0/AGENTS.md
-7a7574ad5b938e3c69444579530aa3602c6f0403a5e5130012d872c063e27f28  surfaceplate-0.16.0/CHANGELOG.md
+26e2daa0fcb24c81156126f8cfb57b9ecb12dacd61f5b159f56bed0995045fb0  surfaceplate-0.16.0/CHANGELOG.md
 fe2794afbef79f583a01ee8d55b87f354235a450af4cdb74a78b234abac48b25  surfaceplate-0.16.0/CLAUDE.md
 0e7d671b7653efcd90af28e64d2224e2e47d38e0faf07547284f431cf1e56e39  surfaceplate-0.16.0/CONTRIBUTING.md
 dd9904b3578616709785ef24192acc08d510198e62dccbcdb86c167f80ffc004  surfaceplate-0.16.0/INSTALL.md
@@ -39,10 +39,10 @@ b6b24ff0ffe92f17acd50380d4ad623c8676b898d03437a477e8a1e90007b6af  surfaceplate-0
 6479cabd3a6a0014401eb2898130701d99edfed46d7b80413c42e704881439b6  surfaceplate-0.16.0/examples/method-registry-entry.example.yaml
 edb20cbf3697618c82f54bd932ddd9f577ef7131516f94769e3dad63d6205f4d  surfaceplate-0.16.0/examples/method-run-lineage.example.yaml
 2e52ffc76fcad38c2949ce9f828c63a6acf28fd02b498d900bb49ccbb1f035eb  surfaceplate-0.16.0/examples/override-record.approved.example.yaml
-92c656dddba889022e1f0770a5ea8915bf037861f7cc881ba8ff392304676ae3  surfaceplate-0.16.0/governance/application-profile.yaml
+8114b3b655ba0ce94e5d5f0a64748fb92ff5bd8e4c86381ff859e9995c10443e  surfaceplate-0.16.0/governance/application-profile.yaml
 b019e17be23e403a2b013d931cf06ded8469c2bdcc4a079182238283033c2cb9  surfaceplate-0.16.0/governance/authority-map.yaml
 a4c77f0cc51a259b1bcf129ed3808052e2a4af611a1e3f9a858b4e280b9fabe3  surfaceplate-0.16.0/governance/exceptions/GX-0001.yaml
-9fdc0655ad8754e29b884356240f4ac9ab98da1f6c8bc9cf2db8a84ed00ca109  surfaceplate-0.16.0/org/FINDINGS.md
+8c59e09e59e530b67f19c1f716d99effa3460bf14c45444ef11d0f37a9eb28eb  surfaceplate-0.16.0/org/FINDINGS.md
 29050ea860de896ed13fc6ec91ff072b545776b72114edaf441f60bf42790c81  surfaceplate-0.16.0/org/RELEASE_PLAN.md
 6e6a6b16f3193cf960b85ad18ba8f356f2916f83cd3b02b67a251fcd550721b1  surfaceplate-0.16.0/org/ROLLOUT_RUNBOOK.md
 2f90ad311891297c95b64cb5b091cc6c2bcb0cdbfdad794e5f1d5be2cec71cef  surfaceplate-0.16.0/org/SUNSET_PLAN.md
