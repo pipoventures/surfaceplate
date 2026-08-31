@@ -1256,3 +1256,34 @@ implying otherwise.
 `pyproject.toml` begins item 1's *declaration* half ahead of the adoption gate. Its hard part —
 `repo_root()` under a wheel, package data, entry points — is untouched, and `org/RELEASE_PLAN.md`
 records the early start so the sequence does not drift silently.
+
+### Pattern B: `standard` becomes the first fully checked level
+
+`deterministic_tests` and `contract_tests` move from declared to checked. Every control the
+`standard` level requires is now verified against the repository rather than against its own
+declaration, and the banner that reported otherwise no longer prints.
+
+`SP053` verifies that a control's `implementation_reference` names a CI step which exists, runs
+something, and **can fail** — reusing the mechanism `SP046`/`SP047` already use for the secret
+scanner. That bypass half is the point: a suite can run, report success and leave the job green if
+its exit code is discarded, which is an observed failure in this project's history rather than a
+hypothesis.
+
+**`DR-25` is amended in place, not footnoted.** It predicted the reference would be a *status-check
+name*; implementation showed step granularity is correct. A status check is a job, one job here runs
+every suite, so both controls would have named it and received an identical check — losing the
+distinction between them. Whether a job is a *required* check also lives in forge settings rather
+than the repository, and reading it would make the checker forge-aware, which `DR-12` forbids.
+`DR-25` states that a pattern which does not fit means the record is wrong, so it was corrected
+rather than worked around.
+
+**What this does not prove**, stated in `core/CONFORMANCE_LEVELS.md` beside the control: that the
+tests are deterministic, that they are contract tests, or that they assert anything. **A step
+running `true` would pass.** Same boundary as the scanner check — wired, never effective.
+
+Seen to fail four ways — no reference, a step that does not exist, a step that runs nothing, and a
+step neutralised by `continue-on-error` and separately by a swallowed exit code — and to pass once,
+without which the four failures would be consistent with a check that fires on everything.
+
+`F20` now reads 5 of 9 controls checked. The four that remain are `provenance`, `run_lineage`,
+`method_registry` and `overrides` — pattern C, the only genuinely new mechanism, and the next packet.

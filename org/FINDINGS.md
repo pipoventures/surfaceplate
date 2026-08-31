@@ -48,7 +48,7 @@ state, until 2026-08-31, that the space ended at `SP043` — after `SP046` and `
 added and while the person adding them was editing this file.
 
 ```text
-emitted:  SP001-SP035, SP037-SP043, SP046-SP052
+emitted:  SP001-SP035, SP037-SP043, SP046-SP053
 gap:      SP036
 reserved: SP044-SP045
 ```
@@ -84,7 +84,7 @@ an unknown number of releases with nothing noticing.
 | F17 | The identifier check reads every GitHub URL as a claim about this organisation | low | Closed — declared third parties |
 | F18 | Inherited product and methodology names throughout the public tree | medium | Closed — redacted, disclosed |
 | F19 | A licence decision recorded in another repository, never implemented in this one | medium | Closed — `DR-24` |
-| F20 | A control is checked against itself, never against reality | high | **Open** — architecture decided (`DR-25`); verification unbuilt |
+| F20 | A control is checked against itself, never against reality | high | **Open** — 5 of 9 controls now checked; `full`'s four record-based controls remain |
 | F21 | `dependency_lock` declared with nothing pinned, and CI not recording what it used | medium | Closed — `pyproject.toml`, `SP051` |
 
 Closed entries are indexed here and left in their original records; they are not restated.
