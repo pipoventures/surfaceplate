@@ -20,6 +20,16 @@ No product file is touched. The installer also sets the repository-local Git con
 `core.hooksPath=.githooks`. If another hook path or a default pre-commit hook already exists, the
 installer stops before writing anything so the existing automation is not silently disabled.
 
+**If you have your own hook system and intend to keep it, install with `--no-hooks`.** The hook is
+one enforcement route of three: a profile whose gates declare `enforcement: [history_audit, review]`
+is fully conformant without it. `--no-hooks` writes no `.githooks/`, leaves `core.hooksPath` exactly
+as it was, and records the declination in `.standards/INSTALL.json` so every conformance check
+reports it. What you give up is stated rather than implied: nothing will check staged changes before
+they are committed, and a gate violation is caught by the history audit after the commit rather than
+before it. Declaring `local_hook` enforcement anyway is a finding (`SP038`), and that check compares
+the hook Git will actually run against the one this standard installed — an unrelated pre-commit
+hook does not satisfy the claim.
+
 ---
 
 ## Install

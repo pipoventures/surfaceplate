@@ -1481,3 +1481,49 @@ names the exemption route.
 
 `org/RELEASE_PLAN.md` item 5 said no adopter had ever been exercised. That is now false in part, so
 it is **rewritten rather than annotated**: one has been exercised, none has adopted.
+
+### `F27`: the installer forbade what the standard permits
+
+Surfaceplate would not install into a repository that already has a hook system. The refusal is
+correct — setting `core.hooksPath=.githooks` would silently stop the existing hook running — and the
+detection is thorough, reading effective local, worktree, global and system configuration and every
+hook type, then failing closed and atomically.
+
+**The defect is that there was no third route.** `SP038` fires only when a gate's `enforcement` list
+claims `local_hook`, so a profile declaring `enforcement: [history_audit, review]` has always been
+fully conformant with no hook anywhere. **The standard said the hook was optional and the installer
+said it was mandatory** — two parts of one framework disagreeing about the same obligation, which is
+the defect this register names more often than any other, found in itself.
+
+The blocked case is any repository with existing commit-time automation, which is the target rather
+than an edge case, and forty-five files were withheld over one optional 25-line shim.
+
+`--no-hooks` installs everything else, leaves `core.hooksPath` alone, and **records the
+declination** in `.standards/INSTALL.json` so every check reports it. Recorded rather than silent
+because the alternative is the shape this framework exists to catch: nothing would distinguish
+"staged changes are gated" from "nothing gates them". Every other narrowing here announces itself.
+
+Chaining the adopter's hook from surfaceplate's was rejected: the delegation logic would ship to
+every adopter and have to work for arbitrary hooks, and the framework would become the permanent
+owner of another system's hook.
+
+### `F28`: `SP038` accepted any pre-commit hook as satisfying a `local_hook` claim
+
+Found by writing a probe to demonstrate a property the plan asserted, and watching it fail.
+
+`active_pre_commit_hook` asked whether **an** executable `pre-commit` existed in the active hooks
+directory. Any hook, doing anything. So a gate could claim `local_hook` and be satisfied by a hook
+that formats code — and the finding's silence established *"a hook exists"*, never *"the conformance
+check runs before commit"*.
+
+It predates the opt-out and was exposed by it: declining leaves `core.hooksPath` pointing at the
+adopter's own hook, which passed the old test perfectly.
+
+The remedy needed no new data. `.standards/INSTALL.json` has always carried the digest of
+`.githooks/pre-commit`, so the active hook is now compared against the one installed. Three failure
+modes are distinguished and each is asserted: no hook, a hook that is not this standard's, and hooks
+declined. The finding's title changed with them — *"there is no hook"* is plainly wrong against a
+repository that has one.
+
+The approved plan for this packet said `SP038` was untouched and still caught a false claim. That
+was false when written, and fixing it was inside the packet's promise rather than added to it.

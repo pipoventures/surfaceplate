@@ -91,6 +91,8 @@ an unknown number of releases with nothing noticing.
 | F24 | A schema clause that could never add an obligation, grading the wrong axis | low | Closed — removed; `materiality` grades approval, not completeness |
 | F25 | Declaring a placeholder-scan exemption made the profile fail the placeholder scan | medium | Closed — the exemption's own rationale is excluded; found in Plyego |
 | F26 | `SP032`'s placeholder remedy was wrong for 17 of 19 gates and named no remedy | low | Closed — generic wording that names the exemption route |
+| F27 | The installer forbade what the standard permits: no way to adopt without the hook | high | Closed — `--no-hooks`, recorded and announced |
+| F28 | `SP038` accepted any pre-commit hook as satisfying a `local_hook` claim | high | Closed — the active hook is compared against the one installed |
 
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -993,6 +995,84 @@ weaker guarantee than a hash-bearing lock, and `pyproject.toml` says so rather t
 otherwise.
 
 ---
+
+## F28 — `SP038` accepted any pre-commit hook as satisfying a `local_hook` claim
+
+**Severity: high. Closed.**
+
+`active_pre_commit_hook` asked one question: **is there an executable `pre-commit` in the active
+hooks directory?** Any hook, from anyone, doing anything.
+
+So a gate could declare `enforcement: [local_hook, ...]` and be satisfied by a hook that formats
+code, prints a message, or does nothing at all. `SP038`'s own text was *"Gate claims hook
+enforcement, but there is no hook"* — and what its silence established was **"a hook exists"**, not
+**"staged changes are checked before they are committed"**, which is the whole content of the
+enforcement claim.
+
+Demonstrated: a repository with the standard installed, `core.hooksPath` pointed at an unrelated
+hook, and every gate claiming `local_hook`. **Zero findings.**
+
+**This predates the hook opt-out and was exposed by it.** Declining hooks leaves `core.hooksPath`
+pointing at the adopter's own system, which satisfied the old test perfectly — so the first probe
+written to prove that a false `local_hook` claim is still caught found that it is not.
+
+**Closed** by comparing the active hook against the one this standard installed. The remedy needed
+no new data: `.standards/INSTALL.json` has always carried the digest of `.githooks/pre-commit`, and
+a record with no such entry — because hooks were declined — cannot support the claim, which is the
+correct answer rather than a special case. Three failure modes are now distinguished and each is
+asserted: no hook at all, a hook that is not this standard's, and hooks declined at install. The
+finding's title changed with them, because *"there is no hook"* is plainly wrong against a
+repository that has one.
+
+**The shape, again.** An instrument whose negative result does not establish what it appears to —
+`F12`, `F14`, `F21`, `F23`, `F25`. What is different here is *where it was found*: not by reading
+the code, but by writing a probe to demonstrate a property the plan had asserted, and watching the
+probe fail. The assertion in the approved plan — *"`SP038` is untouched and still catches a gate
+claiming a hook that was declined"* — was **false when written**.
+
+## F27 — The installer forbade what the standard permits
+
+**Severity: high. Closed.**
+
+Surfaceplate would not install into Plyego at all:
+
+```
+STOPPED - this repository already has a different Git hook configuration:
+  the effective core.hooksPath is already '<the adopter's own hooks directory>'.
+Nothing has been written.                                        (exit 4)
+```
+
+The refusal is *correct*: setting `core.hooksPath=.githooks` would silently stop the adopter's
+existing hook running. The installer detects this thoroughly — effective local, worktree, global and
+system configuration, every hook type — and fails closed and atomically.
+
+**The defect is that there was no third route.** `SP038` fires only when a gate's `enforcement` list
+claims `local_hook`, so a profile declaring `enforcement: [history_audit, review]` has always been
+fully conformant with no surfaceplate hook anywhere. **The standard said the hook was optional and
+the installer said it was mandatory** — two parts of one framework disagreeing about the same
+obligation, which is the defect this register names more often than any other, found in itself.
+
+Three things made it more than a nuisance:
+
+- Both offered remedies — *reconcile the existing hooks* or *remove the old hook configuration* —
+  assume the adopter wants surfaceplate's hook. Neither contemplates keeping their own.
+- The blocked case is **any repository with existing commit-time automation**, which is the target
+  rather than an edge case. The first real adopter hit it immediately.
+- The refusal is at the wrong layer: forty-five files of standard, schemas and checker withheld over
+  one optional **25-line shim** whose entire body is
+  `exec python3 "$checker" --repo "$repo_root" --staged`.
+
+**Closed** by `--no-hooks`, which is **recorded and announced** rather than silent. The declination
+is stored in `.standards/INSTALL.json` and reported by every conformance check, because the
+alternative is the shape this framework exists to catch: nothing would distinguish *"staged changes
+are gated"* from *"nothing gates them"*, in the profile or in a passing check alike. Every other
+narrowing here announces itself — `DR-22`'s exemptions, deferral dates, `DR-27`'s unchecked-reference
+notes — and a silent opt-out would have been conspicuous by inconsistency.
+
+Chaining the adopter's hook from surfaceplate's was considered and rejected: `.githooks/pre-commit`
+is standard-owned and integrity-checked, so delegation logic would ship to every adopter and have to
+work for arbitrary hooks; and once `core.hooksPath=.githooks`, the displaced hook is reachable only
+if surfaceplate calls it, making the framework the permanent owner of another system's hook.
 
 ## F26 — `SP032`'s placeholder remedy was wrong for most gates, and named no remedy
 
