@@ -3,7 +3,7 @@ f24a4f672a633fe38bc15b233e3cb2a24065f95a561423e6d510ffe891694e24  surfaceplate-0
 bf32da9191d44e6ae9ada39465e8b2af5a92e6c2fbe9d5f8069c1b1eda6e0a65  surfaceplate-0.16.0/.github/workflows/dco-check.yml
 83b4142a39e5bd89f524b6bfffd58a070f34f70ee4d3503e242b0092d993796d  surfaceplate-0.16.0/.github/workflows/secret-scan.yml
 87a6c26bb5b44257a98ec26622ce8c8c6d0d1abbd209052cb6b85722c0ac13a0  surfaceplate-0.16.0/.github/workflows/standard-self-check.yml
-cc9f8d3786a4d8653b5f9533c52770ff2730e4ab5377d0476d4e60bb8d8e7ac5  surfaceplate-0.16.0/CHANGELOG.md
+4cb8a38dc530f45197f4aeaf93c396d88b335c28302e4483c3efa3f1181f1ec7  surfaceplate-0.16.0/CHANGELOG.md
 0e7d671b7653efcd90af28e64d2224e2e47d38e0faf07547284f431cf1e56e39  surfaceplate-0.16.0/CONTRIBUTING.md
 860365fb4f316250c497ef0454402517130431799e972cffd0f3a8ed511fee4e  surfaceplate-0.16.0/INSTALL.md
 6141efa4c3fdeaa1babbf65b42244e727205db1d11a74e02aca6616e3fbf373b  surfaceplate-0.16.0/LICENSE
@@ -16,7 +16,7 @@ e8ec1027b64dc58bc9725cfc1e8c9780518f8714a22444b0adc5750cfbeab26e  surfaceplate-0
 f5cf1d77957a8ab382659820c5abf50ba6df486da1401925b3b719e58fc11a7b  surfaceplate-0.16.0/SECURITY.md
 4118a4290c7c75067eda7245504c9929915a1ac11eea32e1353d9958643c089d  surfaceplate-0.16.0/SETUP_GUIDE.md
 aa037454b5e8320521a32b278a3f4aff05fc79009ab5503f5d4a1b9a33b38c47  surfaceplate-0.16.0/VERSION
-8507aa8a250b6d5e75879f28555dab50d2907e79859afcf05eafd5e304777411  surfaceplate-0.16.0/activity/register.md
+7f74715628b17b2c875fdb853a90d0aa8543799021387527d98f0279e129b95d  surfaceplate-0.16.0/activity/register.md
 1ca5607d907f60e29ed9ec843a900384915f20b4fa114c14bd8923bc3e7d72bd  surfaceplate-0.16.0/adapters/python.md
 c4da3094ecbe5cc560a7b7aeb4171c72d7fc8e3e85df723e8ffbc8124049f50f  surfaceplate-0.16.0/adapters/r.md
 3f540700ee9647ac9f4a1ea8c6bd4131c948b00d42cdc9ea7f6eb93133727e76  surfaceplate-0.16.0/adapters/typescript.md
@@ -27,7 +27,7 @@ c4da3094ecbe5cc560a7b7aeb4171c72d7fc8e3e85df723e8ffbc8124049f50f  surfaceplate-0
 46eac228fd9b7659363d981a4e220b3f3c18b6778202c8dcfbe2d6bfae5a3650  surfaceplate-0.16.0/audit/PRIOR_AUDIT_REMEDIATION.md
 c6905c1ec8033866c0144737e8a7cc361130e10f6250de574c8d8bcda06fc3bc  surfaceplate-0.16.0/audit/VALIDATION_RESULTS.md
 04b2d5951f841627fdb39bdf515ff17be81e9fe16beb580b025fafa85d393b02  surfaceplate-0.16.0/core/AI_OPERATING_MODEL.md
-e9923aec746c900078212eee20a814ea755a2d1483d0556078363dd0eac8ae9a  surfaceplate-0.16.0/core/CONFORMANCE_LEVELS.md
+776c5820dba513c276ff02774e3b78d6ee5513e8641a58a2ddb957c547b4ce66  surfaceplate-0.16.0/core/CONFORMANCE_LEVELS.md
 3e56c91c75f3e9aa43df2d1e052be1d35a9267f55c7026dab812bb7a72a94989  surfaceplate-0.16.0/core/CONTROL_PRINCIPLES.md
 6b8271cd16f31b7f2a46e8957e5817a0751e4020d1be888d20faff212bdfbc65  surfaceplate-0.16.0/core/PREREQUISITE_GATES.md
 3830b30a634e074048f80bd3cdc049b5975038be545424237e31760b0f65ac48  surfaceplate-0.16.0/core/REVIEW_AND_EVIDENCE.md
@@ -35,9 +35,9 @@ e9923aec746c900078212eee20a814ea755a2d1483d0556078363dd0eac8ae9a  surfaceplate-0
 2d1e40d62dcbc85a4b281a0e6374c0b78861c7a1be2f404445b8065a82240319  surfaceplate-0.16.0/examples/application-profile.essential.example.yaml
 0aebc356f361e06991ce9ff0fa9eb9385a7845c665d131b5442581714cbfb6e0  surfaceplate-0.16.0/examples/application-profile.full.example.yaml
 2e52ffc76fcad38c2949ce9f828c63a6acf28fd02b498d900bb49ccbb1f035eb  surfaceplate-0.16.0/examples/override-record.approved.example.yaml
-8ce5230cb7b4731d4919bd524a19b7861ce02bdb556e1e1257ba5b6bbdce9955  surfaceplate-0.16.0/governance/application-profile.yaml
+771203b1299e9ff39fc12156d295db2b48c3e32e6d8547a0399d0afbbbb1aac2  surfaceplate-0.16.0/governance/application-profile.yaml
 c16e7437b551454f5663f88f8bc94dc9a228ff691de90ddaa666e0b489ba4b22  surfaceplate-0.16.0/governance/authority-map.yaml
-4bc4bb15b362adcf5b10c27580a5e0052a499b839ac254074b17edd2a4fd8381  surfaceplate-0.16.0/org/FINDINGS.md
+2789803b537fe311788e9d55a0822e52821882d98987a28f14613e5e408f0ee6  surfaceplate-0.16.0/org/FINDINGS.md
 e96f95092696641ec6118320f3a8fc2935e6ec6796b472c955e61c91940a26d7  surfaceplate-0.16.0/org/RELEASE_PLAN.md
 6e6a6b16f3193cf960b85ad18ba8f356f2916f83cd3b02b67a251fcd550721b1  surfaceplate-0.16.0/org/ROLLOUT_RUNBOOK.md
 2f90ad311891297c95b64cb5b091cc6c2bcb0cdbfdad794e5f1d5be2cec71cef  surfaceplate-0.16.0/org/SUNSET_PLAN.md
@@ -58,6 +58,7 @@ b4c732bff5f637928b26d95490cf18c6ac3ab1c0cae393ccf888f46344522134  surfaceplate-0
 088f92c3969a21a94fc45402a0019df2af2f5cf1c44c3e9d00a33798d218c948  surfaceplate-0.16.0/org/decisions/DR-22.md
 9faa104955d0df7a0d6c25d682702892732dd433c6653f3cf53a07df75e4b154  surfaceplate-0.16.0/org/decisions/DR-23.md
 1669350f29929b4c3da2fc76a36ae569e6af3b09bb09cd6356de0e28949bebf4  surfaceplate-0.16.0/org/decisions/DR-24.md
+aadd2e0611cb9c68b3c1244facf6871ad52945a3239ca3c240806eb335077ae5  surfaceplate-0.16.0/org/decisions/DR-25.md
 1b41b252d63c1c5a302709a2c201898144fda070744948521be322eb76289fd3  surfaceplate-0.16.0/org/decisions/DR-3.md
 5a047edc16339bb3427bf1e441f95fde17e0d5161a8d323b7a2dc61461c10f7f  surfaceplate-0.16.0/org/decisions/DR-4.md
 d0e28b15fae8e636be49f45bdbe9ee1b74cee8702e928317881a4d0bc9abd8eb  surfaceplate-0.16.0/org/decisions/DR-5.md
@@ -65,7 +66,7 @@ ffa0a05e7229157a3f4836d17d8adb68bdccacd46c6038f634b4dc70056236af  surfaceplate-0
 02f20963bce84f2d12b05e3addf15f47feeedf995b1bff913e6183b44e09c499  surfaceplate-0.16.0/org/decisions/DR-7.md
 ecb44b6d64643e519ae0e3761c5997efd058d466885f6a9a7b20067476194945  surfaceplate-0.16.0/org/decisions/DR-8.md
 932acc89e5c02b0306b7961150160c7f298452d7de7f2fe1332b8ce94de6de40  surfaceplate-0.16.0/org/decisions/DR-9.md
-b39a91a722a16a963d393195785b83fbabf83b0ae674ac47c8e419340639c590  surfaceplate-0.16.0/org/decisions/README.md
+1f1593da3bbc5650fd572998851f6dbf0603e7c64c1eaeb253b42118d419c50b  surfaceplate-0.16.0/org/decisions/README.md
 f379f8a8ee07fcefe5a24afaaa94b5b0efafb8a7b7f631ad05cad546fbeda93b  surfaceplate-0.16.0/org/ruleset-standards-conformance.json
 6fed7201c2f46b3682975747da1ecea8c30a0f15d791482565fd8d436b6ad5b1  surfaceplate-0.16.0/prompts/github-copilot-adoption-wizard.prompt.md
 4c2531b74d54379ec45af3bdb3cc9c33f7394e2b380ee80432a30741842c58cd  surfaceplate-0.16.0/schemas/README.md
@@ -76,7 +77,7 @@ b4fa419b029adf72f54fb463213a168ec3a0d2a3744d1983dcdca9f63f01ca49  surfaceplate-0
 4b9f59c7bc31a84a8241d4dd2c5c67e172e1e6ba373d6ecb3ae86fd8f4da3486  surfaceplate-0.16.0/schemas/method-run-lineage.schema.yaml
 2c1616381eec6c99307bef740c6586f192e88cffd39cc66eacade0a9bfb47310  surfaceplate-0.16.0/schemas/override-record.schema.yaml
 fdfce5c365b32f299a4da231ed7b0b1f29e09ef7c2a3b560f74c1b2f4fece511  surfaceplate-0.16.0/scripts/build_release.py
-bcd6d01654e4b6b78596d691d898005445540c7a49e3a46916de5f42ce521083  surfaceplate-0.16.0/scripts/check_conformance.py
+9efac21e03e5ccf4133b00eed478cd5efef95b1ef8fbd6a58c5064bcb655d2c7  surfaceplate-0.16.0/scripts/check_conformance.py
 12bb02425d0ba2263295a068fbde66e5bff408f8fa501ef4ae610bf8b9f271f1  surfaceplate-0.16.0/scripts/install_standard.py
 b2df56c079448c16c83d7500b941a692b46e2e1c34c788017369511fbe70cad0  surfaceplate-0.16.0/scripts/verify_release.py
 a79691a93b46e49ce460c26ef22afcc03d6eca1e63bf2edbc20e96159510f6c9  surfaceplate-0.16.0/standard/.githooks/.gitattributes
@@ -104,5 +105,5 @@ f015d90ef24be1e429ea0f585d5bcb9ac2e1e4c28a1d0bf382f2610c9a77dc5a  surfaceplate-0
 bbacf88bcb7df87152b5e8d90895ab73dbf9237f09adff902f8b6ca679fe069b  surfaceplate-0.16.0/tests/check_code_registers.py
 3729348fbc2a6d3b12978a18bc98a02facd5540152dfd28a16608341abbc4a76  surfaceplate-0.16.0/tests/check_identifiers.py
 deb8787bcc149f1b88e706bd8acca8e5257931a37d3af687537e275d28c3a8cc  surfaceplate-0.16.0/tests/check_vendored_current.py
-dca5eeffba62d6f3cd992324cf658338e276e4cf53279937026458041e37ffaa  surfaceplate-0.16.0/tests/test_install_and_check.py
+ca388384fcf6dae3ec45210e1df2a8db996a0778dcc164ac550d9e50947be2ab  surfaceplate-0.16.0/tests/test_install_and_check.py
 0e9b25d73374af90f298b51d06d8ed813b34cd837bcd2c22c03ec8ab93ffebc5  surfaceplate-0.16.0/tests/validate_contracts.py

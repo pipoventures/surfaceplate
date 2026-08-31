@@ -86,6 +86,14 @@ PLACEHOLDER_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# Controls this checker actually verifies against the repository, as opposed to verifying
+# that they were declared. DR-25 records the architecture by which the rest join them; each
+# later packet moves one control into this set and the reporting shrinks accordingly.
+#
+# `documentation_authority` qualifies indirectly: the `authority_map` gate checks the artefact
+# it depends on, so a repository cannot declare it and produce nothing.
+VERIFIED_CONTROLS: set[str] = {"documentation_authority"}
+
 # The controls each level requires, mirroring core/CONFORMANCE_LEVELS.md. A level is a
 # floor, not a ceiling: an application may require more, never fewer.
 CONFORMANCE_LEVELS: dict[str, set[str]] = {
@@ -2104,6 +2112,12 @@ def run(repo: Path, today: _dt.date, no_grace: bool, staged: bool) -> int:
     findings: list[Finding] = []
     notes: list[str] = []
 
+    # Bound before the branch below, because the level-reporting block after it runs whether
+    # or not the standard is installed. Leaving it bound only inside the installed path made an
+    # UNINSTALLED repository crash with UnboundLocalError before it could print SP001 - caught
+    # by the two existing tests that check exactly that path.
+    profile: dict | None = None
+
     record = check_install_record(repo, findings)
     if record is not None:
         check_integrity(repo, record, findings)
@@ -2149,6 +2163,22 @@ def run(repo: Path, today: _dt.date, no_grace: bool, staged: bool) -> int:
     if record:
         print(f"standard  : {record.get('standard_version')} "
               f"installed {str(record.get('installed_at'))[:10]}")
+
+    # F20 / DR-25. A reader who sees a level pass may reasonably infer that the controls that
+    # level requires were checked. They were not: SP021/SP022 verify only that each is listed
+    # and reads `required`. Saying so here, in the result itself, is what stops a pass being
+    # read as more than it is - the verification arrives across four later packets, and this
+    # line is removed control by control as each becomes genuinely checked.
+    if profile is not None:
+        level = profile.get("conformance_level")
+        if isinstance(level, str) and level in CONFORMANCE_LEVELS:
+            declared = sorted(CONFORMANCE_LEVELS[level] - VERIFIED_CONTROLS)
+            if declared:
+                print(f"level     : {level} - {len(declared)} of "
+                      f"{len(CONFORMANCE_LEVELS[level])} required controls are DECLARED, "
+                      f"not checked")
+                print(f"            {', '.join(declared)}")
+                print("            A pass does not establish these exist. See F20.")
     print()
 
     if notes:

@@ -84,6 +84,7 @@ an unknown number of releases with nothing noticing.
 | F17 | The identifier check reads every GitHub URL as a claim about this organisation | low | Closed — declared third parties |
 | F18 | Inherited product and methodology names throughout the public tree | medium | Closed — redacted, disclosed |
 | F19 | A licence decision recorded in another repository, never implemented in this one | medium | Closed — `DR-24` |
+| F20 | A control is checked against itself, never against reality | high | **Open** — architecture decided (`DR-25`); verification unbuilt |
 
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -874,6 +875,56 @@ have been breached by an agent that never looked for it.
 `governance/authority-map.yaml` maps paths to governing documents *within* this repository; it has
 no concept of an external authority. Whether that is worth building is not decided — but the
 absence is now recorded rather than assumed away.
+
+---
+
+## F20 — A control is checked against itself, never against reality
+
+**Severity: high. Open.** Architecture decided in `DR-25`; the verification it describes is unbuilt.
+
+**Demonstrated, not argued.** This repository was made to claim `full` and declare `provenance`,
+`run_lineage`, `method_registry` and `overrides`, in a tree containing no such records. **The
+checker raised zero objections about any of them.** Every finding it produced concerned gates.
+
+`SP021` and `SP022` verify exactly two things about a control: that it appears in
+`control_decisions`, and that it reads `required`. Nothing asks whether the thing exists.
+
+**The asymmetry, stated in the terms that matter:**
+
+| | What the checker does |
+|---|---|
+| **A gate** | Looks at reality — does the artefact exist, is it blank, is it still a template, and did anyone touch the gated paths while it was missing |
+| **A control** | Looks at the declaration — is it listed, does it say `required` |
+
+**This is uniform across levels, which is why it is severity high rather than a `full`-only
+problem.** `dependency_lock` at `essential` is as unverified as `provenance` at `full`. An adopter
+at any level can declare every control it requires, possess none of them, and pass.
+
+**Why it is not simply a false claim.** `core/CONFORMANCE_LEVELS.md` already states that *"a schema
+file is not enforcement"*, and some controls genuinely cannot be tool-checked — *"we review actual
+diffs"* is a promise about human behaviour, and `core/CONTROL_PRINCIPLES.md` principle 9 places that
+beyond what this framework may assert. The defect is narrower and real: a reader who sees that
+`full` requires `run_lineage` may reasonably infer that something checks run lineage, and the levels
+documentation did nothing to prevent that inference.
+
+**Four of them ship a schema and are never read.** `override-record`, `method-registry-entry`,
+`method-run-lineage` and `assurance-evidence` describe precisely the records these controls demand.
+The checker references **none** of them. The framework wrote down what the evidence should look like
+and then never looked.
+
+**Closed in this packet:** the inference. `core/CONFORMANCE_LEVELS.md` and the checker's output now
+distinguish a control that is *checked* from one that is *declared*, so a pass reports what it
+means. That is honesty, not verification, and the entry stays open until the verification exists.
+
+**Decided, not yet built:** `DR-25` fixes four patterns — declared artefact, declared CI check,
+declared records, already-a-gate — and makes `implementation_reference`, a field already in the
+schema and used by nothing, the place an adopter says where a control lives. Three of the four
+patterns are existing working code. Only the records validator is new.
+
+**What will still not be provable when all of it is built.** That a record is **true**. The
+verification establishes that a record exists, is well-formed, is current and is linked to what it
+describes — never that it is honest. `DR-25` records this as a boundary rather than a gap to close
+later.
 
 ---
 

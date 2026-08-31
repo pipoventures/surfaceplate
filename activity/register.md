@@ -43,6 +43,7 @@ on an agent's authority.
 | `ACT-007` | Publication pass: sanitise, close `F13`/`F15`/`F16`, decide publication | maintainer | maintainer | `waiting_for_review` | — | hard | yes — it changes a published control (`SP032`), ships two new obligations to adopters, and decides where the project lives | high — publication is not reversible, and the history question had three plausible answers with very different costs | The working tree carries no reference to the former organisation; `F13`, `F15` and `F16` are closed or their obligations shipped; `DR-22` and `DR-23` recorded; the full-history sweep is runnable | Seen-to-fail probes in both directions for the exemption mechanism; the 403s read live; the former organisation's footprint counted across all commits; a full backup bundle taken before any of it |
 | `ACT-008` | Remove inherited internal jargon from the public tree (`F18`) | maintainer | maintainer | `waiting_for_review` | — | hard | yes — `adapters/**` and `SETUP_GUIDE.md` are adopter-facing, and `adapters/` is in the install payload | low for the live guidance; the judgement is in what NOT to touch — the audit records are true statements about a repository that had that name | No inherited product or methodology name remains in live guidance; historical audit records keep their text under an explanatory note | A grep showing the remaining occurrences are confined to `audit/`, each under a note; suites and manifest accounted for; both checker copies PASS after reinstall |
 | `ACT-009` | Implement the dual licence decided in `hermes` (`F19`) | maintainer | maintainer | `waiting_for_review` | — | hard | yes — it changes the terms under which every copied file is licensed, on a published artefact | low on mechanism, and the boundary is already locked; the judgement was made in `hermes` and is cited rather than retaken here | `LICENSE-DOCS` carries CC0-1.0, `NOTICE` exists, and `README.md` states which licence covers which paths | The CC0 text fetched from creativecommons.org and diffed byte-for-byte against the SPDX copy; suites and manifest accounted for; both checker copies PASS |
+| `ACT-010` | Architecture for provable controls, and say which are checked (`F20`) | maintainer | maintainer | `waiting_for_review` | — | hard | yes — it fixes the shape every future control validator must follow, and changes what a passing check reports | high — the architecture constrains eight validators that follow it, and the boundary between what can and cannot be proven is a judgement the whole design rests on | `DR-25` records four patterns and the meaning of `implementation_reference`; `CONFORMANCE_LEVELS.md` and the checker's output distinguish a checked control from a declared one | The demonstration reproduced — a profile claiming `full` with no records still passes, and the output now says why; suites and manifest accounted for |
 ## Notes on the entries
 
 `ACT-002` and `ACT-003` are both raised by `DR-16` and are deliberately **not** resolved by
@@ -90,7 +91,12 @@ rather than restated here, per the standing constraint that commercial rationale
 this repository. What belongs here is the architectural consequence: which licence covers which
 paths.
 
-`ACT-005` to `ACT-009` were registered **before** implementation begins, not alongside it. `work_registration` is
+`ACT-010` closes no gap by itself. It records an architecture and states plainly what is currently
+checked, so that the four packets after it build to one shape rather than establishing one by
+accident — and so that the honesty gap closes on the day the architecture is agreed rather than on
+the day the last validator lands.
+
+`ACT-005` to `ACT-010` were registered **before** implementation begins, not alongside it. `work_registration` is
 live over `scripts/**` and `schemas/**`, which is exactly what item 4 changes, and a gate satisfied
 retrospectively is the failure mode `core/PREREQUISITE_GATES.md` warns is most common — satisfied on
 paper, violated in spirit.
