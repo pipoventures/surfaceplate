@@ -1122,3 +1122,37 @@ this product's own former name stays where it records history and goes from live
 **Not fixed:** the adapters are still 3 and 5 lines, which is thin for the audience they serve; and
 nothing prevents recurrence, since `check_identifiers.py` guards the organisation identifier rather
 than inherited product names.
+
+### `F19`: the dual licence is implemented, not just decided
+
+A Class C decision recorded in another repository on 2026-08-30 licensed surfaceplate **by artefact
+type** — Apache-2.0 for software, a separate licence for documents, amended the same day to
+CC0-1.0. **None of it had been implemented here.** The root `LICENSE` was correct; `LICENSE-DOCS`
+and `NOTICE` did not exist, and `README.md` contained no occurrence of the word "licence". The
+repository was made public in that state, so every template and agent skill shipped under a code
+licence the decision says should not govern prose.
+
+`LICENSE-DOCS` now carries CC0-1.0, `NOTICE` is present as Apache-2.0 requires, and `README.md` has
+a Licensing section naming which paths fall on which side.
+
+**The split, and the one part that surprises:** `core/`, `templates/`, the agent instructions and
+skills, and the conformance block are **documents** under CC0-1.0 — copy them and you owe nothing,
+no attribution, no licence link, no indication of changes. Everything else is **software** under
+Apache-2.0, and that deliberately includes `schemas/` and `adapters/` even though both install
+alongside the documents and are written in YAML and Markdown. A schema is a contract a program
+parses, not prose a human reads.
+
+**A boundary correction worth recording.** It was first drawn as a path rule — `standard/` plus
+`templates/` — which mapping onto the real payload showed to be wrong in both directions: it put
+`core/`, the standard's own normative text, under the software licence, and put a shell script and
+CI workflows into the public domain. The source decision splits by artefact type, not by directory,
+and the two disagree here.
+
+**The CC0 text was fetched, not written from memory** — from creativecommons.org, and diffed
+byte-for-byte against the SPDX copy. Identical at 7048 bytes. Legal text is where reproducing from
+recall fails silently.
+
+`F19` also records a near miss found by the same check: `DR-23` was written and publication carried
+out without ever consulting the repository holding a Class C decision with an explicit publication
+precondition. That precondition had in fact been discharged, so nothing was breached — but the
+answer came out clean by accident rather than by method.

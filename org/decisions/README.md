@@ -66,6 +66,7 @@ repository at the time the first five were written. Nothing here supersedes an e
 | [DR-21](DR-21.md) | Retire the hand-written producer evidence record; the suites are the evidence | accepted — implemented |
 | [DR-22](DR-22.md) | Placeholder-scan exemptions: declared in the profile, narrow, and announced | accepted — implemented |
 | [DR-23](DR-23.md) | Publish as a new public repository with no prior history; archive this one | accepted — maintainer actions outstanding |
+| [DR-24](DR-24.md) | Licensing by artefact type: Apache-2.0 software, CC0-1.0 documents | accepted — implemented |
 
 `DR-1` through `DR-5` were recorded together, on 30 August 2026, against `v0.11.0`
 (`22728e770dbd018305744b9ae5785fe04dbe2a36`), as the first deliberate application of this
