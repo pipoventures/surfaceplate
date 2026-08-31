@@ -1204,3 +1204,55 @@ to close later.
 `VERIFIED_CONTROLS` currently holds one member. Each later packet moves a control into it and the
 reporting shrinks by a line, so the output is derived from what is true rather than maintained
 beside it.
+
+### Three controls become checked, and `F21`: surfaceplate had no lock
+
+`DR-25` predicted that surfaceplate would have to satisfy its own controls under the new patterns,
+and that failing would be evidence against the design rather than grounds for an exemption. It
+failed immediately, and before a single validator was written.
+
+**`F21`: `dependency_lock` was declared `required` with nothing pinned anywhere.** No
+`requirements.txt`, no `pyproject.toml`. All three workflows ran `pip install pyyaml jsonschema`
+unpinned — and `--quiet` suppressed the resolution, so a green run could not say which `jsonschema`
+had validated the schemas. Local carried `jsonschema 4.10.3`; CI had been resolving something newer
+for months. The two had never matched.
+
+The profile's own rationale read *"the runtime set is two packages, named in every documented install
+line and in CI."* **Naming is not locking.** That sentence is what a declared-but-unverified control
+looks like from the inside: it sounds like diligence and commits to nothing.
+
+`pyproject.toml` now pins both dependencies to exact versions — resolved in a clean virtual
+environment with all five suites run against them **before** pinning, not copied from a developer
+machine. The workflows install those versions and no longer pass `--quiet`.
+
+**Three controls move from declared to checked:**
+
+| Control | How |
+|---|---|
+| `dependency_lock` | `SP051` — the named file exists, is non-empty, is not a template, is tracked by git |
+| `assurance_findings` | `SP051`, same way |
+| `documentation_authority` | The `authority_map` gate, plus `SP052` requiring that gate whenever the control is required |
+
+`SP052` closes a seam that a level being *a floor, not a ceiling* opens: an adopter could require
+`documentation_authority` at `essential`, where the gate is not part of the floor, and be back to a
+control verified by nothing.
+
+**The banner is the evidence.** `level : standard` read *3 of 4 required controls are DECLARED, not
+checked* before this change and reads *2 of 4* after. The remaining two are `deterministic_tests`
+and `contract_tests` — pattern B, packet 3.
+
+**Two things found while building it.** Pattern A applied the placeholder scan without honouring the
+declared exemptions that gates honour, so `org/FINDINGS.md` — which documents those very tokens in
+`F14`, `F15` and `F16` — failed as "unfinished". One mechanism behaving two ways depending on which
+check reached the file. Fixed, and the exemption set is now computed once and shared; computing it
+per consumer had duplicated every advisory, which is noise that trains a reader to skim exactly the
+output saying a control was narrowed.
+
+**What is still not proven:** that the pinned versions are *good*, only that they are fixed and
+recorded. And a version pin is not an artefact pin — there are no hashes, so this guards against an
+unexpected new release rather than a compromised re-upload. `pyproject.toml` says so rather than
+implying otherwise.
+
+`pyproject.toml` begins item 1's *declaration* half ahead of the adoption gate. Its hard part —
+`repo_root()` under a wheel, package data, entry points — is untouched, and `org/RELEASE_PLAN.md`
+records the early start so the sequence does not drift silently.

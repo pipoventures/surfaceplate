@@ -75,7 +75,7 @@ adoption:
   # .standards/INSTALL.json. SP049 fails loudly if it is not, which is the intended
   # behaviour. An adopter meets the same step only on upgrade, where re-pinning is exactly
   # what should happen because the framework has changed.
-  framework_digest: 4dbfb77ef28986661b347b64369b55133f5df52c23be89496e43c5e7e1095142
+  framework_digest: 917b137a7ca4028ed6c87563cbdb8d05b6b34dc65efda19c56973f3acff50a53
   adoption_date: "2026-08-31"
   review_by: "2027-02-27"
   framework_maintainer: Mario Pipo
@@ -143,9 +143,15 @@ control_decisions:
   # `standard` floor
   dependency_lock:
     decision: required
+    implementation_reference: pyproject.toml
     rationale: >-
-      Supply-chain exposure exists regardless of output materiality. The runtime set is
-      two packages, named in every documented install line and in CI.
+      Supply-chain exposure exists regardless of output materiality. Until 2026-08-31 this
+      rationale read that the runtime set was "named in every documented install line and in
+      CI" — which described the absence of the control as though it were the control. Naming
+      is not locking: all three workflows installed unpinned, and pip's --quiet suppressed the
+      resolution, so a green run could not say which jsonschema had validated the schemas.
+      Recorded as F21. pyproject.toml now pins both runtime dependencies to exact versions,
+      resolved in a clean environment with all five suites run against them before pinning.
   deterministic_tests:
     decision: required
     rationale: >-
@@ -168,6 +174,7 @@ control_decisions:
   # Above the floor, because it is already met
   assurance_findings:
     decision: required
+    implementation_reference: org/FINDINGS.md
     rationale: >-
       A `full`-level control, met in substance and therefore recorded as met rather than
       omitted because the level does not oblige it. org/FINDINGS.md is the single register,
@@ -385,6 +392,12 @@ human_roles:
 # control is a worse artefact than one that needs an exemption. Reported as an advisory on
 # every run, so the narrowing is visible rather than silent.
 placeholder_scan_exemptions:
+  - artefact: org/FINDINGS.md
+    rationale: >-
+      The findings register documents F14, F15 and F16, which are about placeholder detection
+      itself, so it necessarily reproduces the tokens that detection looks for. Same reason as
+      CHANGELOG.md below. Existence, non-emptiness and git-tracking are still checked; only the
+      token scan is suppressed.
   - artefact: CHANGELOG.md
     rationale: >-
       Documents SP032's placeholder detection and the F14/F15/F16 findings about it, and so

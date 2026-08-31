@@ -92,7 +92,11 @@ PLACEHOLDER_PATTERN = re.compile(
 #
 # `documentation_authority` qualifies indirectly: the `authority_map` gate checks the artefact
 # it depends on, so a repository cannot declare it and produce nothing.
-VERIFIED_CONTROLS: set[str] = {"documentation_authority"}
+VERIFIED_CONTROLS: set[str] = {
+    "documentation_authority",  # pattern D - the authority_map gate, plus SP052
+    "dependency_lock",          # pattern A - SP051
+    "assurance_findings",       # pattern A - SP051
+}
 
 # The controls each level requires, mirroring core/CONFORMANCE_LEVELS.md. A level is a
 # floor, not a ceiling: an application may require more, never fewer.
@@ -849,6 +853,153 @@ def check_pinned_identity(profile: dict, record: dict | None, findings: list[Fin
                 graceable=True,
             )
         )
+
+
+# Controls verified by pattern A: the profile names an artefact, and the checker confirms it is
+# really there. DR-25's cheapest pattern, reusing SP032's artefact logic rather than restating it.
+PATTERN_A_CONTROLS: set[str] = {"dependency_lock", "assurance_findings"}
+
+
+def check_control_implementations(
+    repo: Path, profile: dict, findings: list[Finding], notes: list[str],
+    exempt_from_placeholder: set[str] | None = None,
+) -> None:
+    """Verify that controls claiming pattern A point at an artefact that exists (DR-25).
+
+    F20 recorded that a control was checked against itself: SP021/SP022 confirmed it was listed
+    and read `required`, and nothing asked whether the thing existed. This closes that for the
+    two controls whose evidence is simply a file.
+
+    `implementation_reference` is where the adopter says which file. The field has been in the
+    schema since the beginning and was read by nothing.
+
+    WHAT THIS PROVES, and the limit is the point: that a named file exists, is not empty, is not
+    still a template, and is tracked by git. NOT that its contents are honest. A lockfile listing
+    versions nobody installs would pass. DR-25 records that boundary as permanent rather than as
+    a gap to close later.
+    """
+    # The same declared exemptions the gates honour (F16, DR-22). Applying the placeholder scan
+    # here but ignoring the exemption would mean one mechanism behaving two ways depending on
+    # which check reached the file - and org/FINDINGS.md is the case that proves it, since it
+    # documents the very tokens the scan looks for.
+    exempt_from_placeholder = exempt_from_placeholder or set()
+
+    decisions = profile.get("control_decisions")
+    decisions = decisions if isinstance(decisions, dict) else {}
+
+    for control_id in sorted(PATTERN_A_CONTROLS):
+        entry = decisions.get(control_id)
+        if not isinstance(entry, dict) or entry.get("decision") != "required":
+            continue  # not required here; SP021/SP022 own whether it should have been
+
+        reference = entry.get("implementation_reference")
+        if not isinstance(reference, str) or not reference.strip():
+            findings.append(
+                Finding(
+                    "SP051",
+                    f"Control '{control_id}' is required but names nothing to check",
+                    f"control_decisions.{control_id} has no implementation_reference, so the "
+                    f"declaration is compared against nothing.",
+                    "Add implementation_reference naming the file that implements this control "
+                    "- a lock file, a findings register. A control checked only against its own "
+                    "declaration is a statement of intent, not a control.",
+                    graceable=True,
+                )
+            )
+            continue
+
+        reference = reference.strip()
+        target = repo / reference
+        if not target.is_file():
+            findings.append(
+                Finding(
+                    "SP051",
+                    f"Control '{control_id}' names a file that does not exist",
+                    f"implementation_reference is {reference}, which is not present.",
+                    "Correct the path or create the file. A reference that resolves to nothing "
+                    "is worse than none: it reads as evidence.",
+                    graceable=True,
+                )
+            )
+            continue
+
+        try:
+            text = target.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            text = ""
+
+        if not text.strip():
+            findings.append(
+                Finding(
+                    "SP051",
+                    f"Control '{control_id}' names an empty file",
+                    f"{reference} exists but is empty.",
+                    "An empty file satisfies a path check and no one else.",
+                    graceable=True,
+                )
+            )
+            continue
+
+        if reference not in exempt_from_placeholder and PLACEHOLDER_PATTERN.search(text):
+            findings.append(
+                Finding(
+                    "SP051",
+                    f"Control '{control_id}' names an unfinished file",
+                    f"{reference} still contains template placeholders.",
+                    "Complete it. A template is not an implemented control.",
+                    graceable=True,
+                )
+            )
+            continue
+
+        # Tracked by git, because an untracked file is not part of the repository an auditor
+        # would receive - it exists on one machine and nowhere else.
+        if git_available(repo):
+            code, _ = git(repo, "ls-files", "--error-unmatch", reference)
+            if code != 0:
+                findings.append(
+                    Finding(
+                        "SP051",
+                        f"Control '{control_id}' names an untracked file",
+                        f"{reference} exists locally but is not tracked by git.",
+                        "Commit it. A file present on one machine is not evidence available to "
+                        "anyone else.",
+                        graceable=True,
+                    )
+                )
+                continue
+
+        notes.append(f"{control_id}: verified against {reference}")
+
+    # Pattern D. `documentation_authority` is verified by the `authority_map` gate checking the
+    # artefact it names - but only when that gate is required. A level is a floor, not a ceiling,
+    # so an adopter may require the control at `essential`, where the gate is not part of the
+    # floor, and be back to a control checked against itself. This closes that seam.
+    entry = decisions.get("documentation_authority")
+    if isinstance(entry, dict) and entry.get("decision") == "required":
+        gates = profile.get("prerequisites")
+        gates = gates if isinstance(gates, list) else []
+        declared = {
+            g.get("id"): g for g in gates if isinstance(g, dict) and g.get("id")
+        }
+        gate = declared.get("authority_map")
+        if not isinstance(gate, dict) or gate.get("status") != "required":
+            findings.append(
+                Finding(
+                    "SP052",
+                    "documentation_authority is required without the gate that verifies it",
+                    "The control is decided 'required', but the 'authority_map' gate is not - "
+                    f"found {(gate or {}).get('status', 'no declaration')!r}.",
+                    "Declare the 'authority_map' gate as required. Without it nothing checks "
+                    "that an authority map exists, and the control is verified by nothing - "
+                    "which is what it looks like from the profile either way.",
+                    graceable=True,
+                )
+            )
+        else:
+            notes.append(
+                "documentation_authority: verified via the authority_map gate"
+            )
 
 
 def check_secret_hygiene(repo: Path, profile: dict, findings: list[Finding]) -> None:
@@ -1676,6 +1827,7 @@ def check_prerequisites(
     today: _dt.date,
     notes: list[str],
     staged_snapshot: bool = False,
+    exempt_from_placeholder: set[str] | None = None,
 ) -> None:
     """Prerequisite gates: artefact X must exist before activity Y may begin.
 
@@ -1683,7 +1835,9 @@ def check_prerequisites(
     what a repository may not do yet. That is a different and largely absent shape of
     control, and it is the shape both findings of the first profile review took.
     """
-    exempt_from_placeholder = placeholder_exemptions(repo, profile, findings, notes)
+    # Defaulted here too: the parameter is optional, and `in None` would be a crash rather
+    # than a missing exemption.
+    exempt_from_placeholder = exempt_from_placeholder or set()
     level = str(profile.get("conformance_level", "")).strip()
     gates_raw = profile.get("prerequisites")
 
@@ -2146,6 +2300,11 @@ def run(repo: Path, today: _dt.date, no_grace: bool, staged: bool) -> int:
             check_profile_schema(repo, profile, findings)
             check_profile_semantics(profile, findings, today, notes)
             check_secret_hygiene(repo, profile, findings)
+            # Computed ONCE and shared. Calling it per consumer duplicated the advisory - two
+            # exemptions produced four lines - which is noise that trains a reader to skim
+            # exactly the output that says a control was narrowed.
+            exempt = placeholder_exemptions(repo, profile, findings, notes)
+            check_control_implementations(repo, profile, findings, notes, exempt)
             check_pinned_identity(profile, record, findings)
             check_prerequisites(
                 repo,
@@ -2154,6 +2313,7 @@ def run(repo: Path, today: _dt.date, no_grace: bool, staged: bool) -> int:
                 today,
                 notes,
                 staged_snapshot=staged,
+                exempt_from_placeholder=exempt,
             )
             if staged:
                 check_staged_prerequisites(repo, profile, findings)

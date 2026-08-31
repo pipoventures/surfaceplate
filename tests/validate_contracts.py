@@ -720,4 +720,42 @@ for rel in payload_paths:
     ), f"{rel} classifies as nothing the install report prints"
     CHECKS += 1
 
+# The dependency pin has exactly one source of truth (F21, DR-25).
+#
+# pyproject.toml declares the versions; the workflows install them. Two places stating the same
+# fact is the drift defect this register has recorded repeatedly - F4 (namespace vs schemas),
+# F5 (organisation identifier), F12 (source vs vendored checker). So the workflows are checked
+# AGAINST the declaration rather than trusted to match it.
+#
+# Parsed with a regex rather than `tomllib`, which is standard library only from Python 3.11
+# while this project's declared floor is 3.9. The file is ours and its shape is known.
+pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+deps_block = re.search(r"(?ms)^dependencies\s*=\s*\[(.*?)\]", pyproject)
+assert deps_block, "pyproject.toml declares no dependencies array"
+declared_deps = sorted(re.findall(r'"([^"]+)"', deps_block.group(1)))
+assert declared_deps, "pyproject.toml declares an empty dependencies array"
+CHECKS += 1
+
+for dep in declared_deps:
+    assert "==" in dep, (
+        f"{dep} is not pinned to an exact version. A range reintroduces exactly the exposure "
+        f"F21 recorded: a breaking release reaching every adopting repository at once."
+    )
+    CHECKS += 1
+
+for workflow in (
+    ROOT / ".github" / "workflows" / "standard-self-check.yml",
+    ROOT / ".github" / "workflows" / "standards-conformance.yml",
+    ROOT / "standard" / ".github" / "workflows" / "standards-conformance.yml",
+):
+    body = workflow.read_text(encoding="utf-8")
+    install = [ln for ln in body.splitlines() if "pip install" in ln]
+    assert install, f"{workflow.name} has no pip install line"
+    for dep in declared_deps:
+        assert any(dep in ln for ln in install), (
+            f"{workflow.name} does not install {dep} as pyproject.toml declares it. The pin has "
+            f"one source of truth; a workflow that names its own versions is a second."
+        )
+    CHECKS += 1
+
 print(f"CONTRACT_CONFORMANCE=PASS  ({CHECKS} checks)")

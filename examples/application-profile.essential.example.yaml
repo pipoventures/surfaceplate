@@ -62,7 +62,11 @@ baseline_controls:
 control_decisions:
   dependency_lock:
     decision: required
-    rationale: Supply-chain exposure exists regardless of output materiality.
+    implementation_reference: requirements.txt
+    rationale: >-
+      Supply-chain exposure exists regardless of output materiality. The reference names the
+      file that implements the control, so SP051 can check it exists rather than taking the
+      declaration on trust.
   run_lineage:
     decision: deferred
     rationale: See adoption.deferrals - no runs are executed in this application.

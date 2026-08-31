@@ -48,7 +48,7 @@ state, until 2026-08-31, that the space ended at `SP043` — after `SP046` and `
 added and while the person adding them was editing this file.
 
 ```text
-emitted:  SP001-SP035, SP037-SP043, SP046-SP050
+emitted:  SP001-SP035, SP037-SP043, SP046-SP052
 gap:      SP036
 reserved: SP044-SP045
 ```
@@ -85,6 +85,7 @@ an unknown number of releases with nothing noticing.
 | F18 | Inherited product and methodology names throughout the public tree | medium | Closed — redacted, disclosed |
 | F19 | A licence decision recorded in another repository, never implemented in this one | medium | Closed — `DR-24` |
 | F20 | A control is checked against itself, never against reality | high | **Open** — architecture decided (`DR-25`); verification unbuilt |
+| F21 | `dependency_lock` declared with nothing pinned, and CI not recording what it used | medium | Closed — `pyproject.toml`, `SP051` |
 
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -925,6 +926,52 @@ patterns are existing working code. Only the records validator is new.
 verification establishes that a record exists, is well-formed, is current and is linked to what it
 describes — never that it is honest. `DR-25` records this as a boundary rather than a gap to close
 later.
+
+---
+
+## F21 — `dependency_lock` declared with nothing pinned, and CI not recording what it used
+
+**Severity: medium. Closed.**
+
+The first thing `F20`'s architecture was pointed at, and it landed on the framework itself before a
+single validator existed.
+
+**Surfaceplate declared `dependency_lock: required` and had no lock of any kind.** No
+`requirements.txt`, no `pyproject.toml`, nothing pinned anywhere. All three workflows ran
+`pip install pyyaml jsonschema`, unpinned, resolving whatever was newest that morning.
+
+**Worse than unpinned: unrecorded.** `pip --quiet` suppressed the resolution output, so a green CI
+run could not tell you which `jsonschema` had validated the schemas. Local carried `pyyaml 6.0.1`
+and `jsonschema 4.10.3`; CI had been resolving something newer for months. The two had never
+matched, and nothing noticed because nothing looked.
+
+**The rationale described the absence as though it were the control.** It read: *"the runtime set is
+two packages, named in every documented install line and in CI."* Naming is not locking. That
+sentence is what a declared-but-unverified control looks like from the inside — it sounds like
+diligence and commits to nothing.
+
+**Not merely paperwork.** A breaking `jsonschema` release would have broken the checker in every
+adopting repository simultaneously, with no record of which version had ever worked.
+
+**Closed by:** `pyproject.toml` pinning both runtime dependencies to exact versions, resolved in a
+clean virtual environment with all five suites run against them **before** pinning — not copied from
+whatever happened to be installed on a developer machine, which was older and had never matched CI.
+The workflows install those exact versions and no longer pass `--quiet`, so the resolution is
+recorded in the run. `SP051` verifies the profile's `implementation_reference` points at a file that
+exists, is non-empty, is not a template, and is tracked by git.
+
+`tests/validate_contracts.py` asserts the workflows install what `pyproject.toml` declares, and that
+every dependency is pinned with `==` rather than a range. Both seen to fail: a drifted workflow
+version, and a pin loosened to `>=`. One source of truth, checked rather than trusted — the remedy
+this register has now applied to the namespace (`F4`), the organisation identifier (`F5`), the
+vendored checker (`F12`) and now the dependency set.
+
+**What is still not proven.** That the pinned versions are *good*, only that they are fixed and
+recorded. And pinning a version is not pinning an artefact: there are no hashes here, so this
+protects against an unexpected new release rather than a compromised re-upload of the same version.
+PyPI does not permit re-uploading a version, which makes that largely theoretical — but it is a
+weaker guarantee than a hash-bearing lock, and `pyproject.toml` says so rather than implying
+otherwise.
 
 ---
 

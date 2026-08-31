@@ -68,6 +68,7 @@ control_decisions:
     rationale: Contradictory specification authority is treated as a blocking defect.
   dependency_lock:
     decision: required
+    implementation_reference: requirements.txt
     rationale: Locked dependencies with an approved vulnerability check.
   provenance:
     decision: required
@@ -83,6 +84,7 @@ control_decisions:
     rationale: A manual forecast adjustment must never be hidden in calculation code.
   assurance_findings:
     decision: required
+    implementation_reference: docs/ASSURANCE_FINDINGS.md
     rationale: Limitations are recorded rather than smoothed away.
   x-example-forecast-service-approval-route:
     decision: required

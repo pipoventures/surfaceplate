@@ -1,0 +1,35 @@
+# Surfaceplate — dependency declaration.
+#
+# This file exists to satisfy the `dependency_lock` control this repository declares. Until it
+# existed, that declaration was an overclaim: all three workflows ran `pip install pyyaml
+# jsonschema` unpinned, and `--quiet` suppressed pip's resolution output, so a green CI run could
+# not tell you which `jsonschema` had validated the schemas. Recorded as F21.
+#
+# WHAT THIS IS NOT. It declares dependencies; it does not make surfaceplate a pip-installable
+# package. There is no build backend, no entry point and no package data here, because
+# `install_standard.py`'s `repo_root()` resolves a repository layout that does not exist under a
+# wheel — the unsolved precondition DR-10 recorded and item 1 of org/RELEASE_PLAN.md owns. Item 1
+# sits behind the adoption gate deliberately; this is its declaration half only.
+#
+# The versions below were resolved in a clean virtual environment and all five suites were run
+# against them before pinning. They are not the versions that happened to be on a developer
+# machine, which were older and had never matched what CI resolved.
+
+[project]
+name = "surfaceplate"
+version = "0.16.0"
+description = "A governance framework that installs into a repository and checks it against the standard it publishes."
+requires-python = ">=3.9"
+license = "Apache-2.0"
+
+# Exact pins, deliberately. `>=` would reintroduce the exposure this file closes: a breaking
+# release would reach every adopting repository at once, with no record of which version worked.
+#
+# Honest limit: pinning a version is not pinning an artefact. These have no hashes, so this
+# protects against an unexpected NEW release, not against a compromised re-upload of the same
+# version. PyPI does not permit re-uploading a version, which makes that largely theoretical, but
+# it is a weaker guarantee than a hash-bearing lock and is stated rather than implied.
+dependencies = [
+    "PyYAML==6.0.3",
+    "jsonschema==4.26.0",
+]

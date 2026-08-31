@@ -49,9 +49,21 @@ history audit — whether anyone changed the gated paths while it was missing.
 | Prerequisite gate | The repository |
 | Control decision | Itself |
 
-**Currently checked:** `documentation_authority` alone, and indirectly, through the `authority_map`
-gate. **Currently declared only:** every other control at every level, including `dependency_lock`
-at `essential`.
+**Currently checked:**
+
+| Control | How |
+|---|---|
+| `dependency_lock` | `SP051` — `implementation_reference` names a file; the checker confirms it exists, is not empty, is not a template, and is tracked by git |
+| `assurance_findings` | `SP051`, same way |
+| `documentation_authority` | The `authority_map` gate checks the artefact. `SP052` additionally requires that gate whenever the control is required, closing the seam a level being a floor rather than a ceiling would otherwise open |
+
+**Currently declared only:** `deterministic_tests`, `contract_tests`, `provenance`, `run_lineage`,
+`method_registry`, `overrides`.
+
+**What being checked does and does not mean.** For `dependency_lock` it means a lock file is really
+there, tracked, and not a blank template. It does **not** mean the versions in it are the ones you
+install, or that they are good ones. The checker reads a file's presence and shape, never its
+truthfulness.
 
 This is recorded as finding `F20`, and `DR-25` decides the architecture that changes it: four
 patterns by which a control becomes provable, with `implementation_reference` naming where the
