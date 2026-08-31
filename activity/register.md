@@ -49,6 +49,7 @@ on an agent's authority.
 | `ACT-013` | `H`: deferrals and deferred gates expire (`F22`) | maintainer | maintainer | `waiting_for_review` | — | hard | yes — a deadline that adopters declared starts being enforced | medium — the mechanism is small; the judgement is what is IN scope, and gate exceptions are deliberately out | A deferral or deferred gate whose `revisit_by` has passed raises `SP054`; one dated in the future does not | `2020-01-01` fails and surfaceplate's own `2027-02-27` passes — the second mattering more, since a check firing on every deferral would pass the first test too |
 | `ACT-014` | Pattern C1: the four record-based controls acquire a register that is checked (`F20`) | maintainer | maintainer | `waiting_for_review` | `ACT-010` | hard | yes — it adds a real obligation on every adopter at `full`, and closes the half of `F20` that has been open since the architecture was written | medium — the mechanism reuses the gate-exception record loader; the judgement is that an EMPTY register must pass, and that `DR-25`'s claim about currency is wrong | Each of the four controls names a directory that exists, is tracked, and holds nothing that fails its schema; `full` becomes fully checked | The four negative controls carry the evidence — an empty register passes, a `README.md` beside a record is ignored, a valid record passes, and a valid record of the WRONG type fails |
 | `ACT-015` | Pattern C2: records must reference what they describe; `provenance` and `run_lineage` separated | maintainer | maintainer | `waiting_for_review` | `ACT-014` | hard | yes — it adds cross-register obligations at `full` and edits a published schema | medium — the mechanism is an index over records already loaded; the judgements are how the two controls are separated after the first answer was disproved, and whether a redundant contract clause is removed or made real | A run naming an unregistered method, an override naming a run that never happened, a duplicated identity and a foreign `application_id` are all rejected | The three negative controls carry the evidence — the worked example set passes, an undeclared target register raises nothing, and a record that failed its schema produces no reference cascade |
+| `ACT-016` | What the Plyego gate found: the exemption catch-22 and a misleading remedy (`F25`, `F26`) | maintainer | maintainer | `waiting_for_review` | `ACT-015` | medium | yes — it changes what the profile scan accepts, in every adopting repository | low — the mechanism mirrors `DR-22` exactly; the judgement is how narrow the exclusion is | An exemption may state its own rationale without failing the profile, and `SP032` names the remedy it has always had | Three negative controls — the scan still fires on `owner`, on a gate's rationale and on a deferral's — plus the Plyego probe re-run against the fixed checker |
 ## Notes on the entries
 
 `ACT-002` and `ACT-003` are both raised by `DR-16` and are deliberately **not** resolved by
@@ -133,7 +134,13 @@ written, and the separation now runs on cross-reference direction instead. The o
 wrong on a matter of fact, and the record says so rather than presenting the second answer as the
 first.
 
-`ACT-005` to `ACT-015` were registered **before** implementation begins, not alongside it. `work_registration` is
+`ACT-016` is the first work in this repository raised by a repository that is not this one. Both
+findings were unreachable from here: surfaceplate's own profile has never needed a placeholder-scan
+exemption whose rationale quotes the token, and its own gates all point at artefacts for which the
+`SP032` remedy's wording happens to read sensibly. Neither is exotic. Both appeared within an hour
+of the framework meeting a repository it did not write.
+
+`ACT-005` to `ACT-016` were registered **before** implementation begins, not alongside it. `work_registration` is
 live over `scripts/**` and `schemas/**`, which is exactly what item 4 changes, and a gate satisfied
 retrospectively is the failure mode `core/PREREQUISITE_GATES.md` warns is most common — satisfied on
 paper, violated in spirit.
