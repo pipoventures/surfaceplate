@@ -11,7 +11,7 @@ You are performing an independent design and reuse re-audit of the complete ZIP 
 
 ## Objective
 
-Assess whether this package is a sound, tool-agnostic foundation for AI-assisted engineering across multiple new applications, including AI Scenario Factory, without importing disproportionate PEM-specific architecture or claiming controls that are only documented.
+Assess whether this package is a sound, tool-agnostic foundation for AI-assisted engineering across multiple new applications, without importing disproportionate architecture from the predecessor application or claiming controls that are only documented.
 
 This is an audit, not an implementation task. Do not modify the ZIP, invent missing evidence, or approve production adoption.
 
