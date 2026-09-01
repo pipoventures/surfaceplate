@@ -105,6 +105,9 @@ ESSENTIAL_ANSWERS: list[object] = [
     "A reconciliation result reaching the finance team's own review queue is material.",
     "internal",  # data_classification
     "essential",  # conformance_level
+    "All agent-assisted work is bounded, scoped, and reviewable.",  # agent_work_packets rationale
+    "Material changes are reviewed against their actual diff content.",  # actual_diff_review rationale
+    "Secrets and sensitive data must not enter uncontrolled storage.",  # secret_hygiene rationale
     "gitleaks", "workflows/secret-scan.yml",  # scanner
     "Supply-chain exposure exists regardless of output materiality.", "requirements.txt",  # dependency_lock
     False,  # declare more controls
@@ -135,6 +138,9 @@ def build_full_ui_answers() -> list[object]:
         "A misrouted or double-settled payment is material to customers and to the ledger.",
         "confidential",
         "full",
+        "All agent-assisted work is bounded, scoped, and reviewable.",  # agent_work_packets rationale
+        "Material changes are reviewed against their actual diff content.",  # actual_diff_review rationale
+        "Secrets and sensitive data must not enter uncontrolled storage.",  # secret_hygiene rationale
         "gitleaks", "workflows/secret-scan.yml",
     ]
     for control_id in sorted(catalogue.CONFORMANCE_LEVELS["full"]):
@@ -164,6 +170,64 @@ def build_full_ui_answers() -> list[object]:
         "2027-02-28", "Payments team", "customer-facing", "DR-PAY-001",
         "in_progress", False,  # adoption_status, needs_validator
         "", "Merges require two reviewers; deploys are automated behind a feature flag.",
+        True,  # final write confirm
+    ]
+    return answers
+
+
+def build_standard_no_ui_answers() -> list[object]:
+    """A `standard`-level, no-UI run - the one combination that exercises the ACT-022 fix to the
+    four `DESIGN_GATES` auto-`not_applicable` rationale, which no other fixture in this file
+    reaches: `ESSENTIAL_ANSWERS` never walks the full catalogue, and `build_full_ui_answers`
+    always has `builds_user_interface=True`, so the auto-mask branch never ran in either. Before
+    ACT-022 this branch wrote its rationale with no `Prompt` call at all - a scripted test could
+    not have caught that, because `ScriptedPrompt` only objects to a call it wasn't given an
+    answer for, never to a value written without any call. See `test_adopt.py`'s own minor-finding
+    note on this in `test_design_gates_rationale_is_asked`.
+    """
+    answers: list[object] = [
+        "internal-tool", "Internal Tool", "Platform team",
+        "Python 3.12", False,  # stack, builds_user_interface
+        "An internal batch service with no external users.",
+        "A failed batch run reaching production data is material.",
+        "internal",
+        "standard",
+        # Deliberately worded differently from the old hardcoded strings this fixture exists to
+        # prove are gone - see test_design_gates_rationale_is_asked's own docstring for why.
+        "Platform team requires every agent packet to name its own scope and reviewer.",
+        "Platform team's review checklist reads the diff, never a summary of it.",
+        "Platform team's own scanner policy applies to every repository it owns.",
+        "gitleaks", "workflows/secret-scan.yml",
+    ]
+    for control_id in sorted(catalogue.CONFORMANCE_LEVELS["standard"]):
+        answers.append(f"{control_id} applies at the standard floor.")
+        if (
+            control_id in catalogue.PATTERN_A_CONTROLS
+            or control_id in catalogue.PATTERN_B_CONTROLS
+            or control_id in catalogue.PATTERN_C_CONTROLS
+        ):
+            answers.append(f"path/for-{control_id.replace('_', '-')}")
+    answers.append(False)  # declare more controls
+
+    mandatory = set(catalogue.LEVEL_REQUIRED_GATES["standard"])  # no DESIGN_GATES: no UI
+    for _section_name, gate_ids in catalogue.sectioned_gates():
+        for gate_id in gate_ids:
+            if gate_id in catalogue.DESIGN_GATES:
+                answers.append(f"not applicable: no user interface ({gate_id})")
+            elif gate_id in mandatory:
+                answers += [
+                    f"artefact-for-{gate_id}", f"precondition for {gate_id}",
+                    "src/**", f"gated activity for {gate_id}",
+                    "2026-09-01", "history_audit, review",
+                ]
+            else:
+                answers.append("not_applicable")
+                answers.append(f"not applicable here: {gate_id}")
+
+    answers += [
+        "2027-02-28", "Platform team", "internal-service", "DR-INT-001",
+        "in_progress", False,  # adoption_status, needs_validator
+        "", "Merges require one reviewer; deploys are manual.",
         True,  # final write confirm
     ]
     return answers
@@ -287,6 +351,59 @@ def test_full_ui_end_to_end(tmp: Path) -> None:
     check("the full+UI profile validates against its own schema", not errors, "; ".join(e.message for e in errors[:5]))
 
 
+def test_design_gates_rationale_is_asked(tmp: Path) -> None:
+    """ACT-022: a Gemini adversarial review (ACT-021) found that `sections.py` wrote a fixed
+    rationale string for the three baseline controls and for the four DESIGN_GATES it
+    auto-marks `not_applicable` when `builds_user_interface` is false - none of it routed
+    through `Prompt`, contradicting this package's own binding rule. Proven here by scripting
+    rationale text that DIFFERS from the old hardcoded strings and asserting the written profile
+    contains exactly the scripted text - a value present in the output that never matches
+    anything hardcoded in the source is proof it came from the script, not a fallback."""
+    repo = make_installed_repo(tmp, "standard-no-ui-repo")
+    answers = build_standard_no_ui_answers()
+    prompt = ScriptedPrompt(answers=list(answers))
+    written = wizard.run(repo, prompt)
+
+    try:
+        prompt.assert_exhausted()
+        check("standard/no-UI run: every scripted answer was used", True)
+    except AssertionError as exc:
+        check("standard/no-UI run: every scripted answer was used", False, str(exc))
+
+    import yaml
+
+    data = yaml.safe_load(written.read_text(encoding="utf-8"))
+
+    scripted_baseline_rationales = {
+        "agent_work_packets": "Platform team requires every agent packet to name its own scope and reviewer.",
+        "actual_diff_review": "Platform team's review checklist reads the diff, never a summary of it.",
+        "secret_hygiene": "Platform team's own scanner policy applies to every repository it owns.",
+    }
+    for control_id, expected in scripted_baseline_rationales.items():
+        got = data["baseline_controls"][control_id]["rationale"]
+        check(f"{control_id}: rationale matches the scripted answer exactly", got == expected, got)
+
+    by_id = {g["id"]: g for g in data["prerequisites"]}
+    design_gate_rationales_are_scripted = all(
+        by_id[gid]["status"] == "not_applicable"
+        and by_id[gid]["rationale"] == f"not applicable: no user interface ({gid})"
+        for gid in catalogue.DESIGN_GATES
+    )
+    check(
+        "all four DESIGN_GATES carry the scripted rationale, not the old fixed string",
+        design_gate_rationales_are_scripted,
+        str({gid: by_id.get(gid, {}).get("rationale") for gid in catalogue.DESIGN_GATES}),
+    )
+
+    schema_path = repo / ".standards" / "schemas" / "application-profile.schema.yaml"
+    schema = yaml.safe_load(schema_path.read_text(encoding="utf-8"))
+    import jsonschema
+
+    validator = jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker())
+    errors = list(validator.iter_errors(data))
+    check("the standard/no-UI profile validates against its own schema", not errors, "; ".join(e.message for e in errors[:5]))
+
+
 def test_interrupt_leaves_repo_untouched(tmp: Path) -> None:
     repo = make_installed_repo(tmp, "interrupt-repo")
     before_profile = (repo / "governance" / "application-profile.yaml").read_text(encoding="utf-8")
@@ -363,6 +480,9 @@ def main() -> int:
 
         print("\nfull-level, UI-building end to end")
         test_full_ui_end_to_end(tmp)
+
+        print("\nstandard-level, no-UI end to end (ACT-022: DESIGN_GATES rationale is asked)")
+        test_design_gates_rationale_is_asked(tmp)
 
         print("\ninterrupt mid-flow")
         test_interrupt_leaves_repo_untouched(tmp)

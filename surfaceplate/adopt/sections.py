@@ -146,15 +146,26 @@ def ask_conformance_level(prompt: Prompt, *, builds_user_interface: bool) -> str
 # Section 5 — Controls
 # ---------------------------------------------------------------------------------------------
 
-_BASELINE_RATIONALES = {
-    "agent_work_packets": "All agent-assisted work is bounded, scoped, and reviewable.",
-    "actual_diff_review": "Material changes are reviewed against their actual diff content, not a description of it.",
-}
+_BASELINE_CONTROL_IDS = ("agent_work_packets", "actual_diff_review", "secret_hygiene")
 
 
 def ask_controls(prompt: Prompt, *, level: str) -> dict:
+    """Every rationale below, baseline or level-required, is asked - none is ever supplied by
+    this module. A Gemini adversarial review (`ACT-021`) found that `agent_work_packets`,
+    `actual_diff_review`, and `secret_hygiene` used to get a hardcoded rationale string here,
+    never routed through `Prompt` at all - a real violation of this package's own binding rule,
+    confirmed against the code before this fix (`ACT-022`; `org/FINDINGS.md`). It applied
+    regardless of whether the reasoning was true for every adopter; the rule is about what asked
+    the question, not about whether the answer was likely to be uncontroversial."""
     print("  Three baseline controls apply at every level and cannot be excluded, deferred, or")
-    print("  omitted. Two have a standard rationale; secret_hygiene needs a real scanner.")
+    print("  omitted - but why each applies here is still yours to state, not ours to assume.")
+
+    baseline_controls: dict = {}
+    for control_id in _BASELINE_CONTROL_IDS:
+        rationale = _nonempty_text(
+            prompt, f"Why does {control_id} apply here?", help=TEMPLATE_PLACEHOLDER_HELP
+        )
+        baseline_controls[control_id] = {"decision": "required", "rationale": rationale}
 
     scanner_name = _nonempty_text(
         prompt, "Secret scanner", default="gitleaks",
@@ -164,15 +175,8 @@ def ask_controls(prompt: Prompt, *, level: str) -> dict:
         prompt, "Workflow file the scanner is wired into",
         help="e.g. .github/workflows/secret-scan.yml - a step naming this scanner must be able to fail the build",
     )
-
-    baseline_controls = {
-        "agent_work_packets": {"decision": "required", "rationale": _BASELINE_RATIONALES["agent_work_packets"]},
-        "actual_diff_review": {"decision": "required", "rationale": _BASELINE_RATIONALES["actual_diff_review"]},
-        "secret_hygiene": {
-            "decision": "required",
-            "rationale": "Secrets and sensitive data must not enter uncontrolled storage.",
-            "scanner": {"name": scanner_name, "wired_in": [scanner_workflow], "notes": "Blocking."},
-        },
+    baseline_controls["secret_hygiene"]["scanner"] = {
+        "name": scanner_name, "wired_in": [scanner_workflow], "notes": "Blocking."
     }
 
     required = catalogue.CONFORMANCE_LEVELS[level]
@@ -250,10 +254,20 @@ def ask_gates(prompt: Prompt, *, level: str, builds_user_interface: bool) -> lis
             applicable_ids = [g for g in gate_ids if g not in catalogue.DESIGN_GATES]
             for g in gate_ids:
                 if g in catalogue.DESIGN_GATES:
-                    gates.append({
-                        "id": g, "status": "not_applicable",
-                        "rationale": "This repository has no user interface.",
-                    })
+                    # The STATUS is not asked again here - `builds_user_interface: false`, a
+                    # real answer given earlier in section 2, already settles that these four
+                    # are not_applicable. The RATIONALE still is: a Gemini adversarial review
+                    # found this used to write a fixed string with no Prompt call at all, the
+                    # same defect ask_controls had (ACT-022). Offering the old text as an
+                    # editable default keeps this from turning into four redundant re-typings
+                    # of a fact already given, while still making it a real answer, not an
+                    # invented one - the same "shown, must submit" pattern review_by and
+                    # enforcement already use elsewhere in this module.
+                    rationale = _nonempty_text(
+                        prompt, f"Rationale for {g} being not applicable",
+                        default="This repository has no user interface.",
+                    )
+                    gates.append({"id": g, "status": "not_applicable", "rationale": rationale})
                     answered += 1
         print(f"  --- {section_name} ({answered + 1}-{answered + len(applicable_ids)} of {total}) ---")
         for gate_id in applicable_ids:
