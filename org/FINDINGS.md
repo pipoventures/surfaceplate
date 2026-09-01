@@ -1082,6 +1082,17 @@ unquoted, and `7547482` — seven digits, no letters — parsed as an **integer*
 record. The check did its job; the trap will catch any adopter whose abbreviated SHA happens to be
 all digits, roughly one in every few dozen.
 
+**It fired again, immediately, on the next rename.** `ACT-019` moved
+`standard/agent-instructions/tests.md` to `surfaceplate/standard/agent-instructions/tests.md` when
+the payload was packaged for pip (`DR-31`). The same mechanism reported the `DR-30` commit as a
+violation, for the same reason, and was cleared by a second exception,
+`governance/exceptions/GX-0002.yaml`. Two occurrences of the same defect in one session, both from
+renames this project chose for its own good reasons, is stronger evidence than this finding had when
+first written that the deferred remedy deserves higher priority. Not built in either packet:
+building it as a side effect of an unrelated change would be the scope creep this project's own
+working method exists to catch. Severity and status unchanged; this is evidence added to an open
+finding, not a reopening of a closed one.
+
 ## F29 — The agent instructions the framework ships are not read by the agent that uses it
 
 **Severity: high. Closed.**

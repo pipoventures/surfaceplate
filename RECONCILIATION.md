@@ -30,7 +30,7 @@ Almost every existing skill file is a blend. Split it.
 1. **Diff, don't assume.** For each conflicting file, compare it with the standard's version:
 
    ```bash
-   diff .github/skills/change/SKILL.md ../surfaceplate/standard/.github/skills/change/SKILL.md
+   diff .github/skills/change/SKILL.md ../surfaceplate/surfaceplate/standard/.github/skills/change/SKILL.md
    ```
 
 2. **Classify every paragraph** as control or stack-specific.

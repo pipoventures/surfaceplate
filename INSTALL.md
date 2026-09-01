@@ -42,9 +42,10 @@ hook does not satisfy the claim.
 # once, anywhere on your machine
 git clone https://github.com/pipoventures/surfaceplate.git
 
-# then, for each repository
-python surfaceplate/scripts/install_standard.py --target /path/to/your-repo --dry-run
-python surfaceplate/scripts/install_standard.py --target /path/to/your-repo
+# then, for each repository — surfaceplate/surfaceplate/ is not a typo: the outer directory
+# is the clone, the inner one is the installable package inside it
+python surfaceplate/surfaceplate/install_standard.py --target /path/to/your-repo --dry-run
+python surfaceplate/surfaceplate/install_standard.py --target /path/to/your-repo
 ```
 
 Always run `--dry-run` first. It writes nothing and shows you exactly what would change.
@@ -220,7 +221,9 @@ an opt-out with a friendlier name.
 
 ```bash
 cd surfaceplate && git pull
-python scripts/install_standard.py --target /path/to/your-repo --dry-run
+# the outer "surfaceplate" above is whatever you named your clone; the inner one below is the
+# fixed package directory inside it - the two are coincidentally the same word, not the same thing
+python surfaceplate/install_standard.py --target /path/to/your-repo --dry-run
 ```
 
 The installer reports exactly what changes, removes controls the new version has dropped, never

@@ -1,0 +1,38 @@
+# The second gate exception this repository has recorded, and F30's shape recurring for the
+# SAME reason within the same session: a precondition artefact renamed, not removed.
+#
+# `test_convention` names the testing-convention document as its precondition.
+# `governance/exceptions/GX-0001.yaml` already covers the first rename
+# (`standard/.github/instructions/tests.instructions.md` -> `standard/agent-instructions/tests.md`,
+# DR-30). This exception covers the SECOND: `standard/agent-instructions/tests.md` ->
+# `surfaceplate/standard/agent-instructions/tests.md`, when the whole payload moved into one
+# package directory for pip distribution (`DR-31`, `ACT-019`).
+#
+# A separate record rather than appending to GX-0001, because GX-0001's rationale and
+# remediation are specifically about the DR-30 rename and would misdescribe this one if stretched
+# to cover it. One exception record documents one incident.
+
+gate_id: test_convention
+commits:
+  - "3a1e0e4"
+owner: Mario Pipo
+rationale: >-
+  The precondition artefact moved from `standard/agent-instructions/tests.md` to
+  `surfaceplate/standard/agent-instructions/tests.md` when ACT-019 relocated the payload under
+  `surfaceplate/` for pip packaging (DR-31). Commit 3a1e0e4 (the F29/DR-30 change) touched
+  `tests/**` while the document existed - at its then-current path - and is flagged only because
+  the history audit resolves the precondition by its CURRENT path, exactly as GX-0001 already
+  found and F30 already records. The testing convention was in force and available at that
+  commit; nothing was actually crossed without it.
+raised_on: "2026-09-01"
+remediation: >-
+  None is owed for the commit itself; the convention was never absent. This is the SECOND time
+  in one session F30's shape has fired - both times from a rename this project itself chose, both
+  times cleared by a hand-written exception rather than by the audit understanding what happened.
+  Two occurrences in one session is stronger evidence than F30 had when it was first recorded that
+  the deferred remedy - following renames through git rather than resolving a precondition only at
+  its current path - is worth building sooner than "recorded, not designed" implied. Still not
+  built here: it is real, non-trivial work (`git log --follow` is heuristic and single-path), and
+  building it as a side effect of a packaging packet would be exactly the silent scope creep this
+  project's own working method exists to catch.
+decision_record_id: DR-31

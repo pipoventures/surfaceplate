@@ -135,8 +135,9 @@ properties:
       does; a gate describes what a repository may not do yet. The conformance level
       determines which gates must be decided `required`, and at `standard` and `full`
       every catalogue gate must be decided one way or the other. See
-      core/PREREQUISITE_GATES.md. Semantic enforcement, including the git-history
-      audit, is in scripts/check_conformance.py.
+      core/PREREQUISITE_GATES.md, installed at .standards/core/PREREQUISITE_GATES.md.
+      Semantic enforcement, including the git-history audit, is in
+      .standards/check_conformance.py.
     items: {$ref: '#/$defs/prerequisite_gate'}
   human_roles:
     type: array

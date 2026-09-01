@@ -50,7 +50,7 @@
     ".standards/examples/method-run-lineage.example.yaml": "edb20cbf3697618c82f54bd932ddd9f577ef7131516f94769e3dad63d6205f4d",
     ".standards/examples/override-record.approved.example.yaml": "2e52ffc76fcad38c2949ce9f828c63a6acf28fd02b498d900bb49ccbb1f035eb",
     ".standards/schemas/README.md": "4c2531b74d54379ec45af3bdb3cc9c33f7394e2b380ee80432a30741842c58cd",
-    ".standards/schemas/application-profile.schema.yaml": "476ed723b2e5342391cc9c125f00aa989fba7ad385c196f502384045699022ad",
+    ".standards/schemas/application-profile.schema.yaml": "f344c9244894e9051c55aaa4c9cac54a0ee377081374b808058f9a5306bf7e7a",
     ".standards/schemas/assurance-evidence.schema.yaml": "efba66a86df68383f5aaff9910146b770e8f39ce8234d48d63d8de1ae3e8ab17",
     ".standards/schemas/gate-exception.schema.yaml": "c7945400b383578d6e141b84cea3b812e4387f9f61c7d03a007b1fca3b268b60",
     ".standards/schemas/method-registry-entry.schema.yaml": "b4fa419b029adf72f54fb463213a168ec3a0d2a3744d1983dcdca9f63f01ca49",
@@ -63,7 +63,7 @@
     ".standards/templates/work-packet.md": "121f5270ee57740adee42ec82abd4b6b7b714093faf299efbb3ae6d78654be60"
   },
   "first_installed_at": "2026-08-31",
-  "framework_digest": "23bf097882c811c792f41f973cb77a3a857e4a8ada77762e97271c465eaf2885",
+  "framework_digest": "8eabbae1941d94fb09e659a4c9ae141624f5e3bd755379eab8370fb28ed03d98",
   "grace_expires": "2026-09-30",
   "installed_at": "2026-09-01",
   "profile_path": "governance/application-profile.yaml",

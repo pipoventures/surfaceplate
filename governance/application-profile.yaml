@@ -75,7 +75,7 @@ adoption:
   # .standards/INSTALL.json. SP049 fails loudly if it is not, which is the intended
   # behaviour. An adopter meets the same step only on upgrade, where re-pinning is exactly
   # what should happen because the framework has changed.
-  framework_digest: 23bf097882c811c792f41f973cb77a3a857e4a8ada77762e97271c465eaf2885
+  framework_digest: 8eabbae1941d94fb09e659a4c9ae141624f5e3bd755379eab8370fb28ed03d98
   adoption_date: "2026-08-31"
   review_by: "2027-02-27"
   framework_maintainer: Mario Pipo
@@ -220,7 +220,12 @@ prerequisites:
         An identified, registered activity with an owner, a definition of done and the
         evidence it requires, before implementation begins.
     gated_activity:
-      paths: ["scripts/**", "schemas/**", "standard/**", "tests/**"]
+      # ACT-019 narrowed schemas/**/standard/** to surfaceplate/** when the payload moved into
+      # one package directory (DR-31). Narrowing a gate's paths is safe against the history
+      # audit - unlike renaming a PRECONDITION artefact (F30) - because the audit queries history
+      # with the CURRENT pattern; it cannot retroactively find surfaceplate/** in commits before
+      # it existed, so nothing here can manufacture a false violation.
+      paths: ["scripts/**", "surfaceplate/**", "tests/**"]
       description: >-
         Changes to the checker, the installer, the release tooling, the contracts, or the
         payload installed into adopting repositories.
@@ -252,7 +257,7 @@ prerequisites:
         A decision record must exist before implementation of a material change begins.
         The index is the addressable artefact; individual records are cited from it.
     gated_activity:
-      paths: ["scripts/**", "schemas/**"]
+      paths: ["scripts/**", "surfaceplate/**"]
       description: >-
         Changes to the checker, the installer, the release tooling or the contracts —
         the paths where behaviour visible to an adopter is decided.
@@ -281,7 +286,7 @@ prerequisites:
         A machine-readable map of which document governs which path. Without it,
         "the documentation" is a claim rather than an addressable object.
     gated_activity:
-      paths: ["core/**", "schemas/**", "standard/**"]
+      paths: ["surfaceplate/core/**", "surfaceplate/schemas/**", "surfaceplate/standard/**"]
       description: Changes to the normative documents, the contracts, or the payload.
     enforcement: [history_audit, review]
   - id: authority_same_change
@@ -299,7 +304,7 @@ prerequisites:
     status: required
     effective_from: "2026-08-31"
     precondition:
-      artefacts: [standard/agent-instructions/tests.md]
+      artefacts: [surfaceplate/standard/agent-instructions/tests.md]
       description: >-
         The declared naming and location standard new tests must follow. This repository
         publishes it and is bound by it.
@@ -317,7 +322,7 @@ prerequisites:
         the contract tests, the installer and checker end-to-end tests, the manifest
         check, the identifier check, and this repository's own conformance check.
     gated_activity:
-      paths: ["scripts/**", "schemas/**"]
+      paths: ["scripts/**", "surfaceplate/**"]
       description: Changes to the checker, installer, release tooling or contracts.
     enforcement: [ci, review]
   - id: equivalence_evidence
@@ -344,7 +349,7 @@ prerequisites:
         verifiable before an adopter relies on it, and verify_release.py is what does that
         — integrity only, which it states plainly rather than implying more.
     gated_activity:
-      paths: ["scripts/build_release.py", "MANIFEST.sha256"]
+      paths: ["scripts/build_release.py", "surfaceplate/MANIFEST.sha256"]
       description: Changes to what is packaged or to the recorded digests.
     enforcement: [ci, review]
 
@@ -366,7 +371,7 @@ prerequisites:
         The change and decision records the risk class requires must exist before release
         preparation begins.
     gated_activity:
-      paths: ["VERSION", "MANIFEST.sha256"]
+      paths: ["surfaceplate/VERSION", "surfaceplate/MANIFEST.sha256"]
       description: A version bump or a regenerated manifest — the acts that constitute preparing a release.
     enforcement: [history_audit, review]
   - id: change_record_before_completion
@@ -376,7 +381,7 @@ prerequisites:
       artefacts: [CHANGELOG.md]
       description: A change record must exist before a change is treated as complete.
     gated_activity:
-      paths: ["scripts/**", "schemas/**", "standard/**", "core/**"]
+      paths: ["scripts/**", "surfaceplate/**"]
       description: Changes to behaviour, contracts, the payload, or the normative documents.
     enforcement: [history_audit, review]
 

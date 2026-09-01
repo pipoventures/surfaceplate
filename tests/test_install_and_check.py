@@ -22,8 +22,9 @@ import datetime as _dt
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+PAYLOAD = ROOT / "surfaceplate"  # ACT-019: install_standard.py and check_conformance.py moved here
 
-sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(PAYLOAD))
 import install_standard as _installer  # noqa: E402
 import check_conformance as _checker  # noqa: E402
 
@@ -41,19 +42,19 @@ PATTERN_C = set(_checker.PATTERN_C_CONTROLS)
 # .standards/INSTALL.json after installing; the harness does the same. Note what is NOT done
 # here: the check is not disabled, and the fields are not removed. The targeted SP048/SP049
 # cases below deliberately mismatch them and assert the failure.
-FIXTURE_VERSION = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
-FIXTURE_ANCHOR = _installer.framework_anchor(ROOT)
+FIXTURE_VERSION = (PAYLOAD / "VERSION").read_text(encoding="utf-8").strip()
+FIXTURE_ANCHOR = _installer.framework_anchor(PAYLOAD)
 
 
 def read_example(name: str) -> str:
-    """A worked example, with its pin rewritten to match what installing from ROOT records."""
-    text = (ROOT / "examples" / name).read_text(encoding="utf-8")
+    """A worked example, with its pin rewritten to match what installing from PAYLOAD records."""
+    text = (PAYLOAD / "examples" / name).read_text(encoding="utf-8")
     text = re.sub(r"(?m)^(\s*framework_version:\s*).*$", lambda m: m.group(1) + FIXTURE_VERSION, text)
     if FIXTURE_ANCHOR:
         text = re.sub(r"(?m)^(\s*framework_digest:\s*).*$", lambda m: m.group(1) + FIXTURE_ANCHOR, text)
     return text
 
-INSTALLER = ROOT / "scripts" / "install_standard.py"
+INSTALLER = PAYLOAD / "install_standard.py"
 
 FAILURES: list[str] = []
 PASSES = 0
@@ -137,10 +138,10 @@ def verify(repo: Path, *extra: str) -> subprocess.CompletedProcess:
 # `provenance` and `run_lineage` normally name the same directory, and the seeding below fills a
 # register only when it is empty, so the run record is written once rather than twice.
 EXAMPLES_BY_CONTROL: dict[str, Path] = {
-    "overrides": ROOT / "examples" / "override-record.approved.example.yaml",
-    "method_registry": ROOT / "examples" / "method-registry-entry.example.yaml",
-    "run_lineage": ROOT / "examples" / "method-run-lineage.example.yaml",
-    "provenance": ROOT / "examples" / "method-run-lineage.example.yaml",
+    "overrides": PAYLOAD / "examples" / "override-record.approved.example.yaml",
+    "method_registry": PAYLOAD / "examples" / "method-registry-entry.example.yaml",
+    "run_lineage": PAYLOAD / "examples" / "method-run-lineage.example.yaml",
+    "provenance": PAYLOAD / "examples" / "method-run-lineage.example.yaml",
 }
 
 
@@ -325,7 +326,7 @@ def main() -> int:
         print("\nnot installed")
         empty = make_repo(tmp, "empty")
         result = verify_uninstalled = run(
-            [str(ROOT / "scripts" / "check_conformance.py"), "--repo", str(empty)]
+            [str(PAYLOAD / "check_conformance.py"), "--repo", str(empty)]
         )
         check("uninstalled repository fails", result.returncode == 1, result.stdout[-200:])
         check("and says why", "SP001" in result.stdout)
@@ -403,7 +404,7 @@ def main() -> int:
 
         print("\ngrace window integrity")
         shutil.copyfile(
-            ROOT / "templates" / "application-profile.yaml",
+            PAYLOAD / "templates" / "application-profile.yaml",
             repo / "governance" / "application-profile.yaml",
         )
         record = read_record(repo)
@@ -1405,7 +1406,7 @@ def main() -> int:
         # Where history cannot be read the check must say so rather than imply a pass.
         no_history = make_unusable_git_repo(tmp, "no-history")
         result = run(
-            [str(ROOT / "scripts" / "check_conformance.py"), "--repo", str(no_history)]
+            [str(PAYLOAD / "check_conformance.py"), "--repo", str(no_history)]
         )
         check(
             "an unusable Git directory is reported as not installed",

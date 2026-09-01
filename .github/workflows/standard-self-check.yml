@@ -102,7 +102,7 @@ jobs:
       - name: Check this repository against the standard it publishes
         id: conformance
         if: ${{ !cancelled() }}
-        run: python scripts/check_conformance.py --repo .
+        run: python surfaceplate/check_conformance.py --repo .
 
       # F13 again, one level up: verify each check produced a result rather than trusting that it
       # did. `skipped` and `success` are different things and must not summarise the same way.

@@ -18,8 +18,8 @@ Design rules, in priority order:
 
 Usage::
 
-    python scripts/install_standard.py --target C:\\path\\to\\repo
-    python scripts/install_standard.py --target ../my-repo --dry-run
+    python surfaceplate/install_standard.py --target C:\\path\\to\\repo
+    python surfaceplate/install_standard.py --target ../my-repo --dry-run
 """
 
 from __future__ import annotations
@@ -121,7 +121,23 @@ def normalise(text: str) -> str:
 
 
 def repo_root() -> Path:
-    return Path(__file__).resolve().parent.parent
+    """The package's own payload root.
+
+    A single `.parent`, not `.parent.parent`. Before ACT-019 this file lived in `scripts/`, a
+    sibling of `standard/`, `schemas/` and the rest, so finding them meant stepping out one level
+    first. Since the move to `surfaceplate/`, this file lives INSIDE the payload tree, so its own
+    directory already IS the payload root.
+
+    That one-line difference is also why this needed no `importlib.resources` rewrite. `DR-10`
+    flagged that "`repo_root()`...resolve[s] repository-root directories that do not exist under
+    a wheel install" - true of the OLD layout, where the payload sat outside any importable
+    package. Now the payload is the package: `Path(__file__).resolve().parent` resolves correctly
+    for a git checkout, a normal (unpacked) `pip install`, and an editable install alike, because
+    pip unpacks a wheel to real files on disk in every ordinary configuration. It does not cover a
+    legacy zip-safe install - recorded as a deliberate boundary in `DR-31`, not built against a
+    hypothetical no adopter has asked for.
+    """
+    return Path(__file__).resolve().parent
 
 
 def framework_anchor(source: Path) -> str | None:
@@ -187,7 +203,9 @@ def build_payload(source: Path) -> dict[str, Path]:
             payload[f".githooks/{hook_file.name}"] = hook_file
 
     # The checker travels with the standard so an adopting repository needs nothing else.
-    payload[f"{VENDOR_DIR}/check_conformance.py"] = source / "scripts" / "check_conformance.py"
+    # check_conformance.py sits beside this file now, not under a scripts/ subdirectory - the
+    # ACT-019 move flattened that one level of indirection along with everything else.
+    payload[f"{VENDOR_DIR}/check_conformance.py"] = source / "check_conformance.py"
     payload[f"{VENDOR_DIR}/VERSION"] = source / "VERSION"
     payload[f"{VENDOR_DIR}/conformance-block.md"] = source / "standard" / "conformance-block.md"
 

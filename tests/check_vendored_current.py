@@ -36,7 +36,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "surfaceplate"))
 
 import install_standard  # noqa: E402  (needs the sys.path insert above)
 
@@ -55,7 +55,7 @@ def main() -> int:
 
     # Derived from the installer rather than restated, so the set compared here cannot
     # drift from the set actually installed. Same principle as DR-6.
-    payload = install_standard.build_payload(ROOT)
+    payload = install_standard.build_payload(ROOT / "surfaceplate")
 
     missing: list[str] = []
     diverged: list[str] = []
