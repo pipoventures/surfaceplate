@@ -325,16 +325,18 @@ def test_a_gate_explanation_is_never_silently_cut() -> None:
             lines = rendered(app)
 
         want = _first_sentence(explanations.explain("work_registration", "simple"))
-        # Reassemble what is actually on screen for this explanation, across however many rows.
-        body = " ".join(
-            ln.strip("│ ").rstrip() for ln in lines if any(w in ln for w in want.split()[:6])
-        )
-        complete = want.rstrip() in " ".join(lines).replace("  ", " ")
-        elided = "…" in body
+        # Whole-screen text, not a per-line reassembly. The first version of this rebuilt the
+        # explanation from lines containing one of its first six words, and `F51` adding a field to
+        # the gate block changed the wrap so the elided line no longer matched - the assertion
+        # failed while the screen was correct. A property about what is ON SCREEN should be asked
+        # of the screen, not of a guess about which rows the words landed on.
+        flat = " ".join(" ".join(lines).split())
+        complete = " ".join(want.split()) in flat
+        elided = "\u2026" in flat
         check(
             "a gate explanation is shown whole, or says it was cut",
             complete or elided,
-            f"{len(want)} chars of explanation, neither complete nor elided. On screen: {body[:150]!r}",
+            f"{len(want)} chars of explanation, neither complete nor elided on screen",
         )
 
     asyncio.run(_run())

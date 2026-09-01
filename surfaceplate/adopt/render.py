@@ -131,8 +131,36 @@ def _render_gate(gate: dict) -> str:
     return "\n".join(lines)
 
 
+def _assurance_note(control_id: str) -> str:
+    """`# checked by ...` or `# declared - not machine-checked`, beside the control it describes.
+
+    **`F53`.** A cross-provider reviewer read a profile and could not tell which controls the
+    framework actually verifies: `actual_diff_review`, which nothing checks, and `dependency_lock`,
+    which `SP051` checks, render as structurally identical objects. An adopter reading their own
+    profile is the person most likely to over-read it, and this is the file they read.
+
+    **Derived from the checker's own `VERIFIED_CONTROLS`, never restated here**, so the label cannot
+    claim a control is checked after the checker stops checking it. That set was itself wrong when
+    this was written - it omitted `secret_hygiene`, which `SP046`/`SP047` verify - and correcting it
+    was a precondition for this label meaning anything.
+
+    A comment, not a field: it is disclosure at the point of reading, and adding it as a value would
+    put a framework-supplied string into the profile, which the binding rule forbids and
+    `tests/test_provenance.py` would reject.
+    """
+    from surfaceplate.check_conformance import VERIFIED_CONTROLS
+
+    if control_id in VERIFIED_CONTROLS:
+        return "  # checked against this repository by the conformance checker"
+    return "  # DECLARED ONLY - nothing checks this; it is a stated obligation"
+
+
 def _render_control(control_id: str, entry: dict) -> str:
-    lines = [f"  {control_id}:", f"    decision: {entry['decision']}", f"    rationale: {_block(entry['rationale'], 4)}"]
+    lines = [
+        f"  {control_id}:{_assurance_note(control_id)}",
+        f"    decision: {entry['decision']}",
+        f"    rationale: {_block(entry['rationale'], 4)}",
+    ]
     if "implementation_reference" in entry:
         lines.append(f"    implementation_reference: {_scalar(entry['implementation_reference'])}")
     return "\n".join(lines)
@@ -206,13 +234,13 @@ adoption:
 
 # These three cannot be excluded, deferred, or omitted at any conformance level.
 baseline_controls:
-  agent_work_packets:
+  agent_work_packets:{_assurance_note('agent_work_packets')}
     decision: required
     rationale: {_block(bc['agent_work_packets']['rationale'], 4)}
-  actual_diff_review:
+  actual_diff_review:{_assurance_note('actual_diff_review')}
     decision: required
     rationale: {_block(bc['actual_diff_review']['rationale'], 4)}
-  secret_hygiene:
+  secret_hygiene:{_assurance_note('secret_hygiene')}
     decision: required
     rationale: {_block(bc['secret_hygiene']['rationale'], 4)}
     scanner:

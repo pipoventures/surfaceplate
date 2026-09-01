@@ -121,9 +121,11 @@ ESSENTIAL_ANSWERS: dict[str, object] = {
     "controls.above_floor": [],
     "gates.work_registration.artefact": "docs/DEVELOPMENT_REGISTER.md",
     "gates.work_registration.paths": "src/**",
-    # `ACT-032`: the two descriptions, `effective_from` and `enforcement` are no longer asked -
-    # `sections.build_gate` derives them. `assert_no_unused_keys()` is what keeps this fixture
-    # honest: leaving them here would now be an answer to a question nobody is asked.
+    # `F51`: `effective_from` is asked again - the binding rule names it as a human decision, and
+    # deriving it silently picked the narrowest audit window the rules permit. The two descriptions
+    # and `enforcement` remain derived; `assert_no_unused_keys()` keeps this fixture honest, so
+    # listing one of those here would fail.
+    "gates.work_registration.effective_from": "2026-09-01",
     "adoption.review_by": "2027-02-28",
     "adoption.framework_maintainer": "Finance Platform team",
     "adoption.repository_classification": "internal-service",
@@ -482,6 +484,91 @@ def test_multiline_prose_survives_the_whole_flow(tmp: Path) -> None:
     )
 
 
+def test_the_profile_says_which_controls_are_actually_checked() -> None:
+    """`F53`. A cross-provider reviewer read a profile and could not tell.
+
+    `actual_diff_review` (nothing checks it) and `dependency_lock` (`SP051` checks it) rendered as
+    structurally identical objects. An adopter reading their own profile is the person most likely
+    to over-read it, and that file is what they read.
+
+    **The label is joined to the checker, not restated.** If it were a list in this suite it could
+    say "checked" about a control the checker had stopped checking, which is the failure it exists
+    to prevent. The second assertion is why the join matters: `VERIFIED_CONTROLS` omitted
+    `secret_hygiene` when this was written, so a label derived from it would have called a genuinely
+    checked control trusted.
+    """
+    from surfaceplate.check_conformance import VERIFIED_CONTROLS
+
+    from surfaceplate.adopt import render
+
+    wrong = []
+    for control_id in sorted(catalogue.CONFORMANCE_LEVELS["full"] | set(plan.BASELINE_CONTROL_IDS)):
+        note = render._assurance_note(control_id)
+        says_checked = "checked against this repository" in note
+        if says_checked != (control_id in VERIFIED_CONTROLS):
+            wrong.append((control_id, note.strip()))
+    check(
+        "every control's label agrees with the checker's own VERIFIED_CONTROLS",
+        not wrong,
+        f"labels disagreeing with the checker: {wrong}",
+    )
+    check(
+        "secret_hygiene is labelled checked, because SP046/SP047 check it",
+        "checked against this repository" in render._assurance_note("secret_hygiene"),
+        render._assurance_note("secret_hygiene").strip(),
+    )
+    check(
+        "and the two the framework admits it cannot check say so",
+        all(
+            "DECLARED ONLY" in render._assurance_note(c)
+            for c in ("agent_work_packets", "actual_diff_review")
+        ),
+        "an unverified control is not labelled as such",
+    )
+
+
+def test_the_tool_does_not_set_effective_from() -> None:
+    """`F51`. The binding rule names this field, and the tool was setting it anyway.
+
+    `org/RELEASE_PLAN.md` does not merely say "never sets a date" - it says *"what `effective_from`
+    should read ... is a human decision the wizard elicits and records verbatim, never one it makes
+    on the human's behalf."* `ACT-032` derived it as a consequence rather than a judgement, and did
+    not amend the rule. A cross-provider reviewer found the contradiction.
+
+    **The safety argument is stronger than the rule.** `SP033` refuses a future value and `SP034`
+    refuses moving one forward, so a human's answer can only ever WIDEN or equal the audit window.
+    Deriving "now" silently picks the narrowest value the rules permit, on the field that decides how
+    much history the gate audit examines.
+    """
+    found = plan.discover.Discovered(artefacts=("activity/register.md",), paths=("src/**",))
+    specs = plan.gate_plan(level="essential", builds_ui=False, mode="simple", found=found)
+    spec = next(s for s in specs if s.id == "work_registration")
+    asked = {f.id for f in spec.fields}
+    check(
+        "a required gate asks the human for effective_from",
+        "effective_from" in asked,
+        f"fields asked: {sorted(asked)}",
+    )
+
+    # And nothing is written for it when nobody answered. The old fallback made this impossible to
+    # observe: a missing answer and an answer of today produced the same profile.
+    built = sections.build_gate(spec, {"artefact": "activity/register.md", "paths": "src/**"})
+    check(
+        "and with no answer, the tool writes no effective_from of its own",
+        "effective_from" not in built or not built["effective_from"],
+        f"the tool supplied {built.get('effective_from')!r} on the human's behalf",
+    )
+    answered = sections.build_gate(
+        spec,
+        {"artefact": "activity/register.md", "paths": "src/**", "effective_from": "2026-08-31"},
+    )
+    check(
+        "while a supplied answer is recorded verbatim",
+        answered["effective_from"] == "2026-08-31",
+        str(answered.get("effective_from")),
+    )
+
+
 def test_the_level_is_recommended_and_never_chosen() -> None:
     """`ACT-032`. Two plain questions make the level answerable; they must not answer it.
 
@@ -560,10 +647,15 @@ def test_derived_gate_fields_are_correct_and_still_overridable() -> None:
         gate["enforcement"] == sections.DERIVED_ENFORCEMENT,
         str(gate["enforcement"]),
     )
+    # `F51` superseded `ACT-032` here. This asserted that `effective_from` DERIVED to today, which
+    # was the behaviour a cross-provider reviewer identified as contradicting the binding rule. The
+    # field is asked again, so the property is now the opposite one: nothing is written unless a
+    # human answered. Kept as a replacement rather than a deletion, because the old assertion is
+    # the record of what was believed and the new one is what superseded it.
     check(
-        "effective_from derives to today, so no history is retroactively in scope",
-        gate["effective_from"] == _dt.date.today().isoformat(),
-        gate["effective_from"],
+        "effective_from is NOT derived - absent unless answered (F51)",
+        not gate.get("effective_from"),
+        f"the tool supplied {gate.get('effective_from')!r} with no answer given",
     )
 
     supplied = sections.build_gate(
@@ -1001,6 +1093,8 @@ def main() -> int:
         test_multiline_prose_survives_the_whole_flow(tmp)
 
         print("\nDR-40: the defaults route proposes, and says where each value came from")
+        test_the_profile_says_which_controls_are_actually_checked()
+        test_the_tool_does_not_set_effective_from()
         test_the_level_is_recommended_and_never_chosen()
         test_derived_gate_fields_are_correct_and_still_overridable()
         test_the_opt_in_removed_questions_not_answers()

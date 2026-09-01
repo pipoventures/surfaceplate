@@ -109,6 +109,13 @@ VERIFIED_CONTROLS: set[str] = {
     "method_registry",          # pattern C - SP055/SP056
     "run_lineage",              # pattern C - SP055/SP056
     "provenance",               # pattern C - SP055/SP056
+    # `F53`: this set omitted `secret_hygiene`, which `check_secret_hygiene` genuinely verifies -
+    # `SP046` reports a control declared with no scanner named, `SP047` a scanner wired where it
+    # cannot fail the build. By this set's own definition above ("verifies AGAINST THE REPOSITORY,
+    # as opposed to verifying that they were declared") it qualified all along, so the checker was
+    # under-reporting what it checks. Found while building the profile's verified/declared labels
+    # from this set - a label derived from it would have called a checked control trusted.
+    "secret_hygiene",           # SP046/SP047 - a scanner is named and non-bypassably wired
 }
 
 # The controls each level requires, mirroring core/CONFORMANCE_LEVELS.md. A level is a

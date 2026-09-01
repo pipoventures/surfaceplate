@@ -95,11 +95,37 @@ they are never renumbered.
 The CLI wizard (item 2) is bound by one rule, stated here because it is a design constraint on that
 item, not a scheduling fact:
 
-**It asks, the human answers, the tool writes.** It never selects a conformance level, invents a
-rationale, or sets a date. Every judgement call in `core/PREREQUISITE_GATES.md` and
-`core/CONFORMANCE_LEVELS.md` — which level applies, why a control is `deferred` rather than
-`required`, what `effective_from` should read — is a human decision the wizard elicits and records
-verbatim, never one it makes on the human's behalf.
+**It asks, the human answers, the tool writes.** Every judgement call in
+`core/PREREQUISITE_GATES.md` and `core/CONFORMANCE_LEVELS.md` — which level applies, why a control is
+`deferred` rather than `required`, what `effective_from` should read — is a human decision the wizard
+elicits and records verbatim, never one it makes on the human's behalf.
+
+**What the tool may supply, stated exactly, because "never sets a date" was not true when it was
+written.** `adoption_date` has been a tool-supplied date since the first version of this wizard,
+disclosed in `sections.build_adoption`'s docstring and named in `tests/test_provenance.py`'s
+allow-list — but not here, so the rule read as absolute while the code had a documented carve-out.
+`ACT-032` then widened that gap by deriving `effective_from` as well, and a cross-provider reviewer
+found the contradiction (`F51`). The rule is made precise rather than merely obeyed, because obeying
+a rule that was already inaccurate would leave the next person to trip on the same gap.
+
+The tool may write, without asking:
+
+- **a fact of record** — the date an adoption happened, the moment an artefact it created came into
+  existence;
+- **a value read from the install record** — `framework_version`, `framework_digest`;
+- **this framework's own published prose** — a gate's definition from `core/PREREQUISITE_GATES.md`,
+  a schema constant, a worked example offered as an editable default.
+
+The tool may **never** write, asked or not: a conformance level, a rationale, or a scope decision —
+which paths a gate covers, from when it binds, whether a control applies. `effective_from` is a
+scope decision and is asked; that it can only be moved backward (`SP034`) and never dated forward
+(`SP033`) means a human's answer can only ever *widen* the audit window, so deriving it silently
+chose the narrowest value the rules permit.
+
+**`tests/test_provenance.py` is the enforcement, not this paragraph.** Its sentinel walk drives the
+profile builders directly and fails on any string that no answer supplied and the allow-list does not
+name. A change that needs the allow-list to grow is a change to this rule, and belongs in a decision
+record before it belongs in code.
 
 **A naming collision this item had to resolve, not duplicate — resolved.**
 `prompts/github-copilot-adoption-wizard.prompt.md` existed, called itself "the wizard," and was

@@ -233,6 +233,13 @@ def test_a_bare_repository_can_reach_a_passing_check(tmp: Path) -> None:
         # The artefact is NOT answered: this is the adopter who has nothing to name, and the
         # scaffold offer is what closes it.
         "gates.work_registration.paths": "**",
+        # `F51`: asked again, and answered as the instant of adoption - which is what
+        # `app._offer_missing_artefacts` records when the offer is accepted, and what keeps this
+        # morning's commits out of scope.
+        "gates.work_registration.effective_from": _dt.datetime.now()
+        .astimezone()
+        .replace(microsecond=0)
+        .isoformat(),
         "adoption.review_by": "2027-03-01",
         "adoption.framework_maintainer": "Sole maintainer",
         "adoption.repository_classification": "internal-tool",
@@ -257,20 +264,11 @@ def test_a_bare_repository_can_reach_a_passing_check(tmp: Path) -> None:
     # What the interface does when the human ticks the offer: the path becomes the gate's answer,
     # and the files travel to `wizard.run` under its own key.
     interview.answers["gates.work_registration.artefact"] = offered[0].path
-    import datetime as _dt
 
     # Exactly what `app._offer_missing_artefacts` records on acceptance (`F47`): the gate binds
     # from the INSTANT the artefact was created, so this morning's commits are not inside a window
     # where the precondition was absent.
-    state_extra = {
-        wizard.SCAFFOLD_KEY: offered,
-        "gates": {
-            "work_registration.effective_from": _dt.datetime.now()
-            .astimezone()
-            .replace(microsecond=0)
-            .isoformat()
-        },
-    }
+    state_extra = {wizard.SCAFFOLD_KEY: offered}
     written = wizard.run(repo, _WithScaffold(interview, state_extra))
 
     check(
