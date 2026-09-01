@@ -114,6 +114,7 @@ an unknown number of releases with nothing noticing.
 | F47 | A repository adopted on a day it already had commits reports a gate violation it cannot clear: the artefact is created today, `effective_from` binds by DATE, and `SP033` forbids a future date | medium | Closed — `ACT-035`; `effective_from` accepts an instant, so adoption binds from the moment |
 | F48 | The prerequisite history audit's window slid forward with the clock: `git log --since=<bare date>` means that date at the CURRENT TIME, so a violation visible in the morning was gone by evening | high | Closed — `ACT-035`; a date-only `effective_from` resolves to midnight explicitly |
 | F49 | `DR-23`'s standing policy on the former organisation has no automated check, and cannot have one that carries the token | low | Open — remedy sketched in the entry; `ACT-007` closed on judgement with this recorded |
+| F50 | The adversarial-review hand-off command referenced a file deleted three packets earlier, so item 9 could not have been run as documented | medium | Closed — `ACT-037`; the command is corrected, guarded, and reproduces the list the prompt declares |
 
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -1033,6 +1034,44 @@ protects against an unexpected new release rather than a compromised re-upload o
 PyPI does not permit re-uploading a version, which makes that largely theoretical — but it is a
 weaker guarantee than a hash-bearing lock, and `pyproject.toml` says so rather than implying
 otherwise.
+
+---
+
+## F50 — The review packet for item 9 could not have been run as written
+
+**Severity: medium. Closed.**
+
+Found when the maintainer asked for the packet to be refreshed before running it — *"the packet is
+from this morning, a lot has changed"* — which is the only reason anyone read it again.
+
+`RELEASE_PLAN` item 9 hands an external reviewer two attachments: a curated prompt and an
+`EVIDENCE_BUNDLE.md` built by a shell command in `audit/AUDIT_README.md`. That command listed
+`surfaceplate/adopt/prompting.py`. **`DR-36` deleted that file three packets earlier**, when the
+wizard's interaction layer was rebuilt on Textual.
+
+So the command would have failed at `cat`, and — because it had no guard and redirected the whole
+loop — produced a **truncated bundle** rather than an error anyone would notice. The prompt's own
+section 2 was worse than stale: it asked the reviewer to trace the binding rule through
+`prompting.py` and to assess a `ScriptedPrompt` mechanism that no longer exists. An external
+reviewer would have reported an evidence gap against a file the maintainer believed they had sent.
+
+**Nothing detected this**, and `audit/AUDIT_README.md` had even anticipated the failure mode in
+prose: *"this command must match it; if the two drift, the prompt's text is authoritative and the
+command is wrong."* Both had drifted, so the stated tie-breaker resolved to a file that did not
+exist either.
+
+**Remedy** (`ACT-037`): the packet is rebuilt against the framework as it is; the command is
+corrected, given a `[ -f "$f" ] || exit 1` guard so a missing file is loud, and **run**, producing
+exactly the 11 files the prompt declares.
+
+**The transferable part: a hand-off is a derived artefact, and this one had no reader.** `DR-6` and
+`F12` are both about generated content drifting from its source, and this repository applies that
+lesson thoroughly to its manifest, its vendored copy and its identifiers — each with a `--check`
+mode that runs in CI. The audit packet is the same shape: content derived from a file list that
+lives somewhere else. It had no check, and more tellingly **no reader** — a document nobody opens
+between the day it is written and the day it is used cannot drift *visibly*, only silently. The
+prompt is prose and cannot be mechanically verified against the repository the way a manifest can;
+what closed the gap here was a person asking whether it was still true.
 
 ---
 

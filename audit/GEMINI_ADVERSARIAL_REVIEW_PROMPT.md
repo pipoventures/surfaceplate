@@ -114,18 +114,27 @@ Read `surfaceplate/core/CONFORMANCE_LEVELS.md` and `surfaceplate/core/PREREQUISI
 
 ### 4. The `adopt` wizard's binding rule, adversarially tested against the code
 
-Read `surfaceplate/adopt/` in full (`prompting.py`, `sections.py`, `wizard.py`, `render.py`,
-`catalogue.py`, `detect.py`) and `surfaceplate/cli.py`.
+Read `surfaceplate/adopt/` in full — `sections.py`, `defaults.py`, `scaffold.py`, `wizard.py`,
+`plan.py`, `render.py`, `discover.py`, `catalogue.py`, `interview.py`, the `tui/` package — and
+`surfaceplate/cli.py`.
 
 - `org/RELEASE_PLAN.md` states the wizard's rule as: *"It asks, the human answers, the tool writes.
   It never selects a conformance level, invents a rationale, or sets a date."* Trace every code path
-  that ends in a value being written to the profile. Is there any path — a default, a detected value
-  from `detect.py`, a fallback — that reaches the written file without passing through a
-  `Prompt.text`/`.select`/`.confirm` call a human actually answered?
-- `prompting.py` defines `ScriptedPrompt`, used by the test suite, which raises if the wizard asks
-  for more than the script provides or finishes with unused answers. Does this actually make "nothing
-  invented, nothing missing" a property the tests can fail on, or is there a gap between what the
-  tests exercise and what the interactive path (`InteractivePrompt`) can actually do?
+  that ends in a value being written to the profile. Is there any path — a default, a discovered
+  value, a proposed one, a fallback — that reaches the written file without a human having answered
+  for it?
+- **`defaults.py` proposes values and `scaffold.py` creates files inside the adopting repository.**
+  These are the two places the rule is most likely to fail, and both are recent. `defaults.py`
+  claims three honest origins and claims that a field with no honest source is left unanswered and
+  still asked; `scaffold.py` claims it may create and may never replace. Test both claims against
+  the code rather than the docstrings.
+- `interview.py` defines `ScriptedInterview`, used by the test suite, which raises if the wizard
+  asks for a field the script has no answer for **or** finishes with answers nothing asked for.
+  Does that actually make "nothing invented, nothing missing" a property the tests can fail on? Note
+  that its predecessor did **not**: the framework records that the earlier `ScriptedPrompt` "only
+  objects to a call it wasn't given an answer for, never to a value written without any call", which
+  is how a real defect passed a full suite. Is the current mechanism actually free of that flaw, or
+  does it inherit a version of it?
 - `wizard.py` verifies its own rendered output before writing: re-parses the YAML, compares it to the
   assembled dict, validates against the schema, scans for placeholder tokens. Could a renderer bug
   produce output that is semantically wrong but still round-trips identically through this check —
