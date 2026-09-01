@@ -1773,3 +1773,23 @@ infer from a probe. `DR-34` carries the full cost table, including a genuine ope
 record does not resolve — Plutos already runs its own 75-activity register, in a different shape
 from this framework's own convention; whether `work_registration` should point at it as-is or treat
 it as a second, parallel system is the maintainer's call when adoption is actually decided.
+
+### The hook-conflict refusal explains itself now (`ACT-025`, `F35`)
+
+Found by the maintainer, not by a probe: running the installer against a real repository for the
+first time and hitting the hook-configuration refusal, his own words are the finding — *"I run it
+and didn't understand what was happening... we don't give the user any alternative or way out. It
+just stops."* Checked against the actual message: true on both counts. Nothing said whether the
+conflicting `core.hooksPath` value was set for this one repository or the whole machine, and two
+of the three named "routes" described an outcome with no step to reach it — only `--no-hooks` was
+something a reader could type.
+
+Fixed together, not reworded separately: a new `hooks_path_scope()` checks `--local`, `--global`,
+and `--system` individually (deliberately not `--worktree` — an earlier version of this fix
+checked it first and, without `extensions.worktreeConfig` enabled, misattributed every plain local
+setting as worktree-scoped, caught in this project's own testing before it shipped). The
+rewritten message explains what `core.hooksPath` does, names the scope and its blast radius
+plainly, gives the exact scope-correct command for "remove," and for "reconcile" points at the
+actual delegation pattern this machine's own conflicting hook already uses rather than a vague
+instruction to merge behaviour. Verified against the exact scenario that prompted it, plus fixture
+coverage for both local and global scope and the separate default-hooks-directory conflict shape.

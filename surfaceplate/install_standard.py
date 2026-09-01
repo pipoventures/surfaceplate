@@ -34,6 +34,7 @@ import stat
 import shutil
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -303,8 +304,58 @@ def standard_hook_path_configured(target: Path, value: str) -> bool:
     return configured.resolve() == (target / ".githooks").resolve()
 
 
-def hook_configuration_conflict(target: Path) -> str | None:
-    """Return a reason installation must stop before changing hook activation."""
+# Deliberately NOT including --worktree. It only has storage independent of --local when
+# extensions.worktreeConfig is enabled, which is rare; without it, git silently reads --worktree
+# from the same file as --local, and checking --worktree first (as an earlier version of this
+# code did) reports every plain --local setting as worktree-scoped - a real bug this project
+# caught in its own manual testing (ACT-025): a scope report that is actively wrong is worse than
+# the "which scope?" gap this function exists to close. --local, --global and --system are always
+# genuinely distinct storage, so precedence among only those three is unambiguous.
+_HOOKS_PATH_SCOPES = ("local", "global", "system")
+
+_SCOPE_BLAST_RADIUS = {
+    "local": "this repository alone",
+    "global": "every repository on this machine, not just this one",
+    "system": "every repository for every user on this machine, not just this one",
+}
+
+
+def hooks_path_scope(target: Path) -> tuple[str, str] | None:
+    """(scope, value) for whichever git config scope actually set core.hooksPath, or None.
+
+    `git config --get core.hooksPath` (no scope flag) reports the EFFECTIVE value but never
+    which scope set it - and scope is the fact a human needs to judge blast radius. A value set
+    `--global` or `--system` applies to every repository on the machine; `--local` is scoped to
+    this repository alone. Found necessary while explaining a real refusal to the maintainer, who
+    could not tell from the original message whether the conflict was about this one repository
+    or the whole machine - which turned out to be the single most decision-relevant fact
+    (`ACT-025`, `F35`).
+    """
+    for scope in _HOOKS_PATH_SCOPES:
+        code, value = git(target, "config", f"--{scope}", "--get", "core.hooksPath")
+        if code == 0 and value:
+            return scope, value
+    return None
+
+
+@dataclass
+class HookConflict:
+    """Why installation must stop before changing hook activation, in enough detail to act on.
+
+    `kind` distinguishes the two shapes this can take, because they need different guidance:
+    `core.hooksPath` already points somewhere else (`hooks_path`, `scope` and `configured` set),
+    or the default hooks directory already holds real hook files with nothing configuring
+    `core.hooksPath` at all (`default_dir`, `hook_files` set).
+    """
+
+    kind: str  # "hooks_path" | "default_dir"
+    scope: str | None = None
+    configured: str | None = None
+    hook_files: tuple[str, ...] = ()
+
+
+def hook_configuration_conflict(target: Path) -> HookConflict | None:
+    """Return why installation must stop before changing hook activation, or None."""
     if not git_repository_available(target):
         return None
 
@@ -312,10 +363,9 @@ def hook_configuration_conflict(target: Path) -> str | None:
     if code == 0 and configured:
         if standard_hook_path_configured(target, configured):
             return None
-        return (
-            f"the effective core.hooksPath is already {configured!r}. Setting a repository-local "
-            "path would disable the existing hook system."
-        )
+        resolved = hooks_path_scope(target)
+        scope = resolved[0] if resolved else None
+        return HookConflict(kind="hooks_path", scope=scope, configured=configured)
 
     code, default_hooks = git(target, "rev-parse", "--git-path", "hooks")
     if code == 0 and default_hooks:
@@ -328,11 +378,106 @@ def hook_configuration_conflict(target: Path) -> str | None:
             if path.is_file() and not path.name.endswith(".sample")
         ) if directory.is_dir() else []
         if hooks:
-            return (
-                f"the default Git hooks directory already contains: {', '.join(hooks)}. "
-                "Configuring core.hooksPath=.githooks would disable those hooks."
-            )
+            return HookConflict(kind="default_dir", hook_files=tuple(hooks))
     return None
+
+
+def hook_conflict_message(conflict: HookConflict) -> str:
+    """The STOPPED message for a hook conflict - explains the fact, names the blast radius,
+    and gives each route a genuine next step rather than a description of an outcome.
+
+    `F35` (`ACT-025`): the version this replaces named three routes and only one of them
+    (`--no-hooks`) was actually something a reader could type. "Reconcile" and "Remove" described
+    outcomes with no step to reach them, and nothing said whether the conflict concerned this one
+    repository or the whole machine - discovered when the maintainer ran this installer against a
+    real repository for the first time and could not tell either from the message alone.
+    """
+    lines: list[str] = []
+    if conflict.kind == "hooks_path":
+        scope = conflict.scope
+        configured = conflict.configured
+        radius = _SCOPE_BLAST_RADIUS.get(scope or "", "an unknown scope - re-run with --no-hooks")
+        lines.append("STOPPED - Git hooks for this repository already run from somewhere else.")
+        lines.append("")
+        lines.append(
+            "Git runs hooks from one location per repository, chosen by the `core.hooksPath` "
+            "setting. That setting is currently set"
+        )
+        if scope:
+            lines.append(f"  at the --{scope} level, to {configured!r} - which affects {radius}.")
+        else:
+            lines.append(f"  to {configured!r}; which scope set it could not be determined.")
+        lines.append("")
+        lines.append(
+            "Installing here would set core.hooksPath=.githooks for this repository, which would"
+        )
+        lines.append(f"silently stop whatever is already configured at {configured!r} from running.")
+        lines.append("")
+        lines.append("Three ways forward:")
+        lines.append(
+            "  1. Keep what you have, skip the local hook: re-run with --no-hooks. Everything"
+        )
+        lines.append(
+            "     else installs; this repository relies on history_audit and review instead of a"
+        )
+        lines.append(
+            "     local hook, and the conformance check says so on every run. Fully reversible,"
+        )
+        lines.append("     and touches nothing outside this repository.")
+        if scope:
+            lines.append(f"  2. Remove the --{scope} setting, once you've decided it's no longer needed:")
+            lines.append(f"       git config --{scope} --unset core.hooksPath")
+            if scope in ("global", "system"):
+                lines.append(f"     This affects {radius}.")
+        else:
+            lines.append("  2. Remove the setting once you've decided it's no longer needed:")
+            lines.append("       git config --unset core.hooksPath")
+        lines.append(
+            "  3. Reconcile: keep both. Read what's actually at the configured path first - don't"
+        )
+        lines.append(
+            "     assume. A common pattern (this machine's own global hook, if that's what's set,"
+        )
+        lines.append(
+            "     may already use it) is a delegation wrapper that forwards to this repository's"
+        )
+        lines.append(
+            "     own default hook path ($(git -C <repo> rev-parse --git-path hooks)/pre-commit)"
+        )
+        lines.append(
+            "     rather than enforcing anything itself. If yours already does this, installing"
+        )
+        lines.append(
+            "     the standard hook at that default path - not .githooks - and configuring"
+        )
+        lines.append("     nothing further would work without touching the existing setting at all.")
+    else:
+        lines.append("STOPPED - this repository already has its own hook files at the default path:")
+        for name in conflict.hook_files:
+            lines.append(f"  {name}")
+        lines.append("")
+        lines.append(
+            "Configuring core.hooksPath=.githooks would stop Git from running these. Three ways"
+        )
+        lines.append("forward:")
+        lines.append(
+            "  1. Keep what you have, skip the local hook: re-run with --no-hooks. This repository"
+        )
+        lines.append(
+            "     relies on history_audit and review instead, and the conformance check says so"
+        )
+        lines.append("     on every run. Fully reversible.")
+        lines.append("  2. Remove these files, once you've decided they're no longer needed:")
+        for name in conflict.hook_files:
+            lines.append(f"       rm $(git rev-parse --git-path hooks)/{name}")
+        lines.append(
+            "  3. Reconcile: read what each file above actually does, then fold its logic into"
+        )
+        lines.append(
+            "     .githooks/pre-commit once installed (or have it delegate there), and remove the"
+        )
+        lines.append("     original from the default path so Git does not run both.")
+    return "\n".join(lines)
 
 
 def configure_standard_hook(target: Path, dry_run: bool) -> tuple[bool, str]:
@@ -470,15 +615,7 @@ def install(
     # will be configured. Checking anyway would refuse an install that touches no hook at all.
     hook_conflict = None if no_hooks else hook_configuration_conflict(target)
     if hook_conflict:
-        print("STOPPED - this repository already has a different Git hook configuration:")
-        print(f"  {hook_conflict}")
-        print()
-        print("Three routes, and the third was missing until 0.17.0 (F27):")
-        print("  - Reconcile the existing hooks into .githooks without losing their behaviour.")
-        print("  - Remove the old hook configuration, having decided it is no longer needed.")
-        print("  - Re-run with --no-hooks: install everything else, keep your hook system, and")
-        print("    rely on history_audit and review. Nothing will then check staged changes")
-        print("    before they are committed, and the conformance check says so on every run.")
+        print(hook_conflict_message(hook_conflict))
         print("Nothing has been written.")
         return 4
 
