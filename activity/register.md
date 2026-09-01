@@ -57,6 +57,7 @@ on an agent's authority.
 | `ACT-021` | `RELEASE_PLAN` item 9: the Gemini cross-provider adversarial review packet | maintainer | maintainer | `waiting_for_review` | `ACT-020` | hard | yes — it is the request sent to a party outside this repository, and this packet's own text is what stops that party's findings from being mistaken for an independent audit (item 10) or a claim that `F6` is closed | medium — the mechanism follows the existing `AUDIT_README.md` handoff shape and the `CHATGPT_ENTERPRISE_AUDIT_PROMPT.md` structural pattern exactly; the judgement is what changed since that prompt was written (the gate catalogue, pip packaging, the CLI/wizard) and what to deliberately drop (re-testing a *different* provider's *prior* named findings against a differently-named predecessor product) | `audit/GEMINI_ADVERSARIAL_REVIEW_PROMPT.md` exists, is committed, and a freshly built `dist/surfaceplate-<version>.zip` plus that prompt are both readable at the confirmed Desktop hand-off path | The negative control: the new prompt is read back and confirmed to claim nowhere in its own text that approval, independent validation, or `F6` closure has occurred; the zip's own contents are listed directly and confirmed to carry no `.git`, no `.standards/`, no secrets |
 | `ACT-022` | Gemini's first finding: `adopt` invents rationale text for baseline controls and auto-masked UI gates | maintainer | maintainer | `waiting_for_review` | `ACT-021` | hard | yes — it is the framework's own binding rule for its own wizard, found violated by the review the framework requested of itself | medium — the mechanism is routing existing hardcoded strings through `Prompt.text` calls already used elsewhere in the same file; the judgement was which of Gemini's five findings were real (verified against the code directly, not accepted on the report's authority alone) | Every rationale written to a profile by `agent_work_packets`, `actual_diff_review`, `secret_hygiene`, and the four UI gates traces to a `Prompt` call a human actually answered, with the existing scripted-answer test suite updated to prove it | The negative control: a scripted run with the old hardcoded strings removed from the source fails loudly if any code path still writes a rationale `ScriptedPrompt` was never asked for |
 | `ACT-023` | Decide Gemini's material finding: should the schema enforce per-level control presence? | maintainer | maintainer | `waiting_for_review` | `ACT-021` | review | yes — it decides whether `application-profile.schema.yaml`, a published contract, gains conditional logic duplicating `check_conformance.py`'s own `CONFORMANCE_LEVELS` data | medium — the checker already runs schema validation as its own first step, so no separate schema-only bypass exists in this project's real pipeline; the judgement is whether the residual defense-in-depth value is worth a second, hand-maintained copy of the same rule | A decision record either way, reasoned rather than asserted, so a future reviewer raising the same idea finds the answer already worked through | The two things checked before recommending against it: that `check_conformance.py` validates against the schema before its own semantic checks (so nothing bypasses the schema alone), and that `CONFORMANCE_LEVELS` has no generator feeding the schema, meaning any schema-side copy would need hand-kept sync |
+| `ACT-024` | `RELEASE_PLAN` item 5, phase 1: exercise Plutos (Plyego deferred — mid-migration) | maintainer | maintainer | `waiting_for_review` | `ACT-020` | hard | yes — it is the second time this framework has been run against a repository it did not write, and any defect it exposes is unreachable from self-check alone, the same shape `F25`/`F26` were | medium — the mechanism repeats `DR-28`'s own probe exactly; the judgement is scoped deliberately narrow, per `DR-28`'s own principle that gate decisions are the maintainer's to make with the per-gate cost in front of them, not an agent's to infer from a probe | A throwaway clone of Plutos installed and checked at `essential`, any newly-exposed surfaceplate defect fixed with tests, and a decision record carrying the cost table — with nothing written to the real Plutos repository | The negative control: `git status` on the real Plutos checkout shows no changes; the clone's own history and objects are shared read-only, never a checkout of the real working tree |
 ## Notes on the entries
 
 `ACT-002` and `ACT-003` are both raised by `DR-16` and are deliberately **not** resolved by
@@ -178,7 +179,7 @@ maintainer before this packet's plan was written, and the maintainer's own first
 "how does someone answer in a prompt back" — is why that artifact exists rather than a written
 argument alone.
 
-`ACT-005` to `ACT-023` were registered **before** implementation begins, not alongside it. `work_registration` is
+`ACT-005` to `ACT-024` were registered **before** implementation begins, not alongside it. `work_registration` is
 live over `scripts/**` and `schemas/**`, which is exactly what item 4 changes, and a gate satisfied
 retrospectively is the failure mode `core/PREREQUISITE_GATES.md` warns is most common — satisfied on
 paper, violated in spirit.
@@ -208,6 +209,15 @@ for a schema-only gate to close — and why the cost side (a second, hand-mainta
 `CONFORMANCE_LEVELS`) is the same shape `F23` and `DR-6`/`DR-9` already closed elsewhere in this
 project. Recorded so the same idea, raised again by a future reviewer, finds the reasoning already
 done rather than starting from nothing.
+
+`ACT-024` substitutes one named adopter for the other, mid-plan, for a reason external to this
+repository: Plyego's own Google Cloud migration, not anything found wrong with Plyego itself. It is
+the second time this framework has been run against a repository it did not write, and the first
+time that run needed no fix to reach a clean result — worth recording plainly rather than treated as
+unremarkable, since `DR-28`'s own reading of Plyego's result leaned on exactly the contrast a second
+data point now provides. The one real defect found (`--no-hooks`'s misleading next steps) was
+unreachable from self-check for the same structural reason `F25`/`F26` were: surfaceplate has never
+run its own declined-hook path against itself for real.
 
 `ACT-002` and `ACT-003` are both answered by `DR-20`. They, and `ACT-006`, moved to `done` on
 2026-08-31 when the maintainer merged [PR #9](https://github.com/pipoventures/surfaceplate/pull/9)

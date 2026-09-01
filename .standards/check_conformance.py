@@ -2294,13 +2294,31 @@ def validated_exception(
             f"{'/'.join(str(part) for part in error.path) or '(root)'}: {error.message}"
             for error in errors[:5]
         )
+        # A commit SHA is hex, and roughly 1 in 43 seven-character prefixes is entirely
+        # digits (no a-f). Written unquoted in YAML, a value like `3516272` parses as an
+        # integer, not a string - "is not of type 'string'" reports correctly, but gives no
+        # hint why a genuinely correct-looking SHA fails. Found the hard way: this exact
+        # shape made ACT-024's own test suite intermittently fail (ACT-024, DR-34) - the
+        # test wrote an unquoted short SHA, and roughly one run in forty happened to draw
+        # one that was all digits.
+        digit_only_commit = any(
+            list(error.path)[:1] == ["commits"]
+            and isinstance(error.instance, int)
+            and not isinstance(error.instance, bool)
+            for error in errors
+        )
+        fix = f"Correct the record against {EXCEPTION_SCHEMA_PATH}. An invalid exception provides no coverage."
+        if digit_only_commit:
+            fix += (
+                " A commit entry that is all digits (no a-f) parses as a YAML number unless "
+                'quoted - write it as "1234567", not 1234567.'
+            )
         findings.append(
             Finding(
                 "SP043",
                 f"Gate exception '{rel}' is invalid",
                 detail,
-                f"Correct the record against {EXCEPTION_SCHEMA_PATH}. An invalid exception "
-                "provides no coverage.",
+                fix,
                 graceable=False,
             )
         )

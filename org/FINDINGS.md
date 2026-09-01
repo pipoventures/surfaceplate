@@ -97,6 +97,7 @@ an unknown number of releases with nothing noticing.
 | F30 | The history audit resolves a precondition by its current path, so a rename falsifies the whole history | medium | **Open** — cleared by exception `GX-0001`; following renames is unbuilt |
 | F31 | The history audit ran against a depth-1 clone in CI and reported nothing wrong | high | Closed — `fetch-depth: 0`, and a shallow clone is now reported |
 | F32 | The wizard invented rationale text for baseline controls and auto-masked UI gates | high | Closed — `ACT-022`, routed through `Prompt`; found by the review `ACT-021` requested |
+| F33 | An all-digit commit SHA silently fails a gate exception, and the lesson never propagated | medium | Closed — `ACT-024`; template, checker message, and test all fixed |
 
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -1000,7 +1001,51 @@ otherwise.
 
 ---
 
-## F32 — The wizard invented rationale text for baseline controls and auto-masked UI gates
+## F33 — An all-digit commit SHA silently fails a gate exception, and the lesson never propagated
+
+**Severity: medium. Closed.**
+
+Found chasing an intermittent test failure during `ACT-024` (the Plutos exercise): roughly one run
+in forty of `tests/test_install_and_check.py`'s history-audit section failed with `SP043`, *"Gate
+exception ... is invalid: commits/0: 3516272 is not of type 'string'"* — a commit SHA the test had
+itself just written, rejected as not being a string.
+
+`FACT FROM PACKAGE`. A commit SHA is hexadecimal, and roughly one seven-character prefix in
+forty-three (`(10/16)^7 ≈ 2.3%`) consists entirely of digits, no `a`–`f`. Written unquoted in YAML —
+`commits: [3516272]` — a value in that shape parses as an integer, not a string, because it also
+satisfies YAML's plain-scalar-integer grammar. `schemas/gate-exception.schema.yaml` correctly types
+`commits[*]` as `string`; the schema was never wrong. The trap is upstream of it, in how a value
+gets *written*.
+
+**This was not a new discovery — it was a lesson that failed to propagate.**
+`governance/exceptions/GX-0001.yaml`'s own comment already documents catching it, verbatim: *"an
+abbreviated SHA that happens to be all digits - 7547482 here - parses as an integer and the schema
+rejects it."* Someone hit this for real, quoted the value, and left a note explaining why — but the
+note lived only in that one record. It reached neither `templates/gate-exception.yaml` (the
+adopter-facing template, which showed the commit list unquoted), nor `tests/test_install_and_check.py`
+(which wrote its own probe SHA unquoted, and so intermittently rediscovered the same trap on
+whichever run happened to draw an all-digit prefix), nor the checker's own error message (a bare
+jsonschema `"is not of type 'string'"`, giving no reader who has not already found `GX-0001`'s
+comment any reason to suspect YAML's numeric grammar rather than their own SHA being wrong).
+
+**Closed three ways, not one, because a single fix would have left the shape to recur elsewhere:**
+
+- The template now shows the commit entry quoted, with the reason stated inline.
+- `check_conformance.py`'s `validated_exception` detects a `commits` entry that failed validation
+  specifically because it parsed as an integer, and appends a targeted remediation sentence — the
+  first time this project has customised a schema-validation message for one specific value shape
+  rather than reporting the generic jsonschema text alone.
+- The test now quotes its own probe SHA, so it tests the mechanism the way an adopter who read the
+  template would actually use it, rather than intermittently testing an unrelated failure mode by
+  accident.
+
+**The shape, named because it recurs across this register in different clothes.** A fix applied
+once, in one artefact, that never reaches the sibling artefacts a reader would actually consult —
+`F26` (a remedy that existed since `DR-22` and the finding that most needed it never mentioned it),
+`DR-28`'s own account of `F25` and `F26` (defects invisible from inside because the fix could not be
+used without causing it). This one is sharper only in how it was found: not by an adopter, and not
+by a reviewer, but by this project's own test suite drawing the unlucky case by chance, on a
+completely unrelated packet.
 
 **Severity: high. Closed.**
 

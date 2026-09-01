@@ -1734,3 +1734,27 @@ Fixed: both hardcoded paths now ask, the UI-gate one with the old text offered a
 default rather than a silent write. A new test scripts rationale text matching none of the old
 hardcoded strings and asserts the written profile contains exactly that text — a regression here
 misaligns the scripted answer sequence and fails loudly.
+
+### Item 5, phase 1: Plutos exercised, Plyego paused for its own migration (`ACT-024`, `DR-34`)
+
+Plyego is mid-migration to Google Cloud — real operational risk, and the wrong moment to install
+anything into it regardless of what a throwaway clone can and cannot affect. Plutos took its place
+for this round: surveyed read-only first (Python-only, hash-locked dependencies, CI that actually
+runs its test suite, secret scanning already blocking) and exercised the same way `DR-28` exercised
+Plyego — a local clone, installed, checked, nothing written to the real repository.
+
+**Passed cleanly at `essential` on the first attempt** — no defect needed fixing to reach it, unlike
+Plyego's first honest probe, which needed two (`F25`, `F26`). One defect was found regardless:
+`install_standard.py`'s `--no-hooks` path told every adopter to activate and rely on a pre-commit
+hook it never installed, because nothing had ever exercised that branch's own messaging for real —
+surfaceplate's own self-install always keeps the hook. Fixed: the "Next steps" text is now
+conditional, naming `history_audit` and `review` when the hook was declined. A positive control was
+added alongside the negative one, proving both branches of the conditional, not just the one that
+was wrong.
+
+**Plutos is not adopted.** The same principle `DR-28` established still holds: gate and control
+decisions are the maintainer's to make with the per-gate cost in front of him, not an agent's to
+infer from a probe. `DR-34` carries the full cost table, including a genuine open question this
+record does not resolve — Plutos already runs its own 75-activity register, in a different shape
+from this framework's own convention; whether `work_registration` should point at it as-is or treat
+it as a second, parallel system is the maintainer's call when adoption is actually decided.
