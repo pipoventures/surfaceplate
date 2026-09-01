@@ -68,6 +68,14 @@ def _all_choice_values() -> set[str]:
             for name in plan.SECTION_ORDER:
                 section = plan.section_plan(name, repo=ROOT, state=state)
                 for spec in section.fields:
+                    # ONLY closed enums. A `select` field's options are discovered from the
+                    # repository (`DR-38`), so admitting them here would let the allow-list absorb
+                    # arbitrary file paths and CI step names - and an allow-list that grows with
+                    # the adopter's repository is not an allow-list. Select fields are answered
+                    # with sentinels below, exactly like the free-text ones, so they never need to
+                    # appear here. If that stops being true this test has stopped proving anything.
+                    if spec.kind not in ("choice", "multiselect"):
+                        continue
                     for value, _label in spec.choices:
                         values.add(value)
     return values
@@ -98,7 +106,12 @@ def sentinel_answers(repo: Path, *, level: str, builds_ui: bool, mode: str = "si
                 local[spec.id] = bool(spec.default)
             elif spec.kind == "choice":
                 local[spec.id] = spec.choices[0][0]
+            elif spec.kind == "multiselect":
+                local[spec.id] = [spec.choices[0][0]]
             else:
+                # `select` lands here deliberately, alongside text and textarea: its value is
+                # chosen by a human from real candidates, so it must be traceable like any other
+                # answer rather than waved through as a known constant.
                 counter += 1
                 token = f"SENTINEL-{counter:04d}"
                 sentinels.add(token)

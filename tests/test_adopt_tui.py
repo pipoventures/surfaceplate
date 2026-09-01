@@ -297,6 +297,64 @@ def test_a_choice_field_starts_genuinely_empty() -> None:
     asyncio.run(_run())
 
 
+def test_discovered_candidates_are_offered_as_choices() -> None:
+    """`DR-38`: a structural answer is picked from what is really in the repository."""
+
+    async def _run() -> None:
+        from textual.widgets import Select, SelectionList
+
+        from surfaceplate.adopt import discover
+
+        found = discover.scan(ROOT)
+        specs = plan.gate_plan(level="standard", builds_ui=False, mode="simple", found=found)
+        section = plan.gates_plan(level="standard", builds_ui=False, mode="simple", found=found)
+        app = Host(GatesScreen(specs, section))
+        async with app.run_test(size=(110, 50)) as pilot:
+            await pilot.pause()
+            screen = app.screen
+
+            artefact = screen.query_one("#f-work_registration--artefact")
+            check(
+                "the precondition artefact is a dropdown of real files, not a blank box",
+                isinstance(artefact, Select),
+                type(artefact).__name__,
+            )
+            offered = [v for _prompt, v in artefact._options if isinstance(v, str)]
+            check(
+                "and every file it offers actually exists in the repository",
+                offered and all((ROOT / str(v)).exists() for v in offered),
+                str(offered[:3]),
+            )
+            check(
+                "nothing is pre-selected, so a value nobody picked is not an answer",
+                artefact.is_blank(),
+                str(artefact.value),
+            )
+
+            enforcement = screen.query_one("#f-work_registration--enforcement")
+            check(
+                "enforcement is ticked from its fixed enum, not typed as a comma-separated string",
+                isinstance(enforcement, SelectionList),
+                type(enforcement).__name__,
+            )
+            check(
+                "and it starts on the two the old default named",
+                set(enforcement.selected) == {"history_audit", "review"},
+                str(enforcement.selected),
+            )
+
+            paths = screen.query_one("#f-work_registration--paths")
+            check(
+                "a pathspec stays typeable, with real directories offered as completions",
+                paths.suggester is not None,
+                "no suggester attached",
+            )
+            await pilot.press("ctrl+q")
+            await pilot.pause()
+
+    asyncio.run(_run())
+
+
 def main() -> int:
     print("the join: screens render exactly what their plan declares")
     test_every_screen_renders_its_whole_plan()
@@ -307,6 +365,9 @@ def main() -> int:
     print("\ngate catalogue (mockup frame 03)")
     test_gate_catalogue_behaviour()
     test_mandatory_and_masked_gates_are_stated_not_asked()
+
+    print("\ndiscovery (DR-38)")
+    test_discovered_candidates_are_offered_as_choices()
 
     print("\ndefaults and pre-selection")
     test_example_defaults_survive_being_typed_into()

@@ -1904,3 +1904,48 @@ found by simply reading the rendered output — the level list wrapping to colum
 numbering, and the detected-signals line listing four full workflow paths across three rows. Neither
 was in the original six; both were obvious on sight, which is the point `DR-37` closes on: the
 property suite is the regression net, and looking is still the discovery method.
+
+### `adopt` remediation, phase 4: discover first, then offer choices (`ACT-029`, `DR-38`, `F38`)
+
+The maintainer ran the phase-3 build against Plutos and could not finish it: a two-line rationale
+was refused at the review screen, after the whole interview had been answered. His verdict on the
+rest was about the interaction model, not any single defect — *"free text is confusing and really
+prone to errors... the wizard should do a discovery of the repo first to identify what is the
+potential candidate for each question."*
+
+**The blocker was worse than the symptom.** `render._block` refused any newline, and while the TUI
+caught that and showed a message, the second authoritative render in `wizard.run` sits outside any
+handler — the same value could have surfaced as a raw traceback. The restriction was never in the
+format: this repository's own profiles use folded scalars seventeen times. Prose is now written as a
+literal block scalar, with PyYAML handling the awkward parts (`|2-` for a leading space, a quoted
+fallback where a literal could not round-trip), and `cli.py` guards the rest.
+
+**Two of the four interface faults were this project's own code.** *"The terminal is cut if you
+minimise the window"* was not a driver limitation — Textual reflows on `SIGWINCH`; `Vertical` is
+simply not a scrolling container, and every screen used one as its frame. *"Some boxes (x) are not
+clearly visible"* is `ToggleButton` drawing the same glyph in both states and signalling on/off by
+colour alone. Arrow keys now move between fields, and help returns beside the field it explains —
+reversing half of `F37`'s own remedy on evidence, since moving it to the hint line fixed the clutter
+and buried the text.
+
+**Discovery is the substance.** `discover.py` reads the repository, git-tracked only, and offers what
+is really there: files for a precondition artefact, directories for a register, lock files, top-level
+directories as pathspecs, and the real step names out of the workflow YAML — the field the maintainer
+could not answer at all. `DR-38` records why this reconciles rather than reverses
+`example_answers.py`'s refusal to invent plausible paths: the rule underneath that refusal is *never
+offer something that isn't there*, and a file in the adopter's own repository is not an invented one.
+The load-bearing half of `tests/test_discover.py` is the negative half — a gitignored file, an
+untracked file and an ignored directory are never offered.
+
+It also forced a correction to the provenance guarantee. The allow-list is built from every field's
+choices, and a discovered `select` field's choices come from the repository — so the first run
+admitted twenty-two CI step names into it. An allow-list that grows with the adopter's repository is
+not an allow-list; it is narrowed to closed enums, with `select` fields answered by sentinel like any
+other human answer.
+
+**Two of this packet's own assertions turned out to be too weak, and tightening them exposed three
+more defects**: setting `BUTTON_INNER` to a tick — the obvious fix for the invisible checkbox — is
+drawn in *both* states, so an **unchecked** box rendered a tick and looked answered; `Input:focus`
+stripped the underline from the one field being typed in; and `Select` exposes both `BLANK` and
+`NULL` as different objects, so the blank test was silently always false. All three were invisible
+to the loose versions, which is `DR-37`'s point demonstrated against this packet's own code.

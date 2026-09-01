@@ -89,6 +89,13 @@ jobs:
         if: ${{ !cancelled() }}
         run: python tests/test_render.py
 
+      # DR-38: candidates offered to an adopter must be things that really exist in their
+      # repository. The negative half of this suite is the load-bearing half.
+      - name: Check repository discovery only offers what is really there
+        id: discover
+        if: ${{ !cancelled() }}
+        run: python tests/test_discover.py
+
       - name: Verify the release manifest is current
         id: manifest
         if: ${{ !cancelled() }}
@@ -152,6 +159,7 @@ jobs:
             provenance=${{ steps.provenance.outcome }}
             adopt_tui=${{ steps.adopt_tui.outcome }}
             render=${{ steps.render.outcome }}
+            discover=${{ steps.discover.outcome }}
             manifest=${{ steps.manifest.outcome }}
             identifiers=${{ steps.identifiers.outcome }}
             registers=${{ steps.registers.outcome }}

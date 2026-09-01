@@ -102,6 +102,7 @@ an unknown number of releases with nothing noticing.
 | F35 | A refusal named three routes; only one was a route a reader could actually take | medium | Closed — `ACT-025`; scope named, each route made a real step |
 | F36 | A hand-built flow list escaped each item for the wrong YAML context, and lost a real ~20-minute session | high | Closed — `ACT-026`; `render.py` dumps the whole list, not each item alone |
 | F37 | An interface was verified structurally and never looked at, so six rendering defects passed 87 green checks | high | Closed — `ACT-028`; rendering asserted as named properties over the compositor's own lines |
+| F38 | A multi-line answer could not be written, and four interface faults made the wizard error-prone | high | Closed — `ACT-029`; block scalars, and structural answers picked from the repository |
 
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -1004,6 +1005,59 @@ weaker guarantee than a hash-bearing lock, and `pyproject.toml` says so rather t
 otherwise.
 
 ---
+
+## F38 — A multi-line answer could not be written, and four interface faults made the wizard error-prone
+
+**Severity: high. Closed.**
+
+Found by the maintainer, running the phase-3 build against Plutos for the first time and being
+unable to finish. He typed a two-line rationale and the review screen refused it; his verdict on
+the rest was about the interaction model rather than any single defect: *"overall this wizard is
+prone to user errors... I believe the wizard should do a discovery of the repo first to identify
+what is the potential candidate for each question before asking it, and all decisions should be
+select. Free text is confusing and really prone to errors."*
+
+**The blocker was worse than the symptom shown.** `render._block` refused any newline, so pressing
+Enter in a rationale box produced a failure at the *review* screen - after the whole interview had
+been answered. The message he saw came from the TUI's broad `except`; the second, authoritative
+render in `wizard.run` sits outside any handler, and `cli.py` caught only four exception types, so
+the same value could have surfaced as a raw traceback. He was protected only because the review
+screen refused first. **The restriction was never in the format** - this repository's own shipped
+profiles use folded scalars seventeen times - only in a renderer that interpolates values after a
+`key: ` prefix and had nowhere to put a second line.
+
+**Two of the four interface faults were this project's own code, not the framework's:**
+
+| Reported | Cause |
+|---|---|
+| *"the terminal is cut if you minimise the window, it doesn't autoadjust"* | Textual installs a `SIGWINCH` handler and reflows automatically. `Vertical` is simply not a scrolling container, and every screen used one as its frame |
+| *"some boxes (x) are not clearly visible"* | `ToggleButton` draws the same glyph in both states and signals on/off **by colour alone** |
+| *"not obvious how tab and control+S work"* | Only `Tab` was bound; the arrow keys did nothing in a text field |
+| *"the explanations are at the very bottom, took me a while to realise"* | `F37`'s own remedy. Help was moved to the docked hint line to stop it rendering for every field at once; that fixed the clutter and buried the text |
+
+**Closed by discovery, not by more free-text validation.** `discover.py` reads the repository -
+git-tracked only - and offers what is actually there: real files for a precondition artefact, real
+directories for a register, real step names out of the workflow YAML for a CI-step reference, the
+schema's own enum as tick boxes for `enforcement`. `DR-38` records why this reconciles rather than
+reverses `example_answers.py`'s refusal to invent plausible paths: a file that exists in the
+adopter's own repository is a different kind of thing from an invented one, and the rule underneath
+that refusal - never offer something that isn't there - is the one this keeps.
+
+**Three defects were found by tightening this packet's own assertions, and are worth recording
+because they were invisible to the loose versions:**
+
+- Setting `BUTTON_INNER` to a tick - the obvious fix for the invisible checkbox - was wrong in a
+  worse way: the class variable is drawn in **both** states, so an **unchecked** box rendered a
+  tick and looked answered. A whole-screen comparison passed it; narrowing the assertion to the
+  checkbox's own row caught it.
+- `Input:focus { border: none }` stripped the underline from the one field being typed in.
+- `Select` exposes both `BLANK` and `NULL` and they are **different objects**, so
+  `value is Select.BLANK` was silently always false and would have returned the sentinel as though
+  a human had chosen it. `is_blank()` is the supported test.
+
+Swapping the frame to `VerticalScroll` also introduced a regression it took driving the app to see:
+a scrollable container is focusable by default, so it swallowed the arrow keys before any field saw
+them. The frame scrolls and refuses focus.
 
 ## F37 — An interface was verified structurally and never looked at
 

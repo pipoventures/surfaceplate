@@ -100,7 +100,7 @@ def test_every_legend_renders_the_keys_it_names() -> None:
 
     async def _run() -> None:
         cases = [
-            ("identity form", FormScreen(plan.identity_plan()), ["Tab", "Ctrl+S", "Ctrl+Q"]),
+            ("identity form", FormScreen(plan.identity_plan()), ["\u2191\u2193", "Ctrl+S", "Ctrl+Q"]),
             (
                 "conformance level",
                 LevelScreen(plan.level_plan(ROOT, builds_ui=False, mode="simple")),
@@ -112,7 +112,7 @@ def test_every_legend_renders_the_keys_it_names() -> None:
                     plan.gate_plan(level="standard", builds_ui=False, mode="simple"),
                     plan.gates_plan(level="standard", builds_ui=False, mode="simple"),
                 ),
-                ["Tab", "Ctrl+G", "Ctrl+S", "Ctrl+Q"],
+                ["\u2191\u2193", "Ctrl+G", "Ctrl+S", "Ctrl+Q"],
             ),
             (
                 "resume offer",
@@ -269,6 +269,110 @@ def test_level_screen_numbers_its_options_and_marks_the_highlight() -> None:
     asyncio.run(_run())
 
 
+def test_a_toggle_shows_its_state_in_the_text_not_only_the_colour() -> None:
+    """`F38`: *"some boxes (x) are not clearly visible so you don't know you have to click (X)."*
+
+    Textual's `ToggleButton` draws the same three characters whatever the state and signals on/off
+    purely by style - so a ticked box and an unticked one are the SAME SHAPE, and a text render
+    cannot tell them apart either. That is the point: if this assertion can distinguish them, so
+    can a person who is not looking closely at colour.
+    """
+
+    async def _run() -> None:
+        from textual.widgets import Checkbox
+
+        section = plan.controls_plan(level="essential", mode="simple")
+        spec = next(f for f in section.fields if f.kind == "bool")
+        app = Host(FormScreen(section))
+        async with app.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            box = app.screen.query_one(f"#f-{spec.id.replace('.', '--')}", Checkbox)
+            label = spec.label[:24]
+
+            def toggle_row(lines: list[str]) -> str:
+                # The checkbox's OWN row, not the whole screen. Comparing whole screens passed even
+                # with the glyph reverted, because unrelated things (focus, help) also differ - a
+                # weak assertion that would have gone on passing forever.
+                return next((ln for ln in lines if label in ln), "")
+
+            off = toggle_row(rendered(app))
+            box.value = True
+            await pilot.pause()
+            on = toggle_row(rendered(app))
+        check(
+            "a checkbox's on and off states differ in the rendered text",
+            bool(off) and off != on,
+            f"the box renders identically either way - state is carried by colour alone: {off!r}",
+        )
+
+    asyncio.run(_run())
+
+
+def test_a_small_window_scrolls_rather_than_clipping() -> None:
+    """`F38`: *"the terminal is cut if you minimise the window, it doesn't autoadjust."*
+
+    Not a driver limitation - Textual installs a SIGWINCH handler and reflows. `Vertical` simply is
+    not a scrolling container, so content taller than the window had nowhere to go. The frame is a
+    `Frame(VerticalScroll)` now, non-focusable so it does not eat the arrow keys.
+    """
+
+    async def _run() -> None:
+        # The controls section is long enough to overflow any small window, and its `#frame` IS
+        # the scroller (the gate catalogue nests a second one inside, so it would test the wrong
+        # container).
+        section = plan.controls_plan(level="full", mode="simple")
+        app = Host(FormScreen(section))
+        async with app.run_test(size=(70, 14)) as pilot:  # deliberately cramped
+            await pilot.pause()
+            frame = app.screen.query_one("#frame")
+            lines = rendered(app)
+            check(
+                "at a cramped size the frame scrolls rather than clipping",
+                frame.allow_vertical_scroll and frame.virtual_size.height > frame.size.height,
+                f"virtual {frame.virtual_size.height} vs visible {frame.size.height}",
+            )
+            check(
+                "and the frame never takes focus, so the arrows still reach the fields",
+                not frame.can_focus,
+                "a focusable scroll container swallows up/down",
+            )
+            check(
+                "and the hint line is still on screen at that size",
+                any("Ctrl+Q" in line for line in lines),
+                "\n".join(lines[-3:]),
+            )
+
+    asyncio.run(_run())
+
+
+def test_an_empty_field_still_shows_where_to_type() -> None:
+    """`F38`: *"difficult sometimes to follow and know where you must add text."*
+
+    A borderless input containing nothing renders as blank space, and a background tint alone does
+    not survive a monochrome terminal or a screenshot. Every input carries an underline, which is
+    visible without colour - and, being a character, is visible to this assertion too.
+    """
+
+    async def _run() -> None:
+        app = Host(FormScreen(plan.identity_plan()))
+        async with app.run_test(size=(90, 24)) as pilot:
+            await pilot.pause()
+            lines = rendered(app)
+        # Only rules that begin PAST the label column are field slots. Counting every run of box
+        # characters also counted the frame border and the hint rule, so the check passed with the
+        # underlines removed entirely - precisely the sort of assertion `DR-37` exists to catch.
+        rule = "\u2500" * 8
+        slots = [ln for ln in lines if rule in ln and ln.index(rule) > 20]
+        expected = len(plan.identity_plan().fields)
+        check(
+            "an empty field renders a visible slot, not blank space",
+            len(slots) >= expected,
+            f"only {len(slots)} field slots rendered for {expected} fields",
+        )
+
+    asyncio.run(_run())
+
+
 def main() -> int:
     print("legends render the keys they name (F37 #1, #2)")
     test_every_legend_renders_the_keys_it_names()
@@ -287,6 +391,11 @@ def main() -> int:
 
     print("\nthe level screen reads as a choice")
     test_level_screen_numbers_its_options_and_marks_the_highlight()
+
+    print("\nF38: state and size")
+    test_a_toggle_shows_its_state_in_the_text_not_only_the_colour()
+    test_a_small_window_scrolls_rather_than_clipping()
+    test_an_empty_field_still_shows_where_to_type()
 
     print()
     if FAILURES:
