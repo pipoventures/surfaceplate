@@ -41,6 +41,10 @@ validated. The audit gate (item 10) is undischarged.
 
 ---
 
+**What of this is blocked on a person is listed in [`org/HUMAN_ACTIONS.md`](HUMAN_ACTIONS.md)**, with
+why each is reserved to a human and what is already prepared. Items 5, 9 and 10 are all there; none
+of them is blocked on effort.
+
 ## Execution order
 
 **The numbers below are identities, not a sequence.** They are cited as "item 4", "item 7" and so
@@ -85,7 +89,7 @@ they are never renumbered.
 | 6 | Licence and contributor framework — **done** | `LICENSE:189` names the copyright holder, `CONTRIBUTING.md` states the sign-off requirement, and `.github/workflows/dco-check.yml` enforces it. [DR-19](decisions/DR-19.md) decides DCO sign-off and **no** contributor licence agreement, resolving the contradiction between this row's original wording and the constraint the sign-off work was commissioned under. The trade is recorded rather than glossed: relicensing away from Apache-2.0 would need every contributor's agreement, and that cost grows with each one accepted. Untested against a real external contributor — it is preparation, not something proven in use. |
 | 7 | F5 remediation — **done** | Both halves closed. The series collision is resolved by [`org/FINDINGS.md`](FINDINGS.md), which is now the single register. `F5` itself is closed: the live clone instruction was corrected, `git ls-remote` against the declared owner resolves, and every remaining occurrence of the broken spelling is a quotation inside a record that `tests/check_identifiers.py` verifies. `F11` closed alongside it — `tests/check_code_registers.py` compares the declared code space against the codes the checker emits, after the register was found carrying four false statements at once. |
 | 8 | Documentation written for a stranger | Every document in this repository today is written by, and largely for, the one person who wrote the framework. A reader with no prior context is 1.0's actual audience once real adopters exist (item 5); writing for them earlier would be guessing at what they need before anyone real has needed it. |
-| 9 | Cross-provider adversarial review | Not cuttable — see "The cut order" below. |
+| 9 | Cross-provider adversarial review — **first pass run** | Not cuttable — see "The cut order" below. **Ran 2026-09-01 and returned `FAIL`.** The review as delivered is at `audit/REVIEW_2026-09-01_CROSS_PROVIDER.md`; every checkable claim was verified against the code before being accepted or rejected, and `DR-46` records which held. Three did: the wizard set `effective_from` against a rule that names that field as the human's (`F51`), `core/CONFORMANCE_LEVELS.md` asserted both halves of a contradiction (`F52`), and an adopter could not tell a machine-verified control from a declared one by reading their own profile (`F53`) — which in turn exposed `VERIFIED_CONTROLS` omitting a control the checker does verify. One was right about the risk and wrong about the evidence, and the cause was a defect in the packet rather than in the review (`F54`). **It did not narrow `F6`**, and that is the finding to carry forward: the reviewer could not compute a SHA-256 digest and said so, which is honest and correct — the recomputation `F6` names as its closing condition needs a party that can EXECUTE, not only read. **The second pass remains outstanding** and is scheduled after real adopters, because a review before item 5 cannot see what adoption evidence shows. |
 | 10 | Independent audit, as the final gate | The last item, deliberately: `org/decisions/README.md:16-18` already establishes no independent validator exists for this repository today. An audit is what would establish one, and everything above it is what an audit needs to already exist to have something real to examine. |
 
 ---
