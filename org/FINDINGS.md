@@ -97,6 +97,8 @@ an unknown number of releases with nothing noticing.
 | F30 | The history audit resolves a precondition by its current path, so a rename falsifies the whole history | medium | **Open** — cleared by exception `GX-0001`; following renames is unbuilt |
 | F31 | The history audit ran against a depth-1 clone in CI and reported nothing wrong | high | Closed — `fetch-depth: 0`, and a shallow clone is now reported |
 | F32 | The wizard invented rationale text for baseline controls and auto-masked UI gates | high | Closed — `ACT-022`, routed through `Prompt`; found by the review `ACT-021` requested |
+| F33 | An all-digit commit SHA silently fails a gate exception, and the lesson never propagated | medium | Closed — `ACT-024`; template, checker message, and test all fixed |
+| F34 | The release manifest could name a file that exists on no machine but the one that built it | high | Closed — `ACT-024`; `payload_files()` now intersects against `git ls-files` |
 
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -1000,7 +1002,93 @@ otherwise.
 
 ---
 
-## F32 — The wizard invented rationale text for baseline controls and auto-masked UI gates
+## F34 — The release manifest could name a file that exists on no machine but the one that built it
+
+**Severity: high. Closed.**
+
+Found by CI, not by anything run locally, directly after `F33` landed on the same branch:
+`scripts/build_release.py --verify-manifest` passed on the machine that built the release, then
+`MANIFEST_CURRENT=FAIL` in CI on the exact same commit — *"in manifest but not on disk:
+surfaceplate-0.16.0/.claude/scheduled_tasks.lock"*.
+
+`FACT FROM PACKAGE`. `payload_files()` walked `ROOT.rglob("*")`, filtered only by `EXCLUDED_DIRS`,
+`EXCLUDED_FILES`, and `installed_paths()` — never asking git anything. `.claude/scheduled_tasks.lock`
+is a Claude Code harness runtime artefact, present on the machine that built the release because a
+session on it had scheduled a wakeup, and excluded from this repository only by the machine-local
+`.git/info/exclude` — a file that lives outside the repository entirely and travels with no clone,
+no CI checkout, nothing but that one machine. Nothing in `build_release.py` ever consulted it.
+
+**The manifest was, without anyone deciding this, only ever as trustworthy as the working tree of
+whoever last ran the build.** Any local, uncommitted, non-`.gitignore`d file sitting in the tree at
+build time — a scratch note, an editor swap file, a session artefact from whatever tool built the
+release — would enter the payload silently, hashed and named as though it were a real part of the
+standard, on no evidence stronger than "it happened to be present." `.claude/rules/*.md` — genuine,
+git-tracked payload content shipped from the same directory — is why a blanket exclusion of `.claude/`
+was never the right fix; the problem was never that directory, it was that nothing distinguished
+what belonged to the repository from what belonged to the machine.
+
+**Closed by asking git, not by naming one more file.** `payload_files()` now intersects its
+filesystem walk against `git ls-files --cached --others --exclude-standard` — every path git
+considers part of this repository, tracked or not-yet-added, honouring `.gitignore`,
+`.git/info/exclude`, and the global excludes file together, the same set a plain `git status` would
+call clean. Deliberately not restricted to tracked-only: this project's own packet order builds the
+manifest *before* staging and committing, so a brand-new file not yet `git add`ed still has to enter
+the release built from it, or every packet this session has run would have silently dropped its own
+new files from the manifest it just built.
+
+**The general shape, not a one-off.** A build process that trusts "what the filesystem currently
+holds" instead of "what the repository actually is" will re-admit whatever the filesystem happens to
+be holding on whichever machine runs it next — a scratch file, a different tool's cache, anything
+`.gitignore` was never asked to name. This is the same failure mode `F1` recorded for the test suite
+(a pass conditional on an unstated environment fact) and `F31` recorded for the history audit (a
+clone shallow enough to make a real check pass by never looking), in a third artefact: the release
+manifest.
+
+## F33 — An all-digit commit SHA silently fails a gate exception, and the lesson never propagated
+
+**Severity: medium. Closed.**
+
+Found chasing an intermittent test failure during `ACT-024` (the Plutos exercise): roughly one run
+in forty of `tests/test_install_and_check.py`'s history-audit section failed with `SP043`, *"Gate
+exception ... is invalid: commits/0: 3516272 is not of type 'string'"* — a commit SHA the test had
+itself just written, rejected as not being a string.
+
+`FACT FROM PACKAGE`. A commit SHA is hexadecimal, and roughly one seven-character prefix in
+forty-three (`(10/16)^7 ≈ 2.3%`) consists entirely of digits, no `a`–`f`. Written unquoted in YAML —
+`commits: [3516272]` — a value in that shape parses as an integer, not a string, because it also
+satisfies YAML's plain-scalar-integer grammar. `schemas/gate-exception.schema.yaml` correctly types
+`commits[*]` as `string`; the schema was never wrong. The trap is upstream of it, in how a value
+gets *written*.
+
+**This was not a new discovery — it was a lesson that failed to propagate.**
+`governance/exceptions/GX-0001.yaml`'s own comment already documents catching it, verbatim: *"an
+abbreviated SHA that happens to be all digits - 7547482 here - parses as an integer and the schema
+rejects it."* Someone hit this for real, quoted the value, and left a note explaining why — but the
+note lived only in that one record. It reached neither `templates/gate-exception.yaml` (the
+adopter-facing template, which showed the commit list unquoted), nor `tests/test_install_and_check.py`
+(which wrote its own probe SHA unquoted, and so intermittently rediscovered the same trap on
+whichever run happened to draw an all-digit prefix), nor the checker's own error message (a bare
+jsonschema `"is not of type 'string'"`, giving no reader who has not already found `GX-0001`'s
+comment any reason to suspect YAML's numeric grammar rather than their own SHA being wrong).
+
+**Closed three ways, not one, because a single fix would have left the shape to recur elsewhere:**
+
+- The template now shows the commit entry quoted, with the reason stated inline.
+- `check_conformance.py`'s `validated_exception` detects a `commits` entry that failed validation
+  specifically because it parsed as an integer, and appends a targeted remediation sentence — the
+  first time this project has customised a schema-validation message for one specific value shape
+  rather than reporting the generic jsonschema text alone.
+- The test now quotes its own probe SHA, so it tests the mechanism the way an adopter who read the
+  template would actually use it, rather than intermittently testing an unrelated failure mode by
+  accident.
+
+**The shape, named because it recurs across this register in different clothes.** A fix applied
+once, in one artefact, that never reaches the sibling artefacts a reader would actually consult —
+`F26` (a remedy that existed since `DR-22` and the finding that most needed it never mentioned it),
+`DR-28`'s own account of `F25` and `F26` (defects invisible from inside because the fix could not be
+used without causing it). This one is sharper only in how it was found: not by an adopter, and not
+by a reviewer, but by this project's own test suite drawing the unlucky case by chance, on a
+completely unrelated packet.
 
 **Severity: high. Closed.**
 

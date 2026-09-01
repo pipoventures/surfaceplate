@@ -62,8 +62,31 @@ def installed_paths() -> set[str]:
     return set(install_standard.build_payload(ROOT / "surfaceplate"))
 
 
+def _git_tracked_or_addable() -> set[str]:
+    """Every path git considers part of this repository: tracked, or untracked-but-not-ignored
+    (so a file created and not yet `git add`ed still enters a release built before commit, which
+    is this project's own normal packet order - build the manifest, then stage, then commit).
+
+    Found necessary rather than assumed: `payload_files()` used a pure filesystem walk, which
+    swept up `.claude/scheduled_tasks.lock` - a Claude Code harness runtime artefact, excluded
+    from this repository only via the machine-local `.git/info/exclude`, invisible to a walk that
+    never asks git anything. The manifest then named a file that existed on the machine that built
+    it and nowhere else - caught when CI, checking out the exact same commit, could not find it.
+    `--exclude-standard` honours `.gitignore` *and* `.git/info/exclude` *and* the global excludes
+    file, which is the same set a plain `git status` would call clean.
+    """
+    result = subprocess.run(
+        ["git", "-C", str(ROOT), "ls-files", "--cached", "--others", "--exclude-standard"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return {line for line in result.stdout.splitlines() if line}
+
+
 def payload_files() -> list[Path]:
     installed = installed_paths()
+    tracked_or_addable = _git_tracked_or_addable()
     files = []
     for path in ROOT.rglob("*"):
         if not path.is_file():
@@ -74,6 +97,8 @@ def payload_files() -> list[Path]:
         if rel.name in EXCLUDED_FILES:
             continue
         if rel.as_posix() in installed:
+            continue
+        if rel.as_posix() not in tracked_or_addable:
             continue
         files.append(path)
     return sorted(files, key=lambda p: p.relative_to(ROOT).as_posix())

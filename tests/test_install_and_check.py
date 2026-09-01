@@ -346,6 +346,14 @@ def main() -> int:
         )
         check("checker vendored", (repo / ".standards/check_conformance.py").is_file())
         check("profile created", (repo / "governance/application-profile.yaml").is_file())
+        # The positive control for the --no-hooks next-steps fix below (ACT-024): the default,
+        # hooks-enabled path must still describe the hook it actually installed.
+        check(
+            "default next-steps still names the hook it installed",
+            "git update-index --chmod" in result.stdout
+            and "pre-commit hook checks staged" in result.stdout,
+            result.stdout[-600:],
+        )
         check(
             "conformance block inserted",
             "BEGIN SURFACEPLATE"
@@ -1984,6 +1992,17 @@ def main() -> int:
             record.get("hooks") == "declined",
             str(sorted(record))[:300],
         )
+        # Found exercising --no-hooks against a real repository for the first time (ACT-024):
+        # the "Next steps" block told every install to activate and rely on a hook, even when
+        # none was written - unreachable from surfaceplate's own self-check, which never
+        # installs with --no-hooks on itself.
+        check(
+            "--no-hooks next-steps names history_audit and review, not a hook to activate",
+            "history_audit and review" in allowed.stdout
+            and "git update-index --chmod" not in allowed.stdout
+            and "pre-commit hook checks staged" not in allowed.stdout,
+            allowed.stdout[-600:],
+        )
 
         # The essential example claims no local_hook, which is what a repository relying on
         # history_audit and review looks like. Used as-is.
@@ -2129,9 +2148,16 @@ def main() -> int:
             ).stdout.strip()
             exceptions_dir = history / "governance" / "exceptions"
             exceptions_dir.mkdir(parents=True, exist_ok=True)
+            # Quoted (F33): an abbreviated SHA that happens to be all digits - no a-f - parses
+            # as a YAML integer unquoted, and schema validation correctly rejects it as not a
+            # string. Unquoted here, this test intermittently (~1 run in 40) drew exactly such
+            # a SHA and failed for a reason that had nothing to do with what it was testing -
+            # the same trap governance/exceptions/GX-0001.yaml's own comment already documented,
+            # which never reached this file. Quoting tests the mechanism as the template now
+            # teaches it, rather than occasionally testing an unrelated failure mode by chance.
             (exceptions_dir / "GX-0001.yaml").write_text(
                 "gate_id: work_registration\n"
-                f"commits: [{offender[:7]}]\n"
+                f'commits: ["{offender[:7]}"]\n'
                 "owner: Named Owner\n"
                 "rationale: >-\n"
                 "  Emergency production fix made before the register entry was raised.\n"
@@ -2145,6 +2171,34 @@ def main() -> int:
                 result.returncode == 0,
                 result.stdout[-400:],
             )
+
+            # F33, deterministic: an exception naming an unquoted, all-digit commit is invalid
+            # for a reason a bare jsonschema message does not explain. Independent of git's own
+            # SHA randomness, unlike the probe above - this writes the failure mode directly.
+            digit_repo = git_repo("digit-only-sha")
+            if digit_repo is not None:
+                install(digit_repo)
+                (digit_repo / "governance" / "exceptions").mkdir(parents=True, exist_ok=True)
+                (digit_repo / "governance" / "exceptions" / "GX-DIGIT.yaml").write_text(
+                    "gate_id: work_registration\n"
+                    "commits: [1234567]\n"
+                    "owner: Named Owner\n"
+                    "rationale: >-\n"
+                    "  Deliberately unquoted to exercise the digit-only-SHA hint (F33).\n",
+                    encoding="utf-8",
+                )
+                commit(digit_repo, "add an unquoted digit-only exception")
+                result = verify(digit_repo)
+                check(
+                    "an unquoted all-digit commit is caught by SP043",
+                    "SP043" in result.stdout and "not of type" in result.stdout,
+                    result.stdout[-500:],
+                )
+                check(
+                    "and the fix explains why, not just that it failed",
+                    "parses as a YAML number unless quoted" in result.stdout,
+                    result.stdout[-500:],
+                )
 
             # Moving effective_from forward would erase the violation silently. It is the
             # one way this control could be gamed from inside, so it is never graced.

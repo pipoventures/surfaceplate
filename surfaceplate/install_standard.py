@@ -615,9 +615,20 @@ def install(
     print(f"  1. Complete {PROFILE_PATH}. Worked examples: {VENDOR_DIR}/examples/")
     print(f"  2. Run: python {VENDOR_DIR}/check_conformance.py")
     print("  3. Stage the installer output.")
-    print(f"  4. Run: git update-index --chmod=+x {HOOK_TARGET}")
-    print("  5. Commit the result. The installed pre-commit hook checks staged changes.")
-    print("  6. Open a pull request.")
+    if no_hooks:
+        # Found exercising this path for the first time against a real repository (ACT-024):
+        # every step below was printed unconditionally, telling a --no-hooks install to activate
+        # and rely on a hook that was never written. Surfaceplate's own self-install always keeps
+        # the hook, so nothing had ever run this branch for real before this. The declined route
+        # is real conformance (DR-29's "hooks: declined" record, checked via SP038) - its own
+        # instructions should say so, not describe the other route.
+        print("  4. Commit the result. No local hook was installed - history_audit and review")
+        print("     are what enforces this. Nothing checks staged changes before they commit.")
+        print("  5. Open a pull request.")
+    else:
+        print(f"  4. Run: git update-index --chmod=+x {HOOK_TARGET}")
+        print("  5. Commit the result. The installed pre-commit hook checks staged changes.")
+        print("  6. Open a pull request.")
     if dry_run:
         print("\nDry run: nothing was written.")
     return 0
