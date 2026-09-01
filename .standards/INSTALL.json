@@ -63,7 +63,7 @@
     ".standards/templates/work-packet.md": "121f5270ee57740adee42ec82abd4b6b7b714093faf299efbb3ae6d78654be60"
   },
   "first_installed_at": "2026-08-31",
-  "framework_digest": "17ecff8a4d297a3babed86b9aaa7f383a24e8a3cd5336ebfbc3614dcf7db0419",
+  "framework_digest": "7cd215500d89960e09c9db4eef4621c34a545affaf85c5144a26ad26968f4b3b",
   "grace_expires": "2026-09-30",
   "installed_at": "2026-09-01",
   "profile_path": "governance/application-profile.yaml",
