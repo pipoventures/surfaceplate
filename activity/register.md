@@ -56,6 +56,7 @@ on an agent's authority.
 | `ACT-020` | `RELEASE_PLAN` item 2: the CLI and the wizard, and resolving the "wizard" naming collision | maintainer | maintainer | `waiting_for_review` | `ACT-019` | hard | yes — it decides how every future adopter fills in `governance/application-profile.yaml`, and retires the discovery/authoring phases of an existing prompt in favour of it | high — the binding rule ("it asks, the human answers, the tool writes") constrains the whole design, and the terminal-vs-form choice was tested with a clickable comparison artifact and agreed with the maintainer before this packet's plan was written, not assumed | A scripted end-to-end run of `surfaceplate adopt` produces a profile that validates against the schema and matches the answers exactly, for a `full`-level walk of all 19 gates | The negative controls: an interrupt mid-flow leaves the repository untouched; a level-mandatory gate cannot be declined; nothing in the assembled profile traces to anything other than a typed answer; the renamed prompt no longer claims the word "wizard" anywhere in its own text |
 | `ACT-021` | `RELEASE_PLAN` item 9: the Gemini cross-provider adversarial review packet | maintainer | maintainer | `waiting_for_review` | `ACT-020` | hard | yes — it is the request sent to a party outside this repository, and this packet's own text is what stops that party's findings from being mistaken for an independent audit (item 10) or a claim that `F6` is closed | medium — the mechanism follows the existing `AUDIT_README.md` handoff shape and the `CHATGPT_ENTERPRISE_AUDIT_PROMPT.md` structural pattern exactly; the judgement is what changed since that prompt was written (the gate catalogue, pip packaging, the CLI/wizard) and what to deliberately drop (re-testing a *different* provider's *prior* named findings against a differently-named predecessor product) | `audit/GEMINI_ADVERSARIAL_REVIEW_PROMPT.md` exists, is committed, and a freshly built `dist/surfaceplate-<version>.zip` plus that prompt are both readable at the confirmed Desktop hand-off path | The negative control: the new prompt is read back and confirmed to claim nowhere in its own text that approval, independent validation, or `F6` closure has occurred; the zip's own contents are listed directly and confirmed to carry no `.git`, no `.standards/`, no secrets |
 | `ACT-022` | Gemini's first finding: `adopt` invents rationale text for baseline controls and auto-masked UI gates | maintainer | maintainer | `waiting_for_review` | `ACT-021` | hard | yes — it is the framework's own binding rule for its own wizard, found violated by the review the framework requested of itself | medium — the mechanism is routing existing hardcoded strings through `Prompt.text` calls already used elsewhere in the same file; the judgement was which of Gemini's five findings were real (verified against the code directly, not accepted on the report's authority alone) | Every rationale written to a profile by `agent_work_packets`, `actual_diff_review`, `secret_hygiene`, and the four UI gates traces to a `Prompt` call a human actually answered, with the existing scripted-answer test suite updated to prove it | The negative control: a scripted run with the old hardcoded strings removed from the source fails loudly if any code path still writes a rationale `ScriptedPrompt` was never asked for |
+| `ACT-023` | Decide Gemini's material finding: should the schema enforce per-level control presence? | maintainer | maintainer | `waiting_for_review` | `ACT-021` | review | yes — it decides whether `application-profile.schema.yaml`, a published contract, gains conditional logic duplicating `check_conformance.py`'s own `CONFORMANCE_LEVELS` data | medium — the checker already runs schema validation as its own first step, so no separate schema-only bypass exists in this project's real pipeline; the judgement is whether the residual defense-in-depth value is worth a second, hand-maintained copy of the same rule | A decision record either way, reasoned rather than asserted, so a future reviewer raising the same idea finds the answer already worked through | The two things checked before recommending against it: that `check_conformance.py` validates against the schema before its own semantic checks (so nothing bypasses the schema alone), and that `CONFORMANCE_LEVELS` has no generator feeding the schema, meaning any schema-side copy would need hand-kept sync |
 ## Notes on the entries
 
 `ACT-002` and `ACT-003` are both raised by `DR-16` and are deliberately **not** resolved by
@@ -177,7 +178,7 @@ maintainer before this packet's plan was written, and the maintainer's own first
 "how does someone answer in a prompt back" — is why that artifact exists rather than a written
 argument alone.
 
-`ACT-005` to `ACT-022` were registered **before** implementation begins, not alongside it. `work_registration` is
+`ACT-005` to `ACT-023` were registered **before** implementation begins, not alongside it. `work_registration` is
 live over `scripts/**` and `schemas/**`, which is exactly what item 4 changes, and a gate satisfied
 retrospectively is the failure mode `core/PREREQUISITE_GATES.md` warns is most common — satisfied on
 paper, violated in spirit.
@@ -199,6 +200,14 @@ before accepting it: two of Gemini's other findings did not survive that check (
 recommending gate auto-masking is wrong about the code, which already auto-masks). `ACT-020` is not
 reopened — this is a new activity against merged work, the same way a bug found after merge always
 is.
+
+`ACT-023` is the review's third finding, decided rather than left open. It touches nothing in code:
+`org/decisions/DR-33.md` records why the proposed schema conditionals would not have closed the gap
+described — the checker already runs schema validation as part of itself, so no bypass path exists
+for a schema-only gate to close — and why the cost side (a second, hand-maintained copy of
+`CONFORMANCE_LEVELS`) is the same shape `F23` and `DR-6`/`DR-9` already closed elsewhere in this
+project. Recorded so the same idea, raised again by a future reviewer, finds the reasoning already
+done rather than starting from nothing.
 
 `ACT-002` and `ACT-003` are both answered by `DR-20`. They, and `ACT-006`, moved to `done` on
 2026-08-31 when the maintainer merged [PR #9](https://github.com/pipoventures/surfaceplate/pull/9)
