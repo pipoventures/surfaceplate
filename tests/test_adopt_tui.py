@@ -440,6 +440,83 @@ def test_the_app_itself_gives_every_screen_the_repository_scan() -> None:
     asyncio.run(_run())
 
 
+def test_the_app_hands_the_level_recommendation_to_the_screen() -> None:
+    """`ACT-032`, guarded the way `F39` taught. The plan can compute a recommendation and the app
+    can still fail to pass it, in which case the note advises one level while the caret sits on
+    another - so this drives the REAL `AdoptApp` rather than constructing `LevelScreen` here.
+
+    The second assertion is the one that keeps this honest: moving the caret must not choose. A
+    recommendation that quietly became the answer would breach `core/CONFORMANCE_LEVELS.md`.
+    """
+
+    async def _run() -> None:
+        import subprocess
+        import tempfile
+
+        from surfaceplate.adopt.tui.app import AdoptApp
+        from surfaceplate.adopt.tui.screens import LevelScreen
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "repo"
+            repo.mkdir(parents=True)
+            (repo / "main.py").write_text("x = 1\n", encoding="utf-8")
+            for args in (
+                ["init", "-q"], ["config", "user.email", "h@e.i"],
+                ["config", "user.name", "H"], ["config", "commit.gpgsign", "false"],
+            ):
+                subprocess.run(["git", "-C", str(repo), *args], check=True)
+            subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+            subprocess.run(["git", "-C", str(repo), "commit", "-qm", "seed"], check=True)
+
+            # Answered up to and including `risk`, so the app builds the level screen for real.
+            # These two answers mean `full` in the framework's own words.
+            resumed = {
+                "mode": {"mode": "simple"},
+                "identity": {"application_id": "x", "display_name": "X", "owner": "O"},
+                "stack": {"language": "Python", "builds_user_interface": False},
+                "risk": {
+                    "risk_profile": "r",
+                    "materiality_definition": "m",
+                    "relied_on_outside_team": True,
+                    "material_quantitative_output": True,
+                    "data_classification": "internal",
+                },
+            }
+            app = AdoptApp(
+                repo=repo, resumed=resumed,
+                on_section_complete=lambda *_: None,
+                preview=lambda _state: "",
+            )
+            async with app.run_test(size=(120, 60)) as pilot:
+                await pilot.pause()
+                for _ in range(6):
+                    if isinstance(app.screen, LevelScreen):
+                        break
+                    await pilot.pause()
+                screen = app.screen
+                is_level = isinstance(screen, LevelScreen)
+                options = screen.query_one("#f-conformance_level") if is_level else None
+                check(
+                    "the app reaches the conformance-level screen",
+                    is_level,
+                    type(screen).__name__,
+                )
+                check(
+                    "and its caret starts on the level the adopter's answers point at",
+                    is_level and options.highlighted == 2,  # full
+                    f"caret at {getattr(options, 'highlighted', None)}, expected 2 (full)",
+                )
+                check(
+                    "while nothing is chosen, so the recommendation is not the answer",
+                    is_level and not screen.section.fields[0].default,
+                    "the level field carries a default, which pre-selects on the human's behalf",
+                )
+                app.exit(None)
+                await pilot.pause()
+
+    asyncio.run(_run())
+
+
 def main() -> int:
     print("the join: screens render exactly what their plan declares")
     test_every_screen_renders_its_whole_plan()
@@ -454,6 +531,7 @@ def main() -> int:
     print("\ndiscovery (DR-38)")
     test_discovered_candidates_are_offered_as_choices()
     test_the_app_itself_gives_every_screen_the_repository_scan()
+    test_the_app_hands_the_level_recommendation_to_the_screen()
 
     print("\ndefaults and pre-selection")
     test_example_defaults_survive_being_typed_into()

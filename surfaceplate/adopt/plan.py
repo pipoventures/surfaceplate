@@ -280,6 +280,35 @@ def risk_plan() -> SectionPlan:
                 kind="textarea",
                 help="which outputs or decisions are material - what would make a wrong one matter",
             ),
+            # `ACT-032`. Two plain questions about the adopter's world, asked BEFORE the level, so
+            # the level becomes answerable by someone who has not yet learned what a "conformance
+            # level" is. They are not new criteria: `catalogue.LEVEL_BLURBS` already defines each
+            # level exactly this way - *"anything whose output nobody outside the team relies on"*,
+            # *"anything a colleague or a customer depends on"*, *"material quantitative or AI
+            # output that other systems consume as fact"*. This asks the framework's own
+            # definitions instead of asking the adopter to map themselves onto its vocabulary.
+            FieldSpec(
+                id="relied_on_outside_team",
+                label="Does anyone outside your team rely on what this produces?",
+                kind="bool",
+                help=(
+                    "A colleague in another team, a customer, or another system reading your "
+                    "output. If it is a proof of concept or internal tooling nobody else depends "
+                    "on, the answer is no."
+                ),
+                validate="",
+            ),
+            FieldSpec(
+                id="material_quantitative_output",
+                label="Does it produce numbers or AI output that others treat as fact?",
+                kind="bool",
+                help=(
+                    "Figures, model outputs or AI-generated results that another system or another "
+                    "team consumes without re-deriving them. Not: logs, dashboards of your own "
+                    "activity, or output a human always checks before it is used."
+                ),
+                validate="",
+            ),
             FieldSpec(
                 id="data_classification",
                 label="Data classification",
@@ -357,9 +386,50 @@ def level_controls(level: str) -> tuple[str, ...]:
     return tuple(sorted(catalogue.CONFORMANCE_LEVELS[level]))
 
 
-def level_plan(repo: Path, *, builds_ui: bool, mode: str, recap: tuple[str, ...] = ()) -> SectionPlan:
+def recommended_level(risk: dict) -> tuple[str, str]:
+    """The level the adopter's own answers point at, and the sentence explaining why.
+
+    **This is a recommendation and never an answer.** `core/CONFORMANCE_LEVELS.md:214-216` is
+    explicit: *"The level is a human decision recorded in the adoption decision record. It is not
+    derived automatically from the stack, the repository size, or the data classification, because
+    materiality depends on intended use and reliance, which only the application owner can judge."*
+    So this is shown beside the choice with its reasoning, the choice is still made, and nothing is
+    pre-selected on the adopter's behalf.
+
+    The mapping is not a heuristic of ours - it is `catalogue.LEVEL_BLURBS` read back as questions.
+    """
+    outside = bool(risk.get("relied_on_outside_team"))
+    material = bool(risk.get("material_quantitative_output"))
+    if material:
+        return "full", (
+            "you said this produces numbers or AI output that others treat as fact, which is what "
+            "full exists for"
+        )
+    if outside:
+        return "standard", "you said someone outside your team relies on what this produces"
+    return "essential", (
+        "you said nobody outside your team relies on this output, and that it produces nothing "
+        "others treat as fact"
+    )
+
+
+def level_plan(
+    repo: Path,
+    *,
+    builds_ui: bool,
+    mode: str,
+    recap: tuple[str, ...] = (),
+    risk: dict | None = None,
+) -> SectionPlan:
     present, absent = detected_signals(repo)
     notes = []
+    if risk:
+        level, because = recommended_level(risk)
+        notes.append(
+            f"From your answers, {level} looks right - {because}. "
+            "It is a recommendation, not a decision: this one is yours to make, because how much "
+            "your output is relied on is something only you can judge."
+        )
     if present:
         notes.append(f"You appear to have: {'; '.join(present)}.")
     if absent:
@@ -912,7 +982,13 @@ def section_plan(
     if name == "risk":
         return risk_plan()
     if name == "level":
-        return level_plan(repo, builds_ui=builds_ui, mode=mode, recap=recap_lines(state))
+        return level_plan(
+            repo,
+            builds_ui=builds_ui,
+            mode=mode,
+            recap=recap_lines(state),
+            risk=state.get("risk") or {},
+        )
     if name == "route":
         return route_plan(state)
     if name == "controls":

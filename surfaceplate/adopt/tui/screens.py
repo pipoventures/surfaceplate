@@ -535,10 +535,20 @@ class LevelScreen(_SectionScreenBase):
         Binding("question_mark", "why", "why does this matter", show=True),
     ]
 
-    def __init__(self, section: plan.SectionPlan, *, step: str = "") -> None:
+    def __init__(
+        self, section: plan.SectionPlan, *, step: str = "", recommended: str | None = None
+    ) -> None:
         super().__init__(section, step=step)
         self.spec = section.fields[0]
         self._why_shown = False
+        # `ACT-032`: start the CARET on the recommended level. The screen's note says which level
+        # the adopter's own answers point at, and leaving the cursor on the first row made the
+        # screen point somewhere else while saying so. This moves where the cursor sits, not what
+        # is chosen: `nothing is chosen yet` still shows, `Enter` is still required, and
+        # `tests/test_adopt_tui.py` holds that distinction.
+        self._start = next(
+            (i for i, (value, _) in enumerate(self.spec.choices) if value == recommended), 0
+        )
 
     def compose(self) -> ComposeResult:
         with Frame(id="frame"):
@@ -550,8 +560,9 @@ class LevelScreen(_SectionScreenBase):
             yield Static("─" * 60, classes="rule")
             for note in self.section.notes:
                 yield Static(f"  {note}", classes="note")
-            widget = OptionList(*self._options(), id=f"f-{self.spec.id}")
+            widget = OptionList(*self._options(self._start), id=f"f-{self.spec.id}")
             widget.add_class("field-widget")
+            widget.highlighted = self._start
             yield widget
             yield Static("", classes="level-meta", id="level-meta", markup=False)
             yield Static("", classes="intro", id="why")

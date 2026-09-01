@@ -100,6 +100,11 @@ ESSENTIAL_ANSWERS: dict[str, object] = {
     "risk.materiality_definition": (
         "A reconciliation result reaching the finance team's own review queue is material."
     ),
+    # `ACT-032`: the two world-facing questions the level recommendation reads. This fixture is
+    # `essential`, and answers both "no" - which is what `essential` means in the framework's own
+    # words: nobody outside the team relies on the output.
+    "risk.relied_on_outside_team": False,
+    "risk.material_quantitative_output": False,
     "risk.data_classification": "internal",
     "level.conformance_level": "essential",
     "route.route": "customise",  # these fixtures exercise the full flow, not the defaults path
@@ -474,6 +479,53 @@ def test_multiline_prose_survives_the_whole_flow(tmp: Path) -> None:
         "and it is written as a readable block scalar, not an escaped one-liner",
         "|-" in raw or "|2-" in raw,
         raw[:200],
+    )
+
+
+def test_the_level_is_recommended_and_never_chosen() -> None:
+    """`ACT-032`. Two plain questions make the level answerable; they must not answer it.
+
+    `core/CONFORMANCE_LEVELS.md:214-216` forbids deriving the level automatically, so the two
+    properties here are equally load-bearing: the recommendation must agree with the framework's own
+    definition of each level, AND the level field must still be a choice with nothing pre-selected.
+    A recommendation that quietly became the default would breach that document while looking like
+    a convenience.
+    """
+    cases = [
+        ({"relied_on_outside_team": False, "material_quantitative_output": False}, "essential"),
+        ({"relied_on_outside_team": True, "material_quantitative_output": False}, "standard"),
+        ({"relied_on_outside_team": True, "material_quantitative_output": True}, "full"),
+        # Material output nobody outside the team reads is still `full`: materiality is about what
+        # the numbers are treated as, not about the size of the audience.
+        ({"relied_on_outside_team": False, "material_quantitative_output": True}, "full"),
+    ]
+    wrong = [
+        (answers, expected, plan.recommended_level(answers)[0])
+        for answers, expected in cases
+        if plan.recommended_level(answers)[0] != expected
+    ]
+    check(
+        "the recommendation matches the framework's own definition of each level",
+        not wrong,
+        str(wrong),
+    )
+
+    section = plan.level_plan(
+        ROOT,
+        builds_ui=False,
+        mode="simple",
+        risk={"relied_on_outside_team": True, "material_quantitative_output": True},
+    )
+    spec = next(f for f in section.fields if f.id == "conformance_level")
+    check(
+        "the recommendation and its reasoning are shown to the adopter",
+        any("full" in note and "recommendation" in note for note in section.notes),
+        str(section.notes),
+    )
+    check(
+        "but the level field pre-selects nothing, so the tool never makes the choice",
+        spec.kind == "choice" and not spec.default,
+        f"kind={spec.kind} default={spec.default!r}",
     )
 
 
@@ -949,6 +1001,7 @@ def main() -> int:
         test_multiline_prose_survives_the_whole_flow(tmp)
 
         print("\nDR-40: the defaults route proposes, and says where each value came from")
+        test_the_level_is_recommended_and_never_chosen()
         test_derived_gate_fields_are_correct_and_still_overridable()
         test_the_opt_in_removed_questions_not_answers()
         test_defaults_propose_but_never_decide(tmp)
