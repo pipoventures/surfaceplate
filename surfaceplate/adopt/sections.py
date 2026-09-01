@@ -70,8 +70,13 @@ def build_controls(answers: dict, *, level: str) -> dict:
 
     A control at the level's floor is written because the level requires it - it is never offered
     as a tick box, exactly as a level-mandatory gate's status is never offered as a choice. Above
-    the floor it is written only when a human answered `declared`. Either way its *rationale* is
-    always answered, never supplied here.
+    the floor it is written only when a human ticked it in `above_floor`. Either way its *rationale*
+    is always answered, never supplied here.
+
+    `ACT-032` replaced eight separate `<control>.declared` booleans with that one list. The older
+    per-control key is still honoured, because a saved draft or a script written against the
+    previous shape supplies it and silently dropping a declared control would lose an answer a human
+    gave.
     """
     baseline_controls: dict = {}
     for control_id in plan.BASELINE_CONTROL_IDS:
@@ -89,7 +94,14 @@ def build_controls(answers: dict, *, level: str) -> dict:
     floor = catalogue.CONFORMANCE_LEVELS[level]
     control_decisions: dict = {}
     for control_id in sorted(catalogue.CONFORMANCE_LEVELS["full"]):
-        declared = control_id in floor or bool(answers.get(f"{control_id}.declared"))
+        ticked = answers.get("above_floor") or ()
+        if isinstance(ticked, str):
+            ticked = [c.strip() for c in ticked.split(",") if c.strip()]
+        declared = (
+            control_id in floor
+            or control_id in ticked
+            or bool(answers.get(f"{control_id}.declared"))
+        )
         if not declared:
             continue
         entry: dict = {

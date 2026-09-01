@@ -38,7 +38,7 @@ PAYLOAD = ROOT / "surfaceplate"  # the package itself - see surfaceplate/__init_
 # `import surfaceplate` resolves to the real package rather than some other installed copy.
 sys.path.insert(0, str(ROOT))
 
-from surfaceplate.adopt import catalogue, plan, wizard  # noqa: E402
+from surfaceplate.adopt import catalogue, plan, sections, wizard  # noqa: E402
 from surfaceplate.adopt.interview import Cancelled, ScriptedInterview  # noqa: E402
 
 FAILURES: list[str] = []
@@ -109,14 +109,10 @@ ESSENTIAL_ANSWERS: dict[str, object] = {
     "controls.scanner.wired_in": "workflows/secret-scan.yml",
     "controls.dependency_lock.rationale": "Supply-chain exposure exists regardless of output materiality.",
     "controls.dependency_lock.implementation_reference": "requirements.txt",
-    "controls.assurance_findings.declared": False,
-    "controls.contract_tests.declared": False,
-    "controls.deterministic_tests.declared": False,
-    "controls.documentation_authority.declared": False,
-    "controls.method_registry.declared": False,
-    "controls.overrides.declared": False,
-    "controls.provenance.declared": False,
-    "controls.run_lineage.declared": False,
+    # `ACT-032`: one opt-in, ticked empty. This replaced eight separate `<control>.declared`
+    # booleans - eight questions asking the adopter to re-decline what choosing the level had
+    # already declined.
+    "controls.above_floor": [],
     "gates.work_registration.artefact": "docs/DEVELOPMENT_REGISTER.md",
     "gates.work_registration.precondition_description": (
         "An identified, registered activity before implementation begins."
@@ -199,6 +195,11 @@ def answers_for(repo: Path, *, level: str, builds_ui: bool, mode: str, overrides
                 # Above-the-floor controls default to not declared; the level's own floor is not a
                 # field at all, so nothing here can accidentally decline a required control.
                 value = True if spec.id.endswith(".declared") and level == "full" else bool(spec.default)
+            elif spec.id == "above_floor":
+                # `ACT-032`. Sweep every above-floor control ON, so this fixture exercises the
+                # branch where ticking one really does ask for its rationale and reference - a
+                # sweep that always answered "nothing declared" would never reach that code.
+                value = [c for c, _ in spec.choices]
             elif spec.kind == "choice":
                 value = spec.choices[0][0]
             elif spec.default:
@@ -475,6 +476,55 @@ def test_multiline_prose_survives_the_whole_flow(tmp: Path) -> None:
         "and it is written as a readable block scalar, not an escaped one-liner",
         "|-" in raw or "|2-" in raw,
         raw[:200],
+    )
+
+
+def test_the_opt_in_removed_questions_not_answers() -> None:
+    """`ACT-032`. The load-bearing property of collapsing eight tick boxes into one list.
+
+    A reduction is only honest if the profile is unchanged for an adopter who answers the same way.
+    So: build the controls fragment from the OLD per-control shape and from the NEW list, with
+    nothing declared either way, and require them to be identical. If they ever diverge, the packet
+    removed an answer rather than a question, and the profile quietly says something different from
+    what it said before.
+
+    The second half is the one that could rot silently: ticking a control in the list must declare
+    it exactly as setting its boolean did.
+    """
+    base = {
+        f"{c}.rationale": f"rationale for {c}"
+        for c in catalogue.CONFORMANCE_LEVELS["full"] | set(plan.BASELINE_CONTROL_IDS)
+    }
+    base |= {
+        f"{c}.implementation_reference": f"ref/{c}" for c in sorted(catalogue.CONFORMANCE_LEVELS["full"])
+    }
+    base |= {"scanner.name": "gitleaks", "scanner.wired_in": "workflows/scan.yml"}
+
+    old_shape = base | {
+        f"{c}.declared": False
+        for c in sorted(catalogue.CONFORMANCE_LEVELS["full"])
+        if c not in catalogue.CONFORMANCE_LEVELS["essential"]
+    }
+    new_shape = base | {"above_floor": []}
+
+    check(
+        "declaring nothing above the floor writes an identical profile either way",
+        sections.build_controls(old_shape, level="essential")
+        == sections.build_controls(new_shape, level="essential"),
+        "the opt-in changed the written profile, so it removed an answer, not a question",
+    )
+
+    ticked = sections.build_controls(base | {"above_floor": ["provenance"]}, level="essential")
+    by_boolean = sections.build_controls(base | {"provenance.declared": True}, level="essential")
+    check(
+        "ticking a control in the list declares it exactly as its boolean did",
+        ticked == by_boolean and "provenance" in ticked["control_decisions"],
+        str(sorted(ticked["control_decisions"])),
+    )
+    check(
+        "and an unticked control is still absent",
+        "run_lineage" not in ticked["control_decisions"],
+        str(sorted(ticked["control_decisions"])),
     )
 
 
@@ -843,6 +893,7 @@ def main() -> int:
         test_multiline_prose_survives_the_whole_flow(tmp)
 
         print("\nDR-40: the defaults route proposes, and says where each value came from")
+        test_the_opt_in_removed_questions_not_answers()
         test_defaults_propose_but_never_decide(tmp)
 
         print("\nfull-level, UI-building end to end")

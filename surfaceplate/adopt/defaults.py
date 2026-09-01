@@ -57,9 +57,16 @@ def propose_controls(*, level: str, mode: str, found: discover.Discovered) -> li
 
     for spec in section.fields:
         key = f"controls.{spec.id}"
-        if spec.id.endswith(".declared"):
-            # Above the floor: proposed as NOT declared. A level is a floor, and quietly opting an
-            # adopter into controls they did not ask for would be the tool choosing their scope.
+        if spec.id == "above_floor":
+            # Nothing above the floor. A level is a floor, and quietly opting an adopter into
+            # controls they did not ask for would be the tool choosing their scope. `ACT-032` made
+            # this ONE proposal where it used to be one per control - the wizard was computing this
+            # same answer eight times over while also asking the adopter for it eight times.
+            out.append(
+                Proposal(key, [], "computed", "nothing beyond this level's floor is declared")
+            )
+            continue
+        if spec.id.endswith(".declared"):  # pre-`ACT-032` shape, still honoured
             out.append(Proposal(key, False, "computed", "above this level's floor, so not declared"))
             continue
 

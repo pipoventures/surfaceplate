@@ -72,7 +72,13 @@ class FieldSpec:
         if self.depends_on is None:
             return True
         other_id, wanted = self.depends_on
-        return answers.get(other_id) in wanted
+        value = answers.get(other_id)
+        # A `multiselect` answers with a list, so "depends on that field" means "is among what was
+        # ticked". This is the same rule generalised, not a second one: for every scalar answer the
+        # behaviour is unchanged, and a screen still has one question to ask of a field.
+        if isinstance(value, (list, tuple, set)):
+            return any(item in value for item in wanted)
+        return value in wanted
 
 
 @dataclass(frozen=True)
@@ -381,6 +387,18 @@ def level_plan(repo: Path, *, builds_ui: bool, mode: str, recap: tuple[str, ...]
 # ---------------------------------------------------------------------------------------------
 
 
+def _first_line(text: str, limit: int = 72) -> str:
+    """One line of an explanation, for a tick-box label that has to fit on a row.
+
+    The full explanation stays available as the field's help; this is the label beside the box, and
+    a label that wraps to four lines makes a list of nine unreadable.
+    """
+    line = text.strip().split("\n", 1)[0].strip()
+    if len(line) <= limit:
+        return line
+    return line[: limit - 1].rsplit(" ", 1)[0] + "…"
+
+
 def _implementation_reference_field(
     control_id: str, *, at_floor: bool, found: discover.Discovered
 ) -> FieldSpec | None:
@@ -410,7 +428,7 @@ def _implementation_reference_field(
         label=f"{prefix} {control_id}",
         help=help_text,
         candidates=candidates,
-        depends_on=None if at_floor else (f"{control_id}.declared", (True,)),
+        depends_on=None if at_floor else ("above_floor", (control_id,)),
     )
 
 
@@ -457,22 +475,34 @@ def controls_plan(
         )
     )
 
+    # `ACT-032`: ONE opt-in, not one tick box per control. A level is a floor, and choosing it has
+    # already declined everything above it - so asking the adopter to decline each one again, in
+    # turn, is asking them to restate an answer they have given. For a solo maintainer at
+    # `essential` that was eight separate questions out of fifteen in this section, and
+    # `defaults.propose_controls` computed `False` for every one of them without asking at all.
+    #
+    # Above the floor stays a real choice, because a level is a floor and not a ceiling; it is now
+    # a single list to tick through rather than a sequence of screens to say no to.
+    above_floor = [c for c in sorted(catalogue.CONFORMANCE_LEVELS["full"]) if c not in required]
+    if above_floor:
+        fields.append(
+            FieldSpec(
+                id="above_floor",
+                label=f"Declare any control beyond the {level} floor?",
+                kind="multiselect",
+                help=(
+                    f"{level} does not require these. Tick any you want this repository held to "
+                    "anyway - a level is a floor, not a ceiling. Leaving them all unticked is a "
+                    "complete answer."
+                ),
+                choices=tuple((c, f"{c} - {_first_line(explanations.explain(c, mode))}") for c in above_floor),
+                default="",
+                validate="",
+            )
+        )
+
     for control_id in sorted(catalogue.CONFORMANCE_LEVELS["full"]):
         at_floor = control_id in required
-        if not at_floor:
-            # Above the floor, declaring it is a real choice and gets a real question. At the floor
-            # it is not a choice at all, so no field is emitted - the same treatment a
-            # level-mandatory gate's status gets, for the same reason: offering a control the level
-            # requires as a tick box invites producing a profile the checker will reject.
-            fields.append(
-                FieldSpec(
-                    id=f"{control_id}.declared",
-                    label=f"{control_id} - above the floor here; declare it?",
-                    kind="bool",
-                    help=explanations.explain(control_id, mode),
-                    validate="",
-                )
-            )
         fields.append(
             FieldSpec(
                 id=f"{control_id}.rationale",
@@ -484,7 +514,7 @@ def controls_plan(
                     else TEMPLATE_PLACEHOLDER_HELP
                 ),
                 default=example_answers.rationale_example(control_id),
-                depends_on=None if at_floor else (f"{control_id}.declared", (True,)),
+                depends_on=None if at_floor else ("above_floor", (control_id,)),
             )
         )
         reference = _implementation_reference_field(control_id, at_floor=at_floor, found=found)
@@ -496,8 +526,9 @@ def controls_plan(
         title=f"Controls, floor: {level}",
         intro=(
             "Three baseline controls apply at every level and cannot be excluded, deferred or "
-            "omitted - but why each applies here is yours to state, not ours to assume. The rest "
-            "are shown with your level's floor already marked; a level is a floor, never a ceiling."
+            "omitted - but why each applies here is yours to state, not ours to assume. Everything "
+            f"the {level} floor requires is already included; anything beyond it is one optional "
+            "list at the end, because a level is a floor and never a ceiling."
         ),
         fields=tuple(fields),
     )

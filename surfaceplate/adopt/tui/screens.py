@@ -46,7 +46,9 @@ from textual.widgets import (
     TextArea,
 )
 from textual.widgets.selection_list import Selection
-from textual.widgets.option_list import Option
+from textual.widgets.option_list import Option, OptionDoesNotExist
+from textual.strip import Strip
+from rich.segment import Segment
 
 from surfaceplate.adopt import plan, validators
 
@@ -116,6 +118,47 @@ class VisibleRadioButton(_StatefulToggle, RadioButton):
     RIGHT = ")"
     ON = "\u25cf"   # ●
     OFF = " "
+
+
+class VisibleSelectionList(SelectionList):
+    """`F41`. The same fix as `_StatefulToggle`, which structurally could not reach this widget.
+
+    `SelectionList.render_line` composes its tick box from `ToggleButton.BUTTON_LEFT`,
+    `BUTTON_INNER` and `BUTTON_RIGHT` read off the **`ToggleButton` class**, and distinguishes
+    selected from unselected by style alone. `_StatefulToggle` sets those names on the *instance* of
+    a `Checkbox` or `RadioButton`, so it fixed both of those and left every `SelectionList` in the
+    wizard rendering `[X]` on every row whatever was actually ticked - which is the `F38` defect
+    (*"some boxes (x) are not clearly visible"*) surviving in the one widget nobody re-checked.
+
+    Textual offers no hook for this, so `render_line` is overridden: take the strip the base class
+    built and rewrite its three button segments from the row's real state, keeping their styles so
+    colour still agrees with the glyph rather than replacing it. `_selected` is private; that is
+    stated rather than hidden, and `tests/test_render.py` asserts the two states differ in TEXT, so
+    the day Textual changes this the test fails rather than the wizard quietly lying again.
+    """
+
+    LEFT = "["
+    RIGHT = "]"
+    ON = "X"
+    OFF = " "
+
+    def render_line(self, y: int) -> Strip:
+        strip = super().render_line(y)
+        segments = list(strip)
+        if len(segments) < 3:
+            return strip
+        _, scroll_y = self.scroll_offset
+        try:
+            selection = self.get_option_at_index(scroll_y + y)
+        except OptionDoesNotExist:
+            # The base class returns the bare prompt for these rows and draws no button, so there
+            # is nothing here to correct.
+            return strip
+        ticked = selection.value in self._selected
+        segments[0] = Segment(self.LEFT, style=segments[0].style)
+        segments[1] = Segment(self.ON if ticked else self.OFF, style=segments[1].style)
+        segments[2] = Segment(self.RIGHT, style=segments[2].style)
+        return Strip(segments)
 
 
 class OneClickSelect(Select):
@@ -209,7 +252,7 @@ def _widget_for(spec: plan.FieldSpec, value: object = None):
         return widget
     if spec.kind == "multiselect":
         chosen = {v.strip() for v in str(spec.default).split(",") if v.strip()}
-        return SelectionList(
+        return VisibleSelectionList(
             *[
                 Selection(label, choice_value, choice_value in chosen)
                 for choice_value, label in spec.choices
