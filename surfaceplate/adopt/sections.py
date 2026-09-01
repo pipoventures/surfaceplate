@@ -17,7 +17,7 @@ from __future__ import annotations
 import datetime as _dt
 from pathlib import Path
 
-from surfaceplate.adopt import catalogue
+from surfaceplate.adopt import catalogue, example_answers, explanations
 from surfaceplate.adopt.prompting import Prompt
 
 TEMPLATE_PLACEHOLDER_HELP = (
@@ -34,6 +34,34 @@ def _nonempty_text(prompt: Prompt, message: str, *, help: str | None = None, def
         answer = prompt.text(message, help=help, default=default).strip()
         if answer:
             return answer
+
+
+# ---------------------------------------------------------------------------------------------
+# Section 0 — Mode (DR-35). Asked once, before anything else, and threaded through every
+# subsequent explanation this wizard shows. Both modes explain - the maintainer's own correction,
+# preserved because it is this section's whole design constraint: "don't ever think what we have
+# now would be suitable to advance." `advanced` is a different vocabulary, not a smaller one.
+# ---------------------------------------------------------------------------------------------
+
+def ask_mode(prompt: Prompt) -> str:
+    print("Two ways to see what each question means - pick whichever matches how you think about")
+    print("software and governance today. Either way, every control and gate gets a real")
+    print("explanation before you're asked about it - this choice is about the words used, not")
+    print("about whether an explanation is given at all.")
+    return prompt.select(
+        "Explanation style",
+        [
+            (
+                "simple",
+                "simple — plain English, no jargon; assumes no software or governance background",
+            ),
+            (
+                "advanced",
+                "advanced — precise technical terms; still explains this framework's own "
+                "vocabulary, just not general software-engineering concepts",
+            ),
+        ],
+    )
 
 
 # ---------------------------------------------------------------------------------------------
@@ -127,7 +155,48 @@ def ask_risk(prompt: Prompt) -> dict:
 # Section 4 — Conformance level
 # ---------------------------------------------------------------------------------------------
 
-def ask_conformance_level(prompt: Prompt, *, builds_user_interface: bool) -> str:
+def _detected_signals(repo: Path) -> tuple[list[str], list[str]]:
+    """(present, absent) signal descriptions for the level-choice screen. Light, disclosed
+    detection only - `detect.py`'s own module docstring states why this never picks a level: the
+    same "a reviewer can falsify a wrong answer in seconds" reasoning `builds_user_interface`
+    already rests on. Shown so the honest cost of a level is visible before it is chosen, not
+    discovered mid-adoption the way `DR-28` and `DR-34` both found it was for Plyego and Plutos."""
+    from surfaceplate.adopt import detect
+
+    present: list[str] = []
+    absent: list[str] = []
+
+    ci_workflows = detect.detect_ci_workflows(repo)
+    if ci_workflows:
+        present.append(f"a CI workflow ({', '.join(ci_workflows)})")
+    else:
+        absent.append("a CI workflow")
+
+    decisions = detect.detect_decisions_folder(repo)
+    if decisions:
+        present.append(f"a decisions/ADR folder ({decisions})")
+    else:
+        absent.append("a decisions/ADR folder")
+
+    changelog = detect.detect_changelog(repo)
+    if changelog:
+        present.append(f"a CHANGELOG ({changelog})")
+    else:
+        absent.append("a CHANGELOG")
+
+    return present, absent
+
+
+def ask_conformance_level(prompt: Prompt, repo: Path, *, builds_user_interface: bool, mode: str) -> str:
+    print(f"  {explanations.LEVEL_CHOICE[mode]}")
+
+    present, absent = _detected_signals(repo)
+    print("\n  Detected, before you choose - shown so the cost is visible, never to pick for you:")
+    if present:
+        print(f"    You appear to have: {'; '.join(present)}.")
+    if absent:
+        print(f"    You don't yet have: {'; '.join(absent)}.")
+
     choices = []
     for level in ("essential", "standard", "full"):
         summary = catalogue.level_summary(level, builds_user_interface)
@@ -149,7 +218,7 @@ def ask_conformance_level(prompt: Prompt, *, builds_user_interface: bool) -> str
 _BASELINE_CONTROL_IDS = ("agent_work_packets", "actual_diff_review", "secret_hygiene")
 
 
-def ask_controls(prompt: Prompt, *, level: str) -> dict:
+def ask_controls(prompt: Prompt, *, level: str, mode: str) -> dict:
     """Every rationale below, baseline or level-required, is asked - none is ever supplied by
     this module. A Gemini adversarial review (`ACT-021`) found that `agent_work_packets`,
     `actual_diff_review`, and `secret_hygiene` used to get a hardcoded rationale string here,
@@ -162,8 +231,12 @@ def ask_controls(prompt: Prompt, *, level: str) -> dict:
 
     baseline_controls: dict = {}
     for control_id in _BASELINE_CONTROL_IDS:
+        print(f"  --- {control_id} ---")
+        print(f"  {explanations.explain(control_id, mode)}")
         rationale = _nonempty_text(
-            prompt, f"Why does {control_id} apply here?", help=TEMPLATE_PLACEHOLDER_HELP
+            prompt, f"Why does {control_id} apply here?",
+            help=TEMPLATE_PLACEHOLDER_HELP,
+            default=example_answers.rationale_example(control_id),
         )
         baseline_controls[control_id] = {"decision": "required", "rationale": rationale}
 
@@ -183,8 +256,11 @@ def ask_controls(prompt: Prompt, *, level: str) -> dict:
     control_decisions: dict = {}
     for control_id in sorted(required):
         print(f"  --- {control_id} (required at {level}) ---")
+        print(f"  {explanations.explain(control_id, mode)}")
         rationale = _nonempty_text(
-            prompt, f"Why does {control_id} apply here?", help=TEMPLATE_PLACEHOLDER_HELP
+            prompt, f"Why does {control_id} apply here?",
+            help=TEMPLATE_PLACEHOLDER_HELP,
+            default=example_answers.rationale_example(control_id),
         )
         entry: dict = {"decision": "required", "rationale": rationale}
         if control_id in catalogue.PATTERN_A_CONTROLS:
@@ -214,7 +290,11 @@ def ask_controls(prompt: Prompt, *, level: str) -> dict:
         control_id = prompt.select(
             "Which control?", [(c, c) for c in remaining]
         )
-        rationale = _nonempty_text(prompt, f"Why declare {control_id} here, above the floor?")
+        print(f"  {explanations.explain(control_id, mode)}")
+        rationale = _nonempty_text(
+            prompt, f"Why declare {control_id} here, above the floor?",
+            default=example_answers.rationale_example(control_id),
+        )
         entry = {"decision": "required", "rationale": rationale}
         if control_id in catalogue.PATTERN_A_CONTROLS or control_id in catalogue.PATTERN_C_CONTROLS:
             entry["implementation_reference"] = _nonempty_text(prompt, f"Reference for {control_id}")
@@ -230,7 +310,7 @@ def ask_controls(prompt: Prompt, *, level: str) -> dict:
 # Section 6 — Prerequisite gates
 # ---------------------------------------------------------------------------------------------
 
-def ask_gates(prompt: Prompt, *, level: str, builds_user_interface: bool) -> list[dict]:
+def ask_gates(prompt: Prompt, *, level: str, builds_user_interface: bool, mode: str) -> list[dict]:
     mandatory = set(catalogue.LEVEL_REQUIRED_GATES[level])
     if builds_user_interface and level in catalogue.LEVELS_REQUIRING_FULL_DECLARATION:
         mandatory |= catalogue.DESIGN_GATES
@@ -242,7 +322,7 @@ def ask_gates(prompt: Prompt, *, level: str, builds_user_interface: bool) -> lis
         # volume problem the terminal-vs-form comparison (DR-32) was built to avoid.
         print("  At essential, only work_registration must be declared. The other 18 gates are")
         print("  not read by the checker at this level and are skipped.")
-        gate = _ask_one_gate(prompt, "work_registration", mandatory=True)
+        gate = _ask_one_gate(prompt, "work_registration", mandatory=True, mode=mode)
         return [gate]
 
     gates: list[dict] = []
@@ -262,7 +342,11 @@ def ask_gates(prompt: Prompt, *, level: str, builds_user_interface: bool) -> lis
                     # editable default keeps this from turning into four redundant re-typings
                     # of a fact already given, while still making it a real answer, not an
                     # invented one - the same "shown, must submit" pattern review_by and
-                    # enforcement already use elsewhere in this module.
+                    # enforcement already use elsewhere in this module. What DID need adding
+                    # (DR-35): these four never printed what they actually mean before this
+                    # fixed string was asked for - being auto-decided is not a reason to skip
+                    # explaining what was decided.
+                    print(f"  {g}: {explanations.explain(g, mode)}")
                     rationale = _nonempty_text(
                         prompt, f"Rationale for {g} being not applicable",
                         default="This repository has no user interface.",
@@ -271,14 +355,15 @@ def ask_gates(prompt: Prompt, *, level: str, builds_user_interface: bool) -> lis
                     answered += 1
         print(f"  --- {section_name} ({answered + 1}-{answered + len(applicable_ids)} of {total}) ---")
         for gate_id in applicable_ids:
-            gates.append(_ask_one_gate(prompt, gate_id, mandatory=gate_id in mandatory))
+            gates.append(
+                _ask_one_gate(prompt, gate_id, mandatory=gate_id in mandatory, mode=mode)
+            )
             answered += 1
     return gates
 
 
-def _ask_one_gate(prompt: Prompt, gate_id: str, *, mandatory: bool) -> dict:
-    description = catalogue.GATE_CATALOGUE[gate_id]
-    print(f"  {gate_id}: {description}")
+def _ask_one_gate(prompt: Prompt, gate_id: str, *, mandatory: bool, mode: str) -> dict:
+    print(f"  {gate_id}: {explanations.explain(gate_id, mode)}")
 
     if mandatory:
         print("  Required at this level - not a free choice. Its precondition is.")
@@ -319,10 +404,16 @@ def _ask_one_gate(prompt: Prompt, gate_id: str, *, mandatory: bool) -> dict:
     if status == "deferred":
         owner = _nonempty_text(prompt, "  Owner")
         revisit_by = _nonempty_text(prompt, "  Revisit by (YYYY-MM-DD)")
-        rationale = _nonempty_text(prompt, "  Why defer, and what happens instead")
+        rationale = _nonempty_text(
+            prompt, "  Why defer, and what happens instead",
+            default=example_answers.rationale_example(gate_id),
+        )
         return {"id": gate_id, "status": "deferred", "owner": owner, "revisit_by": revisit_by, "rationale": rationale}
 
-    rationale = _nonempty_text(prompt, "  Why is this not applicable here")
+    rationale = _nonempty_text(
+        prompt, "  Why is this not applicable here",
+        default=example_answers.rationale_example(gate_id),
+    )
     return {"id": gate_id, "status": "not_applicable", "rationale": rationale}
 
 

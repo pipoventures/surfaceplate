@@ -1793,3 +1793,40 @@ plainly, gives the exact scope-correct command for "remove," and for "reconcile"
 actual delegation pattern this machine's own conflicting hook already uses rather than a vague
 instruction to merge behaviour. Verified against the exact scenario that prompted it, plus fixture
 coverage for both local and global scope and the separate default-hooks-directory conflict shape.
+
+### `adopt` remediation, phase 1: a real data-loss bug, and a wizard that presumed knowledge (`ACT-026`, `DR-35`, `F36`)
+
+Found by the maintainer running the real wizard against Plutos, not a probe: roughly twenty minutes
+into a `standard`-level walk, the final write refused outright, and the answers were unrecoverable.
+His own words — *"Extremely long and difficult... really bad experience"* — described both a
+correctness bug and a genuine fit gap, and he set an explicit condition before any of it was coded:
+*"Until we don't have a complete remediation plan that I approve you don't implement anything."*
+
+**The bug (`F36`).** `render.py` hand-built `artefacts: [...]`, `paths: [...]`, `enforcement: [...]`,
+and `wired_in: [...]` by escaping each value as though it were its own standalone document, then
+wrapping brackets around the result by hand — the wrong escaping rules for an item inside an
+existing YAML flow sequence, which is stricter. The maintainer's own answer, `what is this?`, broke
+exactly this way. Fixed by handing PyYAML the real Python list (`yaml.safe_dump(values,
+default_flow_style=True, ...)`) so it escapes for the structure it is actually part of, rather than
+composing the two contexts by hand. A structurally similar block-list pattern
+(`human_roles`/`exclusions`) was tested against the same tricky characters before deciding it did
+not need the same fix — it didn't; block-sequence and standalone-document escaping happen to
+coincide, unlike flow-sequence escaping.
+
+**The fit gap.** Read back frame-by-frame against the originally approved mockup, the shipped
+sequential-prompt wizard could never render the persistent, richly-formatted interface that was
+actually agreed — a genuine revision of `DR-32`'s own reasoning, not new scope. Addressed in two
+phases: this one ships on the existing architecture — a `simple`/`advanced` mode choice asked once
+and threaded through every explanation shown; dual-register content authored for all thirty-one
+things the wizard can ask about (three baseline controls, nine conformance-level controls, all
+nineteen gates), grounded in this framework's own core documents; detected signals (existing CI, a
+decisions folder, a CHANGELOG) shown before the level choice without the tool ever picking a level;
+an editable, sourced example on every rationale field; and basic resumability, so a late failure now
+loses at most the section in progress rather than the whole session. A second phase — rebuilding the
+rendering layer on Textual to deliver the persistent multi-item interface the mockup showed — is
+scoped in `DR-35` but not started; it is designed against this phase's real content, not a guess.
+
+Re-run against the exact scenario that prompted this — a fresh Plutos clone, `essential` level,
+`simple` mode this time — and it wrote cleanly on the first pass, with every control and the one
+required gate explained in plain English before being asked, and the level screen naming Plutos's
+real detected CI workflows without steering the choice.

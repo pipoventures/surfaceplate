@@ -59,6 +59,7 @@ on an agent's authority.
 | `ACT-023` | Decide Gemini's material finding: should the schema enforce per-level control presence? | maintainer | maintainer | `waiting_for_review` | `ACT-021` | review | yes — it decides whether `application-profile.schema.yaml`, a published contract, gains conditional logic duplicating `check_conformance.py`'s own `CONFORMANCE_LEVELS` data | medium — the checker already runs schema validation as its own first step, so no separate schema-only bypass exists in this project's real pipeline; the judgement is whether the residual defense-in-depth value is worth a second, hand-maintained copy of the same rule | A decision record either way, reasoned rather than asserted, so a future reviewer raising the same idea finds the answer already worked through | The two things checked before recommending against it: that `check_conformance.py` validates against the schema before its own semantic checks (so nothing bypasses the schema alone), and that `CONFORMANCE_LEVELS` has no generator feeding the schema, meaning any schema-side copy would need hand-kept sync |
 | `ACT-024` | `RELEASE_PLAN` item 5, phase 1: exercise Plutos (Plyego deferred — mid-migration) | maintainer | maintainer | `waiting_for_review` | `ACT-020` | hard | yes — it is the second time this framework has been run against a repository it did not write, and any defect it exposes is unreachable from self-check alone, the same shape `F25`/`F26` were | medium — the mechanism repeats `DR-28`'s own probe exactly; the judgement is scoped deliberately narrow, per `DR-28`'s own principle that gate decisions are the maintainer's to make with the per-gate cost in front of them, not an agent's to infer from a probe | A throwaway clone of Plutos installed and checked at `essential`, any newly-exposed surfaceplate defect fixed with tests, and a decision record carrying the cost table — with nothing written to the real Plutos repository | The negative control: `git status` on the real Plutos checkout shows no changes; the clone's own history and objects are shared read-only, never a checkout of the real working tree |
 | `ACT-025` | The hook-conflict `STOPPED` message names routes without making two of them actionable | maintainer | maintainer | `waiting_for_review` | `ACT-024` | hard | yes — it changes what every adopter sees the first time this specific refusal fires, on a path `F27` already made this framework's stated policy | medium — the mechanism is a new git-scope-detection helper and a rewritten message; the judgement is what each route needs to become a genuine next step rather than a description of an outcome | The message names which git config scope set the conflict and its blast radius, and each of the three routes is a real, copy-pasteable or concretely-pointed-at next step, not a description | Read back against the exact scenario that prompted this — a global `core.hooksPath` conflict on Plutos — and confirmed it would have made this session's manual explanation unnecessary; two fixture scopes (global, local) asserted in the test suite |
+| `ACT-026` | Remediate `adopt`, phase 1: a real data-loss bug, and a wizard that presumes knowledge its stated audience doesn't have | maintainer | maintainer | `waiting_for_review` | `ACT-025` | hard | yes — it fixes a correctness bug that destroyed a real 20-minute session, and changes what every future adopter is asked and how, across all 19 gates and every control | high — the whole shape was worked out with the maintainer directly against a real, failed live session and the originally-approved mockup read back frame by frame, not assumed; three worked examples of the new dual-register content were drafted and approved before authoring the other ~32 | A scripted answer containing `?` writes successfully; a mode choice changes which register of explanation is shown for every one of ~35 items with no gap; the level screen shows detected signals without picking a level; every rationale field offers an editable example; an interrupted run leaves a resumable draft | The negative controls: the exact flow-sequence characters (`?`, `,`, `[`, `]`, a leading `-`) round-trip correctly; a coverage test fails loudly if any catalogue item is missing either register rather than silently falling back; a completed run leaves no stale draft behind |
 ## Notes on the entries
 
 `ACT-002` and `ACT-003` are both raised by `DR-16` and are deliberately **not** resolved by
@@ -180,7 +181,7 @@ maintainer before this packet's plan was written, and the maintainer's own first
 "how does someone answer in a prompt back" — is why that artifact exists rather than a written
 argument alone.
 
-`ACT-005` to `ACT-025` were registered **before** implementation begins, not alongside it. `work_registration` is
+`ACT-005` to `ACT-026` were registered **before** implementation begins, not alongside it. `work_registration` is
 live over `scripts/**` and `schemas/**`, which is exactly what item 4 changes, and a gate satisfied
 retrospectively is the failure mode `core/PREREQUISITE_GATES.md` warns is most common — satisfied on
 paper, violated in spirit.
@@ -227,6 +228,18 @@ way out. It just stops"* — are the finding. `F27` gave the hook-conflict refus
 principle; this is the discovery that a route named in the message and a route the reader can
 actually take are not the same thing, and that the message never said whether the conflict was
 about this one repository or the whole machine, which turned out to be the fact that mattered most.
+
+`ACT-026` is the second defect found by a human standing in front of surfaceplate's own output, and
+the most severe: the maintainer's own live, unscripted `adopt` session against Plutos hit a data-loss
+bug (`F36`) that destroyed roughly twenty minutes of real answers, on top of a genuine fit gap his
+own words named directly — *"Extremely long and difficult... really bad experience."* He set an
+explicit condition before any of it was coded: *"Until we don't have a complete remediation plan
+that I approve you don't implement anything."* What shipped here is Phase 1 of the resulting,
+maintainer-approved two-phase plan (`DR-35`) — the bug fix, a mode choice, dual-register content for
+all 31 catalogue items, detected signals on the level screen, example answers on every reachable
+rationale field, and basic resumability — re-run against the exact scenario that prompted it before
+being considered complete. Phase 2, a Textual rendering rewrite, is scoped in `DR-35` but not
+started.
 
 `ACT-002` and `ACT-003` are both answered by `DR-20`. They, and `ACT-006`, moved to `done` on
 2026-08-31 when the maintainer merged [PR #9](https://github.com/pipoventures/surfaceplate/pull/9)

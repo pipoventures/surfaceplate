@@ -100,6 +100,7 @@ an unknown number of releases with nothing noticing.
 | F33 | An all-digit commit SHA silently fails a gate exception, and the lesson never propagated | medium | Closed — `ACT-024`; template, checker message, and test all fixed |
 | F34 | The release manifest could name a file that exists on no machine but the one that built it | high | Closed — `ACT-024`; `payload_files()` now intersects against `git ls-files` |
 | F35 | A refusal named three routes; only one was a route a reader could actually take | medium | Closed — `ACT-025`; scope named, each route made a real step |
+| F36 | A hand-built flow list escaped each item for the wrong YAML context, and lost a real ~20-minute session | high | Closed — `ACT-026`; `render.py` dumps the whole list, not each item alone |
 
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -1002,6 +1003,57 @@ weaker guarantee than a hash-bearing lock, and `pyproject.toml` says so rather t
 otherwise.
 
 ---
+
+## F36 — A hand-built flow list escaped each item for the wrong YAML context, and lost a real ~20-minute session
+
+**Severity: high. Closed.**
+
+Found by the maintainer, running `surfaceplate adopt` against Plutos for real, not a probe — the
+first time this exact code path had a human's own answers behind it rather than a scripted fixture.
+Roughly twenty minutes into a `standard`-level, 19-gate walk, the final write step refused: the
+wizard's own round-trip check (`wizard.py`'s `_verify()`, which re-parses `render.py`'s output
+before anything reaches disk — see that module's docstring) could not parse what `render.py` had
+produced, and there was no way to recover the already-answered questions. His own words, from the
+same session that raised `F35`: *"Extremely long and difficult... really bad experience."* The
+data loss compounds a design gap the same session raised separately — see `DR-35` for the wizard's
+wider remediation, of which this fix is the correctness half.
+
+**`FACT FROM PACKAGE`, read against the exact parser error.** The literal answer `what is this?`
+had been typed for a gate's precondition artefact. PyYAML's own error named the column: `expected
+',' or ']', but got '?'`, inside a flow sequence `render.py` had built by hand as
+`f"artefacts: [{_scalar(value)}]"`.
+
+**The root cause is a context mismatch, not a missing escape.** `render.py`'s `_scalar()` is
+correct for what it was written to do: it asks PyYAML to escape a value as though that value were
+its own standalone document (`yaml.safe_dump(value, default_flow_style=True)`), which is exactly
+right when the result is placed after a `key: ` prefix — a bare `what is this?` needs no quoting
+there. A YAML flow sequence has stricter rules for what one *item* inside `[...]` needs quoted
+than a value has as a whole document, and `render.py` never asked PyYAML to escape for that
+context — it escaped each item alone, then wrapped hand-written brackets around the result. The
+same pattern, discovered while fixing this and not previously flagged, also affected `enforcement`
+— rendered with no escaping call at all (`", ".join(gate["enforcement"])`), which happens to be
+unreachable through a schema-valid answer today (`enforcement`'s items are a fixed schema enum with
+no special characters in any legal value) but was still a raw, unescaped string interpolation on
+the same class of structure.
+
+**A pattern that looked identical was checked, not assumed safe.** `_render_list_block()` (used
+for `human_roles`/`exclusions`) also calls `_scalar()` per item, composed into a block list
+(`- {value}`) rather than a flow sequence. Tested directly against the same tricky characters
+(`?`, `,`, `[bracket]`, `-leading-dash`, `trailing:colon`, `{brace}`) before deciding whether it
+needed the same fix: it round-trips correctly for all of them, because a block-sequence item's
+plain-scalar escaping rules happen to coincide with a standalone document's, unlike a flow-sequence
+item's. Left unchanged, on that evidence rather than on the pattern merely looking similar.
+
+**Closed by rendering the whole list, not each item alone.** A new `_flow_list()` helper hands
+PyYAML the real Python list — `yaml.safe_dump(values, default_flow_style=True, width=...)` — so it
+escapes each item for the flow-sequence structure it is actually going into, the same discipline
+the module's docstring already states for every other value it emits. Replaces all four sites:
+`precondition.artefacts`, `gated_activity.paths`, `enforcement`, and the baseline
+`secret_hygiene.scanner.wired_in`. A new regression test
+(`tests/test_tricky_characters_round_trip` in `tests/test_adopt.py`) scripts the exact failure
+shape — `?`, `,`, `[`, `]`, and a leading `-` across the four affected fields — through the real
+wizard flow and asserts the written profile round-trips to exactly what was typed, not merely that
+`render.py`'s own functions parse in isolation.
 
 ## F35 — A refusal named three routes; only one was a route a reader could actually take
 
