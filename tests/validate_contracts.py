@@ -8,8 +8,9 @@ import yaml
 from jsonschema import Draft202012Validator, FormatChecker, ValidationError
 
 ROOT = Path(__file__).resolve().parents[1]
-SCHEMA_DIR = ROOT / "schemas"
-EXAMPLES_DIR = ROOT / "examples"
+PAYLOAD = ROOT / "surfaceplate"  # ACT-019: the payload moved here; NAMESPACE.md did not move
+SCHEMA_DIR = PAYLOAD / "schemas"
+EXAMPLES_DIR = PAYLOAD / "examples"
 NAMESPACE_DOC = ROOT / "NAMESPACE.md"
 FORMAT_CHECKER = FormatChecker()
 
@@ -613,8 +614,8 @@ for bad in (
 # fake one. That was constructed and run, not reasoned about. A guard whose negative result does
 # not establish what it appears to is this project's most-repeated defect, and this was an
 # instance of it inside a guard. Recorded as F23.
-CHECKER = (ROOT / "scripts" / "check_conformance.py").read_text(encoding="utf-8")
-GATES_DOC = (ROOT / "core" / "PREREQUISITE_GATES.md").read_text(encoding="utf-8")
+CHECKER = (PAYLOAD / "check_conformance.py").read_text(encoding="utf-8")
+GATES_DOC = (PAYLOAD / "core" / "PREREQUISITE_GATES.md").read_text(encoding="utf-8")
 CATALOGUE_BLOCK = re.search(
     r"^GATE_CATALOGUE: dict\[str, str\] = \{$(.*?)^\}$",
     CHECKER,
@@ -679,10 +680,10 @@ for bad_exception in (
 # The pattern is IMPORTED from the checker rather than restated here, per DR-6: a copy would
 # agree on the day it was written and stop agreeing afterwards. This test then guards the
 # checker's remaining branches from being narrowed until they detect nothing.
-sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(PAYLOAD))
 from check_conformance import PLACEHOLDER_PATTERN  # noqa: E402
 
-template_dir = ROOT / "templates"
+template_dir = PAYLOAD / "templates"
 templates = sorted(p for p in template_dir.rglob("*") if p.is_file())
 assert templates, "templates/ is empty; the detectability check would pass vacuously"
 for template in templates:
@@ -715,10 +716,10 @@ for notation in (
 # The `contract` class is the one that can rot silently, because it is derived from the
 # checker's constants: if the checker starts parsing a third schema, the installer must
 # follow, and nothing else would notice.
-import check_conformance  # noqa: E402  (ROOT/scripts is already on sys.path)
+import check_conformance  # noqa: E402  (PAYLOAD is already on sys.path)
 import install_standard  # noqa: E402
 
-payload_paths = set(install_standard.build_payload(ROOT))
+payload_paths = set(install_standard.build_payload(PAYLOAD))
 
 # NOT asserted here: that the installer's `contract` class equals the checker's constants.
 # That assertion was written first and removed, because it cannot fail. `classify()` DERIVES
@@ -791,7 +792,7 @@ for dep in declared_deps:
 for workflow in (
     ROOT / ".github" / "workflows" / "standard-self-check.yml",
     ROOT / ".github" / "workflows" / "standards-conformance.yml",
-    ROOT / "standard" / ".github" / "workflows" / "standards-conformance.yml",
+    PAYLOAD / "standard" / ".github" / "workflows" / "standards-conformance.yml",
 ):
     body = workflow.read_text(encoding="utf-8")
     install = [ln for ln in body.splitlines() if "pip install" in ln]

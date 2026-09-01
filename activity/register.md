@@ -52,6 +52,7 @@ on an agent's authority.
 | `ACT-016` | What the Plyego gate found: the exemption catch-22 and a misleading remedy (`F25`, `F26`) | maintainer | maintainer | `waiting_for_review` | `ACT-015` | medium | yes — it changes what the profile scan accepts, in every adopting repository | low — the mechanism mirrors `DR-22` exactly; the judgement is how narrow the exclusion is | An exemption may state its own rationale without failing the profile, and `SP032` names the remedy it has always had | Three negative controls — the scan still fires on `owner`, on a gate's rationale and on a deferral's — plus the Plyego probe re-run against the fixed checker |
 | `ACT-017` | The installer forbids what the standard permits: a recorded hook opt-out (`F27`) | maintainer | maintainer | `waiting_for_review` | `ACT-016` | medium | yes — it changes what the installer will do in every adopting repository | medium — the mechanism is small; the judgement is that declining must leave a trace rather than being a silent flag | A repository with its own hook system can adopt without surrendering it, and the check says on every run that nothing gates staged changes | Three negative controls — the default install still refuses a foreign hooks path and writes nothing, and `SP038` still catches a gate claiming a hook that was declined |
 | `ACT-018` | Agent neutrality: emit the instructions where each agent actually reads them (`F29`) | maintainer | maintainer | `waiting_for_review` | `ACT-017` | hard | yes — it changes what every adopting repository receives, and gives this repository its own instructions for the first time | medium — the emitter design follows the documented loading rules; the judgement is a block in `AGENTS.md` rather than owning the file | The instructions land in `.claude/rules/` and `AGENTS.md` as well as the Copilot paths, and surfaceplate is finally governed by its own | Three negative controls — Copilot emission unchanged, an adopter's `AGENTS.md` content preserved verbatim, and their `CLAUDE.md` never written |
+| `ACT-019` | `RELEASE_PLAN` item 1: pip packaging, and the precondition `DR-10` left unsolved | maintainer | maintainer | `waiting_for_review` | `ACT-018` | hard | yes — it decides the payload's on-disk shape for every future distribution channel, and moves files every internal reference depends on | high — the layout choice was surfaced and decided by the maintainer rather than taken silently; `repo_root()`'s fix turned out simpler than either research pass anticipated, and that simplification is itself a judgement worth recording | A wheel built from the new layout installs into a clean virtualenv with no git checkout present and successfully installs the standard into a fresh target repository | The negative control: the acceptance test runs from the pip-installed package alone, nothing borrowed from the source tree it was built from; suites and manifest accounted for; both checker copies `PASS` after reinstalling from the new location |
 ## Notes on the entries
 
 `ACT-002` and `ACT-003` are both raised by `DR-16` and are deliberately **not** resolved by
@@ -155,7 +156,15 @@ the agent doing the work does not read, and this repository has no `CLAUDE.md` a
 has been shipping instructions it has never itself been subject to. Raised by Plyego, like `ACT-016`
 and `ACT-017`, and unreachable from inside for the same reason all three were.
 
-`ACT-005` to `ACT-018` were registered **before** implementation begins, not alongside it. `work_registration` is
+`ACT-019` is the first item in this register that resumes the recorded `RELEASE_PLAN` order
+(`3 → 1 → 2 → 9 → 5 → …`) rather than answering something Plyego raised. It is also the first to
+edit `work_registration`'s own `gated_activity.paths` — the gate that is live over the very paths
+this item moved. Eight of this repository's own gate declarations needed correcting for the move;
+each was checked against the reasoning `core/PREREQUISITE_GATES.md` gives for *narrowing* a gate's
+paths being safe against the history audit, where *renaming a precondition artefact* is not — `F30`
+fired on exactly that second kind of edit, for the second time in one session.
+
+`ACT-005` to `ACT-019` were registered **before** implementation begins, not alongside it. `work_registration` is
 live over `scripts/**` and `schemas/**`, which is exactly what item 4 changes, and a gate satisfied
 retrospectively is the failure mode `core/PREREQUISITE_GATES.md` warns is most common — satisfied on
 paper, violated in spirit.

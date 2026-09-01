@@ -1607,3 +1607,53 @@ repository's workflow *and* in the one installed into adopters, plus the checker
 shallow clone via `git rev-parse --is-shallow-repository` and reporting it in the same terms as the
 unavailable-history note. A workflow is configuration an adopter can change; the checker saying what
 it could and could not see is not.
+
+### Item 1: pip packaging, and the precondition `DR-10` left unsolved
+
+`DR-10` flagged, and left unsolved, that `install_standard.py`'s file-location mechanism does not
+survive pip distribution: `repo_root()` and `build_payload()` resolved repository-root directories
+that sit outside any importable package. No sibling repository had attempted this before — checked
+exhaustively before design began.
+
+**A correction found before any design started.** `DR-10`'s pinning mechanism — a wheel-file digest
+disambiguated by `adoption.distribution_channel` — was already superseded by `DR-14`, accepted and
+implemented: `framework_digest` is `sha256(MANIFEST.sha256)`, channel-neutral by construction,
+identical whether the code arrived by git clone or `pip install`. `DR-12`'s prose still cited the
+superseded mechanism; corrected in place rather than left standing.
+
+**The payload physically moved under one package directory, `surfaceplate/`** — `standard/`,
+`schemas/`, `core/`, `templates/`, `examples/`, `adapters/`, `VERSION`, `MANIFEST.sha256`, and the
+installer and checker themselves. `repo_root()`'s fix turned out to be one line
+(`.parent.parent` → `.parent`), not the `importlib.resources` rewrite anticipated going in: because
+`install_standard.py` now lives inside the tree it locates, `Path(__file__).resolve().parent`
+resolves correctly for a git checkout, a normal pip install, and an editable install alike.
+
+**Proven, not assumed.** A real wheel was built and its contents listed directly — 54 entries, every
+one under `surfaceplate/` or its own dist-info, nothing from `tests/`, `org/`, or anywhere
+`.git`-adjacent. Installed into a clean virtualenv with no surfaceplate source tree reachable, and
+from that virtualenv alone, `python -m surfaceplate.install_standard --target <fresh repo>`
+installed the standard successfully and the resulting repository checked out correctly.
+
+Every internal reference in this repository was swept and corrected where necessary: five test
+suites, the self-check workflow, `README.md`, `INSTALL.md`, `NAMESPACE.md`, `ORGANISATION.md`,
+`RECONCILIATION.md`, `governance/authority-map.yaml`, and eight prerequisite-gate declarations in
+this repository's own profile.
+
+**Two pre-existing defects were found and fixed along the way, neither created by this change.**
+`governance/authority-map.yaml` pointed `activity/**`'s authority at a Copilot-emitted filename
+(`activity.instructions.md`) rather than the canonical one, stale since `DR-30` dropped that suffix.
+The same file also claimed `DR-14`'s pinning mechanism was *"decided but not implemented"* — false
+since its own acceptance.
+
+**`F30` fired again, immediately, on the next rename of the same file.** The precondition artefact
+for `test_convention` moved a second time in one session, and the history audit reported the
+previous rename's commit as a violation, for the same reason `GX-0001` already exists. Cleared by a
+second exception, `governance/exceptions/GX-0002.yaml`. Two occurrences of the same defect from two
+renames this project chose for its own reasons is stronger evidence than the finding had when first
+written — the deferred remedy is not built here regardless, because building it as a side effect of
+a packaging packet would be exactly the scope creep this project's own working method exists to
+catch.
+
+**Not built:** the `surfaceplate` console-script entry point (item 2, deliberately kept separate)
+and the content-based self-install guard `DR-10` also flagged (still deferred; no console script
+exists yet to make the footgun real).

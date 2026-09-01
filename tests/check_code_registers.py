@@ -32,7 +32,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 FINDINGS = ROOT / "org" / "FINDINGS.md"
-CHECKER = ROOT / "scripts" / "check_conformance.py"
+CHECKER = ROOT / "surfaceplate" / "check_conformance.py"
 
 # A code is emitted where a Finding is constructed. Deliberately not "any SPnnn literal in the
 # file": the checker names other codes in remedy prose ("see SP034"), and counting those would

@@ -14,12 +14,14 @@ import sys
 import zipfile
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+ROOT = Path(__file__).resolve().parents[1]
+
+# install_standard.py moved into surfaceplate/ at ACT-019, along with the payload it locates.
+sys.path.insert(0, str(ROOT / "surfaceplate"))
 import install_standard  # noqa: E402  (needs the sys.path insert above)
 
-ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
-MANIFEST = ROOT / "MANIFEST.sha256"
+MANIFEST = ROOT / "surfaceplate" / "MANIFEST.sha256"
 
 # `.standards` holds this repository's OWN vendored copy of the standard, created when
 # surfaceplate installs into itself for self-conformance (DR-13 item 0). Listed here as a
@@ -30,7 +32,7 @@ EXCLUDED_FILES = {"MANIFEST.sha256", ".gitignore"}
 
 
 def version() -> str:
-    return (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+    return (ROOT / "surfaceplate" / "VERSION").read_text(encoding="utf-8").strip()
 
 
 def installed_paths() -> set[str]:
@@ -57,7 +59,7 @@ def installed_paths() -> set[str]:
     runs build_release.py, and an adopter's own installed files are produced by their own
     install, never unpacked from our archive.
     """
-    return set(install_standard.build_payload(ROOT))
+    return set(install_standard.build_payload(ROOT / "surfaceplate"))
 
 
 def payload_files() -> list[Path]:

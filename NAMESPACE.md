@@ -87,7 +87,7 @@ schemas stop matching what is recorded there.
 
 To change it:
 
-1. Update the base in every `schemas/*.schema.yaml` `$id`.
+1. Update the base in every `surfaceplate/schemas/*.schema.yaml` `$id`.
 2. Update the current base recorded above. There is no second copy to keep in step —
    `tests/validate_contracts.py` reads this file, and a mismatch between the two steps fails it.
 3. Record the change in `CHANGELOG.md`, and, if the version segment moved, say which schema change

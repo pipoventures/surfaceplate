@@ -1,19 +1,21 @@
-# Surfaceplate — dependency declaration.
+# Surfaceplate — packaging and dependency declaration.
 #
-# This file exists to satisfy the `dependency_lock` control this repository declares. Until it
-# existed, that declaration was an overclaim: all three workflows ran `pip install pyyaml
-# jsonschema` unpinned, and `--quiet` suppressed pip's resolution output, so a green CI run could
-# not tell you which `jsonschema` had validated the schemas. Recorded as F21.
+# `[project.dependencies]` exists to satisfy the `dependency_lock` control this repository
+# declares. Until it existed, that declaration was an overclaim: all three workflows ran
+# `pip install pyyaml jsonschema` unpinned, and `--quiet` suppressed pip's resolution output, so a
+# green CI run could not tell you which `jsonschema` had validated the schemas. Recorded as F21.
 #
-# WHAT THIS IS NOT. It declares dependencies; it does not make surfaceplate a pip-installable
-# package. There is no build backend, no entry point and no package data here, because
-# `install_standard.py`'s `repo_root()` resolves a repository layout that does not exist under a
-# wheel — the unsolved precondition DR-10 recorded and item 1 of org/RELEASE_PLAN.md owns. Item 1
-# sits behind the adoption gate deliberately; this is its declaration half only.
+# `[build-system]` and `[tool.hatch.build]` are new at `ACT-019` (item 1 of org/RELEASE_PLAN.md).
+# `DR-10` flagged, and left unsolved, that `install_standard.py`'s file-location mechanism does
+# not survive pip distribution: it resolved directories that sit outside any importable package.
+# `ACT-019` moved the payload into `surfaceplate/` itself, so the package IS the payload — see
+# `org/decisions/DR-31.md` for the layout decision and what it does and does not solve.
 #
-# The versions below were resolved in a clean virtual environment and all five suites were run
-# against them before pinning. They are not the versions that happened to be on a developer
-# machine, which were older and had never matched what CI resolved.
+# WHAT THIS IS STILL NOT. `pip install surfaceplate` gives you an importable package with no
+# console-script entry point. There is no `surfaceplate` command yet — that is item 2, deliberately
+# separate, so the CLI is built as a decision rather than as a side effect of packaging becoming
+# possible. Until then, invoke the installer as `python -m surfaceplate.install_standard` and the
+# checker (once vendored into an adopter's `.standards/`) exactly as before.
 
 [project]
 name = "surfaceplate"
@@ -33,3 +35,18 @@ dependencies = [
     "PyYAML==6.0.3",
     "jsonschema==4.26.0",
 ]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+# Everything under surfaceplate/ ships, code and data alike - hatchling's default behaviour for
+# a named package directory. There is nothing to enumerate here, deliberately: DR-6 already
+# governs this project's stance on maintaining a second list that could drift from the one thing
+# it is meant to describe, and the acceptance test in DR-31 asserts the built wheel's contents
+# directly rather than trusting this file's intent.
+packages = ["surfaceplate"]
+
+[tool.hatch.build.targets.sdist]
+include = ["surfaceplate/", "pyproject.toml", "README.md", "LICENSE", "LICENSE-DOCS", "NOTICE"]

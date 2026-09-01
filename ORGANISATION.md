@@ -26,10 +26,10 @@ legal-name:    Pipo Ventures Ltd
   `github.com/<org>/...` URL in this repository. Confirmed live: `git ls-remote` against
   `https://github.com/pipoventures/surfaceplate.git` resolves `refs/heads/main`.
 - **`urn-authority`** — the authority segment of the schema namespace URN declared in
-  `NAMESPACE.md` and carried in every `schemas/*.schema.yaml` `$id`. Governed by
+  `NAMESPACE.md` and carried in every `surfaceplate/schemas/*.schema.yaml` `$id`. Governed by
   [DR-6](org/decisions/DR-6.md); changing it is a rename of identity, not covered by this document.
 - **`legal-name`** — the registered entity named in prose (for example
-  `standard/conformance-block.md`).
+  `surfaceplate/standard/conformance-block.md`).
 
 **These three values currently disagree in spelling**, which is exactly the state
 [DR-9](org/decisions/DR-9.md) records as finding F5. This document does not assert they are
