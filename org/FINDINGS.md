@@ -1034,6 +1034,14 @@ without independently checking each one against the artefact would have been exa
 artefact" failure this project's own working-method doctrine names — validating the *report about*
 the code rather than the code itself.
 
+**A third finding in the same report was neither confirmed nor dismissed here — it was a genuine
+design question, decided separately.** The report's material finding — that the schema alone
+cannot detect a profile declaring `full` while omitting required controls — is accurate as far as
+it goes. Whether adding conditional schema logic to close it was worth the cost is `org/decisions/DR-33.md`'s
+question, not this entry's: decided against, on the finding that the scenario described does not
+occur in this project's actual pipeline (the checker already runs schema validation as part of
+itself), and that the proposed remedy would duplicate `CONFORMANCE_LEVELS` a second time by hand.
+
 **Closed at `ACT-022`, in the same session the finding arrived.** `ask_controls` now asks for each
 baseline control's rationale exactly as it already asked for every level-required control's; the
 `DESIGN_GATES` auto-mask now asks per gate, with the old fixed string offered as an editable

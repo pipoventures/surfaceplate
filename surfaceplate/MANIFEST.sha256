@@ -17,7 +17,7 @@ fddca9faf4e45a086446493a4bacbfbd8bc970247622f8d5995d8325a8901cf5  surfaceplate-0
 249a358aafebcc023be4ee9deee2b2a0dcf02ca064bc0432f34a377048068d7a  surfaceplate-0.16.0/RECONCILIATION.md
 f5cf1d77957a8ab382659820c5abf50ba6df486da1401925b3b719e58fc11a7b  surfaceplate-0.16.0/SECURITY.md
 76771cb7126318271869158e8b637d5d429c96a974057a07f90387fe73a2cf6e  surfaceplate-0.16.0/SETUP_GUIDE.md
-5bd5662286429b2442f60d73a301f90030dfbe9bdaa93a7df7ae5865e7f2a592  surfaceplate-0.16.0/activity/register.md
+0ea906959e60b6f692ac3c0edce4db443290f1c702dcef9d86512d5dc4e0a4c9  surfaceplate-0.16.0/activity/register.md
 4610a79c41678796a6847fd1b92a0faaa660cd21c89e9115e43a23ffc9e2001e  surfaceplate-0.16.0/audit/AUDIT_README.md
 688413d8784273806dfbb388262e0907ecdfbea23c3bc7c4555d0cb80b629780  surfaceplate-0.16.0/audit/AUDIT_SCOPE.md
 26b299d04945d5e1038369871954bad80b82418ecf87a839c204a0e1df386dad  surfaceplate-0.16.0/audit/CHATGPT_ENTERPRISE_AUDIT_PROMPT.md
@@ -26,11 +26,11 @@ f5cf1d77957a8ab382659820c5abf50ba6df486da1401925b3b719e58fc11a7b  surfaceplate-0
 14be624be0eb075abcaf0e7d0552f96f030aa29c765d64bcd37ab5be10adc8e4  surfaceplate-0.16.0/audit/PRE_AUDIT_FINDINGS_0.6.0.md
 46eac228fd9b7659363d981a4e220b3f3c18b6778202c8dcfbe2d6bfae5a3650  surfaceplate-0.16.0/audit/PRIOR_AUDIT_REMEDIATION.md
 c6905c1ec8033866c0144737e8a7cc361130e10f6250de574c8d8bcda06fc3bc  surfaceplate-0.16.0/audit/VALIDATION_RESULTS.md
-c92f50a767fafff1f951146b533344853b3587e471dd2bb9e35688c7d30dd5aa  surfaceplate-0.16.0/governance/application-profile.yaml
+630fabcfb4fc02f9e0f2de8436086d0c090105387cf9c145f83d072ea2fb6dc1  surfaceplate-0.16.0/governance/application-profile.yaml
 186df1ad125c53ba2d04f7551ad8ae08fd10a23a4522ab52a9c0d4609a437036  surfaceplate-0.16.0/governance/authority-map.yaml
 a4c77f0cc51a259b1bcf129ed3808052e2a4af611a1e3f9a858b4e280b9fabe3  surfaceplate-0.16.0/governance/exceptions/GX-0001.yaml
 20dc6e4849cee0da4c962965fe611e952e4fb84b508942e9d58acb938008947d  surfaceplate-0.16.0/governance/exceptions/GX-0002.yaml
-3fd04a61c883ebd3296b6aa879128397a0a6d5d2f67e762229f1072d01dd4bf6  surfaceplate-0.16.0/org/FINDINGS.md
+1a84fdfa0bd4bd8e5a5b43548d8108b0c050b42c51d79c4f03f117e54fe752db  surfaceplate-0.16.0/org/FINDINGS.md
 a85bfa1dd759c5339d6a1a19efa3a605ad8720df46a1665cd720c03bbd8719cc  surfaceplate-0.16.0/org/RELEASE_PLAN.md
 6e6a6b16f3193cf960b85ad18ba8f356f2916f83cd3b02b67a251fcd550721b1  surfaceplate-0.16.0/org/ROLLOUT_RUNBOOK.md
 2f90ad311891297c95b64cb5b091cc6c2bcb0cdbfdad794e5f1d5be2cec71cef  surfaceplate-0.16.0/org/SUNSET_PLAN.md
@@ -60,6 +60,7 @@ f6084e75d216af4eff6735e0a7dd2271e43c6683c0ec314b553e8099e4a1e0d7  surfaceplate-0
 e3a1e6782973061be78944e1662a2af5a60eba9c595bb996d89b5317d90b3f5c  surfaceplate-0.16.0/org/decisions/DR-30.md
 a25a4aa7fcff157debd1bf418f29b77b12840be8c4d31d9ee7e3a1257eee5b4f  surfaceplate-0.16.0/org/decisions/DR-31.md
 64a2cd0e3bba6a2679f341a7e8621121926fe531770dac633e775b8957320c50  surfaceplate-0.16.0/org/decisions/DR-32.md
+f99575f445fd75fd56664d1ad2cb3484cd13651e207a9a31eda310389e73b802  surfaceplate-0.16.0/org/decisions/DR-33.md
 5a047edc16339bb3427bf1e441f95fde17e0d5161a8d323b7a2dc61461c10f7f  surfaceplate-0.16.0/org/decisions/DR-4.md
 d0e28b15fae8e636be49f45bdbe9ee1b74cee8702e928317881a4d0bc9abd8eb  surfaceplate-0.16.0/org/decisions/DR-5.md
 ffa0a05e7229157a3f4836d17d8adb68bdccacd46c6038f634b4dc70056236af  surfaceplate-0.16.0/org/decisions/DR-6.md
