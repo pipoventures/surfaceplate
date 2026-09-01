@@ -104,6 +104,15 @@ def build_controls(answers: dict, *, level: str) -> dict:
     return {"baseline_controls": baseline_controls, "control_decisions": control_decisions}
 
 
+def _enforcement_list(value: object) -> list[str]:
+    """`enforcement` is a fixed schema enum, and since `DR-38` it is answered by ticking boxes, so
+    it arrives as a list. A string is still accepted and split: it is what every profile written
+    before that change contains, and what a hand-written script may still supply."""
+    if isinstance(value, str):
+        return [item.strip() for item in value.split(",") if item.strip()]
+    return [str(item) for item in value]
+
+
 def build_gate(spec: plan.GateSpec, answers: dict) -> dict:
     """One gate's entry, from the answers given for it.
 
@@ -130,7 +139,7 @@ def build_gate(spec: plan.GateSpec, answers: dict) -> dict:
                 "paths": [answers["paths"]],
                 "description": answers["gated_description"],
             },
-            "enforcement": [e.strip() for e in answers["enforcement"].split(",") if e.strip()],
+            "enforcement": _enforcement_list(answers["enforcement"]),
         }
 
     if status == "deferred":

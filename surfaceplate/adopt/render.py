@@ -41,10 +41,9 @@ def _strip_document_end(text: str) -> str:
 # default (80) did exactly that to a rationale sentence during this module's own first probe run:
 # the continuation line landed at the indent PyYAML computed for a scalar dumped at column 0,
 # which does not match where this renderer actually embeds it - the round-trip check caught it
-# immediately, refusing to write rather than writing something subtly broken. Every value this
-# renderer emits must be single-line for the same reason a value with an embedded newline (below)
-# is refused outright: the whole design is string interpolation after a `key: ` prefix, which is
-# only safe for single-line content.
+# immediately, refusing to write rather than writing something subtly broken. It applies to values
+# rendered as PLAIN scalars; prose that genuinely spans lines is emitted as a literal block scalar
+# instead (`_block`), which is what the format has always allowed and this renderer once did not.
 _NO_WRAP = 100_000
 
 
@@ -65,9 +64,32 @@ def _scalar(value: object) -> str:
     )
 
 
-def _block(value: str) -> str:
-    """A string value, letting PyYAML choose plain/quoted/block style based on its content."""
-    return _strip_document_end(yaml.safe_dump(_single_line(value), width=_NO_WRAP))
+def _block(value: str, indent: int = 0) -> str:
+    """A prose value, as a literal block scalar when it spans lines.
+
+    `F38`: this used to refuse a newline outright, so pressing Enter in any rationale box produced
+    a failure at the review screen after the whole interview had been answered. The restriction was
+    never in the *format* - this repository's own shipped profiles use folded scalars seventeen
+    times - only in this renderer, which interpolates values after a `key: ` prefix and so had
+    nowhere to put a second line.
+
+    PyYAML builds the scalar, including the awkward parts: `|2-` where the first line begins with a
+    space, a quoted fallback where trailing whitespace means a literal block could not round-trip,
+    and correct chomping so the value comes back byte-for-byte. This function's only job is to
+    re-indent the continuation lines to wherever the key sits, since PyYAML indents from column 0
+    and the call site may be nested. `wizard._verify`'s round-trip check is what proves the result.
+
+    `indent` is the column of the KEY this value follows; content lands two columns further in.
+    """
+    multiline = isinstance(value, str) and "\n" in value
+    text = _strip_document_end(
+        yaml.safe_dump(value, width=_NO_WRAP, default_style="|" if multiline else None)
+    )
+    if "\n" not in text:
+        return text
+    head, *rest = text.split("\n")
+    pad = " " * indent
+    return "\n".join([head] + [pad + line if line else "" for line in rest])
 
 
 def _flow_list(values: list[str]) -> str:
@@ -95,22 +117,22 @@ def _render_gate(gate: dict) -> str:
         lines.append(f"    effective_from: {_scalar(gate['effective_from'])}")
         lines.append("    precondition:")
         lines.append(f"      artefacts: {_flow_list(gate['precondition']['artefacts'])}")
-        lines.append(f"      description: {_block(gate['precondition']['description'])}")
+        lines.append(f"      description: {_block(gate['precondition']['description'], 6)}")
         lines.append("    gated_activity:")
         lines.append(f"      paths: {_flow_list(gate['gated_activity']['paths'])}")
-        lines.append(f"      description: {_block(gate['gated_activity']['description'])}")
+        lines.append(f"      description: {_block(gate['gated_activity']['description'], 6)}")
         lines.append(f"    enforcement: {_flow_list(gate['enforcement'])}")
     elif gate["status"] == "deferred":
         lines.append(f"    owner: {_scalar(gate['owner'])}")
         lines.append(f"    revisit_by: {_scalar(gate['revisit_by'])}")
-        lines.append(f"    rationale: {_block(gate['rationale'])}")
+        lines.append(f"    rationale: {_block(gate['rationale'], 4)}")
     else:
-        lines.append(f"    rationale: {_block(gate['rationale'])}")
+        lines.append(f"    rationale: {_block(gate['rationale'], 4)}")
     return "\n".join(lines)
 
 
 def _render_control(control_id: str, entry: dict) -> str:
-    lines = [f"  {control_id}:", f"    decision: {entry['decision']}", f"    rationale: {_block(entry['rationale'])}"]
+    lines = [f"  {control_id}:", f"    decision: {entry['decision']}", f"    rationale: {_block(entry['rationale'], 4)}"]
     if "implementation_reference" in entry:
         lines.append(f"    implementation_reference: {_scalar(entry['implementation_reference'])}")
     return "\n".join(lines)
@@ -123,7 +145,7 @@ def _render_deferrals(deferrals: list[dict]) -> str:
     for d in deferrals:
         parts.append(
             f"    - control_id: {_scalar(d['control_id'])}\n"
-            f"      rationale: {_block(d['rationale'])}\n"
+            f"      rationale: {_block(d['rationale'], 6)}\n"
             f"      owner: {_scalar(d['owner'])}\n"
             f"      revisit_by: {_scalar(d['revisit_by'])}"
         )
@@ -145,7 +167,7 @@ def render_profile(profile: dict) -> str:
     deferrals_text = _render_deferrals(a["deferrals"])
 
     status_rationale_line = (
-        f"\n  status_rationale: {_block(a['status_rationale'])}" if a.get("status_rationale") else ""
+        f"\n  status_rationale: {_block(a['status_rationale'], 2)}" if a.get("status_rationale") else ""
     )
     independent_validator = _scalar(a["independent_validator"])
 
@@ -163,8 +185,8 @@ owner: {_scalar(p['owner'])}
 
 stack: {_scalar(p['stack'])}
 
-risk_profile: {_block(p['risk_profile'])}
-materiality_definition: {_block(p['materiality_definition'])}
+risk_profile: {_block(p['risk_profile'], 0)}
+materiality_definition: {_block(p['materiality_definition'], 0)}
 data_classification: {p['data_classification']}         # public | internal | confidential | restricted
 
 # See core/CONFORMANCE_LEVELS.md. A level is a floor, not a ceiling.
@@ -186,17 +208,17 @@ adoption:
 baseline_controls:
   agent_work_packets:
     decision: required
-    rationale: {_block(bc['agent_work_packets']['rationale'])}
+    rationale: {_block(bc['agent_work_packets']['rationale'], 4)}
   actual_diff_review:
     decision: required
-    rationale: {_block(bc['actual_diff_review']['rationale'])}
+    rationale: {_block(bc['actual_diff_review']['rationale'], 4)}
   secret_hygiene:
     decision: required
-    rationale: {_block(bc['secret_hygiene']['rationale'])}
+    rationale: {_block(bc['secret_hygiene']['rationale'], 4)}
     scanner:
       name: {_scalar(scanner['name'])}
       wired_in: {_flow_list(scanner['wired_in'])}
-      notes: {_block(scanner['notes'])}
+      notes: {_block(scanner['notes'], 6)}
 
 control_decisions:
 {controls_text}
@@ -208,6 +230,6 @@ prerequisites:
 {gates_text}
 
 human_roles:{roles_text}
-release_route: {_block(p['release_route'])}
+release_route: {_block(p['release_route'], 0)}
 exclusions:{exclusions_text}
 """

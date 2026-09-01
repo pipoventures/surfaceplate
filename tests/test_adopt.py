@@ -151,6 +151,18 @@ TRICKY_CHARACTER_ANSWERS: dict[str, object] = {
 }
 
 
+# F38 regression: the value that ended a real adoption run. `render._block` refused any newline, so
+# pressing Enter in a rationale box produced a failure at the REVIEW screen - after the whole
+# interview had been answered. Multi-line prose was always legal in the format (this repository's
+# own shipped profiles use folded scalars seventeen times); only the renderer could not place it.
+MULTILINE_ANSWERS: dict[str, object] = {
+    **ESSENTIAL_ANSWERS,
+    "risk.risk_profile": "a\nasd",
+    "controls.dependency_lock.rationale": "First line.\n\nA third line after a blank one.",
+    "wrap.release_route": "  leading space on the first line\nand a second",
+}
+
+
 def answers_for(repo: Path, *, level: str, builds_ui: bool, mode: str, overrides: dict | None = None) -> dict:
     """Walk the plan the wizard will walk, answering every applicable field.
 
@@ -418,6 +430,49 @@ def test_tricky_characters_round_trip(tmp: Path) -> None:
         "a `?` in a plain scalar round-trips too",
         data["materiality_definition"].endswith("material?"),
         data["materiality_definition"],
+    )
+
+
+def test_multiline_prose_survives_the_whole_flow(tmp: Path) -> None:
+    """F38: a multi-line answer writes as a literal block scalar and round-trips byte-for-byte.
+
+    The awkward cases are deliberate: a blank line inside the prose, and a first line beginning with
+    a space (which YAML can only represent with an explicit indentation indicator, `|2-`). Both are
+    PyYAML's problem to solve and this test's job to prove it did.
+    """
+    repo = make_installed_repo(tmp, "multiline-repo")
+    interview = ScriptedInterview(answers=dict(MULTILINE_ANSWERS))
+    try:
+        written = wizard.run(repo, interview)
+    except Exception as exc:
+        check("multi-line answers: the wizard writes rather than refusing", False, f"{type(exc).__name__}: {exc}")
+        return
+    check("multi-line answers: the wizard writes rather than refusing", True)
+
+    import yaml
+
+    raw = written.read_text(encoding="utf-8")
+    data = yaml.safe_load(raw)
+    check(
+        "a two-line answer round-trips exactly",
+        data["risk_profile"] == "a\nasd",
+        repr(data["risk_profile"]),
+    )
+    check(
+        "a blank line inside prose is preserved",
+        data["control_decisions"]["dependency_lock"]["rationale"]
+        == "First line.\n\nA third line after a blank one.",
+        repr(data["control_decisions"]["dependency_lock"]["rationale"]),
+    )
+    check(
+        "a first line beginning with a space round-trips",
+        data["release_route"] == "  leading space on the first line\nand a second",
+        repr(data["release_route"]),
+    )
+    check(
+        "and it is written as a readable block scalar, not an escaped one-liner",
+        "|-" in raw or "|2-" in raw,
+        raw[:200],
     )
 
 
@@ -714,6 +769,9 @@ def main() -> int:
 
         print("\nF36 regression: flow-sequence-special characters through the real flow")
         test_tricky_characters_round_trip(tmp)
+
+        print("\nF38 regression: multi-line prose survives the whole flow")
+        test_multiline_prose_survives_the_whole_flow(tmp)
 
         print("\nfull-level, UI-building end to end")
         test_full_ui_end_to_end(tmp)

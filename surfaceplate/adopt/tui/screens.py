@@ -31,6 +31,7 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, HorizontalGroup, Vertical, VerticalScroll
 from textual.screen import Screen
+from textual.suggester import SuggestFromList
 from textual.widgets import (
     Button,
     Checkbox,
@@ -39,14 +40,68 @@ from textual.widgets import (
     OptionList,
     RadioButton,
     RadioSet,
+    Select,
+    SelectionList,
     Static,
     TextArea,
 )
+from textual.widgets.selection_list import Selection
 from textual.widgets.option_list import Option
 
 from surfaceplate.adopt import plan, validators
 
 CANCELLED = "__cancelled__"
+
+
+class Frame(VerticalScroll):
+    """The outer frame: scrolls, but never takes focus.
+
+    Both halves matter and they pull against each other. `Vertical` does not scroll, so content
+    taller than the window was clipped - which is what *"the terminal is cut if you minimise the
+    window"* actually was. But `VerticalScroll` is focusable by default, and a focused scroll
+    container swallows the arrow keys, so simply swapping one for the other stopped `\u2191`/`\u2193`
+    ever reaching a field. Found by driving it, not by reading about it.
+    """
+
+    can_focus = False
+
+
+class _StatefulToggle:
+    """Mixin: draw a DIFFERENT character for on and off.
+
+    `ToggleButton` renders `BUTTON_INNER` whatever the state and distinguishes on from off purely
+    by style, at low contrast - which is what *"some boxes (x) are not clearly visible so you don't
+    know you have to click (X) there"* was about.
+
+    Setting `BUTTON_INNER` to a tick was the obvious fix and was WRONG in a worse way: the class
+    variable is drawn in both states, so an UNCHECKED box rendered a tick and looked answered.
+    That shipped past a whole-screen comparison and was only caught once the assertion was narrowed
+    to the checkbox's own row - `DR-37`'s point about calibrating a property test, demonstrated
+    against this packet's own code.
+    """
+
+    ON = "\u2714"   # ✔
+    OFF = "\u00b7"  # ·
+
+    def watch_value(self) -> None:  # type: ignore[override]
+        # `ToggleButton.watch_value` takes no argument in Textual 8; Textual inspects the
+        # signature and calls it accordingly, so this must match rather than forward a value.
+        self.BUTTON_INNER = self.ON if self.value else self.OFF
+        super().watch_value()  # type: ignore[misc]
+        self.refresh()
+
+    def on_mount(self) -> None:
+        self.BUTTON_INNER = self.ON if self.value else self.OFF
+        self.refresh()
+
+
+class VisibleCheckbox(_StatefulToggle, Checkbox):
+    pass
+
+
+class VisibleRadioButton(_StatefulToggle, RadioButton):
+    ON = "\u25cf"   # ●
+    OFF = "\u25cb"  # ○
 
 
 class EditableInput(Input):
@@ -70,6 +125,24 @@ class EditableInput(Input):
     def on_mount(self) -> None:
         self.action_end()
 
+    def on_key(self, event: events.Key) -> None:
+        """Up and down move to the next field rather than doing nothing.
+
+        Handled here rather than by a screen-level binding with `priority=True`, which would have
+        been simpler and wrong: a priority binding fires before the focused widget, so it would
+        also steal the arrows from the option list, the radio set and the text area, where they
+        legitimately move a cursor or a highlight. A single-line text box is the one widget with
+        no use for them.
+        """
+        if event.key == "down":
+            event.stop()
+            event.prevent_default()
+            self.screen.focus_next()
+        elif event.key == "up":
+            event.stop()
+            event.prevent_default()
+            self.screen.focus_previous()
+
 
 def _widget_for(spec: plan.FieldSpec, value: object = None):
     """One field, as the widget its kind calls for. `id` carries the field id so a screen's widgets
@@ -83,21 +156,46 @@ def _widget_for(spec: plan.FieldSpec, value: object = None):
     widget_id = f"f-{spec.id.replace('.', '--')}"
     if spec.kind == "bool":
         initial = bool(value) if value is not None else bool(spec.default)
-        return Checkbox(spec.label, value=initial, id=widget_id)
+        return VisibleCheckbox(spec.label, value=initial, id=widget_id)
     if spec.kind == "choice":
         buttons = [
-            RadioButton(label, value=(value == choice_value), id=f"r-{spec.id.replace('.', '--')}--{choice_value}")
+            VisibleRadioButton(
+                label,
+                value=(value == choice_value),
+                id=f"r-{spec.id.replace('.', '--')}--{choice_value}",
+            )
             for choice_value, label in spec.choices
         ]
         return RadioSet(*buttons, id=widget_id)
+    if spec.kind == "select":
+        # Discovered candidates, and nothing pre-selected: `Select.BLANK` keeps the same rule the
+        # level screen states out loud - a value nobody picked is not an answer.
+        return Select(
+            [(label, choice_value) for choice_value, label in spec.choices],
+            prompt=f"Choose {spec.label.lower()}",
+            allow_blank=True,
+            id=widget_id,
+        )
+    if spec.kind == "multiselect":
+        chosen = {v.strip() for v in str(spec.default).split(",") if v.strip()}
+        return SelectionList(
+            *[
+                Selection(label, choice_value, choice_value in chosen)
+                for choice_value, label in spec.choices
+            ],
+            id=widget_id,
+        )
     if spec.kind == "textarea":
         return TextArea(str(value if value is not None else spec.default), id=widget_id)
     # No `placeholder=spec.label`. It duplicated the label the row already renders, so every field
     # printed its own name twice - `F37` #3, visible as "Precondition artefact (a real path)"
     # stacked directly above an input containing the same words.
+    # Where candidates exist but must not constrain (a pathspec is a pattern, not a path), they
+    # are offered as inline ghost text: type to filter, `\u2192` to accept, or ignore them entirely.
     return EditableInput(
         value=str(value if value is not None else spec.default),
         id=widget_id,
+        suggester=SuggestFromList(spec.suggestions) if spec.suggestions else None,
     )
 
 
@@ -130,6 +228,15 @@ def _first_sentence(text: str) -> str:
 
 
 def _read_widget(widget) -> object:
+    if isinstance(widget, SelectionList):
+        return list(widget.selected)
+    if isinstance(widget, Select):
+        # `is_blank()`, not a comparison against a constant: `Select` exposes BOTH `BLANK` and
+        # `NULL` and they are different objects, so `value is Select.BLANK` is silently always
+        # false and would hand the sentinel back as though a human had chosen it. Caught by a test
+        # asserting nothing is pre-selected, which is exactly the sort of thing that assertion is
+        # for.
+        return None if widget.is_blank() else widget.value
     if isinstance(widget, Checkbox):
         return bool(widget.value)
     if isinstance(widget, RadioSet):
@@ -148,6 +255,12 @@ class _SectionScreenBase(Screen):
     BINDINGS = [
         Binding("ctrl+q", "cancel", "quit", show=True),
         Binding("ctrl+s", "commit", "continue", show=True),
+        # `F38`: "not obvious how tab and control+S work. Using the arrows would be easier."
+        # A focused `Input` lets these through (its inherited scroll action raises `SkipAction`
+        # when there is nothing to scroll), so they reach the screen. `TextArea` legitimately
+        # consumes them for cursor movement - Tab is the way out of one.
+        Binding("down", "focus_next", "next field", show=False),
+        Binding("up", "focus_previous", "previous field", show=False),
     ]
 
     def __init__(self, section: plan.SectionPlan, *, step: str = "") -> None:
@@ -181,7 +294,7 @@ class FormScreen(_SectionScreenBase):
     """
 
     def compose(self) -> ComposeResult:
-        with Vertical(id="frame"):
+        with Frame(id="frame"):
             yield Static(f"[{self.step}{self.section.title}]", classes="section-header")
             if self.section.intro:
                 yield Static(self.section.intro, classes="intro")
@@ -202,17 +315,50 @@ class FormScreen(_SectionScreenBase):
                         widget = _widget_for(spec)
                         widget.add_class("field-widget")
                         yield widget
-        # Help is not rendered per field. It belongs to whichever field has focus, and it lives in
-        # the hint line - which is what the mockup drew and what Phase 2's own plan specified
-        # before shipping the opposite (`F37` #5).
+                    # Beside the field, shown only while that field has focus. `F37` moved this to
+                    # the docked hint line to stop every field's help rendering at once; that
+                    # fixed the clutter and buried the text - *"the explanations are at the very
+                    # bottom, took me a while to realise they were there"*. Reversed on evidence:
+                    # one help line, next to the thing it explains.
+                    yield Static("", classes="field-help", id=f"help-{spec.id.replace('.', '--')}")
         yield Static("", id="hint", markup=False)
 
     def on_mount(self) -> None:
         self._refresh_visibility()
+        self._focus_first_field()
+        self._show_help_for_focused()
         self._set_hint()
 
+    def _focus_first_field(self) -> None:
+        """Start in the first field rather than nowhere.
+
+        With the frame no longer focusable, nothing claimed focus on mount, so the arrow keys had
+        nothing to move from and the first keystroke went nowhere. Focusing the first field also
+        means its help is on screen immediately, which is the point of moving help back beside it.
+        """
+        for spec in self.section.fields:
+            try:
+                widget = self.query_one(f"#f-{spec.id.replace('.', '--')}")
+            except Exception:
+                continue
+            if widget.display:
+                widget.focus()
+                return
+
     def on_descendant_focus(self, event: events.DescendantFocus) -> None:
+        self._show_help_for_focused()
         self._set_hint()
+
+    def _show_help_for_focused(self) -> None:
+        focused = self._focused_spec()
+        for spec in self.section.fields:
+            try:
+                slot = self.query_one(f"#help-{spec.id.replace('.', '--')}", Static)
+            except Exception:
+                continue
+            active = focused is not None and spec.id == focused.id and bool(spec.help)
+            slot.display = active
+            slot.update(spec.help if active else "")
 
     def _answers(self) -> dict:
         answers: dict = {}
@@ -248,8 +394,9 @@ class FormScreen(_SectionScreenBase):
         spec = self._focused_spec()
         self.query_one("#hint", Static).update(
             hint_line(
-                keys="[Tab] next  [⇧Tab] back  [Ctrl+S] continue  [Ctrl+Q] cancel",
-                help_text=spec.help if spec and spec.help else "",
+                # Arrows first, because they are what people reach for: `F38` began with "it's not
+                # obvious how tab and control+S work. Using the arrows would be easier."
+                keys="[↑↓] move between fields  [Ctrl+S] continue  [Ctrl+Q] cancel",
                 error=error,
             )
         )
@@ -285,7 +432,7 @@ class LevelScreen(_SectionScreenBase):
         self._why_shown = False
 
     def compose(self) -> ComposeResult:
-        with Vertical(id="frame"):
+        with Frame(id="frame"):
             yield Static(f"[{self.step}{self.section.title}]", classes="section-header")
             if self.section.recap:
                 yield Static("You told us:", classes="recap")
@@ -392,6 +539,8 @@ class GatesScreen(_SectionScreenBase):
         Binding("ctrl+q", "cancel", "quit", show=True),
         Binding("ctrl+s", "commit", "continue", show=True),
         Binding("ctrl+g", "jump_section", "jump to section", show=True),
+        Binding("down", "focus_next", "next field", show=False),
+        Binding("up", "focus_previous", "previous field", show=False),
     ]
 
     def __init__(self, specs: tuple[plan.GateSpec, ...], section: plan.SectionPlan, *, step: str = "") -> None:
@@ -400,7 +549,7 @@ class GatesScreen(_SectionScreenBase):
         self._chosen: dict[str, str] = {}
 
     def compose(self) -> ComposeResult:
-        with Vertical(id="frame"):
+        with Frame(id="frame"):
             yield Static(f"[{self.step}{self.section.title}]", classes="section-header")
             yield Static(self.section.intro, classes="intro")
             with VerticalScroll(id="gate-list"):
@@ -454,6 +603,7 @@ class GatesScreen(_SectionScreenBase):
                     default=field_spec.default,
                     choices=field_spec.choices,
                     validate=field_spec.validate,
+                    suggestions=field_spec.suggestions,
                 )
                 with HorizontalGroup(classes="followups", id=f"row-{key.replace('.', '--')}"):
                     if field_spec.kind == "choice":
@@ -590,7 +740,7 @@ class GatesScreen(_SectionScreenBase):
         total = len(self.specs)
         done = self._answered_count()
         keys = (
-            f"{done} of {total} answered · [Tab] move  [Ctrl+G] jump to section  "
+            f"{done} of {total} answered · [\u2191\u2193] move  [Ctrl+G] jump to section  "
             "[Ctrl+S] continue  [Ctrl+Q] cancel"
         )
         self.query_one("#hint", Static).update(hint_line(keys=keys, error=error))
@@ -646,7 +796,7 @@ class ReviewScreen(Screen):
         self.error = error
 
     def compose(self) -> ComposeResult:
-        with Vertical(id="frame"):
+        with Frame(id="frame"):
             yield Static("[Review — nothing has been written yet]", classes="section-header")
             if self.error:
                 yield Static(self.error, id="review-error")
@@ -678,7 +828,7 @@ class ResumeScreen(Screen):
         self.info = info
 
     def compose(self) -> ComposeResult:
-        with Vertical(id="frame"):
+        with Frame(id="frame"):
             yield Static("[A saved draft was found]", classes="section-header")
             yield Static(
                 f"It has answers for: {', '.join(self.info.sections)}.", classes="intro"

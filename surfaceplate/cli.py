@@ -79,6 +79,19 @@ def _cmd_adopt(argv: list[str]) -> int:
         print(f"\nRefusing to write: {exc.detail}")
         print("This is the wizard's own safety check, not the checker. Nothing was written.")
         return 3
+    except Exception as exc:  # noqa: BLE001 - deliberate; see below
+        # `F38`: the renderer raises `ValueError` for a value it cannot place, and `wizard.run`'s
+        # second, authoritative render sits outside any handler. Before this, such a value reached
+        # the adopter as a raw traceback - the failure mode this framework tells everyone else to
+        # avoid. The draft is named as kept, because it is: nothing is cleared except on a
+        # successful write.
+        print(f"\nThe wizard could not finish: {type(exc).__name__}: {exc}", file=sys.stderr)
+        print(
+            "Nothing was written. Your answers are kept in the draft, so re-running `adopt` offers "
+            "to resume from where this stopped.",
+            file=sys.stderr,
+        )
+        return 4
 
     print(f"\nWrote {written}.")
     print("Run `surfaceplate check` (or the installed hook, on your next commit) to verify it.")

@@ -74,18 +74,25 @@ Screen {
     text-overflow: ellipsis;
 }
 
+/* A slot you can SEE, even empty and even without colour. "Difficult sometimes to follow and know
+   where you must add text" was the report; a background tint alone does not carry that, so every
+   input keeps an underline, which is visible in monochrome and in a rendered-text test. */
 Input, TextArea {
     background: #12181b;
     border: none;
+    border-bottom: solid #39424a;
     color: #dce0dd;
     padding: 0 1;
     width: 1fr;
-    height: 1;
+    height: 2;
 }
 
+/* The focused field keeps its underline - in the accent, so focus is obvious - rather than losing
+   it to `border: none`, which removed the slot from the one field you are actually typing in. */
 Input:focus, TextArea:focus {
     background: #171c1f;
     border: none;
+    border-bottom: solid #d79a3c;
 }
 
 TextArea {
@@ -189,4 +196,31 @@ OptionList > .option-list--option-highlighted {
 #review-error {
     color: #d79a3c;
     height: auto;
+}
+
+
+/* The dropdown: obviously a control, without eating three rows per field. */
+Select {
+    width: 1fr;
+    height: 3;   /* its own prompt row plus the underline; 2 clipped the prompt entirely */
+    border: none;
+    border-bottom: solid #39424a;
+    background: #12181b;
+}
+
+Select:focus {
+    border-bottom: solid #d79a3c;
+}
+
+SelectionList {
+    background: #0e1316;
+    border: none;
+    height: auto;
+    max-height: 6;
+}
+
+/* On/off must differ in SHAPE, not only in colour - see VisibleCheckbox. */
+Checkbox > .toggle--button, RadioButton > .toggle--button {
+    color: #6fae8a;
+    background: #1c2226;
 }

@@ -31,7 +31,7 @@ import datetime as _dt
 from dataclasses import dataclass, field as _field
 from pathlib import Path
 
-from surfaceplate.adopt import catalogue, detect, example_answers, explanations
+from surfaceplate.adopt import catalogue, detect, discover, example_answers, explanations, validators
 
 # The three controls required at every level. Fixed order, matching the profile's own layout and
 # `core/CONFORMANCE_LEVELS.md`'s "The three baseline controls" section.
@@ -55,12 +55,17 @@ class FieldSpec:
 
     id: str
     label: str
-    kind: str = "text"  # text | textarea | choice | bool
+    kind: str = "text"  # text | textarea | choice | bool | select | multiselect
     help: str = ""
     default: str = ""
     choices: tuple[tuple[str, str], ...] = ()
     validate: str = "nonempty"  # a name in validators.py; "" means anything, including blank
     depends_on: tuple[str, tuple[object, ...]] | None = None
+    # Candidates read out of the adopting repository (`discover.py`). On a `select` field these
+    # ARE the options; on a `text` field they are offered as inline completions and constrain
+    # nothing. Empty means discovery found none - the field then behaves exactly as it did before
+    # discovery existed, which is the honest fallback for a repository git cannot read.
+    suggestions: tuple[str, ...] = ()
 
     def applies(self, answers: dict) -> bool:
         """Whether this field is asked at all, given what has been answered so far in its section."""
@@ -319,7 +324,9 @@ def level_plan(repo: Path, *, builds_ui: bool, mode: str, recap: tuple[str, ...]
 # ---------------------------------------------------------------------------------------------
 
 
-def _implementation_reference_field(control_id: str, *, at_floor: bool) -> FieldSpec | None:
+def _implementation_reference_field(
+    control_id: str, *, at_floor: bool, found: discover.Discovered
+) -> FieldSpec | None:
     """Pattern A/B/C controls each name where they are implemented, and the three patterns want
     different things named - a file, a CI step, a register directory (`DR-25`, `DR-26`). Pattern D
     controls name nothing."""
@@ -331,15 +338,28 @@ def _implementation_reference_field(control_id: str, *, at_floor: bool) -> Field
     if control_id not in labels:
         return None
     prefix, help_text = labels[control_id]
-    return FieldSpec(
+    # Each pattern names a different kind of thing, and each is discoverable. The CI step in
+    # particular is why this packet exists: "no example for CI step name... not sure how to proceed
+    # on that one" is unanswerable from a canned example and trivial from the adopter's own
+    # workflow files.
+    if control_id in catalogue.PATTERN_A_CONTROLS:
+        candidates = found.lock_files or found.artefacts
+    elif control_id in catalogue.PATTERN_B_CONTROLS:
+        candidates = found.ci_steps
+    else:
+        candidates = found.register_dirs
+    return _from_candidates(
         id=f"{control_id}.implementation_reference",
         label=f"{prefix} {control_id}",
         help=help_text,
+        candidates=candidates,
         depends_on=None if at_floor else (f"{control_id}.declared", (True,)),
     )
 
 
-def controls_plan(*, level: str, mode: str) -> SectionPlan:
+def controls_plan(
+    *, level: str, mode: str, found: discover.Discovered | None = None
+) -> SectionPlan:
     """All nine controls are shown, not just the level's floor.
 
     The old flow asked the floor's controls and then offered a "declare another?" loop, which is a
@@ -348,6 +368,7 @@ def controls_plan(*, level: str, mode: str) -> SectionPlan:
     level being "a floor, not a ceiling" requires while making the section a fixed, describable
     shape. Nothing above the floor is declared unless a human turns it on.
     """
+    found = found or discover.Discovered()
     required = catalogue.CONFORMANCE_LEVELS[level]
     fields: list[FieldSpec] = []
 
@@ -371,13 +392,11 @@ def controls_plan(*, level: str, mode: str) -> SectionPlan:
         )
     )
     fields.append(
-        FieldSpec(
+        _from_candidates(
             id="scanner.wired_in",
-            label="Workflow file the scanner is wired into",
-            help=(
-                "e.g. .github/workflows/secret-scan.yml - a step naming this scanner must be able "
-                "to fail the build"
-            ),
+            label="Scanner workflow file",
+            help="a step naming this scanner must be able to fail the build",
+            candidates=tuple(a for a in found.artefacts if "workflow" in a),
         )
     )
 
@@ -411,7 +430,7 @@ def controls_plan(*, level: str, mode: str) -> SectionPlan:
                 depends_on=None if at_floor else (f"{control_id}.declared", (True,)),
             )
         )
-        reference = _implementation_reference_field(control_id, at_floor=at_floor)
+        reference = _implementation_reference_field(control_id, at_floor=at_floor, found=found)
         if reference is not None:
             fields.append(reference)
 
@@ -437,6 +456,28 @@ def locked_controls(level: str) -> set[str]:
 # Section 6 — prerequisite gates
 # ---------------------------------------------------------------------------------------------
 
+def _from_candidates(
+    *, id: str, label: str, help: str, candidates: tuple[str, ...], depends_on=None,
+    validate: str = "nonempty",
+) -> FieldSpec:
+    """A field answered by picking, when there is anything to pick from.
+
+    `DR-38`'s rule: never offer something that isn't there. So when discovery found nothing - no
+    git, an unusual layout - this degrades to the plain text field it always was, rather than
+    presenting an empty dropdown that cannot be answered.
+    """
+    return FieldSpec(
+        id=id,
+        label=label,
+        kind="select" if candidates else "text",
+        help=help,
+        choices=tuple((c, c) for c in candidates),
+        suggestions=candidates,
+        validate=validate,
+        depends_on=depends_on,
+    )
+
+
 _GATE_STATUS_CHOICES = (
     ("required", "required - a precondition must exist before the gated paths change"),
     ("deferred", "deferred - not yet, with an owner and a date"),
@@ -444,7 +485,9 @@ _GATE_STATUS_CHOICES = (
 )
 
 
-def _gate_fields(gate_id: str, *, mandatory: bool, auto_status: str) -> tuple[FieldSpec, ...]:
+def _gate_fields(
+    gate_id: str, *, mandatory: bool, auto_status: str, found: discover.Discovered
+) -> tuple[FieldSpec, ...]:
     fields: list[FieldSpec] = []
 
     if not mandatory and not auto_status:
@@ -459,10 +502,14 @@ def _gate_fields(gate_id: str, *, mandatory: bool, auto_status: str) -> tuple[Fi
 
     required_when = ("required",) if not mandatory else ("required",)
     fields += [
-        FieldSpec(
+        # `SP032` requires this artefact to exist, be non-empty and carry no placeholder - so a
+        # value typed from memory is a profile that fails its own checker. Picking from what is
+        # actually in the repository removes that whole class of answer.
+        _from_candidates(
             id="artefact",
             label="Precondition artefact",
-            help="a real path in this repository - what must exist before the gated paths change",
+            help="what must exist before the gated paths may change",
+            candidates=found.artefacts,
             depends_on=None if mandatory else ("status", required_when),
         ),
         FieldSpec(
@@ -471,10 +518,14 @@ def _gate_fields(gate_id: str, *, mandatory: bool, auto_status: str) -> tuple[Fi
             kind="textarea",
             depends_on=None if mandatory else ("status", required_when),
         ),
+        # A pathspec, not a path: `src/**` never has to exist as a file, so this stays typeable
+        # and offers the repository's real top-level directories as inline completions instead of
+        # constraining to them.
         FieldSpec(
             id="paths",
             label="Gated paths",
             help="a git pathspec, e.g. src/** - what may not proceed until the artefact exists",
+            suggestions=found.paths,
             depends_on=None if mandatory else ("status", required_when),
         ),
         FieldSpec(
@@ -491,12 +542,16 @@ def _gate_fields(gate_id: str, *, mandatory: bool, auto_status: str) -> tuple[Fi
             validate="date",
             depends_on=None if mandatory else ("status", required_when),
         ),
+        # A fixed schema enum, and it should never have been a comma-separated string: a typo
+        # here produced a profile the schema rejects, after the whole interview was answered.
         FieldSpec(
             id="enforcement",
             label="Enforcement",
-            help="comma-separated: history_audit, review, ci, local_hook",
-            default="history_audit, review",
-            validate="enforcement",
+            kind="multiselect",
+            help="how this gate is enforced - pick every one that applies",
+            choices=tuple((v, v) for v in validators.ENFORCEMENT_VALUES),
+            default="history_audit,review",
+            validate="",
             depends_on=None if mandatory else ("status", required_when),
         ),
     ]
@@ -541,7 +596,9 @@ def _gate_fields(gate_id: str, *, mandatory: bool, auto_status: str) -> tuple[Fi
     return tuple(fields)
 
 
-def gate_plan(*, level: str, builds_ui: bool, mode: str) -> tuple[GateSpec, ...]:
+def gate_plan(
+    *, level: str, builds_ui: bool, mode: str, found: discover.Discovered | None = None
+) -> tuple[GateSpec, ...]:
     """The gates this run actually asks about, in `core/PREREQUISITE_GATES.md`'s catalogue order.
 
     Reproduces `sections.ask_gates`'s applicability rules exactly, now as data:
@@ -553,6 +610,7 @@ def gate_plan(*, level: str, builds_ui: bool, mode: str) -> tuple[GateSpec, ...]
     - at `essential`, only `work_registration` is declared at all, because the checker reads
       nothing else at that level.
     """
+    found = found or discover.Discovered()
     mandatory = set(catalogue.LEVEL_REQUIRED_GATES[level])
     full_declaration = level in catalogue.LEVELS_REQUIRING_FULL_DECLARATION
     if builds_ui and full_declaration:
@@ -565,7 +623,7 @@ def gate_plan(*, level: str, builds_ui: bool, mode: str) -> tuple[GateSpec, ...]
                 section="Work and decisions",
                 explanation=explanations.explain("work_registration", mode),
                 mandatory=True,
-                fields=_gate_fields("work_registration", mandatory=True, auto_status=""),
+                fields=_gate_fields("work_registration", mandatory=True, auto_status="", found=found),
             ),
         )
 
@@ -582,16 +640,20 @@ def gate_plan(*, level: str, builds_ui: bool, mode: str) -> tuple[GateSpec, ...]
                     explanation=explanations.explain(gate_id, mode),
                     mandatory=is_mandatory,
                     auto_status=auto_status,
-                    fields=_gate_fields(gate_id, mandatory=is_mandatory, auto_status=auto_status),
+                    fields=_gate_fields(
+                        gate_id, mandatory=is_mandatory, auto_status=auto_status, found=found
+                    ),
                 )
             )
     return tuple(specs)
 
 
-def gates_plan(*, level: str, builds_ui: bool, mode: str) -> SectionPlan:
+def gates_plan(
+    *, level: str, builds_ui: bool, mode: str, found: discover.Discovered | None = None
+) -> SectionPlan:
     """The gate catalogue as a `SectionPlan`, so the screen↔plan join test has one rule for every
     section including this one. Its `fields` are every gate's fields, prefixed by gate id."""
-    specs = gate_plan(level=level, builds_ui=builds_ui, mode=mode)
+    specs = gate_plan(level=level, builds_ui=builds_ui, mode=mode, found=found)
     fields: list[FieldSpec] = []
     for spec in specs:
         for f in spec.fields:
@@ -604,6 +666,7 @@ def gates_plan(*, level: str, builds_ui: bool, mode: str) -> SectionPlan:
                     default=f.default,
                     choices=f.choices,
                     validate=f.validate,
+                    suggestions=f.suggestions,
                     depends_on=(
                         (f"{spec.id}.{f.depends_on[0]}", f.depends_on[1])
                         if f.depends_on is not None
@@ -743,13 +806,19 @@ def recap_lines(state: dict) -> tuple[str, ...]:
     return tuple(lines)
 
 
-def section_plan(name: str, *, repo: Path, state: dict) -> SectionPlan:
+def section_plan(
+    name: str, *, repo: Path, state: dict, found: discover.Discovered | None = None
+) -> SectionPlan:
     """The plan for one section, given everything answered before it.
 
     Sequencing is data-dependent - `level` needs `mode` and `builds_user_interface`, `gates` needs
     `level` - which is exactly why the app cannot be handed a flat list of screens up front and why
     this function takes the accumulated state.
     """
+    # One scan serves every section. Callers that run the whole interview pass it in; a caller
+    # asking for a single section (a test, a screen in isolation) gets a scan of its own.
+    found = found if found is not None else discover.scan(repo)
+
     mode = (state.get("mode") or {}).get("mode", "simple")
     builds_ui = bool((state.get("stack") or {}).get("builds_user_interface", False))
     level = (state.get("level") or {}).get("conformance_level", "essential")
@@ -766,9 +835,9 @@ def section_plan(name: str, *, repo: Path, state: dict) -> SectionPlan:
     if name == "level":
         return level_plan(repo, builds_ui=builds_ui, mode=mode, recap=recap_lines(state))
     if name == "controls":
-        return controls_plan(level=level, mode=mode)
+        return controls_plan(level=level, mode=mode, found=found)
     if name == "gates":
-        return gates_plan(level=level, builds_ui=builds_ui, mode=mode)
+        return gates_plan(level=level, builds_ui=builds_ui, mode=mode, found=found)
     if name == "adoption":
         return adoption_plan(owner=owner)
     if name == "wrap":
