@@ -96,6 +96,7 @@ an unknown number of releases with nothing noticing.
 | F29 | The agent instructions the framework ships are not read by the agent that uses it | high | Closed — emitted per agent; surfaceplate finally subject to its own |
 | F30 | The history audit resolves a precondition by its current path, so a rename falsifies the whole history | medium | **Open** — cleared by exception `GX-0001`; following renames is unbuilt |
 | F31 | The history audit ran against a depth-1 clone in CI and reported nothing wrong | high | Closed — `fetch-depth: 0`, and a shallow clone is now reported |
+| F32 | The wizard invented rationale text for baseline controls and auto-masked UI gates | high | Closed — `ACT-022`, routed through `Prompt`; found by the review `ACT-021` requested |
 
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -996,6 +997,52 @@ protects against an unexpected new release rather than a compromised re-upload o
 PyPI does not permit re-uploading a version, which makes that largely theoretical — but it is a
 weaker guarantee than a hash-bearing lock, and `pyproject.toml` says so rather than implying
 otherwise.
+
+---
+
+## F32 — The wizard invented rationale text for baseline controls and auto-masked UI gates
+
+**Severity: high. Closed.**
+
+Found by the review `ACT-021` requested — item 9 of `org/RELEASE_PLAN.md`, the first time this
+framework has been read by a party other than the maintainer and the agent that built it, and the
+first thing it found was real.
+
+`surfaceplate/adopt/`'s own binding rule, stated in its `__init__.py` docstring before any of the
+package was written: *"No module here selects a conformance level, invents a rationale, or sets a
+date."* `sections.py`'s `ask_controls` hardcoded the rationale for all three baseline controls
+(`agent_work_packets`, `actual_diff_review`, `secret_hygiene`) as Python string constants, never
+routed through a `Prompt` call. `ask_gates` did the same for the four `DESIGN_GATES` it
+auto-marks `not_applicable` when `builds_user_interface` is false. Both wrote a rationale to the
+profile the human never saw asked — a direct violation of the rule stated to govern the whole
+package, undetected by `ACT-020`'s own 23-check test suite, which proved every *asked* question
+was answered and nothing more, but never proved every *written* value traced to a question.
+
+`FACT FROM PACKAGE`, read directly, before accepting the report: `sections.py:149-176` (as it stood
+before this finding) constructed `baseline_controls` from a module-level `_BASELINE_RATIONALES`
+dict and a second inline string for `secret_hygiene`, none reachable from any `prompt.text` call;
+`sections.py:255-260` wrote `"rationale": "This repository has no user interface."` inside a loop
+with no `Prompt` argument at all.
+
+**Not every finding in the same report survived the same check.** Two others were verified against
+the code and found not to hold: `adoption.deferrals = []` is a disclosed limitation
+(`org/decisions/DR-32.md`'s "Limitations and follow-up"), not an invented claim — it asserts
+nothing false, unlike a fabricated rationale. And the report's over-engineering finding — that a
+non-UI repository must manually justify all four UI gates — is wrong about the code: `ask_gates`
+already auto-masks them; the reviewer had not traced that branch. Accepting a review's findings
+without independently checking each one against the artefact would have been exactly the "wrong
+artefact" failure this project's own working-method doctrine names — validating the *report about*
+the code rather than the code itself.
+
+**Closed at `ACT-022`, in the same session the finding arrived.** `ask_controls` now asks for each
+baseline control's rationale exactly as it already asked for every level-required control's; the
+`DESIGN_GATES` auto-mask now asks per gate, with the old fixed string offered as an editable
+default rather than a silent write, so the "no UI" fact already given earlier is not re-litigated
+four times over — an answer with a default is still a `Prompt` call a human confirmed, the same
+pattern `review_by` and `enforcement` already use elsewhere in the same file. A new test
+(`tests/test_adopt.py::test_design_gates_rationale_is_asked`) scripts rationale text that matches
+none of the old hardcoded strings and asserts the written profile contains exactly that text — a
+regression here would misalign the scripted answer sequence and fail loudly, not silently pass.
 
 ---
 

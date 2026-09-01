@@ -1714,3 +1714,23 @@ repository-local `.venv` is the ordinary remedy.
 
 **Not built:** `--web` mode, resumability, and a `deferred` path through `control_decisions` — all
 disclosed in `DR-32` as evidence-led deferrals, not silent gaps.
+
+### `F32`: the wizard invented rationale text, found by the review it produced (`ACT-022`)
+
+Item 9's first finding, and it was real. `sections.py`'s `ask_controls` hardcoded rationale text
+for all three baseline controls, and `ask_gates` did the same for the four UI gates it
+auto-marks `not_applicable` when `builds_user_interface` is false — neither routed through
+`Prompt`, contradicting the package's own stated rule that nothing here invents a rationale.
+`ACT-020`'s 23-check test suite never caught it: it proved every *asked* question was answered,
+never that every *written* value traced to one.
+
+Not every finding in the same report survived independent verification against the code before
+being accepted. `adoption.deferrals = []` is a disclosed limitation (`DR-32`), not an invented
+claim. The report's over-engineering finding — that a non-UI repository must manually justify
+each UI gate — is wrong about the code, which already auto-masks them; the reviewer had not
+traced that branch.
+
+Fixed: both hardcoded paths now ask, the UI-gate one with the old text offered as an editable
+default rather than a silent write. A new test scripts rationale text matching none of the old
+hardcoded strings and asserts the written profile contains exactly that text — a regression here
+misaligns the scripted answer sequence and fails loudly.
