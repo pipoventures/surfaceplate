@@ -1,0 +1,25 @@
+# Authority map - the single canonical answer for each material question in this repository.
+#
+# This file existing is not the practice. It was created when Surfaceplate was adopted here so the
+# `authority_map` gate has a real place to point at. What the gate asks is that every material
+# question has exactly ONE canonical answer in ONE named location, and that this map is what routes
+# a reader to it. An empty map with several contradictory documents in the repository is a finding,
+# not a satisfied control.
+#
+# Add an entry when a question has a canonical answer worth citing. Where two documents disagree,
+# that is a blocking defect: resolve it, or record the decision required. Do not list both.
+#
+# Generated or extracted content is never an authority. It is for search and navigation only.
+
+schema_version: "1.0"
+
+entries: []
+# Each entry takes the shape:
+#
+#   - question: what a reader is trying to answer
+#     authority: the one path that answers it
+#     owner_role: who is accountable for keeping it true
+#     notes: anything a reader needs in order to use it correctly
+#
+# entries is empty because no canonical authority has been declared yet. That is accurate on the day
+# this file was created.

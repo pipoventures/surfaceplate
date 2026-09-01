@@ -13,15 +13,18 @@ disk this app touches is the draft file, through the callback it is handed.
 
 from __future__ import annotations
 
+import datetime as _dt
 from pathlib import Path
 from typing import Callable
 
 from textual import work
 from textual.app import App
 
-from surfaceplate.adopt import defaults, discover, plan
+from surfaceplate.adopt import defaults, discover, plan, scaffold
+from surfaceplate.adopt.wizard import SCAFFOLD_KEY
 from surfaceplate.adopt.interview import Cancelled, DraftInfo
 from surfaceplate.adopt.tui.screens import (
+    ScaffoldScreen,
     CANCELLED,
     DefaultsScreen,
     FormScreen,
@@ -111,6 +114,41 @@ class AdoptApp(App):
         self._seeded = seeded
         return True
 
+
+    async def _offer_missing_artefacts(self, gate_answers: dict) -> bool:
+        """`ACT-033`. Where a required gate has no artefact, offer to create one.
+
+        Only gates the adopter left blank, and only those with an honest seed - a gate they
+        answered is not second-guessed, and a gate whose artefact cannot be created as a true
+        statement is left alone rather than filled with something plausible.
+
+        The accepted files are stashed under `wizard.SCAFFOLD_KEY` rather than in a section: they
+        are an instruction to `wizard.run`, not an answer, and the provenance walk must never meet
+        them as one. The gate's artefact answer IS set to the path, because that is what the human
+        just chose.
+        """
+        blank = [
+            gate_id
+            for gate_id, path in scaffold.SEEDABLE.items()
+            if not str(gate_answers.get(f"{gate_id}.artefact") or "").strip()
+        ]
+        offers = scaffold.offers(self.repo, blank)
+        if not offers:
+            return True
+
+        accepted = await self.push_screen_wait(ScaffoldScreen(offers, step=_STEPS.get("gates", "")))
+        if accepted is None:
+            return False
+        for offer in accepted:
+            self.state["gates"][f"{offer.gate_id}.artefact"] = offer.path
+            # `effective_from` stays TODAY, and cannot be anything else: `SP033` rejects a gate
+            # dated in the future, so binding from tomorrow - which is what the artefact's actual
+            # history would justify - is not available. `F47` records what that costs.
+        if accepted:
+            self.state[SCAFFOLD_KEY] = list(accepted)
+            self._on_section_complete("gates", self.state["gates"])
+        return True
+
     @work
     async def _drive(self) -> None:
         for name in plan.SECTION_ORDER:
@@ -150,6 +188,10 @@ class AdoptApp(App):
                 return
             self.state[name] = result
             self._on_section_complete(name, result)
+
+            if name == "gates" and not await self._offer_missing_artefacts(result):
+                self.exit(CANCELLED)
+                return
 
             if name == "route" and result.get("route") == "defaults":
                 if not await self._take_the_defaults_route():

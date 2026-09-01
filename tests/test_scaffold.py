@@ -1,0 +1,337 @@
+#!/usr/bin/env python3
+"""Creating an artefact a required gate needs.
+
+    python tests/test_scaffold.py
+
+Three properties, and they are not equally interesting.
+
+The **load-bearing** one is that a seed survives the real checker. `surfaceplate/templates/` all
+carry placeholder tokens deliberately (`F15`), and `SP032` rejects a precondition artefact holding
+one - so the obvious design, copying a template into place, would have produced a gate artefact that
+fails on the very next run. That constraint is asserted here against `check_conformance` itself
+rather than by grepping for the tokens, because a token list is a belief about the checker and the
+checker is the thing that decides.
+
+The second is that an existing file is **never** offered. This module may create and may never
+replace, and the failure it would otherwise cause - an adopter's real register overwritten with an
+empty one - is not recoverable from inside this tool.
+
+The third is that declining writes nothing at all, asserted by hashing the tree rather than by
+checking the paths this module happens to know about.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+from surfaceplate import check_conformance  # noqa: E402
+from surfaceplate.adopt import scaffold  # noqa: E402
+
+FAILURES: list[str] = []
+PASSES = 0
+
+
+def check(name: str, condition: bool, detail: str = "") -> None:
+    global PASSES
+    if condition:
+        PASSES += 1
+        print(f"  PASS  {name}")
+    else:
+        FAILURES.append(f"{name}: {detail}")
+        print(f"  FAIL  {name}  {detail}")
+
+
+def tree_digest(root: Path) -> str:
+    """Every file's path and bytes, so a write anywhere at all is visible - including one this
+    suite does not know to look for."""
+    parts = []
+    for path in sorted(p for p in root.rglob("*") if p.is_file() and ".git/" not in str(p)):
+        parts.append(str(path.relative_to(root)).encode())
+        parts.append(path.read_bytes())
+    return hashlib.sha256(b"\0".join(parts)).hexdigest()
+
+
+def bare_repo(tmp: Path) -> Path:
+    repo = tmp / "bare"
+    repo.mkdir(parents=True)
+    (repo / "README.md").write_text("# a small tool\n", encoding="utf-8")
+    (repo / "main.py").write_text("x = 1\n", encoding="utf-8")
+    for args in (
+        ["init", "-q"],
+        ["config", "user.email", "h@example.invalid"],
+        ["config", "user.name", "H"],
+        ["config", "commit.gpgsign", "false"],
+    ):
+        subprocess.run(["git", "-C", str(repo), *args], check=True)
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "bare"], check=True)
+    return repo
+
+
+def test_a_seed_survives_the_real_checker(tmp: Path) -> None:
+    """The constraint that killed the template approach, asserted against the checker itself."""
+    repo = bare_repo(tmp)
+    written = scaffold.write(repo, scaffold.offers(repo, list(scaffold.SEEDABLE)))
+
+    check(
+        "every seedable gate produced a file in a repository that had none",
+        len(written) == len(scaffold.SEEDABLE),
+        f"wrote {[p.name for p in written]}",
+    )
+
+    bad = [
+        p.relative_to(repo)
+        for p in written
+        if check_conformance.PLACEHOLDER_PATTERN.search(p.read_text(encoding="utf-8"))
+    ]
+    check(
+        "no seed carries a placeholder token the checker rejects (SP032)",
+        not bad,
+        f"these would fail SP032 the moment they were written: {bad}",
+    )
+    empty = [p.relative_to(repo) for p in written if not p.read_text(encoding="utf-8").strip()]
+    check(
+        "and none is empty, which SP032 rejects separately",
+        not empty,
+        str(empty),
+    )
+    # The templates are the counterexample, and the reason seeds exist as a separate idea. If this
+    # ever stops being true the packet's whole premise is worth re-examining.
+    templated = [
+        p.name
+        for p in sorted((ROOT / "surfaceplate" / "templates").glob("*"))
+        if check_conformance.PLACEHOLDER_PATTERN.search(p.read_text(encoding="utf-8"))
+    ]
+    check(
+        "while the shipped templates DO carry them, which is why they cannot be scaffolded",
+        len(templated) == len(list((ROOT / "surfaceplate" / "templates").glob("*"))),
+        f"templates without placeholders: {templated}",
+    )
+
+
+def test_an_existing_file_is_never_offered(tmp: Path) -> None:
+    repo = bare_repo(tmp)
+    (repo / "activity").mkdir()
+    mine = repo / "activity" / "register.md"
+    mine.write_text("# my own register\n\n- ACT-1 something real\n", encoding="utf-8")
+    before = mine.read_text(encoding="utf-8")
+
+    offered = [o.path for o in scaffold.offers(repo, list(scaffold.SEEDABLE))]
+    check(
+        "a path that already exists is absent from the offer entirely",
+        "activity/register.md" not in offered,
+        f"offered anyway: {offered}",
+    )
+
+    # And the second refusal, at the point of writing: a file that appeared between the offer and
+    # the write must still not be replaced.
+    stale = scaffold.Offer(
+        gate_id="work_registration",
+        path="activity/register.md",
+        seed="activity-register.md",
+        why="stale offer built before the file existed",
+    )
+    scaffold.write(repo, [stale])
+    check(
+        "and an offer built before the file existed still cannot overwrite it",
+        mine.read_text(encoding="utf-8") == before,
+        "the adopter's own register was replaced",
+    )
+
+
+def test_declining_writes_nothing(tmp: Path) -> None:
+    repo = bare_repo(tmp)
+    before = tree_digest(repo)
+    scaffold.offers(repo, list(scaffold.SEEDABLE))  # building the offer must not write
+    scaffold.write(repo, [])
+    check(
+        "building an offer and accepting none leaves the repository byte-identical",
+        tree_digest(repo) == before,
+        "something was written when nothing was accepted",
+    )
+
+
+def test_a_bare_repository_can_reach_a_passing_check(tmp: Path) -> None:
+    """**The point of the packet, and what it does and does not achieve.**
+
+    A repository with a README and one Python file adopts at `essential`, accepts the offer, and
+    ends with a gate naming a register that really exists. Before this it had nothing to name, so
+    the adopter left it blank or pointed it at the closest wrong file - which is `F40`.
+
+    **It does not reach a clean check, and this test says so rather than implying otherwise.**
+    `check_conformance.main` returns 0 inside the adoption grace window regardless, so asserting on
+    its exit code would assert on the grace period rather than on the profile. What is asserted
+    instead: the artefact exists, the gate names it, and the only outstanding finding is `SP035`
+    over pre-adoption history - which `F47` records.
+    """
+    from surfaceplate.adopt import wizard
+    from surfaceplate.adopt.interview import ScriptedInterview
+
+    sys.path.insert(0, str(ROOT / "surfaceplate"))
+    import install_standard  # noqa: E402
+
+    repo = bare_repo(tmp)
+    assert install_standard.main(
+        ["--source", str(ROOT / "surfaceplate"), "--target", str(repo), "--no-hooks"]
+    ) == 0
+
+    answers = {
+        "mode.mode": "simple",
+        "identity.application_id": "small-tool",
+        "identity.display_name": "Small Tool",
+        "identity.owner": "Sole maintainer",
+        "stack.language": "Python 3.12",
+        "stack.builds_user_interface": False,
+        "risk.risk_profile": "A local utility; nobody else consumes its output.",
+        "risk.materiality_definition": "Nothing it produces is relied on outside this machine.",
+        "risk.relied_on_outside_team": False,
+        "risk.material_quantitative_output": False,
+        "risk.data_classification": "internal",
+        "level.conformance_level": "essential",
+        "route.route": "customise",
+        "controls.agent_work_packets.rationale": "Agent work is briefed before it starts.",
+        "controls.actual_diff_review.rationale": "Changes are read as diffs before merging.",
+        "controls.secret_hygiene.rationale": "No secrets belong in this repository.",
+        "controls.scanner.name": "gitleaks",
+        "controls.scanner.wired_in": ".github/workflows/secret-scan.yml",
+        "controls.dependency_lock.rationale": "Dependencies are pinned regardless of materiality.",
+        "controls.dependency_lock.implementation_reference": "requirements.txt",
+        "controls.above_floor": [],
+        # The artefact is NOT answered: this is the adopter who has nothing to name, and the
+        # scaffold offer is what closes it.
+        "gates.work_registration.paths": "**",
+        "adoption.review_by": "2027-03-01",
+        "adoption.framework_maintainer": "Sole maintainer",
+        "adoption.repository_classification": "internal-tool",
+        "adoption.decision_record_id": "DR-ADOPT-001",
+        "adoption.adoption_status": "in_progress",
+        "adoption.needs_validator": False,
+        "wrap.human_roles": "Maintainer - sole change authority.",
+        "wrap.release_route": "Merged to main by the maintainer.",
+    }
+    (repo / "requirements.txt").write_text("PyYAML==6.0.3\n", encoding="utf-8")
+    scan = repo / ".github" / "workflows" / "secret-scan.yml"
+    scan.parent.mkdir(parents=True, exist_ok=True)
+    scan.write_text(
+        "jobs:\n  scan:\n    steps:\n      - name: gitleaks\n        run: gitleaks detect\n",
+        encoding="utf-8",
+    )
+
+    interview = ScriptedInterview(answers)
+    offered = scaffold.offers(repo, ["work_registration"])
+    check("the bare repository is offered a register", len(offered) == 1, str(offered))
+
+    # What the interface does when the human ticks the offer: the path becomes the gate's answer,
+    # and the files travel to `wizard.run` under its own key.
+    interview.answers["gates.work_registration.artefact"] = offered[0].path
+    state_extra = {wizard.SCAFFOLD_KEY: offered}
+    written = wizard.run(repo, _WithScaffold(interview, state_extra))
+
+    check(
+        "the register was created where the gate now names it",
+        (repo / offered[0].path).is_file(),
+        f"missing: {offered[0].path}",
+    )
+    check("and the run reports it as created", list(written.created) != [], str(written.created))
+
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "adopt"], check=True)
+    # **Stated as it is, not as hoped.** `check_conformance.main` returns 0 inside the adoption
+    # grace window whether or not anything is outstanding, so asserting on its exit code would be
+    # asserting on the grace period. The profile is inspected directly instead.
+    findings = check_conformance.main(["--repo", str(repo)])
+    check(
+        "the run produced a profile the checker can read without erroring",
+        findings == 0,
+        f"check_conformance exited {findings}",
+    )
+    profile = (repo / "governance" / "application-profile.yaml").read_text(encoding="utf-8")
+    check(
+        "and the gate names the register that now exists, not the closest wrong file",
+        "activity/register.md" in profile and "README.md" not in profile,
+        "the gate points somewhere else",
+    )
+    # `F47`: what is NOT yet true, asserted so it cannot quietly start being true unnoticed. The
+    # register exists from today; commits made earlier today touched gated paths while it did not,
+    # and `effective_from` binds by DATE. So a repository with any activity today still reports one
+    # violation on its first check - a true statement about its history, and the remaining gap
+    # between "has a real artefact" and "passes cleanly".
+    import io, contextlib
+
+    buffer = io.StringIO()
+    with contextlib.redirect_stdout(buffer):
+        check_conformance.main(["--repo", str(repo)])
+    report = buffer.getvalue()
+    check(
+        "and the ONLY thing outstanding is pre-adoption history (F47), not a defect in what we wrote",
+        "SP035" in report and "SP032" not in report and "SP046" not in report,
+        f"unexpected findings: {[ln.strip() for ln in report.splitlines() if '[SP' in ln]}",
+    )
+
+
+class _WithScaffold:
+    """Wraps a `ScriptedInterview` so the collected state carries the accepted offers, the way the
+    real interface does. Kept here rather than in `interview.py`: the scripted interview exists to
+    answer *fields*, and teaching it about scaffolding would blur what it proves."""
+
+    def __init__(self, inner, extra: dict) -> None:
+        self._inner = inner
+        self._extra = extra
+
+    def confirm_resume(self, info) -> bool:
+        return self._inner.confirm_resume(info)
+
+    def collect(self, **kwargs) -> dict:
+        state = self._inner.collect(**kwargs)
+        for key, value in self._extra.items():
+            if isinstance(value, dict) and isinstance(state.get(key), dict):
+                state[key].update(value)
+            else:
+                state[key] = value
+        return state
+
+
+def test_only_honestly_seedable_gates_are_offered(tmp: Path) -> None:
+    """`full` requires eleven gates; only four can be created as a true statement. The rest are
+    left to a human who actually has one, which is the honest half of this feature."""
+    repo = bare_repo(tmp)
+    offered = {o.gate_id for o in scaffold.offers(repo, ["work_registration", "equivalence_evidence"])}
+    check(
+        "a gate with no honest seed is not offered one",
+        offered == {"work_registration"},
+        str(offered),
+    )
+
+
+def main() -> int:
+    with tempfile.TemporaryDirectory() as tmp_str:
+        tmp = Path(tmp_str)
+        print("a seed is valid the moment it is written")
+        test_a_seed_survives_the_real_checker(tmp / "a")
+        print("\nand this module may create, never replace")
+        test_an_existing_file_is_never_offered(tmp / "b")
+        test_declining_writes_nothing(tmp / "c")
+        print("\nand only where something true can be created")
+        test_only_honestly_seedable_gates_are_offered(tmp / "d")
+        print("\nand a bare repository can now finish")
+        test_a_bare_repository_can_reach_a_passing_check(tmp / "e")
+
+    print()
+    if FAILURES:
+        print(f"SCAFFOLD=FAIL  ({len(FAILURES)} failed, {PASSES} passed)")
+        for failure in FAILURES:
+            print(f"  - {failure}")
+        return 1
+    print(f"SCAFFOLD=PASS  ({PASSES} checks)")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

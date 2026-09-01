@@ -1026,6 +1026,79 @@ class ResumeScreen(Screen):
         self.dismiss(False)
 
 
+class ScaffoldScreen(Screen):
+    """The files this run could create, and the one thing creating them does not do.
+
+    `ACT-033`. Every packet before this made the wizard better at saying it did not know; this is
+    the first that offers to do something about it. A repository with nothing in it could be told
+    honestly that nothing matched its gates, and then go no further.
+
+    The screen exists rather than a silent write because creating files in someone else's
+    repository is a different class of action from filling in a profile, and because of the thing
+    printed at the bottom of it: **a register that exists is not a register anyone keeps**. The
+    gate's structural check would pass either way, so the only defence against that becoming a
+    false green is that the adopter is told, at the point of choosing, exactly what they are and
+    are not getting.
+
+    Everything is ticked on arrival - the adopter reached here by having a gate with nothing to
+    point at, so the offer is the answer to a problem they already have - and any line can be
+    unticked. Nothing is written from this screen: it selects, and the profile review that has
+    always ended this run commits.
+    """
+
+    BINDINGS = [
+        Binding("ctrl+s", "accept", "create the ticked files", show=True),
+        Binding("ctrl+q", "cancel", "quit", show=True),
+    ]
+
+    def __init__(self, offers: list, step: str = "") -> None:
+        super().__init__()
+        self.offers = offers
+        self.step = step
+
+    def compose(self) -> ComposeResult:
+        with Frame(id="frame"):
+            yield Static(
+                f"[{self.step}Missing artefacts - shall I create them?]", classes="section-header"
+            )
+            yield Static(
+                f"{len(self.offers)} gate(s) you must declare have nothing in this repository to "
+                "point at. These are real, complete files - not templates to fill in - and each is "
+                "written only if it is ticked. Anything already present is not offered at all.",
+                classes="intro",
+            )
+            yield VisibleSelectionList(
+                *[
+                    Selection(f"{o.path}  -  {o.why}", index, True)
+                    for index, o in enumerate(self.offers)
+                ],
+                id="f-scaffold",
+            )
+            for offer in self.offers:
+                yield Static(f"  {offer.path}  ({offer.gate_id})", classes="gate-name")
+                yield Static(offer.preview(3), classes="gate-desc")
+            yield Static(
+                "  Creating these files does not do the work they are for. A register that exists "
+                "and stays empty while work happens around it is a finding about your repository, "
+                "not a satisfied control - and the checker cannot tell the difference, because it "
+                "checks that the file is there.",
+                classes="note",
+            )
+        yield Static("", id="hint", markup=False)
+
+    def on_mount(self) -> None:
+        self.query_one("#hint", Static).update(
+            hint_line(keys="[space] tick  [Ctrl+S] create the ticked files  [Ctrl+Q] cancel")
+        )
+
+    def action_accept(self) -> None:
+        chosen = set(self.query_one("#f-scaffold", VisibleSelectionList).selected)
+        self.dismiss([o for index, o in enumerate(self.offers) if index in chosen])
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
+
+
 class DefaultsScreen(Screen):
     """What the wizard proposes, and where each value came from.
 

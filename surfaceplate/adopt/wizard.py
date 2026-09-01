@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from surfaceplate.adopt import render, sections
+from surfaceplate.adopt import render, scaffold, sections
 from surfaceplate.adopt.interview import DRAFT_FORMAT, Cancelled, DraftInfo, Interview
 
 PROFILE_PATH = "governance/application-profile.yaml"
@@ -29,6 +29,43 @@ INSTALL_RECORD = ".standards/INSTALL.json"
 # This lives only in an ADOPTING repository's working tree - never in surfaceplate's own source
 # tree - so it has no interaction with this project's own release manifest.
 DRAFT_FILENAME = ".surfaceplate-adopt-draft.json"
+
+# `ACT-033`. Where the interface parks the scaffold files a human approved, on its way back here.
+# Deliberately not a section name: everything else in the collected state is a section of the
+# profile, and `sections.build_profile` walks it. A list of paths is an instruction to this module,
+# not an answer, and it is popped before the profile is assembled so it can never be mistaken for
+# one.
+SCAFFOLD_KEY = "__scaffold__"
+
+
+class Written:
+    """What a completed run put on disk: the profile, and any artefacts it was asked to create.
+
+    `run` used to return a single `Path`, and the caller printed it. It now returns both, because a
+    run that creates files in someone's repository and reports only one of them is the kind of
+    understatement this project spends its time removing from other people's tools.
+    """
+
+    def __init__(self, profile: Path, created: list[Path]) -> None:
+        self.profile = profile
+        self.created = created
+
+    # `cli.py` and four packets of tests used this return value as a `Path`. Enumerating the few
+    # methods they happened to call was the first attempt and it was wrong twice over - `.is_file`
+    # was missing, and the next caller would have found the next gap. Delegating everything the
+    # wrapper does not define keeps every existing use working and confines this change to the one
+    # thing it adds.
+    def __getattr__(self, name: str):
+        return getattr(self.profile, name)
+
+    def __fspath__(self) -> str:
+        return str(self.profile)
+
+    def __eq__(self, other) -> bool:
+        return self.profile == getattr(other, "profile", other)
+
+    def __str__(self) -> str:
+        return str(self.profile)
 
 
 class NotInstalled(Exception):
@@ -251,12 +288,23 @@ def run(repo: Path, interview: Interview) -> Path:
         preview=preview,
     )
 
+    # `ACT-033`. Files the adopter approved on the scaffold screen, carried out of band under a key
+    # `assemble` never sees: everything else in `state` is a section of the profile, and putting a
+    # list of paths in there would put it in front of the provenance walk as though it were an
+    # answer. Popped before `assemble`, so a profile is built from answers only.
+    accepted = state.pop(SCAFFOLD_KEY, [])
+
     profile = assemble(state, record)
     rendered = render.render_profile(profile)
     _verify(profile, rendered, repo)
+
+    # Written BEFORE the profile, and only once the profile is known to render and verify. A
+    # profile naming an artefact that does not exist fails `SP032` on the next run, so if anything
+    # here is going to fail it should fail before the profile claims the artefact is there.
+    created = scaffold.write(repo, accepted)
 
     target = repo / PROFILE_PATH
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(rendered, encoding="utf-8", newline="\n")
     _clear_draft(repo)  # a completed run leaves no draft behind - it exists only to protect one
-    return target
+    return Written(profile=target, created=created)

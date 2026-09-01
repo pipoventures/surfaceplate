@@ -100,6 +100,19 @@ def _cmd_adopt(argv: list[str]) -> int:
     rule = "\u2500" * 66
     print(f"\n{rule}")
     print(f"  Written: {written}")
+    # `ACT-033`: a run that created files in someone's repository and reported only the profile
+    # would be understating what it did. The second paragraph is the point-of-use labelling the
+    # standard's own provenance rules require: the gate's check passes on these files existing, and
+    # that is not the same as the practice they stand for happening.
+    for path in getattr(written, "created", []):
+        print(f"  Created: {path}")
+    if getattr(written, "created", []):
+        print(
+            "\n  Those are real, complete files, and creating them is not the work they are for.\n"
+            "  A register that exists and stays empty while work happens around it is a finding\n"
+            "  about this repository - the checker cannot tell the difference, because what it\n"
+            "  checks is that the file is there."
+        )
     print(rule)
 
     from surfaceplate import check_conformance
