@@ -101,6 +101,7 @@ an unknown number of releases with nothing noticing.
 | F34 | The release manifest could name a file that exists on no machine but the one that built it | high | Closed — `ACT-024`; `payload_files()` now intersects against `git ls-files` |
 | F35 | A refusal named three routes; only one was a route a reader could actually take | medium | Closed — `ACT-025`; scope named, each route made a real step |
 | F36 | A hand-built flow list escaped each item for the wrong YAML context, and lost a real ~20-minute session | high | Closed — `ACT-026`; `render.py` dumps the whole list, not each item alone |
+| F37 | An interface was verified structurally and never looked at, so six rendering defects passed 87 green checks | high | Closed — `ACT-028`; rendering asserted as named properties over the compositor's own lines |
 
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -1003,6 +1004,59 @@ weaker guarantee than a hash-bearing lock, and `pyproject.toml` says so rather t
 otherwise.
 
 ---
+
+## F37 — An interface was verified structurally and never looked at
+
+**Severity: high. Closed.**
+
+Found by the maintainer, opening the wizard `ACT-027` had just shipped and sending three
+screenshots. `ACT-027` closed with 87 passing checks, a decision record, and a published artefact
+captioned *"the three frames from the approved mockup, now captured from the running wizard rather
+than drawn"*. The interface in the screenshots is not the one any of that describes.
+
+**The defect is in the verification, not in the widgets.** Every Phase 2 test asserted structure -
+field-id joins between screen and plan, widget counts, status transitions, chip selection, focus
+behaviour - and each was sound. None asserted what a screen puts on the terminal. So six
+user-visible faults passed all of them, and the agent then published screenshots as evidence of
+fidelity **without looking at the images**.
+
+This is the failure mode `working-method.md` names as the one that does not present as an error at
+all: *validated a reconstruction, a draft, or an intermediate rather than the thing actually
+delivered*. The other three shapes it lists yield a wrong answer; this one yields **a right answer
+about the wrong object**, so every instinct for catching a bad check - repeat it, re-derive it, add
+another assertion - confirms it. Adding a tenth structural check could not have found any of these.
+
+**What was actually wrong, each measured rather than inferred:**
+
+| | Defect | Cause |
+|---|---|---|
+| 1 | `[Tab]` and `[Enter]` rendered as nothing, so legends read `next  [⇧Tab] back` and `move   choose` | Textual markup parses them as style tags. `Content.from_markup("[Tab] next").plain` is `" next"`; symbol-bearing keys like `[Ctrl+S]` and `[↑↓]` survive, which is exactly why it looked right |
+| 2 | The resume screen offered a choice with **no visible keys at all** | Same cause, worst instance: `[y]` and `[n]` were its only affordance |
+| 3 | Every field printed its own name twice | The label was rendered *and* passed as the input's `placeholder` |
+| 4 | Labels stacked above values instead of forming the mockup's column | The row was a `Vertical`, so a width on the label could not place it beside anything |
+| 5 | Every field's help rendered at once, indented into mid-screen | Phase 2's own plan said "help for the current field only, inline in the hint line"; the opposite shipped |
+| 6 | One gate visible where the mockup's whole thesis is several | Per-field margins and full-height inputs. All nineteen *were* mounted on one surface - which is what the tests checked, and why they passed |
+
+**Closed by making rendering checkable, not by fixing six things.** `tests/test_render.py` reads the
+compositor's own rendered lines (`[strip.text for strip in screen._compositor.render_strips()]` -
+the path `App.export_screenshot` already walks) and asserts named properties over them: every legend
+renders the keys it names; no label appears twice; a label and its value share a line; one field's
+help at a time; at least three gates visible at 80x24; the level list is numbered and marked.
+
+`DR-37` records why these are **properties rather than a snapshot**: this project treats a golden
+file as an audit trigger, and a full-screen capture of a wizard whose copy is still being tuned
+would churn on every wording change and train exactly the regenerate-to-green habit
+`.claude/rules/surfaceplate-tests.md` warns against.
+
+**Each assertion was seen to fail before it was trusted.** All eleven failed against the unfixed
+code, one per defect; afterwards three were re-broken deliberately - the placeholder restored, a
+legend sent back through markup, gate collapse disabled - and each caught its own defect again. A
+property test that has never failed is a property test nobody has calibrated.
+
+**Two further faults were found by then reading the rendered output**, which is the practice this
+finding exists to establish: the level list's wrapped lines began at column 0 and broke the
+numbering into a paragraph, and the detected-signals line listed four full workflow paths across
+three rows. Neither was in the original six; both were visible the moment anyone looked.
 
 ## F36 — A hand-built flow list escaped each item for the wrong YAML context, and lost a real ~20-minute session
 

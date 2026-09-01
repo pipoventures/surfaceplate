@@ -24,12 +24,16 @@ Screen {
 
 .intro {
     color: #dce0dd;
-    margin-bottom: 1;
+    height: auto;
+    margin: 0 0 1 0;
 }
 
+/* One line each, not double-spaced: the recap is a short list, and a blank line between every
+   entry pushed the options it exists to inform off the screen. */
 .recap {
     color: #7a827e;
-    margin-bottom: 1;
+    height: auto;
+    margin: 0;
 }
 
 .note {
@@ -44,6 +48,7 @@ Screen {
 #hint {
     dock: bottom;
     height: auto;
+    max-height: 4;
     color: #7a827e;
     border-top: solid #262c30;
     padding-top: 1;
@@ -53,28 +58,29 @@ Screen {
     color: #d79a3c;
 }
 
-/* --- generic form rows: a fixed label column, values in ink (mockup frame 01) --- */
+/* --- generic form rows: a fixed label column, values in ink (mockup frame 01) ---
+   The row is a HorizontalGroup, so the label genuinely sits BESIDE its value. Heights are held to
+   one line wherever possible: F37 #6 was caused by exactly this kind of vertical slack, three or
+   four rows per field, which pushed everything but one gate off the screen. */
 .field-row {
     height: auto;
-    margin-bottom: 1;
+    margin: 0;
 }
 
 .field-label {
-    width: 34;
+    width: 32;
     color: #7a827e;
-    padding-top: 1;
-}
-
-.field-help {
-    color: #7a827e;
-    margin-left: 34;
+    height: 1;
+    text-overflow: ellipsis;
 }
 
 Input, TextArea {
-    background: #0e1316;
+    background: #12181b;
     border: none;
     color: #dce0dd;
     padding: 0 1;
+    width: 1fr;
+    height: 1;
 }
 
 Input:focus, TextArea:focus {
@@ -83,7 +89,7 @@ Input:focus, TextArea:focus {
 }
 
 TextArea {
-    height: 3;
+    height: 2;
 }
 
 Checkbox {
@@ -117,7 +123,16 @@ OptionList > .option-list--option-highlighted {
 .gate {
     height: auto;
     border-bottom: solid #262c30;
-    padding: 1 0;
+    padding: 0;
+    margin: 0;
+}
+
+.gate-body { height: auto; }
+
+/* One line, and the whole reason nineteen gates can be worked through. */
+.gate-summary {
+    height: 1;
+    color: #6fae8a;
 }
 
 .gate-focused {
@@ -131,12 +146,13 @@ OptionList > .option-list--option-highlighted {
 
 .gate-desc {
     color: #7a827e;
-    max-width: 72;
+    height: 1;
+    text-overflow: ellipsis;
 }
 
 .chip-row {
-    height: auto;
-    margin-top: 1;
+    height: 1;
+    margin: 0;
 }
 
 .chip {
@@ -154,7 +170,7 @@ OptionList > .option-list--option-highlighted {
 }
 
 .followups {
-    margin-top: 1;
+    margin: 0;
     margin-left: 2;
     height: auto;
 }

@@ -1,0 +1,302 @@
+#!/usr/bin/env python3
+"""What the wizard's screens actually render, asserted rather than eyeballed.
+
+    python tests/test_render.py
+
+`F37` is why this exists. Phase 2 shipped 87 green checks and a visibly broken interface: every
+test asserted *structure* — field-id joins, widget counts, status transitions — and none asserted
+what a screen puts on the terminal. Six user-visible defects passed all of them, and adding more
+structural checks could only ever have confirmed the mistake, because they were answering a
+different question. This suite asks the question the others could not.
+
+**Properties, not snapshots — deliberately.** `.claude/rules/surfaceplate-tests.md` treats a golden
+file as an audit trigger and warns that regenerating one to absorb a delta destroys the evidence
+that something changed. A full-screen snapshot of a wizard whose copy is still being tuned would
+churn on every wording change and train exactly that habit. So each check below states a property in
+words - "the legend renders the keys it names" - and fails for one readable reason.
+
+**Every assertion here has been seen to fail.** Each was written against the defect it catches while
+that defect was still present, and `DR-37` records what each one caught. A property test that has
+never failed is a property test nobody has calibrated.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+from textual import work  # noqa: E402
+from textual.app import App  # noqa: E402
+
+from surfaceplate.adopt import plan  # noqa: E402
+from surfaceplate.adopt.interview import DraftInfo  # noqa: E402
+from surfaceplate.adopt.tui.screens import (  # noqa: E402
+    FormScreen,
+    GatesScreen,
+    LevelScreen,
+    ResumeScreen,
+    ReviewScreen,
+)
+
+FAILURES: list[str] = []
+PASSES = 0
+
+
+def check(name: str, condition: bool, detail: str = "") -> None:
+    global PASSES
+    if condition:
+        PASSES += 1
+        print(f"  PASS  {name}")
+    else:
+        FAILURES.append(f"{name}: {detail}")
+        print(f"  FAIL  {name}  {detail}")
+
+
+class Host(App):
+    CSS_PATH = ROOT / "surfaceplate" / "adopt" / "tui" / "app.tcss"
+
+    def __init__(self, screen) -> None:
+        super().__init__()
+        self._screen_under_test = screen
+
+    def on_mount(self) -> None:
+        self._drive()
+
+    @work
+    async def _drive(self) -> None:
+        await self.push_screen_wait(self._screen_under_test)
+
+
+def rendered(app: App) -> list[str]:
+    """The visible text of the current screen, one string per terminal row.
+
+    `Compositor.render_strips()` and `Strip.text` are the same path `App.export_screenshot` walks
+    before turning the result into SVG. Textual publishes no plain-text export, so this reaches for
+    a private attribute knowingly: the alternative is asserting nothing about rendering at all,
+    which is precisely the gap `F37` records. If a future Textual moves it, this suite fails loudly
+    on import rather than silently passing.
+    """
+    return [strip.text for strip in app.screen._compositor.render_strips()]
+
+
+def screen_text(lines: list[str]) -> str:
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------------------------
+# 1 & 2 — the legends render the keys they name
+# ---------------------------------------------------------------------------------------------
+
+
+def test_every_legend_renders_the_keys_it_names() -> None:
+    """Textual markup parses `[Tab]` and `[Enter]` as style tags and swallows them, while
+    symbol-bearing keys like `[Ctrl+S]` and `[↑↓]` survive - which is why this looked correct in
+    review. The resume screen was the worst case: both of its keys vanished, leaving a choice with
+    no visible way to make it."""
+
+    async def _run() -> None:
+        cases = [
+            ("identity form", FormScreen(plan.identity_plan()), ["Tab", "Ctrl+S", "Ctrl+Q"]),
+            (
+                "conformance level",
+                LevelScreen(plan.level_plan(ROOT, builds_ui=False, mode="simple")),
+                ["Enter", "?", "Ctrl+Q"],
+            ),
+            (
+                "gate catalogue",
+                GatesScreen(
+                    plan.gate_plan(level="standard", builds_ui=False, mode="simple"),
+                    plan.gates_plan(level="standard", builds_ui=False, mode="simple"),
+                ),
+                ["Tab", "Ctrl+G", "Ctrl+S", "Ctrl+Q"],
+            ),
+            (
+                "resume offer",
+                ResumeScreen(
+                    DraftInfo(sections=("mode", "identity"), framework_version="0.16.0",
+                              framework_digest="abc", matches=True)
+                ),
+                ["y", "n"],
+            ),
+            ("review", ReviewScreen("schema_version: '1.0'\n"), ["Ctrl+S", "Ctrl+Q"]),
+        ]
+        for label, screen, keys in cases:
+            app = Host(screen)
+            async with app.run_test(size=(100, 34)) as pilot:
+                await pilot.pause()
+                text = screen_text(rendered(app))
+            missing = [k for k in keys if f"[{k}]" not in text]
+            check(
+                f"{label}: every key it names is actually rendered",
+                not missing,
+                f"missing from the screen: {missing}",
+            )
+
+    asyncio.run(_run())
+
+
+# ---------------------------------------------------------------------------------------------
+# 3 — no label is printed twice
+# ---------------------------------------------------------------------------------------------
+
+
+def test_no_field_label_is_rendered_twice() -> None:
+    """`_widget_for` used the field's label as the input's placeholder while `compose` also yielded
+    a `Label` for it, so every field said its own name twice - "Precondition artefact (a real path)"
+    above an input containing "Precondition artefact (a real path)"."""
+
+    async def _run() -> None:
+        section = plan.identity_plan()
+        app = Host(FormScreen(section))
+        async with app.run_test(size=(100, 34)) as pilot:
+            await pilot.pause()
+            text = screen_text(rendered(app))
+        repeated = [spec.label for spec in section.fields if text.count(spec.label) > 1]
+        check(
+            "identity: no field label appears more than once on screen",
+            not repeated,
+            f"rendered twice: {repeated}",
+        )
+
+    asyncio.run(_run())
+
+
+# ---------------------------------------------------------------------------------------------
+# 4 — the label column is a column
+# ---------------------------------------------------------------------------------------------
+
+
+def test_label_and_value_share_a_rendered_line() -> None:
+    """The mockup's frame 01 puts the label and its value on one row with a fixed gutter. The first
+    build nested them in a `Vertical`, so `width: 34` on the label could not sit beside anything and
+    three fields sprawled down the screen."""
+
+    async def _run() -> None:
+        app = Host(FormScreen(plan.identity_plan()))
+        async with app.run_test(size=(100, 34)) as pilot:
+            await pilot.pause()
+            app.screen.query_one("#f-application_id").value = "plutos"
+            await pilot.pause()
+            lines = rendered(app)
+        together = [ln for ln in lines if "application_id" in ln and "plutos" in ln]
+        check(
+            "identity: a label and its value render on the same line",
+            bool(together),
+            "label and value are on different rows - the column is stacked, not side by side",
+        )
+
+    asyncio.run(_run())
+
+
+# ---------------------------------------------------------------------------------------------
+# 5 — help belongs to the focused field only
+# ---------------------------------------------------------------------------------------------
+
+
+def test_help_is_shown_only_for_the_focused_field() -> None:
+    """Phase 2's own plan said "help for the current field only, inline in the hint line". What
+    shipped rendered every field's help at once, indented into the middle of the screen where it
+    read as a layout fault."""
+
+    async def _run() -> None:
+        section = plan.identity_plan()
+        helps = [spec.help for spec in section.fields if spec.help]
+        app = Host(FormScreen(section))
+        async with app.run_test(size=(100, 34)) as pilot:
+            await pilot.pause()
+            app.screen.query_one("#f-application_id").focus()
+            await pilot.pause()
+            text = screen_text(rendered(app))
+        showing = [h for h in helps if h[:40] in text]
+        check(
+            "identity: exactly one field's help is on screen at a time",
+            len(showing) <= 1,
+            f"{len(showing)} help strings rendered at once",
+        )
+
+    asyncio.run(_run())
+
+
+# ---------------------------------------------------------------------------------------------
+# 6 — the gate catalogue shows several gates
+# ---------------------------------------------------------------------------------------------
+
+
+def test_several_gates_are_visible_at_a_standard_terminal() -> None:
+    """The whole thesis of the mockup's frame 03 is several gates at once. All nineteen were on one
+    scrolling surface - which is what the Phase 2 tests checked, and why they passed - but each was
+    so vertically loose that only one was ever on screen."""
+
+    async def _run() -> None:
+        specs = plan.gate_plan(level="standard", builds_ui=False, mode="simple")
+        section = plan.gates_plan(level="standard", builds_ui=False, mode="simple")
+        app = Host(GatesScreen(specs, section))
+        async with app.run_test(size=(80, 24)) as pilot:
+            await pilot.pause()
+            text = screen_text(rendered(app))
+        visible = [spec.id for spec in specs if spec.id in text]
+        check(
+            "gates: at least three gates are visible in an 80x24 terminal",
+            len(visible) >= 3,
+            f"only {len(visible)} gate(s) on screen: {visible}",
+        )
+
+    asyncio.run(_run())
+
+
+# ---------------------------------------------------------------------------------------------
+# The level screen's own structure
+# ---------------------------------------------------------------------------------------------
+
+
+def test_level_screen_numbers_its_options_and_marks_the_highlight() -> None:
+    """The mockup numbers the three levels and marks the highlighted row with an amber caret, so
+    the list reads as a choice rather than a paragraph. Neither was built."""
+
+    async def _run() -> None:
+        app = Host(LevelScreen(plan.level_plan(ROOT, builds_ui=False, mode="simple")))
+        async with app.run_test(size=(100, 34)) as pilot:
+            await pilot.pause()
+            text = screen_text(rendered(app))
+        numbered = all(f"{n}" in text for n in (1, 2, 3))
+        check("level: the three options are numbered", numbered, text[:200])
+        check("level: the highlighted row carries a marker", "▸" in text, text[:200])
+
+    asyncio.run(_run())
+
+
+def main() -> int:
+    print("legends render the keys they name (F37 #1, #2)")
+    test_every_legend_renders_the_keys_it_names()
+
+    print("\nnothing is printed twice (F37 #3)")
+    test_no_field_label_is_rendered_twice()
+
+    print("\nthe label column is a column (F37 #4)")
+    test_label_and_value_share_a_rendered_line()
+
+    print("\nhelp belongs to the focused field (F37 #5)")
+    test_help_is_shown_only_for_the_focused_field()
+
+    print("\nseveral gates are visible (F37 #6)")
+    test_several_gates_are_visible_at_a_standard_terminal()
+
+    print("\nthe level screen reads as a choice")
+    test_level_screen_numbers_its_options_and_marks_the_highlight()
+
+    print()
+    if FAILURES:
+        print(f"RENDER=FAIL  ({len(FAILURES)} failed, {PASSES} passed)")
+        for failure in FAILURES:
+            print(f"  - {failure}")
+        return 1
+    print(f"RENDER=PASS  ({PASSES} checks)")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

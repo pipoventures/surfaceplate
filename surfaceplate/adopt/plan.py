@@ -241,7 +241,14 @@ def detected_signals(repo: Path) -> tuple[list[str], list[str]]:
 
     ci_workflows = detect.detect_ci_workflows(repo)
     if ci_workflows:
-        present.append(f"a CI workflow ({', '.join(ci_workflows)})")
+        # Named, but not all of them: a repository with a dozen workflows would push the level
+        # options off the screen, and the point of this line is the fact that CI exists, not an
+        # inventory of it.
+        shown = ci_workflows[0]
+        extra = len(ci_workflows) - 1
+        present.append(
+            f"a CI workflow ({shown}" + (f" and {extra} more)" if extra else ")")
+        )
     else:
         absent.append("a CI workflow")
 
@@ -454,37 +461,40 @@ def _gate_fields(gate_id: str, *, mandatory: bool, auto_status: str) -> tuple[Fi
     fields += [
         FieldSpec(
             id="artefact",
-            label="Precondition artefact (a real path)",
+            label="Precondition artefact",
+            help="a real path in this repository - what must exist before the gated paths change",
             depends_on=None if mandatory else ("status", required_when),
         ),
         FieldSpec(
             id="precondition_description",
-            label="What must exist first, and why",
+            label="Why it must exist first",
             kind="textarea",
             depends_on=None if mandatory else ("status", required_when),
         ),
         FieldSpec(
             id="paths",
-            label="Gated paths (git pathspec, e.g. src/**)",
-            help="what may not proceed until then",
+            label="Gated paths",
+            help="a git pathspec, e.g. src/** - what may not proceed until the artefact exists",
             depends_on=None if mandatory else ("status", required_when),
         ),
         FieldSpec(
             id="gated_description",
-            label="What may not proceed until then",
+            label="What it gates",
             kind="textarea",
             depends_on=None if mandatory else ("status", required_when),
         ),
         FieldSpec(
             id="effective_from",
-            label="Effective from (YYYY-MM-DD)",
+            label="Effective from",
+            help="YYYY-MM-DD. History before this date is out of scope for the audit",
             default=_dt.date.today().isoformat(),
             validate="date",
             depends_on=None if mandatory else ("status", required_when),
         ),
         FieldSpec(
             id="enforcement",
-            label="Enforcement (comma-separated: history_audit, review, ci, local_hook)",
+            label="Enforcement",
+            help="comma-separated: history_audit, review, ci, local_hook",
             default="history_audit, review",
             validate="enforcement",
             depends_on=None if mandatory else ("status", required_when),
@@ -515,13 +525,14 @@ def _gate_fields(gate_id: str, *, mandatory: bool, auto_status: str) -> tuple[Fi
         ),
         FieldSpec(
             id="revisit_by",
-            label="Revisit by (YYYY-MM-DD)",
+            label="Revisit by",
+            help="YYYY-MM-DD. The checker fails once this date passes",
             validate="date",
             depends_on=("status", ("deferred",)),
         ),
         FieldSpec(
             id="rationale",
-            label="Why this status, and what happens instead",
+            label="Why this status",
             kind="textarea",
             default=example_answers.rationale_example(gate_id),
             depends_on=("status", ("deferred", "not_applicable")),
@@ -625,7 +636,7 @@ def adoption_plan(*, owner: str) -> SectionPlan:
         fields=(
             FieldSpec(
                 id="review_by",
-                label="Review by (YYYY-MM-DD)",
+                label="Review by",
                 default=(_dt.date.today() + _dt.timedelta(days=180)).isoformat(),
                 help="180 days is the suggested interval; the checker fails once this date passes",
                 validate="date",
@@ -681,7 +692,7 @@ def wrap_plan() -> SectionPlan:
         fields=(
             FieldSpec(
                 id="human_roles",
-                label="Human roles (one per line; leave blank if none)",
+                label="Human roles",
                 kind="textarea",
                 help='e.g. "Maintainer - Jane Doe. Sole change authority."',
                 validate="",
