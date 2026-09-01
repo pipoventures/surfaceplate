@@ -19,9 +19,10 @@ check record until `0.7.0` and is now retired and marked historical ([`DR-21`](.
 It went stale twice — once as `PRE-AUDIT-0.6.0/F2`, again as `F10` — which is the reason it is no
 longer maintained. What an auditor should ask for instead:
 
-- the five suites, each of which reports the number of checks it executed:
-  `tests/validate_contracts.py`, `tests/test_install_and_check.py`, `tests/check_identifiers.py`,
-  `tests/check_code_registers.py`, `tests/check_vendored_current.py`;
+- the six suites, each of which reports the number of checks it executed:
+  `tests/validate_contracts.py`, `tests/test_install_and_check.py`, `tests/test_adopt.py`
+  (`ACT-020`), `tests/check_identifiers.py`, `tests/check_code_registers.py`,
+  `tests/check_vendored_current.py`;
 - `python scripts/build_release.py --verify-manifest` and `python surfaceplate/check_conformance.py --repo .`
   (the checker moved under `surfaceplate/` at `ACT-019`; this line was not updated then — found and
   fixed while writing the Gemini prompt above, the same way `ACT-020` found a stale reference in
@@ -33,3 +34,33 @@ longer maintained. What an auditor should ask for instead:
 `VALIDATION_RESULTS.md` still holds the list of checks that remain the receiving repository's
 responsibility, and the statement that the audit gate is undischarged. Both are still true and are
 marked as such in that file.
+
+## If the reviewer's interface cannot ingest a ZIP archive
+
+Some chat interfaces reject an archive, or limit how many files a single message can carry.
+`GEMINI_ADVERSARIAL_REVIEW_PROMPT_CURATED.md` is the fallback for that case: a shorter prompt scoped
+to a **curated 10-file subset** rather than the complete archive, with the narrowing disclosed in the
+prompt's own text — which files are included, which are deliberately left out, and which audit
+questions are softened or marked as expected evidence gaps because of it.
+
+The subset is concatenated into one plaintext file (`EVIDENCE_BUNDLE.md`) so the whole hand-off is
+two attachments — the curated prompt and the bundle — not eleven. **The bundle is a build output, not
+authored content, and is deliberately not committed to this repository** — a static snapshot of ten
+other files would go stale the moment any of them changed, with nothing here to catch that drift
+(the same reasoning `DR-6` applies to every other derived artefact in this project). Regenerate it
+directly from the repository root:
+
+```bash
+{
+  for f in surfaceplate/MANIFEST.sha256 governance/application-profile.yaml \
+           surfaceplate/core/AI_OPERATING_MODEL.md surfaceplate/core/CONTROL_PRINCIPLES.md \
+           surfaceplate/core/CONFORMANCE_LEVELS.md surfaceplate/core/PREREQUISITE_GATES.md \
+           surfaceplate/schemas/application-profile.schema.yaml \
+           surfaceplate/adopt/prompting.py surfaceplate/adopt/sections.py surfaceplate/adopt/wizard.py; do
+    echo "## FILE: \`$f\`"; echo '```'; cat "$f"; echo '```'; echo
+  done
+} > EVIDENCE_BUNDLE.md
+```
+
+The file list is stated once, in the curated prompt's own "What is included" section — this command
+must match it; if the two drift, the prompt's text is authoritative and the command is wrong.
