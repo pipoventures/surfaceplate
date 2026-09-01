@@ -161,10 +161,12 @@ OptionList > .option-list--option-highlighted {
     text-style: bold;
 }
 
+/* `F42`: `height: 1` discarded most of every explanation, and the declared ellipsis never
+   rendered. The summary is now budgeted in `_first_sentence` and carries its own `…`, so this
+   only has to let the budgeted text wrap - at 80 columns that is two rows, not five. */
 .gate-desc {
     color: #7a827e;
-    height: 1;
-    text-overflow: ellipsis;
+    height: auto;
 }
 
 .chip-row {

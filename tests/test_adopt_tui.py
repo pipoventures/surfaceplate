@@ -440,6 +440,128 @@ def test_the_app_itself_gives_every_screen_the_repository_scan() -> None:
     asyncio.run(_run())
 
 
+def test_the_level_screen_settles_instead_of_looping() -> None:
+    """`F46`. The level screen span in an unbounded event loop whenever the caret did not start at 0.
+
+    `_move_caret` rebuilt the options with `clear_options()`, which resets the highlight to 0 and
+    posts an `OptionHighlighted`; that arrived back in `_move_caret` and rebuilt again. Starting at
+    0 it settled, because the reset landed on the value it already had. `ACT-032` started the caret
+    on the recommended level, and from any non-zero index the events alternated 2, 0, 2, 0 forever.
+
+    **Every `ACT-032` assertion passed against this**, because they read `highlighted` after a
+    single `pause()` and it is 2 on half the iterations. Counting the work is what sees it, so this
+    counts `_move_caret` calls rather than inspecting state.
+    """
+
+    async def _run() -> None:
+        from surfaceplate.adopt.tui import screens as screens_module
+
+        calls: list[object] = []
+        original = screens_module.LevelScreen._move_caret
+
+        def counted(self, highlighted):
+            calls.append(highlighted)
+            return original(self, highlighted)
+
+        screens_module.LevelScreen._move_caret = counted
+        try:
+            risk = {"relied_on_outside_team": True, "material_quantitative_output": True}
+            section = plan.level_plan(ROOT, builds_ui=False, mode="simple", risk=risk)
+            app = Host(LevelScreen(section, recommended="full"))
+            async with app.run_test(size=(80, 30)) as pilot:
+                await pilot.pause()
+                await pilot.pause()
+                meta = str(app.screen.query_one("#level-meta").content)
+        finally:
+            screens_module.LevelScreen._move_caret = original
+
+        check(
+            "showing the level screen does not loop redrawing itself",
+            len(calls) <= 4,
+            f"_move_caret ran {len(calls)} times for one paint: {calls[:12]}",
+        )
+        check(
+            "and it settles describing the level the caret is on",
+            "full checks:" in meta,
+            f"settled on the wrong level: {meta.strip()[:60]!r}",
+        )
+
+    asyncio.run(_run())
+
+
+def test_the_step_counter_agrees_with_the_sections() -> None:
+    """`F45`. The progress indicator was hand-written and disagreed with the wizard it describes.
+
+    `route` had no entry at all, so that screen showed no step; `adoption` and `wrap` both read
+    `7 of 7`, so an adopter answered "7 of 7" and was handed another "7 of 7"; and the total said
+    seven while `SECTION_ORDER` holds ten. A counter that cannot be trusted about where you are is
+    worse than none, because it is read as a promise about how much is left.
+    """
+    from surfaceplate.adopt.tui import app as tui_app
+
+    labelled = {name: step for name, step in tui_app._STEPS.items() if step}
+    missing = [n for n in plan.SECTION_ORDER if n not in tui_app._STEPS]
+    check(
+        "every section in SECTION_ORDER has a step label",
+        not missing,
+        f"no step label for: {missing}",
+    )
+    duplicates = sorted({s for s in labelled.values() if list(labelled.values()).count(s) > 1})
+    check(
+        "no two sections claim the same step",
+        not duplicates,
+        f"shared by more than one section: {duplicates}",
+    )
+    totals = {step.split(" of ")[1].split(" ")[0] for step in labelled.values() if " of " in step}
+    check(
+        "every step names the same total",
+        len(totals) == 1,
+        f"the run claims more than one total: {sorted(totals)}",
+    )
+
+
+def test_a_gate_with_nothing_supplied_is_not_counted_as_answered() -> None:
+    """`F43`. The counter told the adopter a section was complete before anything was supplied.
+
+    `_answered_count` counted a gate whenever it HAD a status, and a mandatory gate's status is
+    fixed by the level, not chosen by the human - so at `essential` the hint read `1 of 1 answered`
+    with the precondition dropdown empty and `Gated paths` blank. A status the level settled is not
+    an answer anyone gave.
+
+    Both directions are asserted, because a counter stuck at zero would pass the first half.
+    """
+
+    async def _run() -> None:
+        found = plan.discover.Discovered(artefacts=("activity/register.md",), paths=("src/**",))
+        specs = plan.gate_plan(level="essential", builds_ui=False, mode="simple", found=found)
+        section = plan.gates_plan(level="essential", builds_ui=False, mode="simple", found=found)
+        app = Host(GatesScreen(specs, section))
+        async with app.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            screen = app.screen
+            empty_hint = str(screen.query_one("#hint").content)
+
+            screen.query_one("#f-work_registration--artefact").value = "activity/register.md"
+            screen.query_one("#f-work_registration--paths").value = "src/**"
+            await pilot.pause()
+            screen._set_hint()
+            await pilot.pause()
+            filled_hint = str(screen.query_one("#hint").content)
+
+        check(
+            "an untouched required gate is not counted as answered",
+            "0 of 1 answered" in empty_hint,
+            f"hint claimed completion with nothing supplied: {empty_hint!r}",
+        )
+        check(
+            "and it IS counted once its artefact and paths are supplied",
+            "1 of 1 answered" in filled_hint,
+            f"hint never counts a completed gate: {filled_hint!r}",
+        )
+
+    asyncio.run(_run())
+
+
 def test_the_app_hands_the_level_recommendation_to_the_screen() -> None:
     """`ACT-032`, guarded the way `F39` taught. The plan can compute a recommendation and the app
     can still fail to pass it, in which case the note advises one level while the caret sits on
@@ -511,6 +633,15 @@ def test_the_app_hands_the_level_recommendation_to_the_screen() -> None:
                     is_level and not screen.section.fields[0].default,
                     "the level field carries a default, which pre-selects on the human's behalf",
                 )
+                # `F45`: the meta line described `essential` while the caret sat on `full`, because
+                # `_update_meta` ran on mount before the programmatic highlight fired an event. It
+                # corrected itself on the first arrow press, so only a first-paint check sees it.
+                meta = str(screen.query_one("#level-meta").content) if is_level else ""
+                check(
+                    "and the meta line describes the level the caret is actually on",
+                    "full checks:" in meta,
+                    f"meta describes a different level than the caret: {meta.strip()!r}",
+                )
                 app.exit(None)
                 await pilot.pause()
 
@@ -531,6 +662,9 @@ def main() -> int:
     print("\ndiscovery (DR-38)")
     test_discovered_candidates_are_offered_as_choices()
     test_the_app_itself_gives_every_screen_the_repository_scan()
+    test_the_level_screen_settles_instead_of_looping()
+    test_the_step_counter_agrees_with_the_sections()
+    test_a_gate_with_nothing_supplied_is_not_counted_as_answered()
     test_the_app_hands_the_level_recommendation_to_the_screen()
 
     print("\ndefaults and pre-selection")

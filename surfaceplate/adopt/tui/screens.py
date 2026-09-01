@@ -288,17 +288,28 @@ def hint_line(*, keys: str, help_text: str = "", error: str = "") -> str:
     return "\n".join(parts)
 
 
-def _first_sentence(text: str) -> str:
-    """The opening sentence of an explanation, for a one-line gate summary.
+GATE_SUMMARY_CHARS = 150
+
+
+def _first_sentence(text: str, limit: int = GATE_SUMMARY_CHARS) -> str:
+    """The opening sentence of an explanation, for a short gate summary.
 
     The full text is not lost - it is shown in the hint line while that gate has focus, the same
     way a form field's help is. Rendering all five lines of it inside every gate block is what made
     the catalogue unreadable (`F37` #6).
+
+    **`F42`: the cut happens HERE, in the text, and never in CSS.** `.gate-desc` carried
+    `height: 1` with `text-overflow: ellipsis`, and the ellipsis never rendered - so a 184- to
+    248-character sentence simply stopped, mid-word at some widths, with nothing telling the reader
+    there had been more. A budget applied to the string cannot fail that way: whenever anything is
+    dropped the `…` is part of the value, so it survives whatever the layout does to it.
     """
     head = text.split(". ")[0].strip()
     if not head.endswith("."):
         head += "."
-    return head
+    if len(head) <= limit:
+        return head
+    return head[: limit - 1].rsplit(" ", 1)[0] + " …"
 
 
 def _widget_kind(widget) -> str:
@@ -570,8 +581,25 @@ class LevelScreen(_SectionScreenBase):
 
     def on_mount(self) -> None:
         self.query_one("#why", Static).display = False
-        self._update_meta()
+        # `F45`: set the highlight HERE, once the widget is mounted, rather than relying on the
+        # assignment in `compose`. Set there it does not fire `OptionHighlighted`, so `_update_meta`
+        # ran against the default index and the meta line described `essential` while the caret sat
+        # on `full`. It self-corrected on the first arrow press, which is exactly why only a
+        # first-paint assertion catches it.
+        self.query_one(OptionList).highlighted = self._start
+        # The index is passed rather than read back: during `on_mount` the widget has not settled
+        # on it yet, so reading it here returned 0 whatever had been assigned. Passing the value
+        # makes the first paint deterministic instead of dependent on Textual's mount ordering.
+        self._update_meta(self._start)
         self._set_hint()
+        # Moving the highlight scrolls it into view, which on a long recommendation pushed the
+        # screen's own title and the first words of that recommendation off the top at 80x24 - the
+        # adopter opened mid-sentence with no heading. Deferred, because the highlight does its own
+        # scrolling after this method returns.
+        self.call_after_refresh(self._scroll_to_top)
+
+    def _scroll_to_top(self) -> None:
+        self.query_one("#frame").scroll_home(animate=False)
 
     def _options(self, highlighted: int | None = 0) -> list[Option]:
         """Numbered, with a caret on the highlighted row.
@@ -603,9 +631,9 @@ class LevelScreen(_SectionScreenBase):
             )
         )
 
-    def _update_meta(self) -> None:
-        option_list = self.query_one(OptionList)
-        index = option_list.highlighted
+    def _update_meta(self, index: int | None = None) -> None:
+        if index is None:
+            index = self.query_one(OptionList).highlighted
         meta = self.query_one("#level-meta", Static)
         if index is None:
             meta.update("")
@@ -622,15 +650,25 @@ class LevelScreen(_SectionScreenBase):
 
     def _move_caret(self, highlighted: int | None) -> None:
         """Redraw the three prompts so the caret sits on the highlighted row. Highlighting still
-        chooses nothing - the caret marks where you are, and the hint line says so."""
+        chooses nothing - the caret marks where you are, and the hint line says so.
+
+        **`F46`: the prompts are replaced IN PLACE, never cleared and re-added.**
+        `clear_options()` resets the highlight to 0 and posts an `OptionHighlighted`, which arrives
+        back here and rebuilds again. With the caret starting at 0 that settled immediately, because
+        the reset landed on the value it already had. `ACT-032` started the caret on the recommended
+        level, and from any non-zero index the two events alternated 2, 0, 2, 0 forever - an
+        unbounded loop on a screen every adopter sees.
+
+        The `_caret_at` guard could not stop it: the events alternate, so the incoming value never
+        matches the last one. Guarding harder was the wrong instinct; not generating the events is
+        the fix. `replace_option_prompt_at_index` mutates the prompt and leaves the highlight alone.
+        """
         option_list = self.query_one(OptionList)
         if getattr(self, "_caret_at", None) == highlighted:
             return
         self._caret_at = highlighted
-        option_list.clear_options()
-        option_list.add_options(self._options(highlighted))
-        if highlighted is not None:
-            option_list.highlighted = highlighted
+        for index, option in enumerate(self._options(highlighted)):
+            option_list.replace_option_prompt_at_index(index, option.prompt)
 
     @on(OptionList.OptionSelected)
     def _on_selected(self, event: OptionList.OptionSelected) -> None:
@@ -857,8 +895,16 @@ class GatesScreen(_SectionScreenBase):
         self._refresh_visibility()
 
     def _answered_count(self, answers: dict | None = None) -> int:
+        """`F43`: complete, not merely status-bearing.
+
+        This counted `self._status_of(...)`, and a level-mandatory gate's status is `required` from
+        the moment it appears - fixed by the level, not supplied by anyone - so at `essential` the
+        hint read `1 of 1 answered` with the precondition dropdown empty and `Gated paths` blank.
+        `_gate_is_complete` is the predicate that was already right, and already used to decide
+        whether a gate may collapse; the counter was the one place asking the weaker question.
+        """
         answers = self._answers() if answers is None else answers
-        return sum(1 for spec in self.specs if self._status_of(spec, answers))
+        return sum(1 for spec in self.specs if self._gate_is_complete(spec, answers))
 
     def _set_hint(self, error: str = "") -> None:
         total = len(self.specs)
