@@ -5,12 +5,15 @@
 
 Three properties, and they are not equally interesting.
 
-The **load-bearing** one is that a seed survives the real checker. `surfaceplate/templates/` all
-carry placeholder tokens deliberately (`F15`), and `SP032` rejects a precondition artefact holding
-one - so the obvious design, copying a template into place, would have produced a gate artefact that
-fails on the very next run. That constraint is asserted here against `check_conformance` itself
-rather than by grepping for the tokens, because a token list is a belief about the checker and the
-checker is the thing that decides.
+The **load-bearing** one is that a seed survives `SP032`. `surfaceplate/templates/` all carry
+placeholder tokens deliberately (`F15`), so the obvious design - copying a template into place -
+would have produced a gate artefact that fails on the very next run.
+
+**Stated precisely, because the first version of this docstring overstated it:** the seeds are
+checked with `check_conformance.PLACEHOLDER_PATTERN`, the checker's own regex, imported rather than
+copied. Only `work_registration` at `essential` is additionally driven through the real checker end
+to end; the other three seeds are regex-checked, not exercised by `SP032` itself. That is a weaker
+claim than "asserted against the checker", and it is the true one.
 
 The second is that an existing file is **never** offered. This module may create and may never
 replace, and the failure it would otherwise cause - an adopter's real register overwritten with an
@@ -32,7 +35,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from surfaceplate import check_conformance  # noqa: E402
-from surfaceplate.adopt import scaffold  # noqa: E402
+from surfaceplate.adopt import plan, scaffold  # noqa: E402
 
 FAILURES: list[str] = []
 PASSES = 0
@@ -78,7 +81,7 @@ def bare_repo(tmp: Path) -> Path:
 def test_a_seed_survives_the_real_checker(tmp: Path) -> None:
     """The constraint that killed the template approach, asserted against the checker itself."""
     repo = bare_repo(tmp)
-    written = scaffold.write(repo, scaffold.offers(repo, list(scaffold.SEEDABLE)))
+    written, _problems = scaffold.write(repo, scaffold.offers(repo, list(scaffold.SEEDABLE)))
 
     check(
         "every seedable gate produced a file in a repository that had none",
@@ -109,10 +112,14 @@ def test_a_seed_survives_the_real_checker(tmp: Path) -> None:
         for p in sorted((ROOT / "surfaceplate" / "templates").glob("*"))
         if check_conformance.PLACEHOLDER_PATTERN.search(p.read_text(encoding="utf-8"))
     ]
+    shipped = list((ROOT / "surfaceplate" / "templates").glob("*"))
     check(
         "while the shipped templates DO carry them, which is why they cannot be scaffolded",
-        len(templated) == len(list((ROOT / "surfaceplate" / "templates").glob("*"))),
-        f"templates without placeholders: {templated}",
+        # `len(a) == len(b)` alone is `0 == 0` if the directory is ever empty or moved - a vacuous
+        # pass on the premise the whole packet rests on. The count is asserted non-zero too.
+        len(shipped) >= 4 and len(templated) == len(shipped),
+        f"{len(shipped)} template(s) shipped; without placeholders: "
+        f"{sorted(set(p.name for p in shipped) - set(templated))}",
     )
 
 
@@ -299,6 +306,89 @@ class _WithScaffold:
         return state
 
 
+def test_a_dangling_symlink_is_not_an_empty_slot(tmp: Path) -> None:
+    """Found by adversarial review, and it breached the module's one hard rule.
+
+    `Path.exists()` follows symlinks and returns **False for a dangling one**, so a repository whose
+    `CHANGELOG.md` was a broken symlink got an offer - and `write_text` then followed the link and
+    created the file **outside the repository**, while the run reported writing it inside. Both
+    halves are asserted: nothing is offered, and if an offer is forced through anyway the write
+    refuses rather than following the link.
+    """
+    repo = bare_repo(tmp)
+    outside = tmp / "OUTSIDE.txt"
+    (repo / "CHANGELOG.md").symlink_to(outside)
+
+    offered = [o.path for o in scaffold.offers(repo, ["change_record_before_completion"])]
+    check(
+        "a path occupied by a dangling symlink is not offered as empty",
+        offered == [],
+        f"offered anyway: {offered}",
+    )
+
+    forced = scaffold.Offer(
+        gate_id="change_record_before_completion",
+        path="CHANGELOG.md",
+        seed="CHANGELOG.md",
+        why="forced past the offer",
+    )
+    written, problems = scaffold.write(repo, [forced])
+    check(
+        "and writing through it is refused, so nothing lands outside the repository",
+        written == [] and not outside.exists() and problems,
+        f"wrote {written}; outside exists: {outside.exists()}",
+    )
+
+
+def test_a_parent_that_is_a_file_does_not_abort_the_run(tmp: Path) -> None:
+    """A regular file where a directory is needed used to raise `NotADirectoryError` out of `write`,
+    after earlier offers were already on disk and before the profile was written - a half-finished
+    adoption ending in a traceback. It is reported and the rest continues."""
+    repo = bare_repo(tmp)
+    (repo / "docs").write_text("not a directory\n", encoding="utf-8")
+
+    offers = scaffold.offers(repo, ["decision_before_implementation", "work_registration"])
+    written, problems = scaffold.write(repo, offers)
+    check(
+        "an impossible path is reported rather than raised",
+        len(problems) == 1 and "decision-log" in problems[0],
+        f"problems: {problems}",
+    )
+    check(
+        "and the offers that CAN be created still are",
+        [p.name for p in written] == ["register.md"],
+        f"written: {[p.name for p in written]}",
+    )
+
+
+def test_only_gates_the_profile_will_require_are_offered() -> None:
+    """The narrowing the adversarial review forced, asserted at the level that showed the defect.
+
+    The first version iterated `scaffold.SEEDABLE` and treated any gate with no artefact answer as
+    blank. At `essential` the plan asks about ONE gate, so the other three were absent from the
+    answers, read as blank, and were offered - pre-ticked, under a heading calling them gates the
+    adopter must declare. Accepting wrote three files no gate in the profile referenced.
+    """
+    from surfaceplate.adopt import discover
+
+    specs = plan.gate_plan(
+        level="essential", builds_ui=False, mode="simple", found=discover.Discovered()
+    )
+    asked = {s.id for s in specs}
+    seedable_but_unasked = [g for g in scaffold.SEEDABLE if g not in asked]
+    check(
+        "at essential, three seedable gates are not asked about at all",
+        sorted(seedable_but_unasked)
+        == ["authority_map", "change_record_before_completion", "decision_before_implementation"],
+        str(seedable_but_unasked),
+    )
+    check(
+        "so the only gate that may be offered a seed there is work_registration",
+        asked & set(scaffold.SEEDABLE) == {"work_registration"},
+        str(asked & set(scaffold.SEEDABLE)),
+    )
+
+
 def test_only_honestly_seedable_gates_are_offered(tmp: Path) -> None:
     """`full` requires eleven gates; only four can be created as a true statement. The rest are
     left to a human who actually has one, which is the honest half of this feature."""
@@ -321,6 +411,11 @@ def main() -> int:
         test_declining_writes_nothing(tmp / "c")
         print("\nand only where something true can be created")
         test_only_honestly_seedable_gates_are_offered(tmp / "d")
+        test_only_gates_the_profile_will_require_are_offered()
+
+        print("\nand the ways an offer could go wrong (adversarial review)")
+        test_a_dangling_symlink_is_not_an_empty_slot(tmp / "f")
+        test_a_parent_that_is_a_file_does_not_abort_the_run(tmp / "g")
         print("\nand a bare repository can now finish")
         test_a_bare_repository_can_reach_a_passing_check(tmp / "e")
 

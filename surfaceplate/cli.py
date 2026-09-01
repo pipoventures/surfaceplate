@@ -106,6 +106,10 @@ def _cmd_adopt(argv: list[str]) -> int:
     # that is not the same as the practice they stand for happening.
     for path in getattr(written, "created", []):
         print(f"  Created: {path}")
+    # A file that could not be created is reported too. Silence here would leave an adopter
+    # believing a gate has an artefact when it has none - the profile names it either way.
+    for problem in getattr(written, "problems", []):
+        print(f"  NOT created: {problem}")
     if getattr(written, "created", []):
         print(
             "\n  Those are real, complete files, and creating them is not the work they are for.\n"

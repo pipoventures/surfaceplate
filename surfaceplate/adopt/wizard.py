@@ -46,16 +46,25 @@ class Written:
     understatement this project spends its time removing from other people's tools.
     """
 
-    def __init__(self, profile: Path, created: list[Path]) -> None:
+    def __init__(self, profile: Path, created: list[Path], problems: list[str] | None = None) -> None:
         self.profile = profile
         self.created = created
+        self.problems = problems or []
 
     # `cli.py` and four packets of tests used this return value as a `Path`. Enumerating the few
     # methods they happened to call was the first attempt and it was wrong twice over - `.is_file`
-    # was missing, and the next caller would have found the next gap. Delegating everything the
-    # wrapper does not define keeps every existing use working and confines this change to the one
-    # thing it adds.
+    # was missing, and the next caller would have found the next gap.
+    #
+    # **This is not a `Path` and does not claim to be.** Attribute access delegates; operators do
+    # not, so `written / "sub"` is a `TypeError` where `written.parent` works. That asymmetry is
+    # stated rather than papered over: the wrapper exists so existing ATTRIBUTE use keeps working,
+    # and anything needing a real path should take `.profile`.
     def __getattr__(self, name: str):
+        # Guarded against its own delegation target. Without this, anything that probes an
+        # attribute BEFORE `__init__` has run - `pickle` looking for `__setstate__` is the usual
+        # one - recurses until the stack ends, because looking up `self.profile` re-enters here.
+        if name.startswith("__") or name == "profile":
+            raise AttributeError(name)
         return getattr(self.profile, name)
 
     def __fspath__(self) -> str:
@@ -63,6 +72,12 @@ class Written:
 
     def __eq__(self, other) -> bool:
         return self.profile == getattr(other, "profile", other)
+
+    # Defining `__eq__` alone sets `__hash__ = None`, so this became unhashable where it used to be
+    # a `Path`. Any caller putting the result in a set or a dict key would have met a `TypeError`
+    # for a change that was supposed to be additive.
+    def __hash__(self) -> int:
+        return hash(self.profile)
 
     def __str__(self) -> str:
         return str(self.profile)
@@ -301,10 +316,10 @@ def run(repo: Path, interview: Interview) -> Path:
     # Written BEFORE the profile, and only once the profile is known to render and verify. A
     # profile naming an artefact that does not exist fails `SP032` on the next run, so if anything
     # here is going to fail it should fail before the profile claims the artefact is there.
-    created = scaffold.write(repo, accepted)
+    created, scaffold_problems = scaffold.write(repo, accepted)
 
     target = repo / PROFILE_PATH
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(rendered, encoding="utf-8", newline="\n")
     _clear_draft(repo)  # a completed run leaves no draft behind - it exists only to protect one
-    return Written(profile=target, created=created)
+    return Written(profile=target, created=created, problems=scaffold_problems)
