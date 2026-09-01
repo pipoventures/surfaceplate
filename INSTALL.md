@@ -117,6 +117,18 @@ you have decided the standard supersedes what is there.
 `governance/application-profile.yaml` is the only file you have to write. It records what controls
 apply to this repository and why.
 
+**Recommended: run `surfaceplate adopt`.** It walks the same decisions this section describes —
+conformance level, controls, and every prerequisite gate — as a terminal wizard, and writes a
+complete, schema-valid profile only once you confirm a final review screen. It never selects a
+level, invents a rationale, or sets a date on your behalf: it asks, you answer, it writes. Needs
+the `adopt` extra (`pip install surfaceplate[adopt]`, or `python -m pip install questionary==2.1.1`
+alongside a git-clone install); `surfaceplate install`/`check` need nothing beyond `PyYAML` and
+`jsonschema`. Once it has written the profile, hand the repository to
+`prompts/copilot-implementation-assistant.prompt.md` to implement what it declared.
+
+The steps below are what `surfaceplate adopt` does on your behalf — read them if you are filling
+the profile in by hand instead, or want to understand what a generated profile actually contains.
+
 1. Choose a conformance level — `essential`, `standard`, or `full`. See
    `.standards/core/CONFORMANCE_LEVELS.md`. Choosing a lower level is a legitimate, recorded
    decision; pretending to a higher one is not.
@@ -135,8 +147,9 @@ the check fails.
 
 ## Declare your prerequisite gates
 
-The `prerequisites` block is the second thing you have to write. A gate is a rule of the shape
-*"X must exist before Y may begin"*. Read `.standards/core/PREREQUISITE_GATES.md` first.
+The `prerequisites` block is the second thing you have to write — or, again, what `surfaceplate
+adopt` writes for you, one gate at a time. A gate is a rule of the shape *"X must exist before Y
+may begin"*. Read `.standards/core/PREREQUISITE_GATES.md` first.
 
 1. Every level requires at least `work_registration`. `standard` and `full` require more, and also
    require that **every** catalogue gate is declared — `required`, `deferred`, or

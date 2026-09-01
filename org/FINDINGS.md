@@ -1448,6 +1448,15 @@ ever cited would manufacture citations for no benefit:
 
 ## Observations — not findings
 
+- **A bare `python3` can carry package versions older than this project's own pins, with no error
+  until something is actually run against them.** Discovered while building `ACT-020`
+  (`org/decisions/DR-32.md`): the machine used had no `pip` at all, and apt-installed
+  `jsonschema==4.10.3`/`PyYAML==6.0.1` — both older than `4.26.0`/`6.0.3`. This is not `F21` again —
+  the pin is correctly declared, and every workflow correctly installs it — it is the same class of
+  divergence one layer closer to the developer, on a machine nothing in CI ever touches. Not a
+  finding, because nothing in the framework failed: a repository-local `.venv`, built once with the
+  pinned versions, is the ordinary remedy and is what every verification command in `DR-32` used
+  once this was noticed. Recorded so the next session on a fresh machine checks rather than assumes.
 - **`ACT-<n>` identifiers have no register.** `ACT-200` and `ACT-201` appear in commit subjects and
   in **no tracked file**. The activity register that would give them meaning is unlanded work
   (`org/RELEASE_PLAN.md`, item 0; `DR-13`). This is the `SDS036` shape — an identifier cited before

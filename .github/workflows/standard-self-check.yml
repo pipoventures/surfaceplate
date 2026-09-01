@@ -43,8 +43,14 @@ jobs:
         with:
           python-version: '3.12'
 
+      # `questionary` is here, not in `pyproject.toml`'s core `dependencies` - it is the `adopt`
+      # EXTRA (`pip install surfaceplate[adopt]`), because `standards-conformance.yml`, the
+      # workflow this project installs into every adopting repository, never runs `adopt` and
+      # should never need to pip-install a dependency for a command its CI doesn't invoke. This
+      # workflow (this repo's OWN self-check) does run `tests/test_adopt.py`, so it needs it
+      # directly. See `org/decisions/DR-32.md`.
       - name: Install validation dependencies
-        run: python -m pip install --disable-pip-version-check PyYAML==6.0.3 jsonschema==4.26.0
+        run: python -m pip install --disable-pip-version-check PyYAML==6.0.3 jsonschema==4.26.0 questionary==2.1.1
 
       - name: Validate the control contracts
         id: contracts
@@ -55,6 +61,11 @@ jobs:
         id: installer
         if: ${{ !cancelled() }}
         run: python tests/test_install_and_check.py
+
+      - name: Test the adopt wizard end to end
+        id: adopt
+        if: ${{ !cancelled() }}
+        run: python tests/test_adopt.py
 
       - name: Verify the release manifest is current
         id: manifest
@@ -115,6 +126,7 @@ jobs:
           OUTCOMES: >-
             contracts=${{ steps.contracts.outcome }}
             installer=${{ steps.installer.outcome }}
+            adopt=${{ steps.adopt.outcome }}
             manifest=${{ steps.manifest.outcome }}
             identifiers=${{ steps.identifiers.outcome }}
             registers=${{ steps.registers.outcome }}

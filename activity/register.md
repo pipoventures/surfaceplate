@@ -53,6 +53,7 @@ on an agent's authority.
 | `ACT-017` | The installer forbids what the standard permits: a recorded hook opt-out (`F27`) | maintainer | maintainer | `waiting_for_review` | `ACT-016` | medium | yes — it changes what the installer will do in every adopting repository | medium — the mechanism is small; the judgement is that declining must leave a trace rather than being a silent flag | A repository with its own hook system can adopt without surrendering it, and the check says on every run that nothing gates staged changes | Three negative controls — the default install still refuses a foreign hooks path and writes nothing, and `SP038` still catches a gate claiming a hook that was declined |
 | `ACT-018` | Agent neutrality: emit the instructions where each agent actually reads them (`F29`) | maintainer | maintainer | `waiting_for_review` | `ACT-017` | hard | yes — it changes what every adopting repository receives, and gives this repository its own instructions for the first time | medium — the emitter design follows the documented loading rules; the judgement is a block in `AGENTS.md` rather than owning the file | The instructions land in `.claude/rules/` and `AGENTS.md` as well as the Copilot paths, and surfaceplate is finally governed by its own | Three negative controls — Copilot emission unchanged, an adopter's `AGENTS.md` content preserved verbatim, and their `CLAUDE.md` never written |
 | `ACT-019` | `RELEASE_PLAN` item 1: pip packaging, and the precondition `DR-10` left unsolved | maintainer | maintainer | `waiting_for_review` | `ACT-018` | hard | yes — it decides the payload's on-disk shape for every future distribution channel, and moves files every internal reference depends on | high — the layout choice was surfaced and decided by the maintainer rather than taken silently; `repo_root()`'s fix turned out simpler than either research pass anticipated, and that simplification is itself a judgement worth recording | A wheel built from the new layout installs into a clean virtualenv with no git checkout present and successfully installs the standard into a fresh target repository | The negative control: the acceptance test runs from the pip-installed package alone, nothing borrowed from the source tree it was built from; suites and manifest accounted for; both checker copies `PASS` after reinstalling from the new location |
+| `ACT-020` | `RELEASE_PLAN` item 2: the CLI and the wizard, and resolving the "wizard" naming collision | maintainer | maintainer | `waiting_for_review` | `ACT-019` | hard | yes — it decides how every future adopter fills in `governance/application-profile.yaml`, and retires the discovery/authoring phases of an existing prompt in favour of it | high — the binding rule ("it asks, the human answers, the tool writes") constrains the whole design, and the terminal-vs-form choice was tested with a clickable comparison artifact and agreed with the maintainer before this packet's plan was written, not assumed | A scripted end-to-end run of `surfaceplate adopt` produces a profile that validates against the schema and matches the answers exactly, for a `full`-level walk of all 19 gates | The negative controls: an interrupt mid-flow leaves the repository untouched; a level-mandatory gate cannot be declined; nothing in the assembled profile traces to anything other than a typed answer; the renamed prompt no longer claims the word "wizard" anywhere in its own text |
 ## Notes on the entries
 
 `ACT-002` and `ACT-003` are both raised by `DR-16` and are deliberately **not** resolved by
@@ -164,7 +165,17 @@ each was checked against the reasoning `core/PREREQUISITE_GATES.md` gives for *n
 paths being safe against the history audit, where *renaming a precondition artefact* is not — `F30`
 fired on exactly that second kind of edit, for the second time in one session.
 
-`ACT-005` to `ACT-019` were registered **before** implementation begins, not alongside it. `work_registration` is
+`ACT-020` retires part of an existing artefact rather than only adding a new one.
+`prompts/github-copilot-adoption-wizard.prompt.md` has called itself "the wizard" since before the
+`0.12.0` rename; `surfaceplate adopt` takes that name from here, and the prompt is renamed and
+narrowed to the phases it still uniquely does (bounded implementation, downstream of a profile the
+CLI now produces). The terminal-vs-browser design question was not decided at a desk: three moments
+of the flow were mocked up as a clickable comparison artifact and walked through with the
+maintainer before this packet's plan was written, and the maintainer's own first reaction —
+"how does someone answer in a prompt back" — is why that artifact exists rather than a written
+argument alone.
+
+`ACT-005` to `ACT-020` were registered **before** implementation begins, not alongside it. `work_registration` is
 live over `scripts/**` and `schemas/**`, which is exactly what item 4 changes, and a gate satisfied
 retrospectively is the failure mode `core/PREREQUISITE_GATES.md` warns is most common — satisfied on
 paper, violated in spirit.

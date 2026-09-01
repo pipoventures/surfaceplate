@@ -51,6 +51,18 @@ python surfaceplate/install_standard.py --target /path/to/your-repo
 python /path/to/your-repo/.standards/check_conformance.py --repo /path/to/your-repo
 ```
 
+Then, to fill in `governance/application-profile.yaml` — the one file the installer leaves for you
+to write — run the interactive wizard rather than editing the template by hand:
+
+```bash
+pip install surfaceplate[adopt]   # or: python -m pip install questionary==2.1.1
+surfaceplate adopt --target /path/to/your-repo
+```
+
+It asks every question the profile requires — conformance level, controls, all 19 prerequisite
+gates — and writes nothing until you confirm a final review screen. It never picks a level,
+invents a rationale, or sets a date for you.
+
 Full instructions: **[INSTALL.md](INSTALL.md)**.
 If the installer stops because of existing files: **[RECONCILIATION.md](RECONCILIATION.md)**.
 
