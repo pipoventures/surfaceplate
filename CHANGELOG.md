@@ -1830,3 +1830,40 @@ Re-run against the exact scenario that prompted this — a fresh Plutos clone, `
 `simple` mode this time — and it wrote cleanly on the first pass, with every control and the one
 required gate explained in plain English before being asked, and the level screen naming Plutos's
 real detected CI workflows without steering the choice.
+
+### `adopt` remediation, phase 2: the interface that was actually approved (`ACT-027`, `DR-36`)
+
+Phase 1 fixed what the wizard *said*. This rebuilds how it *asks*. Read back frame by frame, the
+approved mockup shows an interface sequential prompts cannot produce at any level of polish: earlier
+answers staying on screen, a conformance-level list where highlighting an option is explicitly not
+choosing it, and a gate catalogue showing several gates at once with chip rows and follow-ups that
+appear inside a gate's own block only once its status calls for them. `questionary` is replaced by
+`textual`; `InteractivePrompt` and `prompting.py` are gone.
+
+**The dependency replacement is a recorded human decision, not an agent's.**
+`.github/skills/dependency-update/SKILL.md` makes replacing a dependency fixed by a decision record
+a mandatory stop, and `questionary` was fixed by `DR-32`. The maintainer chose replacement over
+keeping a fallback, on the grounds that a second interface nobody exercises is the same shape `F34`
+had just found in the `--no-hooks` branch. Cost recorded rather than buried: seven transitive
+packages against `questionary`'s two, landing only on the `[adopt]` extra and never on an adopting
+repository's CI. `pip-audit` reports no known vulnerabilities for either set.
+
+**The part that outlives the interface: the binding rule is now provable.** This repository's own
+test file has said since `ACT-022` that `ScriptedPrompt` *"only objects to a call it wasn't given an
+answer for, never to a value written without any call"* — which is precisely how `F32` (rationale
+invented for seven controls and gates) passed every scripted test it had. `sections.py` is now pure
+`build_*(answers) -> fragment` functions, so `tests/test_provenance.py` can assemble a whole profile
+from answers in which every free-text field carries a unique sentinel and assert that every string
+in the result either carries one or appears on an explicit 48-entry allow-list of what the framework
+contributes. That allow-list is the honest answer to "what does this tool write on its own?", and
+its own negative control injects a plausible fabricated rationale and confirms the walk objects.
+Two further suites close the remaining gaps: a keyed `ScriptedInterview` (a planned field with no
+answer, or an answer nothing asked for, both fail) and a screen↔plan join proving each screen
+renders exactly the fields its plan declares — 138 of them on the gate catalogue alone.
+
+Three defects that only building it revealed, each recorded in `DR-36`: Textual's `Input` starts
+with its whole value selected, which would have silently wiped Phase 1's editable example answers on
+the first keystroke; the mockup's `[g] jump to section` cannot work as drawn, because a focused text
+field eats printable keys, so it is `Ctrl+G` and the hint says so; and a control the level requires
+must be stated rather than offered as an untickable box, or the wizard would happily produce a
+profile its own checker rejects.

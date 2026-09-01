@@ -14,11 +14,12 @@
 # `[project.scripts]` arrived at `ACT-020` (item 2). `pip install surfaceplate` now gives a real
 # `surfaceplate` command — `install` and `check` work immediately; `adopt` (the interactive
 # wizard) needs the `adopt` extra: `pip install surfaceplate[adopt]`. See `org/decisions/DR-32.md`
-# for why `questionary` is an extra rather than a hard dependency — the short version is that
+# for why the wizard's dependency is an extra rather than a hard one — the short version is that
 # `.github/workflows/standards-conformance.yml`, the workflow this project INSTALLS into every
-# adopting repository, never runs `adopt`; it only ever runs the checker. Putting `questionary`
+# adopting repository, never runs `adopt`; it only ever runs the checker. Putting it
 # in `[project.dependencies]` would put it on every adopter's CI pip-install line for a command
-# their CI never invokes.
+# their CI never invokes. That reasoning survived `DR-36` replacing the dependency itself, and
+# matters more now, not less: `textual` carries a larger transitive set than `questionary` did.
 
 [project]
 name = "surfaceplate"
@@ -39,14 +40,21 @@ dependencies = [
     "jsonschema==4.26.0",
 ]
 
-# `questionary` (ACT-020) drives the `adopt` wizard's terminal prompts, and only that — `install`
-# and `check` never import it, both at module scope (see surfaceplate/adopt/prompting.py: every
-# `questionary` import is local to a method, not module-level) and by lazy-importing the whole
-# `adopt` package only inside `cli.py`'s `adopt` subcommand. It is an extra rather than a hard
-# dependency for exactly that reason — see the note above `[project]`. Resolved in a clean virtual
-# environment, all six suites run against the result before pinning (`F21`'s discipline).
+# `textual` (ACT-027, DR-36) drives the `adopt` wizard's full-screen interface, and only that —
+# `install` and `check` never import it, neither at module scope nor otherwise: `surfaceplate/adopt/
+# tui/` is imported only inside `cli.py`'s `adopt` subcommand, which also preflights the import so
+# a missing extra produces one clear sentence rather than a traceback. It is an extra rather than a
+# hard dependency for exactly that reason — see the note above `[project]`. Resolved in a clean
+# virtual environment, all suites run against the result before pinning (`F21`'s discipline).
+#
+# It REPLACES `questionary==2.1.1`, which `DR-32` chose and `DR-36` retired. That replacement is a
+# mandatory stop under `.github/skills/dependency-update/SKILL.md` (a dependency fixed by a decision
+# record) and proceeded on a recorded human decision, not an agent's judgement. Cost, stated rather
+# than buried: `textual` brings seven transitive packages (`rich`, `markdown-it-py`,
+# `mdit-py-plugins`, `mdurl`, `linkify-it-py`, `platformdirs`, `pygments`) where `questionary`
+# brought two. That is a real increase, and it lands only on someone who installs the extra.
 [project.optional-dependencies]
-adopt = ["questionary==2.1.1"]
+adopt = ["textual==8.2.8"]
 
 [project.scripts]
 surfaceplate = "surfaceplate.cli:main"

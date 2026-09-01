@@ -1,9 +1,15 @@
-"""Orchestration: run the sections in order, assemble, verify, and only then write.
+"""Orchestration: collect answers, assemble, verify, and only then write.
 
 `run()` is the one function anything outside this package should call. It is deliberately thin -
-every real decision already happened inside a `sections.py` function, driven by a `Prompt` a caller
-supplies. This module's own job is narrow: hold the pieces together, verify what they produced
-before it reaches disk, and guarantee that a cancelled run leaves nothing behind.
+an `Interview` collects the answers, `sections.py` turns them into a profile, and this module's own
+job is narrow: hold the pieces together, verify what they produced before it reaches disk, and
+guarantee that a cancelled run leaves the repository untouched.
+
+**Verification is never delegated to the interface (`DR-36`).** `_verify` runs twice: once through
+the `preview` closure, so the review screen can show a `WriteRefused` as a message instead of a
+traceback, and again here after the interview returns, before anything is written. Both passes are
+pure and deterministic, so the second costs nothing - and it means a defect in the interface cannot
+put an unverified profile on disk, however convincing the screen looked.
 """
 
 from __future__ import annotations
@@ -12,7 +18,7 @@ import json
 from pathlib import Path
 
 from surfaceplate.adopt import render, sections
-from surfaceplate.adopt.prompting import Cancelled, Prompt
+from surfaceplate.adopt.interview import DRAFT_FORMAT, Cancelled, DraftInfo, Interview
 
 PROFILE_PATH = "governance/application-profile.yaml"
 INSTALL_RECORD = ".standards/INSTALL.json"
@@ -127,9 +133,11 @@ def _draft_path(repo: Path) -> Path:
 def _save_draft(repo: Path, record: dict, state: dict) -> None:
     """Called after every section completes - a late failure loses at most the section in
     progress, not the whole run. `framework_version`/`framework_digest` travel with the draft so a
-    later resume can tell whether the install underneath it has changed since (`_resume_or_start`),
-    flagged rather than silently trusted."""
+    later resume can tell whether the install underneath it has changed since, flagged rather than
+    silently trusted; `format` states the shape of `sections` so a draft written by a different
+    shape of this wizard is recognised rather than misread (`DRAFT_FORMAT`)."""
     payload = {
+        "format": DRAFT_FORMAT,
         "framework_version": record.get("standard_version", ""),
         "framework_digest": record.get("framework_digest", ""),
         "sections": state,
@@ -155,28 +163,33 @@ def _clear_draft(repo: Path) -> None:
     _draft_path(repo).unlink(missing_ok=True)
 
 
-def _resume_or_start(repo: Path, record: dict, prompt: Prompt) -> dict:
+def _resume_or_start(repo: Path, record: dict, interview: Interview) -> dict:
     """Never resumes silently. A version/digest mismatch is flagged - shown to the human, who
-    still decides - rather than either trusted or refused outright."""
+    still decides - rather than either trusted or refused outright.
+
+    A draft in an older `format` is a different case and is not offered at all: Phase 1 drafts hold
+    built profile fragments where these hold raw answers, so resuming one as the other would produce
+    a confidently wrong profile rather than an error. It is left in place rather than deleted -
+    this run's first completed section overwrites it - so nothing is destroyed to tidy up.
+    """
     draft = _load_draft(repo)
     if draft is None:
+        return {}
+
+    if draft.get("format") != DRAFT_FORMAT:
         return {}
 
     matches = draft.get("framework_version") == record.get(
         "standard_version", ""
     ) and draft.get("framework_digest") == record.get("framework_digest", "")
 
-    print("A saved draft from an earlier, unfinished run was found here.")
-    if matches:
-        print("It was answered against the framework version currently installed in this repository.")
-    else:
-        print(
-            "It was started against a different framework version or digest than what's "
-            "installed here now - resuming may carry answers into a wizard that no longer asks "
-            "for them the same way."
-        )
-    resume = prompt.confirm("Resume it?", default=matches)
-    if not resume:
+    info = DraftInfo(
+        sections=tuple(draft.get("sections", {})),
+        framework_version=str(draft.get("framework_version", "")),
+        framework_digest=str(draft.get("framework_digest", "")),
+        matches=matches,
+    )
+    if not interview.confirm_resume(info):
         _clear_draft(repo)
         return {}
     return dict(draft.get("sections", {}))
@@ -195,7 +208,17 @@ def _walk_strings(node: object, path: str = "") -> list[tuple[str, str]]:
     return out
 
 
-def run(repo: Path, prompt: Prompt) -> Path:
+def assemble(state: dict, record: dict) -> dict:
+    """The profile a set of answers produces. Pure, and shared by the preview and the real write so
+    the thing reviewed on screen is assembled by the same code as the thing written to disk."""
+    return sections.build_profile(
+        state,
+        framework_version=record.get("standard_version", ""),
+        framework_digest=record.get("framework_digest", ""),
+    )
+
+
+def run(repo: Path, interview: Interview) -> Path:
     """Runs the whole wizard. Returns the path written. Raises `Cancelled`, `NotInstalled`,
     `AlreadyAdopted`, or `WriteRefused` - every one of them leaves the repository untouched, except
     that `Cancelled` (and any other failure) may leave a resumable draft behind - see
@@ -203,86 +226,34 @@ def run(repo: Path, prompt: Prompt) -> Path:
     _refuse_if_already_adopted(repo)
     record = _read_install_record(repo)
 
-    state = _resume_or_start(repo, record, prompt)
+    state: dict = _resume_or_start(repo, record, interview)
 
-    def step(name: str, compute):
-        """One section: return it from a resumed draft if already answered, otherwise ask and
-        persist. `compute` is a zero-arg closure so a resumed section costs nothing - the
-        `sections.ask_*` call it wraps is never invoked at all when the answer is already in
-        `state`, which is what makes resuming actually skip re-asking rather than merely
-        skip re-writing."""
-        if name in state:
-            print("  (already answered in the saved draft)")
-            return state[name]
-        value = compute()
-        state[name] = value
+    def on_section_complete(name: str, answers: dict) -> None:
+        state[name] = answers
         _save_draft(repo, record, state)
-        return value
 
-    print("[Before section 1 — how should this be explained?]")
-    mode = step("mode", lambda: sections.ask_mode(prompt))
+    def preview(current: dict) -> str:
+        """Assemble, render and verify without writing - what the review screen shows.
 
-    print("\n[1 of 7 — Identity]")
-    identity = step("identity", lambda: sections.ask_identity(prompt))
+        A `WriteRefused` raised here surfaces in the interface as a message the human can act on.
+        It is deliberately NOT the last word: `run` verifies again below before writing, so the
+        interface cannot put an unverified profile on disk however this closure behaved.
+        """
+        profile = assemble(current, record)
+        rendered = render.render_profile(profile)
+        _verify(profile, rendered, repo)
+        return rendered
 
-    print("\n[2 of 7 — Stack]")
-    stack = step("stack", lambda: sections.ask_stack(prompt, repo))
-
-    print("\n[3 of 7 — Risk & materiality]")
-    risk = step("risk", lambda: sections.ask_risk(prompt))
-
-    print("\n[4 of 7 — Conformance level]")
-    level = step(
-        "level",
-        lambda: sections.ask_conformance_level(
-            prompt, repo, builds_user_interface=stack["builds_user_interface"], mode=mode
-        ),
+    state = interview.collect(
+        repo=repo,
+        resumed=state,
+        on_section_complete=on_section_complete,
+        preview=preview,
     )
 
-    print(f"\n[5 of 7 — Controls, floor: {level}]")
-    controls = step("controls", lambda: sections.ask_controls(prompt, level=level, mode=mode))
-
-    print("\n[6 of 7 — Prerequisite gates]")
-    gates = step(
-        "gates",
-        lambda: sections.ask_gates(
-            prompt, level=level, builds_user_interface=stack["builds_user_interface"], mode=mode
-        ),
-    )
-
-    print("\n[Before the review — a few closing facts]")
-    adoption = step(
-        "adoption",
-        lambda: sections.ask_adoption_identity(
-            prompt,
-            framework_version=record.get("standard_version", ""),
-            framework_digest=record.get("framework_digest", ""),
-            owner=identity["owner"],
-        ),
-    )
-    adoption["deferrals"] = []  # v1: control_decisions offers required only; see DR-32.
-
-    wrap = step("wrap", lambda: sections.ask_roles_and_release(prompt))
-
-    profile = {
-        "schema_version": "1.0",
-        **identity,
-        **stack,
-        **risk,
-        "conformance_level": level,
-        "adoption": adoption,
-        **controls,
-        "prerequisites": gates,
-        **wrap,
-    }
-
+    profile = assemble(state, record)
     rendered = render.render_profile(profile)
     _verify(profile, rendered, repo)
-
-    print("\n[7 of 7 — Review]")
-    print(rendered)
-    if not prompt.confirm("Write this to " + PROFILE_PATH + "?", default=None):
-        raise Cancelled()
 
     target = repo / PROFILE_PATH
     target.parent.mkdir(parents=True, exist_ok=True)

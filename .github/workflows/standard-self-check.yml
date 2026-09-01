@@ -43,14 +43,18 @@ jobs:
         with:
           python-version: '3.12'
 
-      # `questionary` is here, not in `pyproject.toml`'s core `dependencies` - it is the `adopt`
+      # `textual` is here, not in `pyproject.toml`'s core `dependencies` - it is the `adopt`
       # EXTRA (`pip install surfaceplate[adopt]`), because `standards-conformance.yml`, the
       # workflow this project installs into every adopting repository, never runs `adopt` and
       # should never need to pip-install a dependency for a command its CI doesn't invoke. This
-      # workflow (this repo's OWN self-check) does run `tests/test_adopt.py`, so it needs it
-      # directly. See `org/decisions/DR-32.md`.
+      # workflow (this repo's OWN self-check) does run the adopt suites, so it needs it directly.
+      # See `org/decisions/DR-32.md`, and `DR-36` for the replacement of `questionary` by `textual`.
+      #
+      # This line is hand-maintained: `tests/validate_contracts.py` sweeps `[project.dependencies]`
+      # against every workflow's install line, but does NOT sweep optional-dependencies, so a
+      # change to the `adopt` extra has to be mirrored here deliberately.
       - name: Install validation dependencies
-        run: python -m pip install --disable-pip-version-check PyYAML==6.0.3 jsonschema==4.26.0 questionary==2.1.1
+        run: python -m pip install --disable-pip-version-check PyYAML==6.0.3 jsonschema==4.26.0 textual==8.2.8
 
       - name: Validate the control contracts
         id: contracts
@@ -66,6 +70,17 @@ jobs:
         id: adopt
         if: ${{ !cancelled() }}
         run: python tests/test_adopt.py
+
+      # DR-36's two new guarantees, each run as its own step so a failure names which one broke.
+      - name: Prove no profile value was invented rather than answered
+        id: provenance
+        if: ${{ !cancelled() }}
+        run: python tests/test_provenance.py
+
+      - name: Drive the wizard's screens and join them against their plan
+        id: adopt_tui
+        if: ${{ !cancelled() }}
+        run: python tests/test_adopt_tui.py
 
       - name: Verify the release manifest is current
         id: manifest
@@ -127,6 +142,8 @@ jobs:
             contracts=${{ steps.contracts.outcome }}
             installer=${{ steps.installer.outcome }}
             adopt=${{ steps.adopt.outcome }}
+            provenance=${{ steps.provenance.outcome }}
+            adopt_tui=${{ steps.adopt_tui.outcome }}
             manifest=${{ steps.manifest.outcome }}
             identifiers=${{ steps.identifiers.outcome }}
             registers=${{ steps.registers.outcome }}
