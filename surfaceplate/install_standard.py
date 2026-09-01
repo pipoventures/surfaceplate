@@ -233,6 +233,21 @@ def build_payload(source: Path) -> dict[str, Path]:
     for adapter in sorted((source / "adapters").glob("*.md")):
         payload[f"{VENDOR_DIR}/adapters/{adapter.name}"] = adapter
 
+    # `DR-45`: the manifest itself, so an adopter can RECOMPUTE the framework digest rather than
+    # only compare two values this installer wrote. `DR-20`'s membership principle admits a file an
+    # adopter "cannot correctly apply, VERIFY, or understand the version it pinned without", and
+    # until now the anchor `DR-14` introduced was unverifiable from inside an adopting repository -
+    # a limit `F6` names explicitly.
+    #
+    # It does not let an adopter verify their INSTALLED files: the manifest covers the release
+    # tree's own paths (`surfaceplate-<version>/...`, 167 of them) and some payload files are
+    # transformed on the way in, so the two sets are not comparable. What it enables is one
+    # comparison against the published manifest, which is the only value in this arrangement that
+    # comes from outside the repository being checked.
+    manifest = source / "MANIFEST.sha256"
+    if manifest.is_file():
+        payload[".standards/MANIFEST.sha256"] = manifest
+
     return payload
 
 

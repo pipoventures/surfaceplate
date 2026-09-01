@@ -833,7 +833,9 @@ def report_declined_hook(record: dict, notes: list[str]) -> None:
     )
 
 
-def check_pinned_identity(profile: dict, record: dict | None, findings: list[Finding]) -> None:
+def check_pinned_identity(
+    profile: dict, record: dict | None, findings: list[Finding], repo: Path | None = None
+) -> None:
     """Check the profile's declared pin against the standard actually installed.
 
     F7's remedy. Until this existed, `adoption.framework_digest` was shape-checked against
@@ -899,6 +901,37 @@ def check_pinned_identity(profile: dict, record: dict | None, findings: list[Fin
             )
         )
         return
+
+    # `ACT-036`. The digest is RECOMPUTED from a file the adopter holds, where the installer left
+    # one. Until `DR-45` shipped `MANIFEST.sha256` into the payload, both values in the comparison
+    # below were written by the same installer run: agreement between them established that nothing
+    # had been edited afterwards, and nothing else. Recomputing `sha256(MANIFEST.sha256)` locally
+    # adds a third value derived from real bytes rather than copied from a record.
+    #
+    # **This does not close `F6`, and the wording must not read as though it does.** The manifest is
+    # still a file inside the repository being checked, so a party with write access edits it and
+    # the record together and all three agree. What it buys is that the anchor is now recomputable
+    # at all: an adopter can compare their `MANIFEST.sha256` against the published one and reach a
+    # value that came from outside. `F6` closes when somebody who is not the maintainer does that
+    # and attests to it.
+    manifest = (repo / ".standards" / "MANIFEST.sha256") if repo is not None else None
+    if manifest is not None and manifest.is_file():
+        recomputed = sha256_text(normalise(manifest.read_text(encoding="utf-8")))
+        if recomputed.lower() != installed_digest.lower():
+            findings.append(
+                Finding(
+                    "SP049",
+                    "The installed manifest does not hash to the digest recorded for it",
+                    f"{INSTALL_RECORD} anchors to {installed_digest}, but "
+                    f".standards/MANIFEST.sha256 present in this repository hashes to "
+                    f"{recomputed}.",
+                    "The manifest or the install record has been modified since installation. "
+                    "Re-run the installer. Note what this does and does not establish: both files "
+                    "live inside the repository being checked, so agreement is evidence against "
+                    "drift and accident, not against a party with write access (F6).",
+                    graceable=True,
+                )
+            )
 
     if declared_digest.lower() != installed_digest.lower():
         findings.append(
@@ -3263,7 +3296,7 @@ def run(repo: Path, today: _dt.date, no_grace: bool, staged: bool) -> int:
                 profile, registers, incomplete, findings, notes
             )
             check_deferral_expiry(profile, findings, today, notes)
-            check_pinned_identity(profile, record, findings)
+            check_pinned_identity(profile, record, findings, repo)
             report_declined_hook(record, notes)
             check_prerequisites(
                 repo,
