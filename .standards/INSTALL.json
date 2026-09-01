@@ -36,7 +36,7 @@
     ".standards/agent-instructions/provenance.md": "4337048f1ce3f630b4b122ca3b04a18780ad98fb0076a24aad572fc10beb4fef",
     ".standards/agent-instructions/security.md": "4a0fba60fde19d7a6a8f1f75832993a1ea55a75674b2ba63a109e5bc4a31058c",
     ".standards/agent-instructions/tests.md": "38c78e74025ba2c97d1e0cb9e583cc29fbd1e8dfbd6f05a73ae1f71cfc69e273",
-    ".standards/check_conformance.py": "d658e0f95ad4ecd762507dec891c5935d11c0a2b714b74833ad2b1e710a2a222",
+    ".standards/check_conformance.py": "e8465e7356d0df6362f8f74b6274f9d31fd9c6995182cf1d28d597c4dc829e5e",
     ".standards/conformance-block.md": "caa2b219c368ca85c4eb4a213f135eede1abcb2250a287c2b08cdc8243c50175",
     ".standards/core/AI_OPERATING_MODEL.md": "04b2d5951f841627fdb39bdf515ff17be81e9fe16beb580b025fafa85d393b02",
     ".standards/core/CONFORMANCE_LEVELS.md": "b6b24ff0ffe92f17acd50380d4ad623c8676b898d03437a477e8a1e90007b6af",
@@ -63,7 +63,7 @@
     ".standards/templates/work-packet.md": "121f5270ee57740adee42ec82abd4b6b7b714093faf299efbb3ae6d78654be60"
   },
   "first_installed_at": "2026-08-31",
-  "framework_digest": "da10c7f1167481d97f84151010b0be18e8fb5ccccf4e42fa0e70e9f3695e2d78",
+  "framework_digest": "d4698aa5d9e4a8c0abf8e8f2735fbf46956d11ba74b7862bba26510260a1247e",
   "grace_expires": "2026-09-30",
   "installed_at": "2026-09-01",
   "profile_path": "governance/application-profile.yaml",

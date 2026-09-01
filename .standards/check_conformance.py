@@ -2245,6 +2245,57 @@ def blob_exists(repo: Path, sha: str, path: str) -> bool:
     return code == 0
 
 
+def historical_paths(repo: Path, path: str) -> list[str]:
+    """Every path this artefact has had, following renames. Newest first, current path always in.
+
+    `F30`: the audit resolved a precondition at its CURRENT path and asked whether that path
+    existed in each historical commit. Renaming a file - without changing a word of it -
+    retroactively reported every earlier commit as having crossed the gate uncovered. It happened
+    twice here, on renames this repository chose for its own good reasons (`DR-30`, `DR-31`), and
+    each time the only available remedy was an exception record for work that violated nothing.
+
+    **Git's rename detection is a heuristic, and a control may not silently trust one.** Two things
+    keep that honest. This function only ever ADDS paths to look for, so it can clear a false
+    violation and can never hide a commit where nothing existed under any name. And every rename it
+    follows is reported on the run by `audit_gate_history`, so an adopter sees which chain was
+    trusted rather than merely seeing a check go quiet.
+
+    Falls back to `[path]` - the strict, pre-`F30` behaviour - whenever git cannot answer: a
+    directory rather than a file, no history, or `--follow`'s single-path requirement unmet. A
+    fallback that errs toward reporting is the right direction for a control.
+    """
+    # `--follow` is for a single FILE. Pointed at a directory it silently traces some file
+    # inside it instead and reports that as the directory's own former name - harmless here, since
+    # a file existing implies its directory did, but it is accidental behaviour rather than
+    # designed, and relying on an accident inside a control is how a control stops meaning what it
+    # says. A directory precondition keeps the strict check.
+    if (repo / path).is_dir():
+        return [path]
+
+    code, out = git(
+        repo, "log", "--follow", "--name-status", "--format=", "--", path
+    )
+    if code != 0:
+        return [path]
+
+    found: list[str] = [path]
+    for line in out.splitlines():
+        parts = line.split("\t")
+        if not parts or not parts[0]:
+            continue
+        # `R100\told\tnew` for a rename; `A`/`M`/`D` carry a single path.
+        if parts[0].startswith("R") and len(parts) >= 3:
+            candidates = [parts[1], parts[2]]
+        elif len(parts) >= 2:
+            candidates = [parts[1]]
+        else:
+            continue
+        for candidate in candidates:
+            if candidate and candidate not in found:
+                found.append(candidate)
+    return found
+
+
 def commit_subject(repo: Path, sha: str) -> str:
     code, out = git(repo, "log", "-1", "--format=%h %ad %s", "--date=short", sha)
     return out if code == 0 else sha[:8]
@@ -2499,6 +2550,7 @@ def audit_gate_history(
     effective_from: _dt.date,
     exceptions: dict[str, set[str]],
     findings: list[Finding],
+    notes: list[str] | None = None,
 ) -> None:
     """Every commit touching a gated path must have had the preconditions in place."""
     gate_id = str(gate.get("id"))
@@ -2525,10 +2577,22 @@ def audit_gate_history(
         )
         return
 
+    # An artefact is looked for under every name it has ever had, not only its current one
+    # (`F30`). Resolved once per gate rather than per commit: `--follow` is a log walk.
+    known_paths = {a: historical_paths(repo, a) for a in artefacts}
+    for artefact, names in known_paths.items():
+        if len(names) > 1 and notes is not None:
+            notes.append(
+                f"{gate_id}: precondition {artefact} followed through "
+                f"{len(names) - 1} rename(s): {' <- '.join(names)}"
+            )
+
     for sha in commits:
         if sha.lower() in covered:
             continue
-        missing = [a for a in artefacts if not blob_exists(repo, sha, a)]
+        missing = [
+            a for a in artefacts if not any(blob_exists(repo, sha, p) for p in known_paths[a])
+        ]
         if missing:
             violations.append((sha, missing))
 
@@ -2917,7 +2981,7 @@ def check_prerequisites(
             continue
 
         if history_available:
-            audit_gate_history(repo, gate, effective_from, exceptions, findings)
+            audit_gate_history(repo, gate, effective_from, exceptions, findings, notes)
 
     required = LEVEL_REQUIRED_GATES.get(level, set())
     builds_ui = profile.get("builds_user_interface")

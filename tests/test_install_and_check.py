@@ -2256,6 +2256,72 @@ def main() -> int:
                     result.stdout[-400:],
                 )
 
+        # --- F30: a renamed precondition artefact ---------------------------------------------
+        # The audit resolved the artefact at its CURRENT path and asked whether that path existed
+        # in each historical commit, so renaming a file - without changing a word of it -
+        # retroactively reported every earlier commit as having crossed the gate uncovered. It
+        # fired twice in this repository, on renames it chose for its own good reasons.
+        renamed = git_repo("renamed-artefact")
+        if renamed is None:
+            check("git is available for the rename audit", False, "git init failed")
+        else:
+            install(renamed)
+            gate_src = essential_src.replace(
+                'effective_from: "2026-08-27"',
+                f'effective_from: "{(today - _dt.timedelta(days=30)).isoformat()}"',
+            )
+            (renamed / "governance" / "application-profile.yaml").write_text(gate_src, encoding="utf-8")
+            seed_gate_artefacts(renamed, gate_src)
+            commit(renamed, "adopt the standard")
+
+            (renamed / "src").mkdir(exist_ok=True)
+            (renamed / "src" / "work.py").write_text("# registered work\n", encoding="utf-8")
+            commit(renamed, "implement registered work, precondition in place")
+
+            # The rename. Nothing about the gate's substance changes; only the path does.
+            subprocess.run(
+                ["git", "-C", str(renamed), "mv",
+                 "docs/DEVELOPMENT_REGISTER.md", "docs/ACTIVITY_REGISTER.md"],
+                capture_output=True,
+            )
+            moved_src = gate_src.replace(
+                "docs/DEVELOPMENT_REGISTER.md", "docs/ACTIVITY_REGISTER.md"
+            )
+            (renamed / "governance" / "application-profile.yaml").write_text(moved_src, encoding="utf-8")
+            commit(renamed, "rename the register, changing nothing about the gate")
+
+            result = verify(renamed, "--no-grace")
+            check(
+                "renaming a precondition artefact does not retroactively fail its own history",
+                result.returncode == 0,
+                result.stdout[-700:],
+            )
+            check(
+                "and the rename it followed is stated on the run, not silently trusted",
+                "ACTIVITY_REGISTER" in result.stdout and "DEVELOPMENT_REGISTER" in result.stdout,
+                result.stdout[-700:],
+            )
+
+            # Negative control: a real violation after the rename is still caught. Following a
+            # rename must remove false positives only - never hide a commit that genuinely
+            # crossed the gate with nothing in place.
+            (renamed / "docs" / "ACTIVITY_REGISTER.md").unlink()
+            (renamed / "src" / "sneaky.py").write_text("# unregistered\n", encoding="utf-8")
+            commit(renamed, "implement unregistered work after the rename")
+            (renamed / "docs" / "ACTIVITY_REGISTER.md").write_text("# Register\n", encoding="utf-8")
+            commit(renamed, "restore the register")
+            result = verify(renamed, "--no-grace")
+            check(
+                "a genuine violation after a rename is still caught",
+                result.returncode == 1 and "SP035" in result.stdout,
+                result.stdout[-500:],
+            )
+            check(
+                "and it names the commit that actually crossed the gate",
+                "unregistered work after the rename" in result.stdout,
+                result.stdout[-500:],
+            )
+
         print("\nstale control removal")
         stale = make_repo(tmp, "stale")
         install(stale)

@@ -1,3 +1,14 @@
+# SUPERSEDED, AND KEPT DELIBERATELY - read this before the text below.
+#
+# `ACT-030` built `F30`'s remedy: the history audit now follows renames, so the violations this
+# record was written to clear no longer occur and this exception covers nothing. It is kept, not
+# deleted, because it is the record of what was decided and when - and because deleting an
+# exception record would be exactly the retrospective edit `core/PREREQUISITE_GATES.md` says an
+# exception must never be able to make invisibly.
+#
+# Everything below describes the audit as it behaved BEFORE that remedy. It is accurate history and
+# is no longer a description of how the checker works.
+#
 # The second gate exception this repository has recorded, and F30's shape recurring for the
 # SAME reason within the same session: a precondition artefact renamed, not removed.
 #
