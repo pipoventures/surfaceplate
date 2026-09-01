@@ -269,6 +269,65 @@ def test_level_screen_numbers_its_options_and_marks_the_highlight() -> None:
     asyncio.run(_run())
 
 
+def test_no_field_label_is_silently_truncated() -> None:
+    """`F56`. Twenty-eight labels were clipped at the design width with nothing to say so.
+
+    `.field-label` carried `height: 1` and `text-overflow: ellipsis`, and — exactly as `.gate-desc`
+    did before `F42` — **the ellipsis never rendered**. `Why does documentation_authority apply
+    here?` became a fragment, and the adopter had no way to know a question had been shortened. Most
+    predate `ACT-035`: at the previous fixed `width: 32` anything longer was already cut.
+
+    **Asked of the widget, not of the composited screen, and that took three attempts.** A label in
+    a two-column row wraps to several lines with the VALUE column's text interleaved between them,
+    so no join over rendered rows can reconstruct it — the first two versions of this assertion
+    failed against a fix that was working. The property is "is there room for all of it", which is a
+    question about the widget's own box: its height against the lines its text needs at its width.
+    """
+
+    async def _run() -> None:
+        from textual.widgets import Label
+
+        from surfaceplate.adopt import discover
+        from surfaceplate.adopt.tui.screens import GatesScreen
+
+        found = discover.Discovered(artefacts=("a/register.md",), paths=("src/**",))
+        screens = [
+            ("risk", FormScreen(plan.risk_plan())),
+            ("adoption", FormScreen(plan.adoption_plan(owner="x"))),
+            ("controls", FormScreen(plan.controls_plan(level="standard", mode="simple", found=found))),
+        ]
+        specs = plan.gate_plan(level="essential", builds_ui=False, mode="simple", found=found)
+        screens.append((
+            "gates",
+            GatesScreen(specs, plan.gates_plan(level="essential", builds_ui=False, mode="simple", found=found)),
+        ))
+
+        clipped: list[str] = []
+        for name, screen in screens:
+            app = Host(screen)
+            async with app.run_test(size=(80, 70)) as pilot:
+                await pilot.pause()
+                for label in app.screen.query(Label):
+                    if "field-label" not in label.classes:
+                        continue
+                    text = str(label.renderable) if hasattr(label, "renderable") else str(label.render())
+                    text = " ".join(text.split())
+                    width, height = label.size.width, label.size.height
+                    if not text or width <= 0:
+                        continue
+                    needed = -(-len(text) // width)  # ceil, in whole rows at this width
+                    if height < needed:
+                        clipped.append(f"{name}:{text[:34]!r} needs {needed} row(s), has {height}")
+
+        check(
+            "no field label is clipped - every one has room for all of its text",
+            not clipped,
+            f"{len(clipped)} clipped with nothing to say so, e.g. {clipped[:2]}",
+        )
+
+    asyncio.run(_run())
+
+
 def test_the_most_consequential_choice_is_readable_at_80_columns() -> None:
     """`ACT-035`. The route screen decides how the whole rest of the run behaves, and at 80 columns
     both of its options used to end in an ellipsis - `Set defaults - propose answers f…`. An adopter
@@ -512,6 +571,7 @@ def main() -> int:
 
     print("\nF38: state and size")
     test_a_toggle_shows_its_state_in_the_text_not_only_the_colour()
+    test_no_field_label_is_silently_truncated()
     test_the_most_consequential_choice_is_readable_at_80_columns()
     test_a_gate_explanation_is_never_silently_cut()
     test_a_multiselect_shows_each_row_state_in_the_text()

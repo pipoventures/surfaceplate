@@ -103,6 +103,13 @@ jobs:
         if: ${{ !cancelled() }}
         run: python tests/test_scaffold.py
 
+      # F50: the item 9 hand-off listed a file deleted three packets earlier, and nothing caught
+      # it. A truncated bundle would have gone to an external reviewer as though complete.
+      - name: Check the adversarial-review packet still names files that exist
+        id: audit_packet
+        if: ${{ !cancelled() }}
+        run: python tests/check_audit_packet.py
+
       - name: Verify the release manifest is current
         id: manifest
         if: ${{ !cancelled() }}
@@ -168,6 +175,7 @@ jobs:
             render=${{ steps.render.outcome }}
             discover=${{ steps.discover.outcome }}
             scaffold=${{ steps.scaffold.outcome }}
+            audit_packet=${{ steps.audit_packet.outcome }}
             manifest=${{ steps.manifest.outcome }}
             identifiers=${{ steps.identifiers.outcome }}
             registers=${{ steps.registers.outcome }}
