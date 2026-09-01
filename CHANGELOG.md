@@ -1867,3 +1867,40 @@ the first keystroke; the mockup's `[g] jump to section` cannot work as drawn, be
 field eats printable keys, so it is `Ctrl+G` and the hint says so; and a control the level requires
 must be stated rather than offered as an untickable box, or the wizard would happily produce a
 profile its own checker rejects.
+
+### `adopt` remediation, phase 3: the interface, actually looked at (`ACT-028`, `DR-37`, `F37`)
+
+Phase 2 closed with 87 passing checks, a decision record, and a published artefact captioned "the
+three frames from the approved mockup, now captured from the running wizard". The maintainer opened
+the wizard and sent three screenshots of something else.
+
+**The defect was in the verification, not the widgets.** Every Phase 2 test asserted structure —
+field-id joins, widget counts, status transitions — and each was sound. None asserted what a screen
+puts on the terminal, so six user-visible faults passed all of them, and the screenshots were
+published as evidence of fidelity without being looked at. `F37` records it as the failure mode
+`working-method.md` names as the one that does not present as an error at all: a right answer about
+the wrong object, where repeating the check only confirms it.
+
+What was wrong: Textual markup parsed `[Tab]` and `[Enter]` as style tags and swallowed them, so
+every legend lost its two most important keys while symbol-bearing ones like `[Ctrl+S]` survived —
+and the resume screen, whose only affordance is `[y]`/`[n]`, offered a choice with no visible way to
+make it. Every field printed its own name twice, because the label was rendered *and* passed as the
+input's placeholder. Labels stacked above values instead of forming the mockup's column, because the
+row was a `Vertical`. Every field's help rendered at once, mid-screen, when the plan had specified
+one field's at a time in the hint line. And one gate was visible where the mockup's whole thesis is
+several — all nineteen *were* mounted on one surface, which is exactly what the tests checked.
+
+**Closed by making rendering checkable rather than by fixing six things.** `tests/test_render.py`
+reads the compositor's own rendered lines and asserts named properties over them — every legend
+renders the keys it names, no label appears twice, a label and its value share a line, one help line
+at a time, at least three gates visible at 80×24, the level list numbered and marked. `DR-37`
+records why these are properties and not a snapshot: this project treats a golden file as an audit
+trigger, and a full-screen capture of a wizard whose copy is still being tuned would churn on every
+wording change and train exactly the regenerate-to-green habit the rule exists to prevent.
+
+All eleven assertions were seen to fail against the unfixed code, and three were re-broken
+deliberately afterwards to confirm they still catch their own defect. Two further faults were then
+found by simply reading the rendered output — the level list wrapping to column 0 and losing its
+numbering, and the detected-signals line listing four full workflow paths across three rows. Neither
+was in the original six; both were obvious on sight, which is the point `DR-37` closes on: the
+property suite is the regression net, and looking is still the discovery method.

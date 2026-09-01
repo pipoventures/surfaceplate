@@ -82,6 +82,13 @@ jobs:
         if: ${{ !cancelled() }}
         run: python tests/test_adopt_tui.py
 
+      # F37: structural checks cannot see a rendering fault. This one reads what the screens
+      # actually put on the terminal.
+      - name: Assert what the wizard's screens actually render
+        id: render
+        if: ${{ !cancelled() }}
+        run: python tests/test_render.py
+
       - name: Verify the release manifest is current
         id: manifest
         if: ${{ !cancelled() }}
@@ -144,6 +151,7 @@ jobs:
             adopt=${{ steps.adopt.outcome }}
             provenance=${{ steps.provenance.outcome }}
             adopt_tui=${{ steps.adopt_tui.outcome }}
+            render=${{ steps.render.outcome }}
             manifest=${{ steps.manifest.outcome }}
             identifiers=${{ steps.identifiers.outcome }}
             registers=${{ steps.registers.outcome }}

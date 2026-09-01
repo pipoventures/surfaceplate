@@ -23,12 +23,13 @@ mount, so a shown example is genuinely edited rather than wiped.
 
 from __future__ import annotations
 
+import textwrap
 from typing import Callable
 
 from textual import events, on
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical, VerticalScroll
+from textual.containers import Horizontal, HorizontalGroup, Vertical, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import (
     Button,
@@ -91,11 +92,41 @@ def _widget_for(spec: plan.FieldSpec, value: object = None):
         return RadioSet(*buttons, id=widget_id)
     if spec.kind == "textarea":
         return TextArea(str(value if value is not None else spec.default), id=widget_id)
+    # No `placeholder=spec.label`. It duplicated the label the row already renders, so every field
+    # printed its own name twice - `F37` #3, visible as "Precondition artefact (a real path)"
+    # stacked directly above an input containing the same words.
     return EditableInput(
         value=str(value if value is not None else spec.default),
-        placeholder=spec.label,
         id=widget_id,
     )
+
+
+def hint_line(*, keys: str, help_text: str = "", error: str = "") -> str:
+    """One legend, assembled as literal text.
+
+    `F37` #1 and #2: Textual parses `[Tab]` and `[Enter]` as style tags and swallows them, while
+    symbol-bearing keys such as `[Ctrl+S]` and `[↑↓]` survive - so a legend could lose its two most
+    important keys and still look plausible in review. The resume screen lost both of its only keys
+    and offered a choice with no visible way to make it. Every widget this string reaches is
+    constructed with `markup=False`, which is the supported way to keep it literal
+    (`textual/widgets/_static.py`).
+    """
+    parts = [p for p in (error, help_text) if p]
+    parts.append(keys)
+    return "\n".join(parts)
+
+
+def _first_sentence(text: str) -> str:
+    """The opening sentence of an explanation, for a one-line gate summary.
+
+    The full text is not lost - it is shown in the hint line while that gate has focus, the same
+    way a form field's help is. Rendering all five lines of it inside every gate block is what made
+    the catalogue unreadable (`F37` #6).
+    """
+    head = text.split(". ")[0].strip()
+    if not head.endswith("."):
+        head += "."
+    return head
 
 
 def _read_widget(widget) -> object:
@@ -160,18 +191,27 @@ class FormScreen(_SectionScreenBase):
                 yield Static(f"  {note}", classes="note")
             with VerticalScroll():
                 for spec in self.section.fields:
-                    with Vertical(classes="field-row", id=f"row-{spec.id.replace('.', '--')}"):
+                    # `HorizontalGroup`, not `Horizontal`: the latter is `height: 1fr` and would
+                    # give one row the whole screen. This is what makes the label a column beside
+                    # its value rather than a line stacked above it (`F37` #4).
+                    with HorizontalGroup(
+                        classes="field-row", id=f"row-{spec.id.replace('.', '--')}"
+                    ):
                         if spec.kind != "bool":
                             yield Label(spec.label, classes="field-label")
                         widget = _widget_for(spec)
                         widget.add_class("field-widget")
                         yield widget
-                        if spec.help:
-                            yield Static(spec.help, classes="field-help")
-        yield Static("", id="hint")
+        # Help is not rendered per field. It belongs to whichever field has focus, and it lives in
+        # the hint line - which is what the mockup drew and what Phase 2's own plan specified
+        # before shipping the opposite (`F37` #5).
+        yield Static("", id="hint", markup=False)
 
     def on_mount(self) -> None:
         self._refresh_visibility()
+        self._set_hint()
+
+    def on_descendant_focus(self, event: events.DescendantFocus) -> None:
         self._set_hint()
 
     def _answers(self) -> dict:
@@ -196,10 +236,23 @@ class FormScreen(_SectionScreenBase):
     def _on_change(self, event: events.Event) -> None:
         self._refresh_visibility()
 
+    def _focused_spec(self) -> plan.FieldSpec | None:
+        """The `FieldSpec` behind whichever widget currently has focus, if any."""
+        focused = self.focused
+        if focused is None or not focused.id or not focused.id.startswith("f-"):
+            return None
+        field_id = focused.id[2:].replace("--", ".")
+        return next((s for s in self.section.fields if s.id == field_id), None)
+
     def _set_hint(self, error: str = "") -> None:
-        hint = self.query_one("#hint", Static)
-        keys = "[Tab] next  [⇧Tab] back  [Ctrl+S] continue  [Ctrl+Q] cancel"
-        hint.update(f"[b]{error}[/b]\n{keys}" if error else keys)
+        spec = self._focused_spec()
+        self.query_one("#hint", Static).update(
+            hint_line(
+                keys="[Tab] next  [⇧Tab] back  [Ctrl+S] continue  [Ctrl+Q] cancel",
+                help_text=spec.help if spec and spec.help else "",
+                error=error,
+            )
+        )
 
     def action_commit(self) -> None:
         answers = self._answers()
@@ -241,25 +294,46 @@ class LevelScreen(_SectionScreenBase):
             yield Static("─" * 60, classes="rule")
             for note in self.section.notes:
                 yield Static(f"  {note}", classes="note")
-            options = [
-                Option(label, id=value) for value, label in self.spec.choices
-            ]
-            widget = OptionList(*options, id=f"f-{self.spec.id}")
+            widget = OptionList(*self._options(), id=f"f-{self.spec.id}")
             widget.add_class("field-widget")
             yield widget
-            yield Static("", classes="level-meta", id="level-meta")
+            yield Static("", classes="level-meta", id="level-meta", markup=False)
             yield Static("", classes="intro", id="why")
-        yield Static("", id="hint")
+        yield Static("", id="hint", markup=False)
 
     def on_mount(self) -> None:
         self.query_one("#why", Static).display = False
         self._update_meta()
         self._set_hint()
 
+    def _options(self, highlighted: int | None = 0) -> list[Option]:
+        """Numbered, with a caret on the highlighted row.
+
+        Textual has no built-in marker gutter short of overriding `_get_left_gutter_width` and
+        `render_line` the way `SelectionList` does. With three fixed options, rebuilding the
+        prompts on each move is cheaper than that machinery and keeps the caret in the rendered
+        text, where `tests/test_render.py` can see it.
+        """
+        options = []
+        for index, (value, label) in enumerate(self.spec.choices):
+            caret = "▸" if index == highlighted else " "
+            head, _, blurb = label.partition(". ")
+            prompt = f"{caret} {index + 1}  {head}."
+            if blurb:
+                # Wrapped here rather than left to the widget: an OptionList continuation line
+                # starts at column 0, which breaks the list into a paragraph and loses the
+                # structure the numbering exists to give it.
+                wrapped = textwrap.wrap(blurb, width=66) or [blurb]
+                prompt += "".join(f"\n      {line}" for line in wrapped)
+            options.append(Option(prompt, id=value))
+        return options
+
     def _set_hint(self) -> None:
         self.query_one("#hint", Static).update(
-            "nothing is chosen yet · [↑↓] move  [Enter] choose  [?] why does this matter  "
-            "[Ctrl+Q] cancel"
+            hint_line(
+                keys="nothing is chosen yet · [↑↓] move  [Enter] choose  "
+                "[?] why does this matter  [Ctrl+Q] cancel"
+            )
         )
 
     def _update_meta(self) -> None:
@@ -270,11 +344,26 @@ class LevelScreen(_SectionScreenBase):
             meta.update("")
             return
         level = self.spec.choices[index][0]
-        meta.update("  " + " · ".join(plan.level_controls(level)))
+        # Anchored to the highlighted option and labelled, rather than floating under the whole
+        # list where it read as belonging to the last row (`F37`).
+        meta.update(f"  {level} checks: " + " · ".join(plan.level_controls(level)))
 
     @on(OptionList.OptionHighlighted)
     def _on_highlight(self, event: OptionList.OptionHighlighted) -> None:
         self._update_meta()
+        self._move_caret(event.option_index)
+
+    def _move_caret(self, highlighted: int | None) -> None:
+        """Redraw the three prompts so the caret sits on the highlighted row. Highlighting still
+        chooses nothing - the caret marks where you are, and the hint line says so."""
+        option_list = self.query_one(OptionList)
+        if getattr(self, "_caret_at", None) == highlighted:
+            return
+        self._caret_at = highlighted
+        option_list.clear_options()
+        option_list.add_options(self._options(highlighted))
+        if highlighted is not None:
+            option_list.highlighted = highlighted
 
     @on(OptionList.OptionSelected)
     def _on_selected(self, event: OptionList.OptionSelected) -> None:
@@ -319,28 +408,42 @@ class GatesScreen(_SectionScreenBase):
                 for spec in self.specs:
                     if spec.section != current_section:
                         current_section = spec.section
+                        first = self.specs.index(spec) + 1
+                        last = first + sum(
+                            1 for g in self.specs if g.section == current_section
+                        ) - 1
                         yield Static(
-                            f"{current_section} · gates in this group",
+                            f"{current_section} · gates {first}\u2013{last} of {len(self.specs)}",
                             classes="section-subline",
                             id=f"sec-{current_section.replace(' ', '-').lower()}",
+                            markup=False,
                         )
                     yield from self._compose_gate(spec)
-        yield Static("", id="hint")
+        yield Static("", id="hint", markup=False)
 
     def _compose_gate(self, spec: plan.GateSpec) -> ComposeResult:
         with Vertical(classes="gate", id=f"gate-{spec.id}"):
-            yield Static(spec.id, classes="gate-name")
-            yield Static(spec.explanation, classes="gate-desc")
-            if spec.mandatory:
-                yield Static(
-                    "  [required] — the level requires this gate; its precondition is yours to state",
-                    classes="gate-locked",
-                )
-            elif spec.auto_status:
-                yield Static(
-                    f"  [{spec.auto_status.replace('_', ' ')}] — settled by an earlier answer",
-                    classes="gate-locked",
-                )
+            # A finished gate collapses to this single line so the list shortens as you work
+            # through nineteen of them; focusing it expands it again. `F37` #6: all nineteen were
+            # always mounted, which is what the Phase 2 tests checked and why they passed - but
+            # each was so tall that only one was ever on screen.
+            yield Static("", classes="gate-summary", id=f"summary-{spec.id}", markup=False)
+            with Vertical(classes="gate-body", id=f"body-{spec.id}"):
+                yield Static(spec.id, classes="gate-name")
+                yield Static(_first_sentence(spec.explanation), classes="gate-desc")
+                if spec.mandatory:
+                    yield Static(
+                        "  required — the level requires this gate; its precondition is yours to state",
+                        classes="gate-locked",
+                    )
+                elif spec.auto_status:
+                    yield Static(
+                        f"  {spec.auto_status.replace('_', ' ')} — settled by an earlier answer",
+                        classes="gate-locked",
+                    )
+                yield from self._compose_gate_fields(spec)
+
+    def _compose_gate_fields(self, spec: plan.GateSpec) -> ComposeResult:
             for field_spec in spec.fields:
                 key = f"{spec.id}.{field_spec.id}"
                 prefixed = plan.FieldSpec(
@@ -352,7 +455,7 @@ class GatesScreen(_SectionScreenBase):
                     choices=field_spec.choices,
                     validate=field_spec.validate,
                 )
-                with Vertical(classes="followups", id=f"row-{key.replace('.', '--')}"):
+                with HorizontalGroup(classes="followups", id=f"row-{key.replace('.', '--')}"):
                     if field_spec.kind == "choice":
                         # The mockup's chip row: horizontal, compact, and the chosen one inverts to
                         # amber fill. A vertical list would have been easier and would not have been
@@ -404,8 +507,37 @@ class GatesScreen(_SectionScreenBase):
             return spec.auto_status
         return answers.get(f"{spec.id}.status")  # type: ignore[return-value]
 
+    def _gate_is_complete(self, spec: plan.GateSpec, answers: dict) -> bool:
+        """A gate is finished when it has a status AND every field that status calls for validates.
+
+        Deliberately stricter than "has a status": a level-mandatory gate is `required` from the
+        moment it appears, and collapsing it on that basis alone would hide the precondition fields
+        it still needs - work the human cannot then see to do.
+        """
+        if self._status_of(spec, answers) is None:
+            return False
+        for field_spec in spec.fields:
+            key = f"{spec.id}.{field_spec.id}"
+            if field_spec.depends_on is not None:
+                other, wanted = field_spec.depends_on
+                if answers.get(f"{spec.id}.{other}") not in wanted:
+                    continue
+            if validators.check(field_spec.validate, answers.get(key, "")):
+                return False
+        return True
+
+    def _focused_gate_id(self) -> str | None:
+        node = self.focused
+        while node is not None:
+            node_id = getattr(node, "id", None) or ""
+            if node_id.startswith("gate-"):
+                return node_id[len("gate-"):]
+            node = node.parent
+        return None
+
     def _refresh_visibility(self) -> None:
         answers = self._answers()
+        focused_gate = self._focused_gate_id()
         for spec in self.specs:
             for field_spec in spec.fields:
                 key = f"{spec.id}.{field_spec.id}"
@@ -415,6 +547,14 @@ class GatesScreen(_SectionScreenBase):
                     continue
                 other, wanted = field_spec.depends_on
                 row.display = answers.get(f"{spec.id}.{other}") in wanted
+
+            collapsed = self._gate_is_complete(spec, answers) and spec.id != focused_gate
+            status = self._status_of(spec, answers)
+            self.query_one(f"#body-{spec.id}").display = not collapsed
+            summary = self.query_one(f"#summary-{spec.id}", Static)
+            summary.display = collapsed
+            if collapsed:
+                summary.update(f"  {spec.id}  ·  {str(status).replace('_', ' ')}")
         self._set_hint()
 
     @on(Button.Pressed)
@@ -436,6 +576,12 @@ class GatesScreen(_SectionScreenBase):
     def _on_change(self, event: events.Event) -> None:
         self._set_hint()
 
+    def on_descendant_focus(self, event: events.DescendantFocus) -> None:
+        self._refresh_visibility()
+
+    def on_descendant_blur(self, event: events.DescendantBlur) -> None:
+        self._refresh_visibility()
+
     def _answered_count(self, answers: dict | None = None) -> int:
         answers = self._answers() if answers is None else answers
         return sum(1 for spec in self.specs if self._status_of(spec, answers))
@@ -443,9 +589,11 @@ class GatesScreen(_SectionScreenBase):
     def _set_hint(self, error: str = "") -> None:
         total = len(self.specs)
         done = self._answered_count()
-        keys = "[Tab] move  [Ctrl+G] jump to section  [Ctrl+S] continue  [Ctrl+Q] cancel"
-        line = f"{done} of {total} answered · {keys}"
-        self.query_one("#hint", Static).update(f"[b]{error}[/b]\n{line}" if error else line)
+        keys = (
+            f"{done} of {total} answered · [Tab] move  [Ctrl+G] jump to section  "
+            "[Ctrl+S] continue  [Ctrl+Q] cancel"
+        )
+        self.query_one("#hint", Static).update(hint_line(keys=keys, error=error))
 
     def action_jump_section(self) -> None:
         headings = list(self.query(".section-subline"))
@@ -505,7 +653,7 @@ class ReviewScreen(Screen):
             with VerticalScroll(id="review-body"):
                 yield Static(self.rendered)
         yield Static(
-            "[Ctrl+S] write it  [Ctrl+Q] cancel, keeping your draft", id="hint"
+            "[Ctrl+S] write it  [Ctrl+Q] cancel, keeping your draft", id="hint", markup=False
         )
 
     def action_confirm(self) -> None:
@@ -547,7 +695,9 @@ class ResumeScreen(Screen):
                     "asks for them the same way.",
                     classes="error",
                 )
-        yield Static("[y] resume it  [n] start fresh (the draft is discarded)", id="hint")
+        yield Static(
+            "[y] resume it  [n] start fresh (the draft is discarded)", id="hint", markup=False
+        )
 
     def action_resume(self) -> None:
         self.dismiss(True)
