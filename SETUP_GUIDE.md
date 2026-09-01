@@ -4,7 +4,14 @@ This guide is the exact adoption sequence for a new repository. It is written to
 
 The kit supplies control principles, contracts, templates, and reference tests. It does **not** install a platform, create runtime enforcement automatically, approve a method, or replace human governance.
 
-For an interactive guided installation, use `prompts/github-copilot-adoption-wizard.prompt.md` after copying the kit into the receiving repository. The prompt makes Copilot act as the discovery wizard and bounded implementer; it does not remove the human decision gates in this guide.
+For an interactive guided installation, run `surfaceplate adopt` after `surfaceplate install` (or
+`python -m surfaceplate.install_standard`) has installed the standard into the receiving
+repository. It asks the questions this guide covers, and writes a complete
+`governance/application-profile.yaml` — never selecting a level, inventing a rationale, or setting
+a date on your behalf. Once that profile exists, `prompts/copilot-implementation-assistant.prompt.md`
+makes Copilot act as the bounded implementer that turns its declared controls and gates into
+working code; it does not author the profile and does not remove the human decision gates in this
+guide.
 
 ## What you need before starting
 

@@ -124,7 +124,16 @@ def build_zip(files: list[Path], top: str) -> Path:
     with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zf:
         for f in files:
             zf.write(f, f"{top}/{f.relative_to(ROOT).as_posix()}")
-        zf.write(MANIFEST, f"{top}/MANIFEST.sha256")
+        # MANIFEST lives at surfaceplate/MANIFEST.sha256 on disk since ACT-019 moved the payload
+        # under the package directory (DR-31) - the arcname below must match, via the same
+        # relative_to(ROOT) every other payload file uses. Before that move this file sat at the
+        # repository root, and the arcname was never updated when it moved: it kept writing
+        # `{top}/MANIFEST.sha256` (the pre-move location) instead of `{top}/surfaceplate/
+        # MANIFEST.sha256` (where install_standard.py's framework_anchor() has looked for it since
+        # ACT-019). Found reinstalling from a real release archive during ACT-020's verification
+        # cycle: framework_digest came back unverifiable (SP049) because the installer's --source
+        # genuinely had no manifest at the path it checked. Not created by ACT-020 - see DR-32.
+        zf.write(MANIFEST, f"{top}/{MANIFEST.relative_to(ROOT).as_posix()}")
     return archive
 
 

@@ -78,7 +78,7 @@ they are never renumbered.
 |---|---|---|
 | 0 | Self-conformance (`DR-13`) — **done** | Everything below is implementation work; `DR-13` forbade implementation work until this landed. See "Before anything else" above for what landed, and `DR-16`/`DR-17` for the two decisions it required. |
 | 1 | Pip packaging; the payload becomes package data — **done** | Built at `ACT-019` (`DR-31`). The payload — `standard/`, `schemas/`, `core/`, `templates/`, `examples/`, `adapters/`, and the installer and checker themselves — moved under one package directory, `surfaceplate/`, closing the precondition `DR-10` flagged and left unsolved. `repo_root()` needed one line, not the `importlib.resources` rewrite both research passes expected going in, because the payload now sits inside the file that locates it. **Proven, not assumed:** a real wheel was built, listed (54 entries, all under `surfaceplate/`), installed into a clean virtualenv with no surfaceplate source tree present, and used from there alone to install the standard into a fresh repository. The pinning question `DR-10` raised was already closed before this item began — superseded by `DR-14`, corrected in `DR-12` in the same change. **Not built:** the `surfaceplate` console-script entry point (item 2, deliberately kept separate) and the content-based self-install guard `DR-10` also flagged (still deferred; no console script exists yet to make the footgun real). `F30` — a renamed precondition artefact falsifies its own history — fired a second time in the same session, on the next rename this item made; cleared by a second exception, and the case for building its deferred remedy is now stronger than when it was first recorded. |
-| 2 | The CLI and the wizard | `DR-12` commits to a `surfaceplate` command-line tool. See "The wizard's binding rule" below — this is a *different* artefact from the existing `prompts/github-copilot-adoption-wizard.prompt.md`, which must be explicitly reconciled, not silently duplicated (see "A naming collision" below). |
+| 2 | The CLI and the wizard — **done** | Built at `ACT-020` (`DR-32`). `surfaceplate` is a real console-script: `install`/`check` (unchanged behaviour) and `adopt` — a new interactive terminal wizard bound by the rule below throughout. Its own pre-write verification caught four real defects before any profile was written; `tests/test_adopt.py` (23 checks) proves an `essential` and a `full`-level run each end to end, including an interrupt leaving the repository untouched. See "The naming collision, resolved" below for what happened to the existing prompt. **Not built:** `--web` mode, resumability, and a `deferred` path through `control_decisions` — disclosed deferrals in `DR-32`, not silent gaps. |
 | 3 | Agent neutrality: `AGENTS.md` and per-agent emitters — **largely done** | `DR-12` commits to this; `DR-11` decided the integrity mechanics it depends on. **Built at `ACT-018` (`DR-30`), and the delay was expensive**: because it was decided and not implemented, nobody discovered that `DR-12`'s planned remedy was itself wrong — *"Claude Code reads `CLAUDE.md`, not `AGENTS.md`"* — so `AGENTS.md` alone would have been as inert as the Copilot files it replaced. Meanwhile this repository's own 501 lines of agent instruction were read by nothing at all (`F29`). One canonical body now emits per agent: Copilot's form unchanged, `.claude/rules/` added, `AGENTS.md` carrying the block, and a canonical copy for agents not emitted for. **Not finished:** only two agents have emitters, and forge neutrality — `.github/skills/` and the conformance workflow, 8 of 57 installed files — is untouched and is a larger question. |
 | 4 | `secret_hygiene` gains an actual check — **done** (`DR-18`, `SP046`/`SP047`) | Not cuttable — see "The cut order" below for why. Selected as the first item after 0: it is the only baseline control required at every level with no verification of any kind, and this repository has no scanner of its own either (no scanner configuration, no scan workflow), so its own profile declares the control while recording the gap. |
 | 5 | Two real adopters: Plyego, Plutos — **half begun** | `DR-7` established that every previously-recorded adopter was fabricated, and until 2026-08-31 neither name appeared anywhere in this repository. **Plyego has now been exercised**: the framework was installed into a throwaway clone of it and returned `PASS` at `essential`, exposing two defects in surfaceplate that were unreachable from here (`F25`, `F26`) and running the four interface gates for the first time. `DR-28` records the result. **Plyego is not adopted** — nothing was written to it, and the level decision waits on the per-gate cost. Plutos is untouched. So this row is no longer 'no adopter has ever been exercised'; it is 'one has been exercised, none has adopted'. |
@@ -101,17 +101,22 @@ rationale, or sets a date. Every judgement call in `core/PREREQUISITE_GATES.md` 
 `required`, what `effective_from` should read — is a human decision the wizard elicits and records
 verbatim, never one it makes on the human's behalf.
 
-**A naming collision this item must resolve, not duplicate.**
-`prompts/github-copilot-adoption-wizard.prompt.md` already exists, is already called "the wizard,"
-and is already referenced from `SETUP_GUIDE.md:7`. It is an LLM prompt for Copilot Chat, not a CLI,
-and it named the pre-`0.12.0`-rename product until `F18` corrected it, confirming it predates the
-rename and had not been touched since. It also omits `core/PREREQUISITE_GATES.md` and
-`core/CONFORMANCE_LEVELS.md` from its "read these first" list, which is why it carries a staleness
-banner rather than merely a corrected name. Item 2 is a different artefact —
-a deterministic questionnaire bound by the rule above, not an LLM-driven conversation. Building it
-without explicitly stating what happens to the existing prompt-wizard (retire it, fold its
-discovery flow into the new tool, or keep both with a stated division of labour) would leave two
-things called "wizard" in the same repository with no record of which is authoritative.
+**A naming collision this item had to resolve, not duplicate — resolved.**
+`prompts/github-copilot-adoption-wizard.prompt.md` existed, called itself "the wizard," and was
+referenced from `SETUP_GUIDE.md:7`. It was an LLM prompt for Copilot Chat, not a CLI, and it named
+the pre-`0.12.0`-rename product until `F18` corrected it, confirming it predated the rename and had
+not been touched since. It also omitted `core/PREREQUISITE_GATES.md` and
+`core/CONFORMANCE_LEVELS.md` from its "read these first" list, which is why it carried a staleness
+banner rather than merely a corrected name.
+
+Its Phases 1–3 (discovery, human questions, profile authoring) were exactly what `surfaceplate
+adopt` now does deterministically instead of by an LLM's judgement — retired. Its Phases 4–7
+(bounded implementation, focused validation, human review gates, completion report) had no CLI
+equivalent — kept, renamed to `prompts/copilot-implementation-assistant.prompt.md`, and rewritten
+to *consume* a profile `surfaceplate adopt` already produced rather than compete to author one.
+`SETUP_GUIDE.md`, `INSTALL.md`, and `README.md` now point to `surfaceplate adopt` for the profile
+itself. `DR-32` records the decision; a repository-wide sweep after the rewrite confirmed the
+renamed file claims the word "wizard" for nothing but the CLI command.
 
 ---
 

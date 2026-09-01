@@ -1657,3 +1657,60 @@ catch.
 **Not built:** the `surfaceplate` console-script entry point (item 2, deliberately kept separate)
 and the content-based self-install guard `DR-10` also flagged (still deferred; no console script
 exists yet to make the footgun real).
+
+### Item 2: the CLI and the wizard, and resolving the "wizard" naming collision
+
+`surfaceplate` is now a real console-script: `install` and `check` (unchanged behaviour, thin
+wrappers) and `adopt` — a new interactive terminal wizard that fills in
+`governance/application-profile.yaml`. Bound by one rule stated in `org/RELEASE_PLAN.md` before any
+of it was built and held to throughout: **it asks, the human answers, the tool writes.** It never
+selects a conformance level, invents a rationale, or sets a date.
+
+**Terminal, not a browser form — decided collaboratively, not assumed.** Three moments of the flow
+were mocked up as a clickable comparison artifact rendering both a terminal and a web form, walked
+through with the maintainer before any code was written. The maintainer's own framing —
+*"how does someone answer in a prompt back"* — is why that artifact exists. `questionary` was
+chosen over raw prompts; `DR-32` records the reasoning.
+
+**`prompts/github-copilot-adoption-wizard.prompt.md` retired**, replaced by
+`prompts/copilot-implementation-assistant.prompt.md`. Its Phases 1–3 (discovery, questions, profile
+authoring) are exactly what `surfaceplate adopt` now does deterministically; its Phases 4–7
+(bounded implementation, validation, review gates, completion report) are kept, rewritten to
+*consume* a profile the CLI already produced. A repository-wide sweep confirms the renamed file
+claims the word "wizard" for nothing but the CLI command itself.
+
+**The profile is verified before it touches disk, and that verification is not decorative.** The
+wizard re-parses its own rendered YAML, checks it round-trips to the dict that produced it,
+validates it against the schema, and scans for template placeholder tokens — refusing to write on
+any failure. Two of four defects found during development were caught exactly this way: PyYAML
+appends a `\n...` document-end marker to a bare scalar that plain `.strip()` does not remove, and
+PyYAML wraps long plain scalars at 80 columns with a continuation indent that is wrong once
+embedded in hand-built structure. `DR-32` records all four and the fix for each.
+
+**`questionary` is an optional extra** (`pip install surfaceplate[adopt]`), not a hard dependency —
+found while wiring CI, not assumed: the existing dependency-lock check would otherwise have
+required it in the workflow this project installs into every adopter, which never runs `adopt`.
+
+**Proven, not assumed.** `tests/test_adopt.py` (23 checks): a scripted `essential`-level run
+produces a profile the real checker raises zero schema-shape findings against; a `full`-level,
+UI-building run declares all 19 gates and all 9 controls with every level-mandatory gate
+`required` and never anything else; an interrupt mid-flow leaves the repository byte-for-byte
+unchanged; `adopt` refuses a missing install and refuses to overwrite a real profile. All six test
+suites pass together for the first time under this name.
+
+**A fifth defect, unrelated to the wizard, found by the same discipline.** Reinstalling from a
+clean release archive — required by this repository's own working instructions after any payload
+change — surfaced a pre-existing bug in `scripts/build_release.py`: the ZIP's `MANIFEST.sha256`
+entry still used its pre-`ACT-019` archive path, placing it beside `surfaceplate/` instead of
+inside it, so `framework_anchor()` found nothing there and every fresh reinstall from a real
+release archive produced `SP049`. Fixed with the same `relative_to(ROOT)` pattern every other
+payload file already uses; this repository's own `framework_digest` re-pinned to match.
+
+**An environment finding, recorded rather than smoothed over.** The machine this was built on has
+no `pip` on its bare `python3` and apt-installed `jsonschema`/`PyYAML` older than this project's own
+pins — `F21`'s divergence, reproduced live on the maintainer's own machine. Recorded as an
+observation in `org/FINDINGS.md`, not a new finding: nothing in the framework failed, and a
+repository-local `.venv` is the ordinary remedy.
+
+**Not built:** `--web` mode, resumability, and a `deferred` path through `control_decisions` — all
+disclosed in `DR-32` as evidence-led deferrals, not silent gaps.

@@ -5,17 +5,20 @@
 # `pip install pyyaml jsonschema` unpinned, and `--quiet` suppressed pip's resolution output, so a
 # green CI run could not tell you which `jsonschema` had validated the schemas. Recorded as F21.
 #
-# `[build-system]` and `[tool.hatch.build]` are new at `ACT-019` (item 1 of org/RELEASE_PLAN.md).
+# `[build-system]` and `[tool.hatch.build]` arrived at `ACT-019` (item 1 of org/RELEASE_PLAN.md).
 # `DR-10` flagged, and left unsolved, that `install_standard.py`'s file-location mechanism does
 # not survive pip distribution: it resolved directories that sit outside any importable package.
 # `ACT-019` moved the payload into `surfaceplate/` itself, so the package IS the payload — see
 # `org/decisions/DR-31.md` for the layout decision and what it does and does not solve.
 #
-# WHAT THIS IS STILL NOT. `pip install surfaceplate` gives you an importable package with no
-# console-script entry point. There is no `surfaceplate` command yet — that is item 2, deliberately
-# separate, so the CLI is built as a decision rather than as a side effect of packaging becoming
-# possible. Until then, invoke the installer as `python -m surfaceplate.install_standard` and the
-# checker (once vendored into an adopter's `.standards/`) exactly as before.
+# `[project.scripts]` arrived at `ACT-020` (item 2). `pip install surfaceplate` now gives a real
+# `surfaceplate` command — `install` and `check` work immediately; `adopt` (the interactive
+# wizard) needs the `adopt` extra: `pip install surfaceplate[adopt]`. See `org/decisions/DR-32.md`
+# for why `questionary` is an extra rather than a hard dependency — the short version is that
+# `.github/workflows/standards-conformance.yml`, the workflow this project INSTALLS into every
+# adopting repository, never runs `adopt`; it only ever runs the checker. Putting `questionary`
+# in `[project.dependencies]` would put it on every adopter's CI pip-install line for a command
+# their CI never invokes.
 
 [project]
 name = "surfaceplate"
@@ -35,6 +38,18 @@ dependencies = [
     "PyYAML==6.0.3",
     "jsonschema==4.26.0",
 ]
+
+# `questionary` (ACT-020) drives the `adopt` wizard's terminal prompts, and only that — `install`
+# and `check` never import it, both at module scope (see surfaceplate/adopt/prompting.py: every
+# `questionary` import is local to a method, not module-level) and by lazy-importing the whole
+# `adopt` package only inside `cli.py`'s `adopt` subcommand. It is an extra rather than a hard
+# dependency for exactly that reason — see the note above `[project]`. Resolved in a clean virtual
+# environment, all six suites run against the result before pinning (`F21`'s discipline).
+[project.optional-dependencies]
+adopt = ["questionary==2.1.1"]
+
+[project.scripts]
+surfaceplate = "surfaceplate.cli:main"
 
 [build-system]
 requires = ["hatchling"]
