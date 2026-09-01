@@ -106,6 +106,11 @@ an unknown number of releases with nothing noticing.
 | F39 | The gate catalogue never received the repository scan, so a completed adoption produced seven unusable gates | high | Closed — `ACT-031`; the app scans once, and the join now compares field kind |
 | F40 | The wizard proposed `README.md` as the precondition for `work_registration`, producing a gate that passes while guarding nothing | high | Closed — `ACT-032`; a proposal now comes only from a candidate that actually matched the gate |
 | F41 | Every multiselect drew a ticked box on every row; `_StatefulToggle` sets instance attributes and `SelectionList` reads them off the class | medium | Closed — `ACT-032`; `VisibleSelectionList` rewrites the button from each row's real state |
+| F42 | Gate explanations were forced onto one line and cut mid-sentence, with the declared ellipsis never rendering | medium | Closed — `ACT-034`; the summary is budgeted in text and carries its own `…` |
+| F43 | The gate screen counted a gate as answered when it merely had a status, reporting `1 of 1 answered` with every field empty | medium | Closed — `ACT-034`; it now uses the completeness predicate that already existed |
+| F44 | A precondition dropdown offered twelve unrelated files as candidates when none matched the gate | low | Closed — `ACT-034`; the help says when nothing matched |
+| F45 | The step counter had no entry for `route`, gave two sections the same number, and claimed seven steps for ten sections | low | Closed — `ACT-034`; derived from `SECTION_ORDER` |
+| F46 | The conformance-level screen span in an unbounded redraw loop whenever the caret did not start at index 0 | high | Closed — `ACT-034`; prompts are replaced in place instead of cleared and re-added |
 
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -1006,6 +1011,125 @@ protects against an unexpected new release rather than a compromised re-upload o
 PyPI does not permit re-uploading a version, which makes that largely theoretical — but it is a
 weaker guarantee than a hash-bearing lock, and `pyproject.toml` says so rather than implying
 otherwise.
+
+---
+
+## F46 — The conformance-level screen redrew itself forever
+
+**Severity: high. Closed.**
+
+Found by tracing `_update_meta` while chasing a wrong label, during the full-path audit the
+maintainer asked for. The label was the symptom; this is the cause, and it is a regression
+**`ACT-032` introduced and its own tests passed**.
+
+`_move_caret` redrew the three level prompts so the caret sits on the highlighted row. It did that
+with `clear_options()` followed by `add_options()`. `clear_options()` resets the highlight to 0 and
+posts an `OptionHighlighted`, which arrives back in `_move_caret` and redraws again. While the caret
+started at index 0 this settled immediately, because the reset landed on the value it already had.
+
+`ACT-032` started the caret on the **recommended** level. From any non-zero index the two events
+alternate and never converge:
+
+```
+_move_caret ran 4484 times for one paint: [0, 2, 0, 2, 0, 2, 0, 2, 0, 2, 0, 2]
+```
+
+Every repository whose answers recommend `standard` or `full` met this. It does not crash — Textual
+keeps servicing the queue — so it presents as a screen that renders, with a meta line describing
+whichever level the oscillation last touched.
+
+**Why `ACT-032`'s tests passed.** They asserted `OptionList.highlighted == 2` after a single
+`pause()`, and it *is* 2 on half the iterations. Reading state cannot see a loop; only counting the
+work can. The regression test counts `_move_caret` calls.
+
+**The guard was there and could not work.** `_move_caret` already returned early when the incoming
+index matched the last one. The events alternate, so the incoming value never matches. Two attempts
+to fix this by adjusting *when* the meta was updated both failed before the loop was found — the
+working method's loop-breaker applies exactly: a second failed patch means the approach is wrong,
+not the implementation.
+
+**Remedy** (`ACT-034`): `replace_option_prompt_at_index` mutates each prompt in place and leaves the
+highlight alone, so no event is generated and there is nothing to feed back.
+
+**The transferable part: a fix that suppresses a symptom downstream of a feedback loop cannot
+work.** Guarding `_move_caret` harder, or making `_update_meta` deterministic, both treat the last
+value written as the problem. The problem was that writing produced another write.
+
+---
+
+## F45 — The wizard misreported where you were in it
+
+**Severity: low. Closed.**
+
+`_STEPS` in `tui/app.py` was hand-written beside the `SECTION_ORDER` it describes, and had drifted:
+
+- `route` had no entry, so that screen showed no step at all;
+- `adoption` and `wrap` both read `7 of 7 — `, so an adopter answered "7 of 7" and was handed
+  another "7 of 7";
+- the total said seven while `SECTION_ORDER` holds ten sections.
+
+A progress counter is read as a promise about how much is left. **Remedy:** derived from
+`SECTION_ORDER`, so the two cannot disagree. `mode` stays unnumbered deliberately — it is asked
+before the run proper and chooses how the run explains itself.
+
+---
+
+## F44 — A dropdown offered twelve files that matched nothing
+
+**Severity: low. Closed.**
+
+Raised by the maintainer mid-run: *"why 10 candidates in each dropdown list."*
+
+`discover.rank_for_gate` returns matches first and then everything else, so the whole list is
+offered and the adopter still chooses — `DR-38`'s rule. `F40` fixed `defaults.py` taking the top of
+that ranking as a **proposal** when nothing had matched. The **offer** was left alone, so a gate
+nothing matched still presented `Choose precondition artefact (12 found)` above twelve unrelated
+files, which reads as *one of these is the answer*.
+
+**Remedy:** the field's help states whether anything actually matched, and says to expect to create
+the artefact when nothing did. Nothing is hidden.
+
+---
+
+## F43 — The gate screen counted unanswered gates as answered
+
+**Severity: medium. Closed.**
+
+At `essential` the hint line read `1 of 1 answered` while the precondition dropdown was empty and
+`Gated paths` was blank. `_answered_count` counted a gate whenever `_status_of` returned anything,
+and a level-mandatory gate's status is `required` from the moment it appears — fixed by the level,
+supplied by nobody.
+
+**The right predicate already existed.** `_gate_is_complete` — *"a gate is finished when it has a
+status AND every field that status calls for validates"* — was written for collapse-when-complete
+and its docstring says explicitly that "has a status" is too weak. One call site asked the weaker
+question, and it was the one the adopter reads.
+
+---
+
+## F42 — Two thirds of every gate explanation was discarded silently
+
+**Severity: medium. Closed.**
+
+Reported by the maintainer as *"the explanations many times overlap the text in the next line"*.
+
+`.gate-desc` carried `height: 1` with `text-overflow: ellipsis`. The explanations are **184 to 248
+characters**; one line survived. **The ellipsis never rendered** — grepped across the output, zero
+occurrences — so the sentence simply stopped, mid-word at some widths.
+
+| Width | `work_registration` (184) | `work_contract` (248) |
+|---|---|---|
+| ~200 cols | cut after *"what \"done\" looks like."* | cut mid-sentence at *"and what"* |
+| 80 cols, the design size | ~78 chars survive | ~78 chars survive |
+
+`ACT-026` wrote dual-register explanations for all 31 catalogue items so an adopter would understand
+what they are declaring; at the design width most of every one was thrown away without telling the
+reader there had been more. It is `F37`'s remedy over-corrected — help was rendering everywhere at
+once, so it was pinned to a single line.
+
+**Remedy:** the cut happens in the **text**, in `_first_sentence`, with a 150-character budget and
+its own `…`. A budget applied to a string cannot fail the way a CSS overflow rule did: whenever
+anything is dropped the ellipsis is part of the value, so it survives whatever the layout does.
 
 ---
 

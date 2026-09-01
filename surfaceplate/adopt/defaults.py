@@ -155,6 +155,23 @@ def propose_gates(*, level: str, builds_ui: bool, mode: str, found: discover.Dis
                 out.append(
                     Proposal(f"{prefix}.rationale", example, "example", "this framework's own worked example")
                 )
+            else:
+                # `ACT-034`: a field's OWN shipped default was never proposed, so a repository with
+                # no user interface was asked to hand-write four rationales saying it has no user
+                # interface - text the wizard already holds, derived from `builds_user_interface`
+                # which the adopter had already answered. That was 4 of the 14 questions the
+                # defaults route still asked. `computed` is the honest origin: it comes from an
+                # answer already given, not from invention.
+                for field in spec.fields:
+                    if field.id == "rationale" and field.default:
+                        out.append(
+                            Proposal(
+                                f"{prefix}.rationale",
+                                field.default,
+                                "computed",
+                                "follows from an answer you already gave",
+                            )
+                        )
     return out
 
 

@@ -34,17 +34,28 @@ from surfaceplate.adopt.tui.screens import (
 CSS_PATH = Path(__file__).with_name("app.tcss")
 
 # The mockup's own step labels: counted text, never a progress bar.
-_STEPS = {
-    "mode": "",
-    "identity": "1 of 7 — ",
-    "stack": "2 of 7 — ",
-    "risk": "3 of 7 — ",
-    "level": "4 of 7 — ",
-    "controls": "5 of 7 — ",
-    "gates": "6 of 7 — ",
-    "adoption": "7 of 7 — ",
-    "wrap": "7 of 7 — ",
-}
+def _step_labels() -> dict[str, str]:
+    """`F45`: derived from `SECTION_ORDER`, never written down beside it.
+
+    Hand-written, this table drifted from the wizard it describes: `route` had no entry at all so
+    that screen showed no step; `adoption` and `wrap` both read `7 of 7`, so an adopter answered
+    "7 of 7" and was handed another "7 of 7"; and the total said seven while `SECTION_ORDER` held
+    ten sections. A progress counter is read as a promise about how much is left, and one that
+    cannot be trusted is worse than none.
+
+    `mode` is deliberately unnumbered: it is asked before the run proper and chooses how the run
+    explains itself, so counting it would make the total depend on a question about the wizard
+    rather than about the repository.
+    """
+    counted = [name for name in plan.SECTION_ORDER if name != "mode"]
+    total = len(counted)
+    labels = {"mode": ""}
+    for position, name in enumerate(counted, start=1):
+        labels[name] = f"{position} of {total} — "
+    return labels
+
+
+_STEPS = _step_labels()
 
 
 class AdoptApp(App):

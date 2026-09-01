@@ -269,6 +269,45 @@ def test_level_screen_numbers_its_options_and_marks_the_highlight() -> None:
     asyncio.run(_run())
 
 
+def test_a_gate_explanation_is_never_silently_cut() -> None:
+    """`F42`. The explanations exist so an adopter knows what they are declaring; discarding most
+    of one without saying so is worse than not showing it, because the reader has no way to know
+    there was more.
+
+    Two properties, and the second is the one that matters. Either the whole sentence is on screen,
+    **or** what is shown ends in an ellipsis. `.gate-desc` declared `text-overflow: ellipsis` and it
+    never rendered - the sentence just stopped - so asserting "it wraps" alone would pass on a
+    layout that still lies.
+    """
+
+    async def _run() -> None:
+        from surfaceplate.adopt import discover, explanations
+        from surfaceplate.adopt.tui.screens import GatesScreen, _first_sentence
+
+        found = discover.Discovered()
+        specs = plan.gate_plan(level="essential", builds_ui=False, mode="simple", found=found)
+        section = plan.gates_plan(level="essential", builds_ui=False, mode="simple", found=found)
+        app = Host(GatesScreen(specs, section))
+        async with app.run_test(size=(80, 24)) as pilot:
+            await pilot.pause()
+            lines = rendered(app)
+
+        want = _first_sentence(explanations.explain("work_registration", "simple"))
+        # Reassemble what is actually on screen for this explanation, across however many rows.
+        body = " ".join(
+            ln.strip("│ ").rstrip() for ln in lines if any(w in ln for w in want.split()[:6])
+        )
+        complete = want.rstrip() in " ".join(lines).replace("  ", " ")
+        elided = "…" in body
+        check(
+            "a gate explanation is shown whole, or says it was cut",
+            complete or elided,
+            f"{len(want)} chars of explanation, neither complete nor elided. On screen: {body[:150]!r}",
+        )
+
+    asyncio.run(_run())
+
+
 def test_a_multiselect_shows_each_row_state_in_the_text() -> None:
     """`F41`. The same property as the checkbox below, for the widget that never got the fix.
 
@@ -439,6 +478,7 @@ def main() -> int:
 
     print("\nF38: state and size")
     test_a_toggle_shows_its_state_in_the_text_not_only_the_colour()
+    test_a_gate_explanation_is_never_silently_cut()
     test_a_multiselect_shows_each_row_state_in_the_text()
     test_a_small_window_scrolls_rather_than_clipping()
     test_an_empty_field_still_shows_where_to_type()

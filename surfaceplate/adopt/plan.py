@@ -663,10 +663,21 @@ def _gate_fields(
         # `SP032` requires this artefact to exist, be non-empty and carry no placeholder - so a
         # value typed from memory is a profile that fails its own checker. Picking from what is
         # actually in the repository removes that whole class of answer.
+        # `F44`. Ranking orders; it never establishes that anything is right. `rank_for_gate`
+        # returns matches first and then everything else, so a gate nothing matches offered twelve
+        # unrelated files under "Choose precondition artefact (12 found)" - a list that says one of
+        # these is the answer. `F40` fixed the same mistake in the proposal; this is the offer.
+        # Nothing is hidden - `DR-38`'s rule stands, the adopter still chooses from the whole list -
+        # but the help says whether any of it actually matched this gate.
         _from_candidates(
             id="artefact",
             label="Precondition artefact",
-            help="what must exist before the gated paths may change",
+            help=(
+                "what must exist before the gated paths may change"
+                if discover.matched_for_gate(found.artefacts, gate_id)
+                else "nothing in this repository matches this gate - these are simply the files "
+                "found here, so expect to create the artefact rather than pick one"
+            ),
             candidates=tuple(discover.rank_for_gate(found.artefacts, gate_id)),
             depends_on=None if mandatory else ("status", required_when),
         ),
