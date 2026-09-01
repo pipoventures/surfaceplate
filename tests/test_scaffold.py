@@ -25,7 +25,9 @@ checking the paths this module happens to know about.
 
 from __future__ import annotations
 
+import datetime as _dt
 import hashlib
+import os
 import subprocess
 import sys
 import tempfile
@@ -62,6 +64,12 @@ def tree_digest(root: Path) -> str:
 
 
 def bare_repo(tmp: Path) -> Path:
+    """A repository that was worked on EARLIER TODAY, which is the case `F47` is about.
+
+    The commit is backdated a few hours deliberately. Committing in the same second as the adoption
+    instant makes `git log --since=<that instant>` include it - git's boundary is inclusive - so a
+    fixture that commits and adopts together tests a coincidence rather than the scenario.
+    """
     repo = tmp / "bare"
     repo.mkdir(parents=True)
     (repo / "README.md").write_text("# a small tool\n", encoding="utf-8")
@@ -74,7 +82,16 @@ def bare_repo(tmp: Path) -> Path:
     ):
         subprocess.run(["git", "-C", str(repo), *args], check=True)
     subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
-    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "bare"], check=True)
+    earlier = (_dt.datetime.now().astimezone() - _dt.timedelta(hours=3)).replace(microsecond=0)
+    subprocess.run(
+        ["git", "-C", str(repo), "commit", "-qm", "bare"],
+        check=True,
+        env={
+            **os.environ,
+            "GIT_AUTHOR_DATE": earlier.isoformat(),
+            "GIT_COMMITTER_DATE": earlier.isoformat(),
+        },
+    )
     return repo
 
 
@@ -240,7 +257,20 @@ def test_a_bare_repository_can_reach_a_passing_check(tmp: Path) -> None:
     # What the interface does when the human ticks the offer: the path becomes the gate's answer,
     # and the files travel to `wizard.run` under its own key.
     interview.answers["gates.work_registration.artefact"] = offered[0].path
-    state_extra = {wizard.SCAFFOLD_KEY: offered}
+    import datetime as _dt
+
+    # Exactly what `app._offer_missing_artefacts` records on acceptance (`F47`): the gate binds
+    # from the INSTANT the artefact was created, so this morning's commits are not inside a window
+    # where the precondition was absent.
+    state_extra = {
+        wizard.SCAFFOLD_KEY: offered,
+        "gates": {
+            "work_registration.effective_from": _dt.datetime.now()
+            .astimezone()
+            .replace(microsecond=0)
+            .isoformat()
+        },
+    }
     written = wizard.run(repo, _WithScaffold(interview, state_extra))
 
     check(
@@ -275,6 +305,19 @@ def test_a_bare_repository_can_reach_a_passing_check(tmp: Path) -> None:
     # through a fragile channel.
     register = repo / offered[0].path
     body = register.read_text(encoding="utf-8")
+    # `F47` closed: with the gate bound to the instant of adoption rather than to that midnight,
+    # the morning's commits are genuinely out of scope and the checker has nothing to report.
+    import io, contextlib
+
+    buffer = io.StringIO()
+    with contextlib.redirect_stdout(buffer):
+        check_conformance.main(["--repo", str(repo)])
+    report = buffer.getvalue()
+    check(
+        "no gate reports a violation over commits made before the artefact existed (F47)",
+        "SP035" not in report,
+        "SP035 still fires: " + "; ".join(l.strip() for l in report.splitlines() if "SP035" in l),
+    )
     check(
         "the created artefact satisfies every condition SP032 imposes on it",
         register.is_file()

@@ -590,10 +590,20 @@ with_gates = deepcopy(profile)
 with_gates["prerequisites"] = [gate]
 assert_valid("application-profile.schema.yaml", with_gates)
 
+# `F47`: `effective_from` accepts a full instant as well as a date. A repository adopted midway
+# through a working day would otherwise report that morning's commits as crossing a gate whose
+# precondition was created during adoption. Both forms must validate - the date-only one because
+# every profile written before this change carries it.
+for good in ("2026-09-01", "2026-09-01T16:37", "2026-09-01T16:37:00+01:00", "2026-09-01T16:37:00Z"):
+    dated = deepcopy(profile)
+    dated["prerequisites"] = [{**gate, "effective_from": good}]
+    assert_valid("application-profile.schema.yaml", dated)
+
 for bad in (
     {**gate, "id": "Work Registration"},          # ids are snake_case
     {**gate, "status": "optional"},               # not one of the three statuses
     {**gate, "effective_from": "27-08-2026"},     # not an ISO date
+    {**gate, "effective_from": "2026-09-01T16"},   # F47: an instant needs at least hh:mm
     {**gate, "enforcement": ["magic"]},           # enforcement vocabulary is closed
     {**gate, "invented_field": "x"},              # additionalProperties: false
     {k: v for k, v in gate.items() if k != "id"},

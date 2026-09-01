@@ -111,7 +111,8 @@ an unknown number of releases with nothing noticing.
 | F44 | A precondition dropdown offered twelve unrelated files as candidates when none matched the gate | low | Closed — `ACT-034`; the help says when nothing matched |
 | F45 | The step counter had no entry for `route`, gave two sections the same number, and claimed seven steps for ten sections | low | Closed — `ACT-034`; derived from `SECTION_ORDER` |
 | F46 | The conformance-level screen span in an unbounded redraw loop whenever the caret did not start at index 0 | high | Closed — `ACT-034`; prompts are replaced in place instead of cleared and re-added |
-| F47 | A repository adopted on a day it already had commits reports a gate violation it cannot clear: the artefact is created today, `effective_from` binds by DATE, and `SP033` forbids a future date | medium | Open — remedy identified in `DR-43`, deliberately not built |
+| F47 | A repository adopted on a day it already had commits reports a gate violation it cannot clear: the artefact is created today, `effective_from` binds by DATE, and `SP033` forbids a future date | medium | Closed — `ACT-035`; `effective_from` accepts an instant, so adoption binds from the moment |
+| F48 | The prerequisite history audit's window slid forward with the clock: `git log --since=<bare date>` means that date at the CURRENT TIME, so a violation visible in the morning was gone by evening | high | Closed — `ACT-035`; a date-only `effective_from` resolves to midnight explicitly |
 
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -1015,9 +1016,63 @@ otherwise.
 
 ---
 
+## F48 — The gate history audit answered differently depending on the time of day
+
+**Severity: high. Closed.**
+
+Found while calibrating `F47`'s fix, and it inverted the premise `F47` was written on. `F47` assumed
+a date-only `effective_from` meant midnight. It never did.
+
+`commits_touching` passes `--since={date}` to `git log`, and git parses that with **approxidate**,
+which fills a missing time from the **current clock**. So `effective_from: 2026-09-01` did not mean
+*"from that date"*, as the schema has always said. It meant *"from that date, at whatever time you
+happen to run the check"*.
+
+Measured on git 2.43.0, four commits on one day at 01:00, 10:00, 19:00 and 23:00, checked at 22:3x:
+
+```
+--since=2026-09-01           -> 1 commit
+--since=2026-09-01T00:00:00  -> 4 commits
+--since=2026-09-01T20:00:00  -> 1 commit     # identical to the bare date
+```
+
+**What that means for a published control.** The audit window slid forward all day. A violation
+visible at 09:00 was gone by 23:00, for no reason but the hour, and the later the check ran the less
+history it examined. Two people checking the same repository on the same day got different answers,
+and neither had reason to suspect it. Against this repository's own adoption-day fixture the bare
+form saw **0 of 4** same-day commits.
+
+This is `SP035` being **silently permissive**, which is the worst direction for a gate to fail in:
+nothing reports, nothing looks wrong, and the control appears to be working.
+
+**Remedy** (`ACT-035`): `parse_effective_from` resolves a date-only value to an explicit
+`T00:00:00`. The window becomes deterministic and acquires the meaning the schema always claimed.
+It **widens** the window, which is the safe direction — it can surface a violation that was being
+hidden and cannot hide one that was being surfaced.
+
+**Two things worth carrying forward.**
+
+**It also explains a flake that had already been seen and written off.** `ACT-033`'s end-to-end test
+failed about one run in five; I attributed that to a fragile stdout capture, replaced the assertion,
+watched it pass eight times, and moved on. The capture was fragile. It was also sitting on top of
+this: the run's result genuinely depended on the minute it started. **A flake explained is not a
+flake diagnosed**, and stability under repetition is not evidence that the cause was found.
+
+**The defect is in a borrowed vocabulary, not in this code's logic.** `--since` is a git interface
+whose date parsing is deliberately loose, and every line of the surrounding code was correct about
+its own intent. Nothing in a review of this repository's logic would have found it; it needed the
+question *"what does the tool we are calling actually do with this string?"* asked out loud, and
+answered with a controlled experiment rather than a reading of the documentation.
+
+---
+
 ## F47 — A freshly adopted repository violates its own gate on the first check
 
-**Severity: medium. OPEN.**
+**Severity: medium. Closed by `ACT-035`.** Its stated cause was also **wrong**, and `F48` records
+what was actually happening: a date-only `effective_from` never meant midnight, so the window this
+finding describes was not the window the checker was using. The remedy below is still the right one
+— a gate adopted midway through a day must be able to say so — but it was chosen against a
+mis-stated mechanism, and `F48` is the correction.
 
 Found by writing `ACT-033`'s end-to-end test - the one asserting that a repository with a README and
 one Python file can adopt and then pass. **It cannot**, and the finding is what stopped that

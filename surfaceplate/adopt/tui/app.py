@@ -13,6 +13,7 @@ disk this app touches is the draft file, through the callback it is handed.
 
 from __future__ import annotations
 
+import datetime as _dt
 from pathlib import Path
 from typing import Callable
 
@@ -155,7 +156,20 @@ class AdoptApp(App):
             status = "required" if spec.mandatory else (spec.auto_status or gates.get(f"{spec.id}.status"))
             if status != "required":
                 continue
-            if str(gates.get(f"{spec.id}.artefact") or "").strip():
+            answer = str(gates.get(f"{spec.id}.artefact") or "").strip()
+            seed_path = scaffold.SEEDABLE[spec.id][0]
+            # **The condition is about the FILE, not the answer**, and getting that wrong is how
+            # the first fix for this failed. Moving the offer before the review was necessary and
+            # not sufficient: a resumed run carries the artefact ANSWER in its draft while the file
+            # it names was never created, so testing "is the answer blank?" skipped the gate and
+            # the profile still named a file that did not exist.
+            #
+            # An adopter who typed their OWN path is not second-guessed even if it is missing:
+            # writing this framework's seed at somebody else's chosen path would be inventing an
+            # answer. `SP032` reports that case, which is the correct outcome.
+            if answer and answer != seed_path:
+                continue
+            if (self.repo / seed_path).exists():
                 continue
             needs_artefact.append(spec.id)
 
@@ -166,8 +180,15 @@ class AdoptApp(App):
         accepted = await self.push_screen_wait(ScaffoldScreen(offers, step=_STEPS.get("scaffold", "")))
         if accepted is None:
             return False
+        # `F47`: the gate binds from the INSTANT the artefact was created, not from that midnight.
+        # A date could only say "today", which put every commit made earlier the same working day
+        # inside a window where the precondition was absent - true by the letter of a date, and
+        # useless to an adopter who cannot do anything about this morning. `DR-44` widened
+        # `effective_from` to accept an instant precisely so this can be said accurately.
+        moment = _dt.datetime.now().astimezone().replace(microsecond=0).isoformat()
         for offer in accepted:
             self.state.setdefault("gates", {})[f"{offer.gate_id}.artefact"] = offer.path
+            self.state["gates"][f"{offer.gate_id}.effective_from"] = moment
             # `effective_from` stays TODAY, and cannot be anything else: `SP033` rejects a gate
             # dated in the future, so binding from tomorrow - which is what the artefact's actual
             # history would justify - is not available. `F47` records what that costs.
@@ -235,7 +256,9 @@ class AdoptApp(App):
         except Exception as exc:  # WriteRefused, or anything the renderer did not expect
             error = f"This cannot be written yet: {getattr(exc, 'detail', exc)}"
 
-        confirmed = await self.push_screen_wait(ReviewScreen(rendered, error))
+        confirmed = await self.push_screen_wait(
+            ReviewScreen(rendered, error, creating=self.state.get(SCAFFOLD_KEY) or [])
+        )
         self.exit(self.state if confirmed else CANCELLED)
 
 

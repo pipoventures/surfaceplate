@@ -562,6 +562,105 @@ def test_a_gate_with_nothing_supplied_is_not_counted_as_answered() -> None:
     asyncio.run(_run())
 
 
+def test_a_resumed_run_still_offers_an_artefact_that_was_never_created() -> None:
+    """`ACT-035`, closing the hole `ACT-033` left. The defect the adversarial review found, and the
+    first fix for it, which did not work.
+
+    Accepted scaffold offers travel under `wizard.SCAFFOLD_KEY`, which is not persisted to the
+    draft; the artefact PATH is written into the gate answers, which is. So a run cancelled at the
+    review and resumed used to skip the completed gates section, never re-run the offer, and write a
+    profile naming a file nobody had created - the `SP032` failure the code above it claims to
+    prevent.
+
+    **Moving the offer before the review fixed only half of it.** The condition still asked whether
+    the artefact ANSWER was blank, and on resume it is not - it holds the path from the cancelled
+    run. The gate was skipped and the file stayed missing. The condition has to ask about the FILE.
+    That second failure was found by reproducing the first, which is the whole argument for
+    reproducing rather than reasoning.
+    """
+
+    async def _run() -> None:
+        import subprocess
+        import tempfile
+
+        from surfaceplate.adopt import scaffold
+        from surfaceplate.adopt.tui.app import AdoptApp
+        from surfaceplate.adopt.tui.screens import ScaffoldScreen
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "repo"
+            repo.mkdir(parents=True)
+            (repo / "main.py").write_text("x = 1\n", encoding="utf-8")
+            for args in (
+                ["init", "-q"], ["config", "user.email", "h@e.i"],
+                ["config", "user.name", "H"], ["config", "commit.gpgsign", "false"],
+            ):
+                subprocess.run(["git", "-C", str(repo), *args], check=True)
+            subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+            subprocess.run(["git", "-C", str(repo), "commit", "-qm", "seed"], check=True)
+
+            seed_path = scaffold.SEEDABLE["work_registration"][0]
+            # Exactly the state a cancelled-then-resumed run carries: the gates section is complete
+            # and names the artefact, and the file does not exist because the run never got to the
+            # write.
+            resumed = {
+                "mode": {"mode": "simple"},
+                "identity": {"application_id": "x", "display_name": "X", "owner": "O"},
+                "stack": {"language": "Python", "builds_user_interface": False},
+                "risk": {
+                    "risk_profile": "r", "materiality_definition": "m",
+                    "relied_on_outside_team": False, "material_quantitative_output": False,
+                    "data_classification": "internal",
+                },
+                "level": {"conformance_level": "essential"},
+                "route": {"route": "customise"},
+                "controls": {},
+                "gates": {
+                    "work_registration.artefact": seed_path,
+                    "work_registration.paths": "**",
+                },
+                # Every remaining section too: the run must reach the OFFER, and a section left out
+                # here would stop it on that form instead - which is a fixture stopping the run,
+                # not the product doing so.
+                "adoption": {
+                    "review_by": "2027-03-01", "framework_maintainer": "O",
+                    "repository_classification": "internal-tool",
+                    "decision_record_id": "DR-1", "adoption_status": "in_progress",
+                    "needs_validator": False,
+                },
+                "wrap": {"human_roles": "Maintainer - O.", "release_route": "Direct to main."},
+            }
+            check(
+                "precondition: the artefact the resumed draft names does not exist",
+                not (repo / seed_path).exists(),
+                "fixture is wrong - the file is already there",
+            )
+
+            app = AdoptApp(
+                repo=repo, resumed=resumed,
+                on_section_complete=lambda *_: None,
+                preview=lambda _state: "",
+            )
+            reached_offer = False
+            async with app.run_test(size=(120, 60)) as pilot:
+                await pilot.pause()
+                for _ in range(12):
+                    if isinstance(app.screen, ScaffoldScreen):
+                        reached_offer = True
+                        break
+                    await pilot.pause()
+                app.exit(None)
+                await pilot.pause()
+
+        check(
+            "a resumed run still reaches the offer for an artefact that was never created",
+            reached_offer,
+            "the run went straight to review and would have written a profile naming a missing file",
+        )
+
+    asyncio.run(_run())
+
+
 def test_the_app_hands_the_level_recommendation_to_the_screen() -> None:
     """`ACT-032`, guarded the way `F39` taught. The plan can compute a recommendation and the app
     can still fail to pass it, in which case the note advises one level while the caret sits on
@@ -665,6 +764,7 @@ def main() -> int:
     test_the_level_screen_settles_instead_of_looping()
     test_the_step_counter_agrees_with_the_sections()
     test_a_gate_with_nothing_supplied_is_not_counted_as_answered()
+    test_a_resumed_run_still_offers_an_artefact_that_was_never_created()
     test_the_app_hands_the_level_recommendation_to_the_screen()
 
     print("\ndefaults and pre-selection")
