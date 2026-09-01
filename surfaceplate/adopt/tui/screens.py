@@ -67,6 +67,20 @@ class Frame(VerticalScroll):
 
     can_focus = False
 
+    def on_mount(self) -> None:
+        """Open at the top, whatever the initially focused widget wants.
+
+        Textual scrolls the focused widget into view on mount. Where that widget sits below a long
+        intro - the conformance-level screen with its recommendation, the scaffold offer with its
+        previews - the frame opened already scrolled, so the screen's own title and the first words
+        of its explanation were off the top and the adopter began mid-sentence. Deferred, because
+        that scrolling happens after this returns.
+
+        Fixed here rather than on each screen because it had already appeared twice; a third
+        instance would have been three copies of the same three lines.
+        """
+        self.call_after_refresh(lambda: self.scroll_home(animate=False))
+
 
 class _StatefulToggle:
     """Mixin: draw a DIFFERENT character for on and off.
@@ -592,14 +606,8 @@ class LevelScreen(_SectionScreenBase):
         # makes the first paint deterministic instead of dependent on Textual's mount ordering.
         self._update_meta(self._start)
         self._set_hint()
-        # Moving the highlight scrolls it into view, which on a long recommendation pushed the
-        # screen's own title and the first words of that recommendation off the top at 80x24 - the
-        # adopter opened mid-sentence with no heading. Deferred, because the highlight does its own
-        # scrolling after this method returns.
-        self.call_after_refresh(self._scroll_to_top)
-
-    def _scroll_to_top(self) -> None:
-        self.query_one("#frame").scroll_home(animate=False)
+        # The frame opens at its own top - see `Frame.on_mount`, which handles this for every
+        # screen now that it had appeared here and on the scaffold offer.
 
     def _options(self, highlighted: int | None = 0) -> list[Option]:
         """Numbered, with a caret on the highlighted row.
@@ -1024,6 +1032,79 @@ class ResumeScreen(Screen):
 
     def action_fresh(self) -> None:
         self.dismiss(False)
+
+
+class ScaffoldScreen(Screen):
+    """The files this run could create, and the one thing creating them does not do.
+
+    `ACT-033`. Every packet before this made the wizard better at saying it did not know; this is
+    the first that offers to do something about it. A repository with nothing in it could be told
+    honestly that nothing matched its gates, and then go no further.
+
+    The screen exists rather than a silent write because creating files in someone else's
+    repository is a different class of action from filling in a profile, and because of the thing
+    printed at the bottom of it: **a register that exists is not a register anyone keeps**. The
+    gate's structural check would pass either way, so the only defence against that becoming a
+    false green is that the adopter is told, at the point of choosing, exactly what they are and
+    are not getting.
+
+    Everything is ticked on arrival - the adopter reached here by having a gate with nothing to
+    point at, so the offer is the answer to a problem they already have - and any line can be
+    unticked. Nothing is written from this screen: it selects, and the profile review that has
+    always ended this run commits.
+    """
+
+    BINDINGS = [
+        Binding("ctrl+s", "accept", "create the ticked files", show=True),
+        Binding("ctrl+q", "cancel", "quit", show=True),
+    ]
+
+    def __init__(self, offers: list, step: str = "") -> None:
+        super().__init__()
+        self.offers = offers
+        self.step = step
+
+    def compose(self) -> ComposeResult:
+        with Frame(id="frame"):
+            yield Static(
+                f"[{self.step}Missing artefacts - shall I create them?]", classes="section-header"
+            )
+            yield Static(
+                f"{len(self.offers)} gate(s) you must declare have nothing in this repository to "
+                "point at. These are real, complete files - not templates to fill in - and each is "
+                "written only if it is ticked. Anything already present is not offered at all.",
+                classes="intro",
+            )
+            yield VisibleSelectionList(
+                *[
+                    Selection(f"{o.path}  -  {o.why}", index, True)
+                    for index, o in enumerate(self.offers)
+                ],
+                id="f-scaffold",
+            )
+            for offer in self.offers:
+                yield Static(f"  {offer.path}  ({offer.gate_id})", classes="gate-name")
+                yield Static(offer.preview(3), classes="gate-desc")
+            yield Static(
+                "  Creating these files does not do the work they are for. A register that exists "
+                "and stays empty while work happens around it is a finding about your repository, "
+                "not a satisfied control - and the checker cannot tell the difference, because it "
+                "checks that the file is there.",
+                classes="note",
+            )
+        yield Static("", id="hint", markup=False)
+
+    def on_mount(self) -> None:
+        self.query_one("#hint", Static).update(
+            hint_line(keys="[space] tick  [Ctrl+S] create the ticked files  [Ctrl+Q] cancel")
+        )
+
+    def action_accept(self) -> None:
+        chosen = set(self.query_one("#f-scaffold", VisibleSelectionList).selected)
+        self.dismiss([o for index, o in enumerate(self.offers) if index in chosen])
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
 
 
 class DefaultsScreen(Screen):

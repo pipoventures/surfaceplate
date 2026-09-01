@@ -19,9 +19,11 @@ from typing import Callable
 from textual import work
 from textual.app import App
 
-from surfaceplate.adopt import defaults, discover, plan
+from surfaceplate.adopt import defaults, discover, plan, scaffold
+from surfaceplate.adopt.wizard import SCAFFOLD_KEY
 from surfaceplate.adopt.interview import Cancelled, DraftInfo
 from surfaceplate.adopt.tui.screens import (
+    ScaffoldScreen,
     CANCELLED,
     DefaultsScreen,
     FormScreen,
@@ -49,7 +51,13 @@ def _step_labels() -> dict[str, str]:
     """
     counted = [name for name in plan.SECTION_ORDER if name != "mode"]
     total = len(counted)
-    labels = {"mode": ""}
+    # `mode` and `scaffold` are deliberately UNNUMBERED, for the same reason and not the same one.
+    # `mode` is asked before the run proper and chooses how the run explains itself. `scaffold` is
+    # conditional - it appears only where a required gate has no artefact - so numbering it either
+    # duplicates the gates screen's number (which is `F45` exactly, and was the first attempt) or
+    # makes every run claim a total it will not reach. A screen that is not always shown has no
+    # position in a fixed sequence, and says so by claiming none.
+    labels = {"mode": "", "scaffold": ""}
     for position, name in enumerate(counted, start=1):
         labels[name] = f"{position} of {total} — "
     return labels
@@ -111,6 +119,63 @@ class AdoptApp(App):
         self._seeded = seeded
         return True
 
+
+    async def _offer_missing_artefacts(self) -> bool:
+        """`ACT-033`. Where a gate the profile will DECLARE AS REQUIRED has no artefact, offer one.
+
+        Every clause of that sentence was a defect in the first version, found by an adversarial
+        review of this method:
+
+        - **"the profile will declare"** - it iterated `scaffold.SEEDABLE` instead of the gate plan,
+          so at `essential`, where only `work_registration` is asked at all, the other three were
+          absent from the answers, read as blank, and were offered with everything pre-ticked under
+          the heading *"gate(s) you must declare"*. Accepting wrote three files that no gate in the
+          profile referenced, because `sections.build_gates` walks the plan and drops answers for
+          gates it does not contain.
+        - **"as required"** - a gate answered `deferred` or `not_applicable` never collects an
+          artefact, so it also looked blank and was offered one, contradicting this method's own
+          promise not to second-guess a gate the adopter had answered.
+        - **and it runs HERE, before the review, rather than immediately after the gates section** -
+          a run cancelled at the review and then resumed skips every completed section, so the offer
+          never re-ran while the artefact path it had written into the gate answers was still in the
+          draft. The profile was then written naming an artefact nobody created: a guaranteed
+          `SP032` failure, produced by the very code whose comment says it exists to prevent one.
+        """
+        gates = self.state.get("gates") or {}
+        specs = plan.gate_plan(
+            level=self.state["level"]["conformance_level"],
+            builds_ui=bool(self.state["stack"]["builds_user_interface"]),
+            mode=self.state["mode"]["mode"],
+            found=self.found,
+        )
+        needs_artefact = []
+        for spec in specs:
+            if spec.id not in scaffold.SEEDABLE:
+                continue
+            status = "required" if spec.mandatory else (spec.auto_status or gates.get(f"{spec.id}.status"))
+            if status != "required":
+                continue
+            if str(gates.get(f"{spec.id}.artefact") or "").strip():
+                continue
+            needs_artefact.append(spec.id)
+
+        offers = scaffold.offers(self.repo, needs_artefact)
+        if not offers:
+            return True
+
+        accepted = await self.push_screen_wait(ScaffoldScreen(offers, step=_STEPS.get("scaffold", "")))
+        if accepted is None:
+            return False
+        for offer in accepted:
+            self.state.setdefault("gates", {})[f"{offer.gate_id}.artefact"] = offer.path
+            # `effective_from` stays TODAY, and cannot be anything else: `SP033` rejects a gate
+            # dated in the future, so binding from tomorrow - which is what the artefact's actual
+            # history would justify - is not available. `F47` records what that costs.
+        if accepted:
+            self.state[SCAFFOLD_KEY] = list(accepted)
+            self._on_section_complete("gates", self.state["gates"])
+        return True
+
     @work
     async def _drive(self) -> None:
         for name in plan.SECTION_ORDER:
@@ -151,10 +216,15 @@ class AdoptApp(App):
             self.state[name] = result
             self._on_section_complete(name, result)
 
+
             if name == "route" and result.get("route") == "defaults":
                 if not await self._take_the_defaults_route():
                     self.exit(CANCELLED)
                     return
+
+        if not await self._offer_missing_artefacts():
+            self.exit(CANCELLED)
+            return
 
         # The review screen shows what `preview` produced. A refusal is displayed rather than
         # raised through the interface - and `wizard.run` verifies again before writing regardless.

@@ -111,6 +111,7 @@ an unknown number of releases with nothing noticing.
 | F44 | A precondition dropdown offered twelve unrelated files as candidates when none matched the gate | low | Closed — `ACT-034`; the help says when nothing matched |
 | F45 | The step counter had no entry for `route`, gave two sections the same number, and claimed seven steps for ten sections | low | Closed — `ACT-034`; derived from `SECTION_ORDER` |
 | F46 | The conformance-level screen span in an unbounded redraw loop whenever the caret did not start at index 0 | high | Closed — `ACT-034`; prompts are replaced in place instead of cleared and re-added |
+| F47 | A repository adopted on a day it already had commits reports a gate violation it cannot clear: the artefact is created today, `effective_from` binds by DATE, and `SP033` forbids a future date | medium | Open — remedy identified in `DR-43`, deliberately not built |
 
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -1011,6 +1012,52 @@ protects against an unexpected new release rather than a compromised re-upload o
 PyPI does not permit re-uploading a version, which makes that largely theoretical — but it is a
 weaker guarantee than a hash-bearing lock, and `pyproject.toml` says so rather than implying
 otherwise.
+
+---
+
+## F47 — A freshly adopted repository violates its own gate on the first check
+
+**Severity: medium. OPEN.**
+
+Found by writing `ACT-033`'s end-to-end test - the one asserting that a repository with a README and
+one Python file can adopt and then pass. **It cannot**, and the finding is what stopped that
+assertion from being written as though it could.
+
+The wizard now creates `activity/register.md` where a repository has none. `effective_from` for the
+gate is today. The history audit then asks, of every commit since that date touching a gated path,
+whether the artefact existed - and any commit made **earlier the same day**, including the ones the
+adopter pushed before running `adopt`, was made when it did not:
+
+```
+[SP035] Gate 'work_registration' was crossed without its precondition
+        1 commit(s) since 2026-09-01 changed a gated path while a required
+        artefact was absent: 3e161a9 2026-09-01 bare (missing activity/register.md)
+```
+
+**The obvious remedy is closed off by the standard itself.** Binding the gate from *tomorrow* is
+what the artefact's real history would justify - it demonstrably did not exist during any of today -
+and `SP033` rejects a gate dated in the future. That was tried during `ACT-033` and the checker
+refused it, correctly: a gate that binds later than now is not yet a gate.
+
+So the two rules are jointly unsatisfiable for a repository with same-day activity:
+
+- `effective_from` may not be in the future (`SP033`);
+- `effective_from` binds by **date**, so same-day history before the artefact existed is in scope.
+
+**Who this hits.** Every adopter whose repository saw a commit on the day they adopt, which is most
+people, because running `adopt` is usually part of a working session rather than the first thing on
+a quiet morning. It resolves itself the next day - the violation is bounded to commits from the
+adoption date - so it is a poor first impression rather than a lasting defect.
+
+**Not remedied here, deliberately.** The candidates all touch a published control's semantics and
+none is obviously right: making the audit compare commit *timestamps* rather than dates; treating
+the commit that introduces an artefact as the boundary; or letting `effective_from` carry a time.
+`DR-43` records them. Choosing between them is a change to `SP033`/`SP035` and belongs in its own
+packet with its own decision, not as a side effect of adding scaffolding.
+
+**What `ACT-033` did instead:** its test asserts the true outcome - the artefact exists, the gate
+names it, and the only outstanding finding is this one - rather than asserting a clean check and
+being quietly satisfied by the adoption grace window, which returns success regardless.
 
 ---
 

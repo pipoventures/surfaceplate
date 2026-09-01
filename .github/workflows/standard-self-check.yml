@@ -96,6 +96,13 @@ jobs:
         if: ${{ !cancelled() }}
         run: python tests/test_discover.py
 
+      # DR-43: the tool writes files into an adopting repository for the first time. The
+      # load-bearing half is that a seed survives SP032, and that nothing is ever overwritten.
+      - name: Check the artefacts the wizard offers to create
+        id: scaffold
+        if: ${{ !cancelled() }}
+        run: python tests/test_scaffold.py
+
       - name: Verify the release manifest is current
         id: manifest
         if: ${{ !cancelled() }}
@@ -160,6 +167,7 @@ jobs:
             adopt_tui=${{ steps.adopt_tui.outcome }}
             render=${{ steps.render.outcome }}
             discover=${{ steps.discover.outcome }}
+            scaffold=${{ steps.scaffold.outcome }}
             manifest=${{ steps.manifest.outcome }}
             identifiers=${{ steps.identifiers.outcome }}
             registers=${{ steps.registers.outcome }}
