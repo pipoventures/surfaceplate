@@ -120,6 +120,7 @@ an unknown number of releases with nothing noticing.
 | F53 | An adopter could not tell a machine-verified control from a declared one by reading their own profile; `VERIFIED_CONTROLS` was itself incomplete | medium | Closed — `ACT-038`; each control is labelled from the checker's own set, and the set corrected |
 | F54 | The review packet omitted the artefacts its own question depended on, and asked a text-only reviewer to compute a SHA-256 digest | medium | Closed — `ACT-038`; seeds attached, and the recomputation scoped to a reviewer that can execute |
 | F55 | Narrative docstrings can drift from the code beneath them, and twice did | low | Open — recorded as a habit rather than remedied by deletion |
+| F56 | Field labels were clipped at the design width with no ellipsis — 28 of them, including every control's rationale prompt | medium | Closed — `ACT-039`; labels wrap, and the property is asserted of the widget rather than the screen |
 
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -1161,6 +1162,55 @@ with everyone else told to report an evidence gap in one line and explicitly tol
 
 **The transferable part: a review packet's defects are invisible until somebody uses it**, and both
 of these survived a rewrite made one day earlier specifically to bring it up to date.
+
+---
+
+## F56 — Twenty-eight field labels were cut, and none of them said so
+
+**Severity: medium. Closed.**
+
+Found by re-rendering every screen at 80x24 after nine packets landed in one day — the discipline
+that has produced `F41`, `F46` and the scaffold screen's missing header, every one of them after the
+suites were green.
+
+`.field-label` carried `height: 1` with `text-overflow: ellipsis`, and **the ellipsis never
+rendered** — the same fact `F42` established for `.gate-desc` and which had not been generalised.
+Twenty-eight labels were silently shortened at the design width:
+
+```
+Why does documentation_authority apply here?   ->   Why does documentation_a
+Precondition artefact                          ->   Precondition
+Adoption decision record ID                    ->   Adoption decision
+```
+
+Every control's rationale prompt is in that list. An adopter at `standard` was asked to justify a
+control by a question they could not finish reading.
+
+**Ownership is split and worth being exact about.** Most predate `ACT-035`: at the previous fixed
+`width: 32`, anything longer was already cut, and that has been true since the wizard's first
+Textual build. `ACT-035` made the column proportional so the route screen's two options became
+readable — a real fix for a real defect — and in doing so widened the blast radius to shorter labels
+like `Precondition artefact`. **A fix that improves one thing and quietly degrades a neighbour is
+not visible in the suite that verified the fix**, which is the argument for a whole-interface render
+pass after a run of packets rather than after each one.
+
+**Remedy:** `height: auto`. `F42`'s remedy applied to labels: wrap rather than clip, in a frame that
+already scrolls. Nothing is lost and no copy was edited.
+
+**The assertion took three attempts, and the failures are the interesting part.** The first two
+asked whether the label's text appeared in the composited screen, and **both failed against a
+working fix** — a wrapped label in a two-column row has the frame's border between its halves, and
+then the VALUE column's text interleaved between its rows, so no join over rendered lines can ever
+reconstruct it. The property is not "does this string appear" but "is there room for all of it",
+which is a question about the widget's own box: its height against the rows its text needs at its
+width. Asked that way it passes, and fails with all sixteen offenders named when `height: 1` is
+restored.
+
+**Two things to carry forward.** `text-overflow: ellipsis` does not work in this interface — it has
+now failed silently in two separate rules, and any future truncation must put its ellipsis in the
+text, as `_first_sentence` does. And when an assertion fails against a fix you have watched work,
+suspect the assertion: the third version here was not a better string match, it was a different
+question.
 
 ---
 

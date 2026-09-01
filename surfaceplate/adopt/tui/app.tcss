@@ -81,13 +81,20 @@ Screen {
    remaining ~44 characters, and the two most consequential choices in the wizard could not be read:
    `Set defaults - propose answers f…` and `Customise adoption - ask me each…`. A share of the
    terminal gives the narrow case room and still stops the label sprawling on a wide one. */
+/* `F56`: labels WRAP, they do not clip. `height: 1` with `text-overflow: ellipsis` cut 28 labels
+   at 80 columns - every control's "Why does X apply here?", the gate's "Precondition artefact",
+   "Adoption decision record ID" - and **the ellipsis never rendered**, exactly as it did not for
+   `.gate-desc` before `F42`. An adopter saw a fragment of a question with nothing to say a question
+   had been shortened.
+   Most predate `ACT-035`: at the previous fixed `width: 32` anything longer was already cut. Making
+   the column proportional (so the route screen's options became readable) widened it to shorter
+   labels too. Wrapping costs vertical space in a frame that already scrolls, and loses nothing. */
 .field-label {
     width: 28%;
     min-width: 16;
     max-width: 34;
     color: #7a827e;
-    height: 1;
-    text-overflow: ellipsis;
+    height: auto;
 }
 
 /* A slot you can SEE, even empty and even without colour. "Difficult sometimes to follow and know
