@@ -103,6 +103,7 @@ an unknown number of releases with nothing noticing.
 | F36 | A hand-built flow list escaped each item for the wrong YAML context, and lost a real ~20-minute session | high | Closed — `ACT-026`; `render.py` dumps the whole list, not each item alone |
 | F37 | An interface was verified structurally and never looked at, so six rendering defects passed 87 green checks | high | Closed — `ACT-028`; rendering asserted as named properties over the compositor's own lines |
 | F38 | A multi-line answer could not be written, and four interface faults made the wizard error-prone | high | Closed — `ACT-029`; block scalars, and structural answers picked from the repository |
+| F39 | The gate catalogue never received the repository scan, so a completed adoption produced seven unusable gates | high | Closed — `ACT-031`; the app scans once, and the join now compares field kind |
 
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -1005,6 +1006,52 @@ weaker guarantee than a hash-bearing lock, and `pyproject.toml` says so rather t
 otherwise.
 
 ---
+
+## F39 — The gate catalogue never received the repository scan
+
+**Severity: high. Closed.**
+
+Found by the maintainer completing the first adoption this framework has ever finished end to end.
+The wizard wrote a real profile. The profile is unusable: seven gates name `asdf`, `sadf` or
+`safdsa` as their precondition artefact, and the checker rejects every one of them.
+
+```
+[SP032] Gate 'work_registration' requires an artefact that does not exist
+        what: asdf is named as a precondition but is not present.
+```
+
+**Cause.** `tui/app.py` built the gate catalogue by calling `plan.gate_plan(...)` **without passing
+the repository scan**, while the controls screen went through `section_plan()`, which scans. So the
+controls screen offered dropdowns of real files and the gate catalogue offered blank text boxes.
+There was nothing to pick from, so placeholder text got typed - which is the correct behaviour from
+a person facing an empty required field, and the wrong behaviour from the wizard.
+
+**The join test could not have caught it, and that is the transferable part.** `ACT-028` added a
+screen-to-plan join and `DR-37` called it load-bearing. It compared field **ids**, and the ids are
+identical whether a field renders as a dropdown or a text box; only the **kind** differs. That is
+`F37`'s shape one level up: not "the wrong questions" but *the right questions asked in the wrong
+form*.
+
+Strengthening the join to compare `(id, kind)` was necessary and **still not sufficient**, which is
+worth recording plainly. The join builds both sides itself - it constructs a plan and a screen from
+that same plan - so it can never see the app wiring two screens from *different* sources, which is
+exactly what happened. Only a test that drives the real `AdoptApp` catches it, and
+`test_the_app_itself_gives_every_screen_the_repository_scan` now does; with the defect reintroduced
+it reports *"rendered as EditableInput - the scan did not reach this screen"*.
+
+**Four interface faults reported in the same run**, all closed here:
+
+| Reported | Cause |
+|---|---|
+| *"the tick mark doesn't fit in the box and it's really not properly visible"* | `▐✔▌` put a tick between two half-block characters. Now `[X]` / `[ ]` and `(●)` / `( )`, which render identically everywhere |
+| *"why radio buttons sometimes and other times ticks and other times double click on the word"* | Three interaction models. The gate catalogue's chip row - faithful to the mockup - was the third; it is a radio set now |
+| *"for dropdown list you need to click twice for it to show"* | Textual focuses a `Select` on the first click and opens on the second |
+| *"too many options to know which one is the right one"* | Forty alphabetical candidates. Now ranked per gate and cut to twelve **after** ranking - capping first threw away the register and the CHANGELOG before ranking could promote them |
+
+**And the run ended with no confirmation.** *"I finished the wizard, clicked on write (Ctrl+S) but
+not sure if something happened."* A full-screen app closes, the terminal is restored, and two short
+lines are easy to miss. The ending now states the path it wrote and runs the checker against it, so
+the question actually being asked gets an actual answer.
 
 ## F38 — A multi-line answer could not be written, and four interface faults made the wizard error-prone
 

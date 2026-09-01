@@ -117,22 +117,79 @@ class GateSpec:
 
 
 def mode_plan() -> SectionPlan:
+    """Ask about the person, not about the prose.
+
+    This used to ask which register of explanation you wanted, which is a question about the
+    tool's output and hard to answer before seeing any. Asking about experience is answerable
+    immediately and the wizard derives the register from it - the maintainer's own suggestion after
+    finishing a run: *"we should suggest simple or advanced explanations by asking what level of
+    experience does the user have."*
+    """
     return SectionPlan(
         name="mode",
-        title="How should this be explained?",
+        title="How much should this explain?",
         intro=(
-            "Two ways to see what each question means. Either way every control and gate gets a "
-            "real explanation before you are asked about it - this chooses the words, not whether "
-            "an explanation is given."
+            "Everything gets a real explanation before you are asked about it. This chooses the "
+            "vocabulary those explanations use, and nothing else."
         ),
         fields=(
             FieldSpec(
                 id="mode",
-                label="Explanation style",
+                label="Your experience with software delivery and governance",
                 kind="choice",
                 choices=(
-                    ("simple", "simple - plain English, no jargon; assumes no software or governance background"),
-                    ("advanced", "advanced - precise technical terms; still explains this framework's own vocabulary"),
+                    (
+                        "simple",
+                        "standard - explain in plain English, assuming no background in either",
+                    ),
+                    (
+                        "advanced",
+                        "advanced - use precise technical terms, and explain this framework's own "
+                        "vocabulary where it is unusual",
+                    ),
+                ),
+            ),
+        ),
+    )
+
+
+def route_plan(state: dict) -> SectionPlan:
+    """The fork: finish quickly from proposed answers, or answer everything yourself.
+
+    Placed after the minimum - identity, stack, risk, level - because none of the proposals are
+    possible until the level is known, and because those four are the questions nobody can answer
+    on an adopter's behalf.
+    """
+    level = (state.get("level") or {}).get("conformance_level", "essential")
+    summary = catalogue.level_summary(
+        level, bool((state.get("stack") or {}).get("builds_user_interface", False))
+    )
+    return SectionPlan(
+        name="route",
+        title="How would you like to finish?",
+        intro=(
+            f"At {level} the rest of this profile is {summary['gate_count']} gate(s) and "
+            f"{summary['control_count']} control(s). You can answer them one at a time, or start "
+            "from proposed answers and change what you disagree with."
+        ),
+        notes=(
+            "Either way nothing is written until you approve a full review of the profile.",
+        ),
+        fields=(
+            FieldSpec(
+                id="route",
+                label="How to complete the remaining sections",
+                kind="choice",
+                choices=(
+                    (
+                        "defaults",
+                        "Set defaults - propose answers from this repository and the worked "
+                        "examples, then show me every one before anything is written",
+                    ),
+                    (
+                        "customise",
+                        "Customise adoption - ask me each control and each gate in turn",
+                    ),
                 ),
             ),
         ),
@@ -509,7 +566,7 @@ def _gate_fields(
             id="artefact",
             label="Precondition artefact",
             help="what must exist before the gated paths may change",
-            candidates=found.artefacts,
+            candidates=tuple(discover.rank_for_gate(found.artefacts, gate_id)),
             depends_on=None if mandatory else ("status", required_when),
         ),
         FieldSpec(
@@ -774,17 +831,22 @@ def wrap_plan() -> SectionPlan:
 # The whole run
 # ---------------------------------------------------------------------------------------------
 
+# The minimum first - the four nobody can answer on an adopter's behalf - then the fork, then the
+# rest. `route` decides whether `controls` and `gates` are asked or proposed.
 SECTION_ORDER = (
     "mode",
     "identity",
     "stack",
     "risk",
     "level",
+    "route",
     "controls",
     "gates",
     "adoption",
     "wrap",
 )
+
+MINIMUM_SECTIONS = ("mode", "identity", "stack", "risk", "level")
 
 
 def recap_lines(state: dict) -> tuple[str, ...]:
@@ -834,6 +896,8 @@ def section_plan(
         return risk_plan()
     if name == "level":
         return level_plan(repo, builds_ui=builds_ui, mode=mode, recap=recap_lines(state))
+    if name == "route":
+        return route_plan(state)
     if name == "controls":
         return controls_plan(level=level, mode=mode, found=found)
     if name == "gates":

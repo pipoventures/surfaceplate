@@ -91,6 +91,7 @@ def sentinel_answers(repo: Path, *, level: str, builds_ui: bool, mode: str = "si
         "mode.mode": mode,
         "stack.builds_user_interface": builds_ui,
         "level.conformance_level": level,
+        "route.route": "customise",
     }
 
     for name in plan.SECTION_ORDER:

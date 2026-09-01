@@ -54,7 +54,11 @@ _SOURCE_DIRS = ("src", "lib", "app", "pkg", "internal", "cmd", "services", "pack
 
 _CI_DIRS = (".github/workflows", ".gitlab-ci.d")
 
-_MAX_CANDIDATES = 40
+# Short enough to read. Forty was "too many options to know which one is the right one", and a list
+# nobody can scan is a list nobody uses. Ranking (below) is what makes a short list the RIGHT short
+# list rather than an arbitrary truncation.
+_MAX_CANDIDATES = 200   # what `scan` keeps; the per-field list is cut to `SHOWN` after ranking
+SHOWN = 12              # what an adopter is actually offered, once ranked for the field at hand
 
 
 def _tracked_files(repo: Path) -> list[str]:
@@ -121,6 +125,58 @@ def _adopter_first(paths: list[str]) -> list[str]:
         return (len(_ARTEFACT_RANK) + 1, path)
 
     return sorted(paths, key=rank)
+
+
+# Words that suggest a file is the artefact a particular gate is about. Ranking only; nothing here
+# decides anything, and every candidate stays in the list either way.
+GATE_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "work_registration": ("register", "activity", "backlog"),
+    "register_currency": ("register", "activity"),
+    "work_contract": ("packet", "contract", "brief"),
+    "risk_classification": ("risk", "classification"),
+    "decision_before_implementation": ("decision", "adr"),
+    "records_before_release": ("release", "checklist"),
+    "change_record_before_completion": ("changelog", "change"),
+    "authority_map": ("authority", "source_of_truth", "inventory"),
+    "authority_same_change": ("authority",),
+    "test_convention": ("test", "convention"),
+    "regression_before_merge": ("regression", "test"),
+    "equivalence_evidence": ("equivalence", "protocol", "test"),
+    "data_source_lifecycle": ("data", "source"),
+    "output_validation_before_external_use": ("output", "validation"),
+    "dependency_output_delta": ("dependency", "review"),
+    "component_library": ("component", "design"),
+    "design_authority": ("design", "policy"),
+    "options_before_build": ("option", "design", "decision"),
+    "prerequisite_state_ui": ("design", "state", "screen"),
+}
+
+
+def rank_for_gate(
+    candidates: tuple[str, ...] | list[str], gate_id: str, limit: int = SHOWN
+) -> list[str]:
+    """The same candidates, most plausible for THIS gate first.
+
+    A precondition list is only useful if the right answer is near the top; forty alphabetical
+    paths is a haystack. Keyword matching is a hint, not a decision - nothing is removed, and the
+    adopter still chooses.
+    """
+    words = GATE_KEYWORDS.get(gate_id, ())
+    if not words:
+        return list(candidates)[:limit]
+    def score(path: str) -> tuple[int, int, str]:
+        low = path.lower()
+        matches = sum(1 for w in words if w in low)
+        # More keywords first, then shallower paths: `activity/register.md` matches both
+        # "activity" and "register" and sits above `activity/ACT-001.md`, which matches one.
+        return (-matches, path.count("/"), path)
+
+    hit = sorted((c for c in candidates if any(w in c.lower() for w in words)), key=score)
+    rest = [c for c in candidates if c not in hit]
+    # Cut AFTER ranking, never before: capping first threw away the register and the CHANGELOG
+    # because they sorted below a dozen files in `docs/archive/`, and then ranking had nothing
+    # left to promote.
+    return (hit + rest)[:limit]
 
 
 def candidate_artefacts(repo: Path) -> list[str]:

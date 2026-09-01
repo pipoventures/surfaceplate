@@ -93,8 +93,32 @@ def _cmd_adopt(argv: list[str]) -> int:
         )
         return 4
 
-    print(f"\nWrote {written}.")
-    print("Run `surfaceplate check` (or the installed hook, on your next commit) to verify it.")
+    # A full-screen app closes and the terminal is restored; two short lines after that are easy
+    # to miss entirely. The maintainer finished a real adoption and reported "the wizard just
+    # closed with no confirmation if the adoption was successful or not" - so the ending says what
+    # was written AND what the checker makes of it, which is the question actually being asked.
+    rule = "\u2500" * 66
+    print(f"\n{rule}")
+    print(f"  Written: {written}")
+    print(rule)
+
+    from surfaceplate import check_conformance
+
+    # The checker prints its own report, which is the point: an adopter asking "did that work?"
+    # gets the actual answer rather than a reassurance. There is no quiet mode and inventing one
+    # would be a change to a published control for a cosmetic reason.
+    print("  Checking what you just wrote:\n")
+    findings = check_conformance.main(["--repo", str(repo)])
+    if findings == 0:
+        print("\n  The checker passes against what you just wrote.")
+    else:
+        print(
+            "\n  The profile is written, but the checker does not pass against it yet.\n"
+            "  That is normal for a first adoption - the output above says which artefacts it\n"
+            "  could not find. Re-run at any time:\n"
+            f"\n      surfaceplate check --repo {repo}\n"
+        )
+    print(f"  Re-running `adopt` will not overwrite it; edit {written.name} directly from here.\n")
     return 0
 
 

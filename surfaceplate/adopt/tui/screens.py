@@ -80,19 +80,31 @@ class _StatefulToggle:
     against this packet's own code.
     """
 
-    ON = "\u2714"   # ✔
-    OFF = "\u00b7"  # ·
+    # ASCII brackets, not the default half-block frame. `▐✔▌` put a tick between two half-block
+    # characters: the maintainer reported *"the tick mark doesn't fit in the box and it's really
+    # not properly visible"*, and the same for an unselected radio. `[X]` and `[ ]` render
+    # identically in every terminal and font, which is the point - this is a control surface, not
+    # a place to be clever with glyphs.
+    LEFT = "["
+    RIGHT = "]"
+    ON = "X"
+    OFF = " "
 
     def watch_value(self) -> None:  # type: ignore[override]
         # `ToggleButton.watch_value` takes no argument in Textual 8; Textual inspects the
         # signature and calls it accordingly, so this must match rather than forward a value.
-        self.BUTTON_INNER = self.ON if self.value else self.OFF
+        self._apply_glyphs()
         super().watch_value()  # type: ignore[misc]
         self.refresh()
 
     def on_mount(self) -> None:
-        self.BUTTON_INNER = self.ON if self.value else self.OFF
+        self._apply_glyphs()
         self.refresh()
+
+    def _apply_glyphs(self) -> None:
+        self.BUTTON_LEFT = self.LEFT
+        self.BUTTON_RIGHT = self.RIGHT
+        self.BUTTON_INNER = self.ON if self.value else self.OFF
 
 
 class VisibleCheckbox(_StatefulToggle, Checkbox):
@@ -100,8 +112,24 @@ class VisibleCheckbox(_StatefulToggle, Checkbox):
 
 
 class VisibleRadioButton(_StatefulToggle, RadioButton):
+    LEFT = "("
+    RIGHT = ")"
     ON = "\u25cf"   # ●
-    OFF = "\u25cb"  # ○
+    OFF = " "
+
+
+class OneClickSelect(Select):
+    """A dropdown that opens on the first click, not the second.
+
+    Textual focuses a `Select` on the first click and opens it on the next, so the maintainer
+    reported *"for dropdown list you need to click twice for it to show"*. Opening on focus would
+    be worse - arrowing through a form would fling menus open - so this opens on the click itself
+    and leaves keyboard behaviour exactly as Textual defines it.
+    """
+
+    def on_click(self, event) -> None:  # noqa: ANN001 - Textual event type
+        if not self.expanded:
+            self.expanded = True
 
 
 class EditableInput(Input):
@@ -170,12 +198,15 @@ def _widget_for(spec: plan.FieldSpec, value: object = None):
     if spec.kind == "select":
         # Discovered candidates, and nothing pre-selected: `Select.BLANK` keeps the same rule the
         # level screen states out loud - a value nobody picked is not an answer.
-        return Select(
+        widget = OneClickSelect(
             [(label, choice_value) for choice_value, label in spec.choices],
-            prompt=f"Choose {spec.label.lower()}",
+            prompt=f"Choose {spec.label.lower()} ({len(spec.choices)} found)",
             allow_blank=True,
             id=widget_id,
         )
+        if isinstance(value, str) and any(value == v for v, _ in spec.choices):
+            widget.value = value
+        return widget
     if spec.kind == "multiselect":
         chosen = {v.strip() for v in str(spec.default).split(",") if v.strip()}
         return SelectionList(
@@ -227,6 +258,23 @@ def _first_sentence(text: str) -> str:
     return head
 
 
+def _widget_kind(widget) -> str:
+    """The `FieldSpec.kind` a rendered widget corresponds to - the other half of the join."""
+    if isinstance(widget, SelectionList):
+        return "multiselect"
+    if isinstance(widget, Select):
+        return "select"
+    if isinstance(widget, (RadioSet, OptionList)):
+        return "choice"
+    if isinstance(widget, Checkbox):
+        return "bool"
+    if isinstance(widget, TextArea):
+        return "textarea"
+    if isinstance(widget, Horizontal):  # the gate chip row
+        return "choice"
+    return "text"
+
+
 def _read_widget(widget) -> object:
     if isinstance(widget, SelectionList):
         return list(widget.selected)
@@ -263,20 +311,38 @@ class _SectionScreenBase(Screen):
         Binding("up", "focus_previous", "previous field", show=False),
     ]
 
-    def __init__(self, section: plan.SectionPlan, *, step: str = "") -> None:
+    def __init__(
+        self, section: plan.SectionPlan, *, step: str = "", initial: dict | None = None
+    ) -> None:
         super().__init__()
         self.section = section
         self.step = step
+        # Proposed values, when the adopter chose to start from defaults. A pre-filled field is
+        # still answered by them: it is shown, and it is submitted, exactly as a shown default in
+        # a text box always has been.
+        self.initial = initial or {}
 
     def field_ids(self) -> list[str]:
-        """Every field id this screen actually renders. `tests/test_adopt_tui.py` joins this
-        against the section's own plan - the check that makes the scripted interview's guarantee
-        mean something about the screens, not only about the plan."""
-        ids = []
+        """Every field id this screen actually renders."""
+        return [key for key, _kind in self.field_shape()]
+
+    def field_shape(self) -> list[tuple[str, str]]:
+        """Every rendered field as `(id, kind)`.
+
+        The id alone was not enough, and a real adoption paid for it. `tui/app.py` built the gate
+        catalogue from a plan that had never been given the repository scan, so every precondition
+        artefact rendered as a plain text box instead of a dropdown of real files - and the join
+        test passed, because the ids are identical either way. Only the KIND differed. The
+        maintainer typed `asdf` into seven gates because there was nothing to pick from.
+
+        That is `F37`'s shape one level up: the right questions, asked in the wrong form. Comparing
+        kind is what makes this join able to see it.
+        """
+        shape: list[tuple[str, str]] = []
         for widget in self.query(".field-widget"):
             if widget.id and widget.id.startswith("f-"):
-                ids.append(widget.id[2:].replace("--", "."))
-        return ids
+                shape.append((widget.id[2:].replace("--", "."), _widget_kind(widget)))
+        return shape
 
     def action_cancel(self) -> None:
         self.dismiss(CANCELLED)
@@ -312,7 +378,7 @@ class FormScreen(_SectionScreenBase):
                     ):
                         if spec.kind != "bool":
                             yield Label(spec.label, classes="field-label")
-                        widget = _widget_for(spec)
+                        widget = _widget_for(spec, self.initial.get(spec.id))
                         widget.add_class("field-widget")
                         yield widget
                     # Beside the field, shown only while that field has focus. `F37` moved this to
@@ -607,12 +673,19 @@ class GatesScreen(_SectionScreenBase):
                 )
                 with HorizontalGroup(classes="followups", id=f"row-{key.replace('.', '--')}"):
                     if field_spec.kind == "choice":
-                        # The mockup's chip row: horizontal, compact, and the chosen one inverts to
-                        # amber fill. A vertical list would have been easier and would not have been
-                        # what was approved.
-                        row = Horizontal(
+                        # A radio set, not a row of buttons. The mockup drew chips and this
+                        # rendered them faithfully - but it made the gate catalogue a THIRD
+                        # interaction model alongside tick boxes and dropdowns, and the maintainer
+                        # asked the obvious question: *"why radio buttons sometimes and other times
+                        # ticks and other times double click on the word."* Fidelity to a drawing
+                        # is worth less than one rule an adopter can learn once: `[X]` for yes/no,
+                        # `(\u25cf)` for pick-one, a dropdown for pick-one-from-many.
+                        row = RadioSet(
                             *(
-                                Button(label.split(" - ")[0], id=f"chip-{spec.id}--{value}", classes="chip")
+                                VisibleRadioButton(
+                                    label.split(" - ")[0],
+                                    id=f"chip-{spec.id}--{value}",
+                                )
                                 for value, label in field_spec.choices
                             ),
                             classes="chip-row",
@@ -637,11 +710,17 @@ class GatesScreen(_SectionScreenBase):
             for field_spec in spec.fields:
                 key = f"{spec.id}.{field_spec.id}"
                 if field_spec.kind == "choice":
-                    # A chip row shows three options and no default. Until one is pressed the gate
-                    # has no status - the same "nothing is chosen yet" rule the level screen states
-                    # out loud, applied where it matters most: a gate nobody decided must not
-                    # silently acquire the first status in the list.
-                    answers[key] = self._chosen.get(spec.id)
+                    # Nothing pre-selected, so a gate nobody decided has no status - the same rule
+                    # the level screen states out loud.
+                    try:
+                        widget = self.query_one(f"#f-{key.replace('.', '--')}", RadioSet)
+                    except Exception:
+                        answers[key] = None
+                        continue
+                    pressed = widget.pressed_button
+                    answers[key] = (
+                        pressed.id.split("--")[-1] if pressed is not None and pressed.id else None
+                    )
                     continue
                 try:
                     widget = self.query_one(f"#f-{key.replace('.', '--')}")
@@ -707,18 +786,9 @@ class GatesScreen(_SectionScreenBase):
                 summary.update(f"  {spec.id}  ·  {str(status).replace('_', ' ')}")
         self._set_hint()
 
-    @on(Button.Pressed)
-    def _on_chip(self, event: Button.Pressed) -> None:
-        """A chip press records that gate's status and lights the chip."""
-        button_id = event.button.id or ""
-        if not button_id.startswith("chip-"):
-            return
-        gate_id, _, status = button_id[len("chip-"):].partition("--")
-        self._chosen[gate_id] = status
-        for chip in self.query(".chip"):
-            chip_id = chip.id or ""
-            if chip_id.startswith(f"chip-{gate_id}--"):
-                chip.set_class(chip_id.endswith(f"--{status}"), "chip-selected")
+    @on(RadioSet.Changed)
+    def _on_status_chosen(self, event: RadioSet.Changed) -> None:
+        """Choosing a status reveals whatever that status calls for, inside the gate's own block."""
         self._refresh_visibility()
 
     @on(Input.Changed)
@@ -854,3 +924,75 @@ class ResumeScreen(Screen):
 
     def action_fresh(self) -> None:
         self.dismiss(False)
+
+
+class DefaultsScreen(Screen):
+    """What the wizard proposes, and where each value came from.
+
+    The maintainer asked for a defaults path after finishing a real adoption, and the condition he
+    set on it is the whole design: proposals are *shown* with their origin, and nothing is written
+    until the profile review at the end. A value here is a suggestion until a human passes this
+    screen - which is what keeps the binding rule true and the provenance walk unchanged.
+    """
+
+    BINDINGS = [
+        Binding("ctrl+s", "accept", "use these", show=True),
+        Binding("c", "customise", "answer everything myself", show=True),
+        Binding("ctrl+q", "cancel", "quit", show=True),
+    ]
+
+    def __init__(self, proposals, still_asked: int) -> None:
+        super().__init__()
+        self.proposals = proposals
+        self.still_asked = still_asked
+
+    def compose(self) -> ComposeResult:
+        counts: dict[str, int] = {}
+        for proposal in self.proposals:
+            counts[proposal.origin] = counts.get(proposal.origin, 0) + 1
+        with Frame(id="frame"):
+            yield Static("[Proposed answers - nothing is written yet]", classes="section-header")
+            yield Static(
+                f"{len(self.proposals)} values proposed: "
+                + ", ".join(f"{n} {origin}" for origin, n in sorted(counts.items()))
+                + (
+                    f". {self.still_asked} more can only be answered by you, and are asked next."
+                    if self.still_asked
+                    else "."
+                ),
+                classes="intro",
+                markup=False,
+            )
+            yield Static(
+                "  discovered - read from this repository · example - this framework's own worked "
+                "example · computed - derived from a fact",
+                classes="note",
+                markup=False,
+            )
+            with VerticalScroll(id="proposal-list"):
+                for proposal in self.proposals:
+                    yield Static(
+                        f"  {proposal.field}", classes="gate-name", markup=False
+                    )
+                    yield Static(
+                        f"      {proposal.value}", classes="recap", markup=False
+                    )
+                    yield Static(
+                        f"      {proposal.origin} - {proposal.detail}",
+                        classes="gate-desc",
+                        markup=False,
+                    )
+        yield Static(
+            "[Ctrl+S] use these  [c] answer everything myself instead  [Ctrl+Q] cancel",
+            id="hint",
+            markup=False,
+        )
+
+    def action_accept(self) -> None:
+        self.dismiss("accept")
+
+    def action_customise(self) -> None:
+        self.dismiss("customise")
+
+    def action_cancel(self) -> None:
+        self.dismiss(CANCELLED)

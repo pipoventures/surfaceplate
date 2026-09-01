@@ -101,6 +101,7 @@ ESSENTIAL_ANSWERS: dict[str, object] = {
     ),
     "risk.data_classification": "internal",
     "level.conformance_level": "essential",
+    "route.route": "customise",  # these fixtures exercise the full flow, not the defaults path
     "controls.agent_work_packets.rationale": "All agent-assisted work is bounded, scoped, and reviewable.",
     "controls.actual_diff_review.rationale": "Material changes are reviewed against their actual diff content.",
     "controls.secret_hygiene.rationale": "Secrets and sensitive data must not enter uncontrolled storage.",
@@ -176,6 +177,7 @@ def answers_for(repo: Path, *, level: str, builds_ui: bool, mode: str, overrides
         "mode.mode": mode,
         "stack.builds_user_interface": builds_ui,
         "level.conformance_level": level,
+        "route.route": "customise",
         "risk.data_classification": "internal",
         "adoption.adoption_status": "in_progress",
         "adoption.needs_validator": False,
@@ -476,6 +478,73 @@ def test_multiline_prose_survives_the_whole_flow(tmp: Path) -> None:
     )
 
 
+def test_defaults_propose_but_never_decide(tmp: Path) -> None:
+    """`DR-40`: the defaults route proposes; a human still submits.
+
+    The two properties that keep the binding rule true, checked rather than asserted: every
+    proposal traces to discovery, a worked example, or a computed fact - never to invention - and
+    a field with no honest source is left for the adopter rather than filled in.
+    """
+    from surfaceplate.adopt import defaults, discover
+
+    repo = make_installed_repo(tmp, "defaults-repo")
+    seed_referenced_files(repo)
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], capture_output=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "seed"], capture_output=True)
+
+    found = discover.scan(repo)
+    state = {
+        "mode": {"mode": "simple"},
+        "identity": {"owner": "Finance Platform team"},
+        "stack": {"builds_user_interface": False},
+        "level": {"conformance_level": "standard"},
+    }
+    proposals = defaults.propose(state, found=found)
+
+    check("the defaults route proposes something to work from", len(proposals) > 20, str(len(proposals)))
+    check(
+        "every proposal declares an honest origin",
+        all(p.origin in {"discovered", "example", "computed"} for p in proposals),
+        str(sorted({p.origin for p in proposals})),
+    )
+    # "Discovered" covers two kinds of thing - a path in the repository, and a CI step name read
+    # out of its workflow YAML. Both must come from the scan; neither may be invented.
+    discovered = [p for p in proposals if p.origin == "discovered"]
+    from_scan = set(found.artefacts) | set(found.paths) | set(found.lock_files) | set(
+        found.register_dirs
+    ) | set(found.ci_steps)
+    invented = [p.value for p in discovered if p.value not in from_scan]
+    check(
+        "every discovered value came from the scan, never from invention",
+        discovered and not invented,
+        f"not found by the scan: {invented[:3]}",
+    )
+    paths = [p for p in discovered if p.value in from_scan and (repo / str(p.value)).exists()]
+    check(
+        "and the ones that are paths really exist on disk",
+        bool(paths),
+        "no discovered value resolved to a real file",
+    )
+
+    # The honest half: a judgement nobody can compute is NOT proposed.
+    proposed = {p.field for p in proposals}
+    check(
+        "a gate's own description is left for the adopter, not invented",
+        "gates.work_registration.precondition_description" not in proposed,
+        "the tool proposed prose it has no source for",
+    )
+    check(
+        "the adoption decision record id is never invented",
+        "adoption.decision_record_id" not in proposed,
+    )
+    outstanding = defaults.unanswered(state, proposals, repo=repo, found=found)
+    check(
+        "and the wizard knows exactly what it still has to ask",
+        "adoption.decision_record_id" in outstanding and len(outstanding) > 0,
+        str(outstanding[:4]),
+    )
+
+
 def test_full_ui_end_to_end(tmp: Path) -> None:
     repo = make_installed_repo(tmp, "full-ui-repo")
     answers = answers_for(repo, level="full", builds_ui=True, mode="advanced")
@@ -619,7 +688,7 @@ def test_resume_from_draft(tmp: Path) -> None:
     completed = set(json.loads(draft_path.read_text(encoding="utf-8"))["sections"])
     check(
         "resume fixture: the draft completed everything up to the interrupt",
-        completed == {"mode", "identity", "stack", "risk", "level"},
+        completed == {"mode", "identity", "stack", "risk", "level", "route"},
         str(completed),
     )
 
@@ -772,6 +841,9 @@ def main() -> int:
 
         print("\nF38 regression: multi-line prose survives the whole flow")
         test_multiline_prose_survives_the_whole_flow(tmp)
+
+        print("\nDR-40: the defaults route proposes, and says where each value came from")
+        test_defaults_propose_but_never_decide(tmp)
 
         print("\nfull-level, UI-building end to end")
         test_full_ui_end_to_end(tmp)

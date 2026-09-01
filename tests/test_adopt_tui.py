@@ -77,12 +77,14 @@ class Host(App):
 # ---------------------------------------------------------------------------------------------
 
 
-async def _join_for(screen, section: plan.SectionPlan) -> tuple[list[str], list[str]]:
+async def _join_for(screen, section: plan.SectionPlan):
+    """`(id, kind)` on both sides. Comparing ids alone let a screen full of text boxes pass against
+    a plan of dropdowns - see `screens.field_shape`."""
     app = Host(screen)
     async with app.run_test(size=(120, 60)) as pilot:
         await pilot.pause()
-        rendered = app.screen.field_ids()
-    return rendered, section.field_ids()
+        rendered = app.screen.field_shape()
+    return rendered, [(f.id, f.kind) for f in section.fields]
 
 
 def test_every_screen_renders_its_whole_plan() -> None:
@@ -108,10 +110,10 @@ def test_every_screen_renders_its_whole_plan() -> None:
             missing = sorted(set(planned) - set(rendered))
             extra = sorted(set(rendered) - set(planned))
             check(
-                f"{name}: the screen renders exactly the fields its plan declares "
-                f"({len(planned)} fields)",
+                f"{name}: the screen renders exactly the fields its plan declares, in the form it "
+                f"declares them ({len(planned)} fields)",
                 rendered == planned,
-                f"missing from screen: {missing[:5]}; not in plan: {extra[:5]}",
+                f"missing from screen: {missing[:4]}; not in plan: {extra[:4]}",
             )
 
     asyncio.run(_run())
@@ -183,7 +185,7 @@ def test_gate_catalogue_behaviour() -> None:
             owner_row = screen.query_one("#row-test_convention--owner")
             check("a deferred gate's owner field is hidden until it is deferred", not owner_row.display)
 
-            screen.query_one("#chip-test_convention--deferred").press()
+            screen.query_one("#chip-test_convention--deferred").value = True
             await pilot.pause()
             check(
                 "choosing deferred reveals that gate's own follow-ups, inline",
@@ -194,9 +196,10 @@ def test_gate_catalogue_behaviour() -> None:
                 screen._answers().get("test_convention.status") == "deferred",
             )
             check(
-                "the chosen chip is lit, and only that one",
-                "chip-selected" in screen.query_one("#chip-test_convention--deferred").classes
-                and "chip-selected" not in screen.query_one("#chip-test_convention--required").classes,
+                "the chosen option is the only one selected",
+                screen.query_one("#chip-test_convention--deferred").value
+                and not screen.query_one("#chip-test_convention--required").value,
+                "a radio set must hold exactly one selection",
             )
 
             hint = str(screen.query_one("#hint").content)
@@ -355,6 +358,80 @@ def test_discovered_candidates_are_offered_as_choices() -> None:
     asyncio.run(_run())
 
 
+def test_the_app_itself_gives_every_screen_the_repository_scan() -> None:
+    """The join tests build both sides themselves, so they cannot see the app wiring two screens
+    from different sources - which is exactly what happened.
+
+    `tui/app.py` built the gate catalogue from `plan.gate_plan(...)` with no scan while the
+    controls screen went through `section_plan`, which scans. Every gate artefact became a text
+    box, the ids matched, every test passed, and a real adoption produced seven gates reading
+    `asdf`. This drives the REAL `AdoptApp` and asserts what the gates screen actually renders.
+    """
+
+    async def _run() -> None:
+        import subprocess
+        import tempfile
+
+        from textual.widgets import Select
+
+        from surfaceplate.adopt.tui.app import AdoptApp
+        from surfaceplate.adopt.tui.screens import GatesScreen
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "repo"
+            (repo / "docs").mkdir(parents=True)
+            (repo / "docs" / "REGISTER.md").write_text("# register\n", encoding="utf-8")
+            for args in (
+                ["init", "-q"], ["config", "user.email", "h@e.i"],
+                ["config", "user.name", "H"], ["config", "commit.gpgsign", "false"],
+            ):
+                subprocess.run(["git", "-C", str(repo), *args], check=True)
+            subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+            subprocess.run(["git", "-C", str(repo), "commit", "-qm", "seed"], check=True)
+
+            # Resume straight into the gates section so the app builds that screen for real.
+            resumed = {
+                "mode": {"mode": "simple"},
+                "identity": {"application_id": "x", "display_name": "X", "owner": "O"},
+                "stack": {"language": "Python", "builds_user_interface": False},
+                "risk": {"risk_profile": "r", "materiality_definition": "m",
+                         "data_classification": "internal"},
+                "level": {"conformance_level": "standard"},
+                "route": {"route": "customise"},
+                "controls": {},
+            }
+            app = AdoptApp(
+                repo=repo, resumed=resumed,
+                on_section_complete=lambda *_: None,
+                preview=lambda _state: "",
+            )
+            async with app.run_test(size=(120, 60)) as pilot:
+                await pilot.pause()
+                for _ in range(6):
+                    if isinstance(app.screen, GatesScreen):
+                        break
+                    await pilot.pause()
+                gates_screen = app.screen
+                is_gates = isinstance(gates_screen, GatesScreen)
+                artefact = (
+                    gates_screen.query_one("#f-work_registration--artefact") if is_gates else None
+                )
+                check(
+                    "the app reaches the gate catalogue",
+                    is_gates,
+                    type(gates_screen).__name__,
+                )
+                check(
+                    "and the app's own gate screen offers discovered files, not a blank text box",
+                    isinstance(artefact, Select),
+                    f"rendered as {type(artefact).__name__} - the scan did not reach this screen",
+                )
+                app.exit(None)
+                await pilot.pause()
+
+    asyncio.run(_run())
+
+
 def main() -> int:
     print("the join: screens render exactly what their plan declares")
     test_every_screen_renders_its_whole_plan()
@@ -368,6 +445,7 @@ def main() -> int:
 
     print("\ndiscovery (DR-38)")
     test_discovered_candidates_are_offered_as_choices()
+    test_the_app_itself_gives_every_screen_the_repository_scan()
 
     print("\ndefaults and pre-selection")
     test_example_defaults_survive_being_typed_into()
