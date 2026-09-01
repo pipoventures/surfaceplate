@@ -60,7 +60,25 @@ def main() -> int:
     missing: list[str] = []
     diverged: list[str] = []
 
+    # `DR-45`. `.standards/MANIFEST.sha256` is compared by a DIFFERENT question, and is skipped
+    # here rather than exempted from checking.
+    #
+    # This check asks "is the vendored copy current with source?". For every other payload file that
+    # is answerable. For the manifest it is not, in THIS repository: building the manifest is what
+    # happens after an install, so the installed copy necessarily lags the source by one build - the
+    # same self-reference `adoption.framework_digest` has always carried, now visible on a second
+    # file. In an adopting repository the two agree; only the repository that installs into itself
+    # sees the lag.
+    #
+    # The right question for this file is "does it hash to the anchor recorded for it?", and
+    # `SP049` now asks exactly that, on every run, in every adopting repository - which is stronger
+    # than a text comparison, because it is the check that would catch the file being edited. This
+    # is a division of labour, not a hole: the file is checked, by the control that owns it.
+    OWNED_BY_SP049 = {".standards/MANIFEST.sha256"}
+
     for rel, src in sorted(payload.items()):
+        if rel in OWNED_BY_SP049:
+            continue
         installed = ROOT / rel
         if not installed.is_file():
             missing.append(rel)
@@ -77,7 +95,9 @@ def main() -> int:
     if not missing and not diverged:
         # The count is reported on success so that "everything matched" is distinguishable
         # from "nothing was compared" - the defect recorded as F3 and fixed at 0.13.0.
-        print(f"VENDORED_CURRENT=PASS  ({len(payload)} files compared)")
+        compared = len(payload) - len(OWNED_BY_SP049 & set(payload))
+        print(f"VENDORED_CURRENT=PASS  ({compared} files compared, "
+              f"{len(OWNED_BY_SP049 & set(payload))} checked by SP049 instead)")
         return 0
 
     print("VENDORED_CURRENT=FAIL - the installed copy is not current.")

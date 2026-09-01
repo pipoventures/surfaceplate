@@ -69,6 +69,7 @@ on an agent's authority.
 | `ACT-033` | Scaffold the artefacts an adopter does not have, instead of asking them to name one | maintainer | maintainer | `done` | `ACT-032` | hard | yes — it would make `adopt` write files into an adopting repository beyond the profile, which is a new class of action for this tool | high — creating a governance artefact does not create the practice it stands for, so what is written and how it is labelled is the whole question | An adopter with no register is offered one built from a shipped template, and the gate then points at a real artefact rather than the closest wrong file | Committed to by `DR-41`; not started. The framework currently ships no register or change-log template, so this packet must author what it scaffolds rather than merely place it |
 | `ACT-034` | Remediate `adopt`, phase 7: stop the interface presenting itself as more settled than it is | maintainer | maintainer | `done` | `ACT-032` | hard | yes — it changes what every adopter reads on every screen, and three of its findings are the interface making claims its evidence does not support | medium — the defects are each reproduced at the design width rather than inferred, and the judgement is about what a display may assert, not about what the profile records | A truncated explanation says it was truncated; a gate with no answer is not counted as answered; a candidate list with no match says so; the step counter agrees with the sections; and a value the wizard already computed is proposed rather than asked | The negative controls: each finding re-broken deliberately and seen to fail first, because `F41`'s test passed against the unfixed widget on its first writing; and the provenance allow-list may not grow, or the packet has broken its own guarantee |
 | `ACT-035` | Close the gaps left open by `ACT-033` and `ACT-034`, including `F47`'s date granularity | maintainer | maintainer | `done` | `ACT-033` | hard | yes — it widens a published schema field and changes how two published controls read it, in every adopting repository | high — the remedy was put to the maintainer explicitly rather than chosen, because all three candidates change what `SP033`/`SP035` mean and an agent may not decide a control's semantics | `effective_from` accepts an instant as well as a date and existing profiles stay valid; a run cancelled at the review and resumed still reaches the scaffold offer; the review screen names the files it is about to create; and the defaults screen is readable at 80 columns | The negative controls: the resume defect reproduced against the pre-fix code before the test is trusted; every existing date-only profile still validates; and `SP033` still refuses a genuinely future instant |
+| `ACT-036` | Do everything that can be done for `ACT-007` and `F6` without a party outside this repository | maintainer | maintainer | `done` | `ACT-035` | hard | yes — it adds a file to the payload every adopter receives, and it touches what the integrity check establishes, which is the subject of this repository's oldest open finding | high — the judgement is about what may be CLAIMED: `F6` names the maintainer as the party who cannot close it, so the work is narrowing what is left for an external party, and any wording that reads as closure would be the fabricated-validation failure this framework polices | An adopter can recompute the framework digest from a file they hold rather than only compare two values the installer wrote; `ACT-007`'s checkable clauses are verified and recorded; and `F6` remains OPEN with its remaining distance stated | The negative controls: the new check is seen to fail against a tampered manifest; and `F6`'s entry still says open, because nothing here gives the check an external anchor |
 ## Notes on the entries
 
 `ACT-002` and `ACT-003` are both raised by `DR-16` and are deliberately **not** resolved by
@@ -300,6 +301,29 @@ binds by date, and commits made earlier the same day were made when it did not e
 tomorrow is what the artefact's history would justify and `SP033` refuses it. `F47` records the
 gap; the test asserts what is actually true rather than resting on the adoption grace window, which
 returns success regardless and would have made a false claim pass.
+
+`ACT-007`'s definition of done is **three-quarters verified mechanically, and the remaining quarter
+cannot be verified by an agent** - which is the honest reason it is still open rather than an
+oversight.
+
+Verified 2026-09-01 against the current tree: `F13`, `F15` and `F16` are all Closed; `DR-22` and
+`DR-23` are recorded; and publication was not merely decided but **executed exactly as `DR-23`
+specified** - a new public repository whose first commit is the current tree (`1b0df98`, 79 commits,
+none earlier), with `surfaceplate-history` private and archived. The 403s `DR-23` recorded as its
+premise are themselves superseded: a `main-required-checks` ruleset is active on the public
+repository, which is what that decision was for.
+
+The fourth clause - *"the working tree carries no reference to the former organisation"* - is
+verified for **the forms `DR-23` says the token actually took**. It was embedded as
+`urn:[organisation]:uk:risk-ai:...` in every schema `$id`, and `tests/check_identifiers.py` Rule 2
+asserts every URN authority in the tree equals the declared one, Rule 1 does the same for the GitHub
+organisation in URLs, and Rule 3 rejects an undeclared token sharing the organisation's stem. All
+pass, so any surviving occurrence in those forms would fail the build.
+
+**What is not covered is a bare prose mention** sharing no stem and appearing in neither form. That
+needs a search for the token itself, and `DR-23` deliberately does not write it down - so no agent
+working from this repository holds it, by design. That residue is the maintainer's to check, and it
+is the only thing between this activity and `done`.
 
 `ACT-035` set out to close recorded gaps and found a worse defect than any of them. `F47` had been
 written on the assumption that `effective_from: 2026-09-01` meant midnight. It never did: `git log

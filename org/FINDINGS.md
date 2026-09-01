@@ -202,6 +202,25 @@ from a published tree, compares it against what an adopting repository records, 
 result. Until then this finding is open, and any claim that the integrity check establishes anything
 against a party with write access is false.
 
+## Narrowed by `ACT-036`, and still open
+
+`DR-45` shipped `MANIFEST.sha256` into the payload and made `SP049` **recompute** the anchor from it
+rather than compare two values the installer wrote. That removes the limit recorded above -
+*"an adopter cannot recompute the anchor from their own repository"* - and it is the prerequisite
+for the external step, because until now there was nothing local to compare a published manifest
+against.
+
+**It closes nothing, and the distance left is exactly the same distance.** The manifest is a file
+inside the repository being checked. A party with write access edits it, the install record and the
+profile together, and all three agree. What changed is that the value is now *derived from bytes*
+rather than copied from a record, so the one comparison that would settle it - this manifest against
+the published one - is available to anybody who wants to make it.
+
+Two things deliberately **not** done, both already ruled out above and re-examined on 2026-09-01
+when the repository became public: **signing**, which the public repository now makes worth doing on
+its own merits and which still establishes provenance rather than honesty; and treating the maintainer's
+own recomputation as attestation, which is the party this finding excludes by name.
+
 ---
 
 ## F7 — `adoption.framework_digest` is never checked against anything

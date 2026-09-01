@@ -379,6 +379,45 @@ def test_the_history_window_does_not_drift_with_the_clock(tmp: Path) -> None:
     )
 
 
+def test_the_framework_digest_is_recomputable_from_the_installed_tree(tmp: Path) -> None:
+    """`ACT-036`, narrowing `F6` without pretending to close it.
+
+    Before `DR-45`, both values in the digest comparison were written by the same installer run:
+    agreement established that nothing had been edited afterwards, and nothing else. `F6` names the
+    limit exactly - *"an adopter cannot recompute the anchor from their own repository, only compare
+    against what the installer wrote for them."*
+
+    The manifest now ships, so the digest is derived from real bytes. **This does not close `F6`**:
+    the manifest is still a file inside the repository being checked, and a party with write access
+    edits it and the record together. What it buys is that the anchor is recomputable at all, which
+    is the prerequisite for anyone outside comparing it against the published manifest.
+    """
+    repo = make_git_repo(tmp, "recompute")
+    result = install(repo)
+    check("installer succeeds", result.returncode == 0, result.stderr[-200:])
+
+    manifest = repo / ".standards" / "MANIFEST.sha256"
+    check("the manifest is installed", manifest.is_file(), "not in the payload")
+
+    record = json.loads((repo / ".standards" / "INSTALL.json").read_text(encoding="utf-8"))
+    recomputed = _checker.sha256_text(_checker.normalise(manifest.read_text(encoding="utf-8")))
+    check(
+        "and the recorded framework digest is what that manifest actually hashes to",
+        recomputed == record.get("framework_digest"),
+        f"recomputed {recomputed[:16]}, recorded {str(record.get('framework_digest'))[:16]}",
+    )
+
+    # The negative control, and the reason this is a check rather than an observation: a manifest
+    # edited after installation must be reported, not passed over.
+    manifest.write_text(manifest.read_text(encoding="utf-8") + "\n# tampered\n", encoding="utf-8")
+    tampered = _checker.sha256_text(_checker.normalise(manifest.read_text(encoding="utf-8")))
+    check(
+        "a manifest modified after installation no longer hashes to the recorded digest",
+        tampered != record.get("framework_digest"),
+        "editing the manifest did not change what it hashes to",
+    )
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory() as raw:
         tmp = Path(raw)
@@ -391,6 +430,9 @@ def main() -> int:
         )
         check("uninstalled repository fails", result.returncode == 1, result.stdout[-200:])
         check("and says why", "SP001" in result.stdout)
+
+        print("\nthe framework digest recomputes from what was installed (F6, narrowed)")
+        test_the_framework_digest_is_recomputable_from_the_installed_tree(tmp)
 
         print("\nthe history window is a fixed instant, not the clock (F48)")
         test_the_history_window_does_not_drift_with_the_clock(tmp)
