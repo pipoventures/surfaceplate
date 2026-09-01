@@ -161,9 +161,37 @@ def rank_for_gate(
     paths is a haystack. Keyword matching is a hint, not a decision - nothing is removed, and the
     adopter still chooses.
     """
+    hit = matched_for_gate(candidates, gate_id, limit=None)
+    if not GATE_KEYWORDS.get(gate_id, ()):
+        return list(candidates)[:limit]
+    rest = [c for c in candidates if c not in hit]
+    # Cut AFTER ranking, never before: capping first threw away the register and the CHANGELOG
+    # because they sorted below a dozen files in `docs/archive/`, and then ranking had nothing
+    # left to promote.
+    return (hit + rest)[:limit]
+
+
+def matched_for_gate(
+    candidates: tuple[str, ...] | list[str], gate_id: str, limit: int | None = SHOWN
+) -> list[str]:
+    """Only the candidates that actually matched a keyword for THIS gate, best first.
+
+    `rank_for_gate` orders; this one **discriminates**, and the difference is `F40`. Ranking returns
+    every candidate so the dropdown can offer everything - that is `DR-38`'s rule, and the adopter
+    still chooses. But `defaults.py` took the top-ranked candidate as a *proposal*, and in a
+    repository holding one unrelated file the top of the ranking is simply that file. The wizard
+    proposed `README.md` as the precondition for `work_registration`, producing a gate that satisfies
+    `SP032` - exists, non-empty, no placeholder - while guarding nothing at all.
+
+    So a proposal now comes only from this list, and an empty list means no proposal and a question
+    asked. That is `DR-40`'s own standard applied to a case it missed: *a field with no honest source
+    is left unanswered and still asked.* An unmatched file is not an honest source; it is the only
+    file.
+    """
     words = GATE_KEYWORDS.get(gate_id, ())
     if not words:
-        return list(candidates)[:limit]
+        return []
+
     def score(path: str) -> tuple[int, int, str]:
         low = path.lower()
         matches = sum(1 for w in words if w in low)
@@ -172,11 +200,7 @@ def rank_for_gate(
         return (-matches, path.count("/"), path)
 
     hit = sorted((c for c in candidates if any(w in c.lower() for w in words)), key=score)
-    rest = [c for c in candidates if c not in hit]
-    # Cut AFTER ranking, never before: capping first threw away the register and the CHANGELOG
-    # because they sorted below a dozen files in `docs/archive/`, and then ranking had nothing
-    # left to promote.
-    return (hit + rest)[:limit]
+    return hit if limit is None else hit[:limit]
 
 
 def candidate_artefacts(repo: Path) -> list[str]:

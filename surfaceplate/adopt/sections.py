@@ -32,6 +32,13 @@ SCHEMA_VERSION = "1.0"
 SCANNER_NOTES = "Blocking."
 DECISION_REQUIRED = "required"
 
+# `ACT-032`. The two enforcement mechanisms that need no tooling an adopter may not have: the
+# history audit is the checker's own, and review is a human reading a diff. This was already the
+# field's default and already what `defaults.py` computed, so deriving it removes a prompt rather
+# than a choice. A repository with CI may well want `ci` here, and edits the written profile to say
+# so - which is what the run's closing message tells them.
+DERIVED_ENFORCEMENT = ["history_audit", "review"]
+
 
 def build_mode(answers: dict) -> dict:
     """Session state, not profile content - the chosen register is never written to disk."""
@@ -70,8 +77,13 @@ def build_controls(answers: dict, *, level: str) -> dict:
 
     A control at the level's floor is written because the level requires it - it is never offered
     as a tick box, exactly as a level-mandatory gate's status is never offered as a choice. Above
-    the floor it is written only when a human answered `declared`. Either way its *rationale* is
-    always answered, never supplied here.
+    the floor it is written only when a human ticked it in `above_floor`. Either way its *rationale*
+    is always answered, never supplied here.
+
+    `ACT-032` replaced eight separate `<control>.declared` booleans with that one list. The older
+    per-control key is still honoured, because a saved draft or a script written against the
+    previous shape supplies it and silently dropping a declared control would lose an answer a human
+    gave.
     """
     baseline_controls: dict = {}
     for control_id in plan.BASELINE_CONTROL_IDS:
@@ -89,7 +101,14 @@ def build_controls(answers: dict, *, level: str) -> dict:
     floor = catalogue.CONFORMANCE_LEVELS[level]
     control_decisions: dict = {}
     for control_id in sorted(catalogue.CONFORMANCE_LEVELS["full"]):
-        declared = control_id in floor or bool(answers.get(f"{control_id}.declared"))
+        ticked = answers.get("above_floor") or ()
+        if isinstance(ticked, str):
+            ticked = [c.strip() for c in ticked.split(",") if c.strip()]
+        declared = (
+            control_id in floor
+            or control_id in ticked
+            or bool(answers.get(f"{control_id}.declared"))
+        )
         if not declared:
             continue
         entry: dict = {
@@ -127,19 +146,33 @@ def build_gate(spec: plan.GateSpec, answers: dict) -> dict:
         status = answers["status"]
 
     if status == "required":
+        paths = answers["paths"]
         return {
             "id": spec.id,
             "status": "required",
-            "effective_from": answers["effective_from"],
+            # `ACT-032`: derived, not asked. Each of these four was a consequence of an answer
+            # already given, and asking for it made the adopter restate something the framework or
+            # their own earlier answer had already settled. An answer is still honoured when one is
+            # supplied - a saved draft written before this change carries all four.
+            "effective_from": answers.get("effective_from") or _dt.date.today().isoformat(),
             "precondition": {
                 "artefacts": [answers["artefact"]],
-                "description": answers["precondition_description"],
+                # The framework's own sentence for this gate, which the gate screen already prints
+                # directly above the box that used to ask the adopter to paraphrase it.
+                "description": (
+                    answers.get("precondition_description")
+                    or catalogue.GATE_CATALOGUE[spec.id]
+                ),
             },
             "gated_activity": {
-                "paths": [answers["paths"]],
-                "description": answers["gated_description"],
+                "paths": [paths],
+                "description": (
+                    answers.get("gated_description") or f"Changes under {paths}."
+                ),
             },
-            "enforcement": _enforcement_list(answers["enforcement"]),
+            "enforcement": _enforcement_list(
+                answers.get("enforcement") or DERIVED_ENFORCEMENT
+            ),
         }
 
     if status == "deferred":

@@ -57,9 +57,16 @@ def propose_controls(*, level: str, mode: str, found: discover.Discovered) -> li
 
     for spec in section.fields:
         key = f"controls.{spec.id}"
-        if spec.id.endswith(".declared"):
-            # Above the floor: proposed as NOT declared. A level is a floor, and quietly opting an
-            # adopter into controls they did not ask for would be the tool choosing their scope.
+        if spec.id == "above_floor":
+            # Nothing above the floor. A level is a floor, and quietly opting an adopter into
+            # controls they did not ask for would be the tool choosing their scope. `ACT-032` made
+            # this ONE proposal where it used to be one per control - the wizard was computing this
+            # same answer eight times over while also asking the adopter for it eight times.
+            out.append(
+                Proposal(key, [], "computed", "nothing beyond this level's floor is declared")
+            )
+            continue
+        if spec.id.endswith(".declared"):  # pre-`ACT-032` shape, still honoured
             out.append(Proposal(key, False, "computed", "above this level's floor, so not declared"))
             continue
 
@@ -114,12 +121,17 @@ def propose_gates(*, level: str, builds_ui: bool, mode: str, found: discover.Dis
             )
 
         if status == "required":
-            ranked = discover.rank_for_gate(found.artefacts, spec.id)
-            if ranked:
+            # `F40`: MATCHED, not merely ranked. `rank_for_gate` returns every candidate so the
+            # dropdown offers everything; its first entry is the best *available* one, which in a
+            # repository with nothing relevant is just the only file. Proposing that produced a
+            # gate satisfying `SP032` while guarding nothing. No match -> no proposal, and
+            # `unanswered()` asks.
+            matched = discover.matched_for_gate(found.artefacts, spec.id)
+            if matched:
                 out.append(
                     Proposal(
                         f"{prefix}.artefact",
-                        ranked[0],
+                        matched[0],
                         "discovered",
                         "the closest match in this repository for this gate",
                     )
@@ -132,17 +144,11 @@ def propose_gates(*, level: str, builds_ui: bool, mode: str, found: discover.Dis
                     "this repository's main source directory",
                 )
             )
-            out.append(
-                Proposal(f"{prefix}.effective_from", today, "computed", "today; history before it is out of scope")
-            )
-            out.append(
-                Proposal(
-                    f"{prefix}.enforcement",
-                    ["history_audit", "review"],
-                    "computed",
-                    "the two that need no extra tooling",
-                )
-            )
+            # `ACT-032` removed `effective_from`, `enforcement` and both description fields from
+            # what is asked; `sections.build_gate` derives them. There is nothing left to propose
+            # for them, and proposing a value for a field no adopter is shown would put rows on the
+            # review screen that correspond to no question - noise that makes the rows which DO
+            # need reading harder to find.
         else:
             example = example_answers.rationale_example(spec.id)
             if example:

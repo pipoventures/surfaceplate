@@ -104,6 +104,8 @@ an unknown number of releases with nothing noticing.
 | F37 | An interface was verified structurally and never looked at, so six rendering defects passed 87 green checks | high | Closed — `ACT-028`; rendering asserted as named properties over the compositor's own lines |
 | F38 | A multi-line answer could not be written, and four interface faults made the wizard error-prone | high | Closed — `ACT-029`; block scalars, and structural answers picked from the repository |
 | F39 | The gate catalogue never received the repository scan, so a completed adoption produced seven unusable gates | high | Closed — `ACT-031`; the app scans once, and the join now compares field kind |
+| F40 | The wizard proposed `README.md` as the precondition for `work_registration`, producing a gate that passes while guarding nothing | high | Closed — `ACT-032`; a proposal now comes only from a candidate that actually matched the gate |
+| F41 | Every multiselect drew a ticked box on every row; `_StatefulToggle` sets instance attributes and `SelectionList` reads them off the class | medium | Closed — `ACT-032`; `VisibleSelectionList` rewrites the button from each row's real state |
 
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -1004,6 +1006,95 @@ protects against an unexpected new release rather than a compromised re-upload o
 PyPI does not permit re-uploading a version, which makes that largely theoretical — but it is a
 weaker guarantee than a hash-bearing lock, and `pyproject.toml` says so rather than implying
 otherwise.
+
+---
+
+## F41 — Every multiselect drew a ticked box on every row, whatever was ticked
+
+**Severity: medium. Closed.**
+
+Found by rendering the controls screen while building `ACT-032` — not by a test, which is the point
+of the entry.
+
+`F38` recorded the maintainer's complaint that *"some boxes (x) are not clearly visible"* and
+`ACT-031` fixed it with `_StatefulToggle`, a mixin that draws `[X]` for on and `[ ]` for off. It
+fixed `Checkbox` and `RadioButton`. It never reached `SelectionList`, and **could not have**:
+`SelectionList.render_line` composes its box from `ToggleButton.BUTTON_LEFT`, `BUTTON_INNER` and
+`BUTTON_RIGHT` read off the **`ToggleButton` class**, while `_StatefulToggle` sets those names on
+the **instance** of the widget it is mixed into. Two different objects; no error either way.
+
+So every multiselect in the wizard rendered `▐X▌` on every row and signalled its real state by
+colour alone. On the gate catalogue that meant `enforcement` showing five ticked-looking options
+when two were selected — shipped, in the version the maintainer used.
+
+```
+before:  ▐X▌ history_audit   ▐X▌ local_hook   ▐X▌ review   ▐X▌ ci   ▐X▌ unenforced
+after:   [X] history_audit   [ ] local_hook   [X] review   [ ] ci   [ ] unenforced
+```
+
+**Remedy** (`ACT-032`): `VisibleSelectionList` overrides `render_line`, taking the strip the base
+class built and rewriting its three button segments from the row's real state while keeping their
+styles, so colour still agrees with the glyph instead of replacing it.
+
+**Two things worth carrying forward.**
+
+**A fix is scoped to the widgets it was applied to, and nothing announces the ones it missed.**
+`ACT-031` verified `_StatefulToggle` against a checkbox and a radio button, both of which it fixed.
+The suite went green, the finding was closed, and a third widget with the identical defect was never
+looked at. The property was right; its coverage was assumed.
+
+**The test written for this finding passed against the unfixed widget, and was only caught because
+it was deliberately re-broken.** It compared each row's whole prefix, and the field's label sits on
+the first row and not the second — so the two prefixes differed for a reason that had nothing to do
+with the box. Narrowed to the four characters of the button itself, it fails as it should. `DR-37`
+required every new render property to be seen to fail; this is the first time that requirement
+caught a defect in a test written to honour it, which is the strongest argument for keeping it.
+
+---
+
+## F40 — The wizard proposed a README as the precondition for registering work
+
+**Severity: high. Closed.**
+
+Found by walking four adopter personas through every route of the wizard, after the maintainer
+challenged whether the package is itself easy enough to be worth adopting.
+
+For a repository with nothing in place — a solo maintainer, one Python file, a README — the `Set
+defaults` route proposed `README.md` as the precondition artefact for `work_registration`, the gate
+meaning *no work begins until it is registered as an identified activity*.
+
+```
+gates.work_registration.artefact = 'README.md'
+  (the closest match in this repository for this gate)
+```
+
+**Why this is worse than an excessive question.** A README satisfies every test `SP032` applies:
+it exists, it is non-empty, it carries no placeholder token. So the gate would have **passed while
+guarding nothing** — a green check over a practice that does not exist. The framework's whole
+argument is that a gate means something; this shipped a gate that means nothing, and labelled it
+`discovered`, which is the origin an adopter is most likely to trust.
+
+**Cause.** `discover.rank_for_gate` returns `hit + rest` — candidates that matched a gate keyword,
+then everything else — so the dropdown can offer the full list and let the adopter choose. That is
+correct, and it is `DR-38`'s rule. But `defaults.propose_gates` took `ranked[0]` as a **proposal**.
+Ranking answers *"which of these is most plausible?"*; it never answers *"is any of these right?"*
+With nothing relevant in the repository, the top of the ranking is simply the only file there is,
+and the accompanying detail said *"the closest match in this repository for this gate"* about a file
+that matched nothing.
+
+**This is `DR-40`'s own standard, missed in one place.** That record was careful about what must
+*not* be proposed — no gate descriptions, no invented decision-record id — on the principle that *a
+field with no honest source is left unanswered and still asked*. An unmatched file is not an honest
+source. The rule was right; one call site did not apply it.
+
+**Remedy** (`ACT-032`): `discover.matched_for_gate()` exposes the matched subset `rank_for_gate`
+already computed, and `propose_gates` proposes only from it. No match → no proposal, and
+`unanswered()` asks the question. The dropdown is unchanged and still offers everything.
+
+**The transferable part: offering is not proposing.** The same list can be honest as an offer and
+dishonest as a proposal, because an offer says *"here is what I found"* while a proposal says
+*"this is the answer"*. Any ranking used for both needs to carry whether anything actually matched —
+ordering alone cannot distinguish the best candidate from the only one.
 
 ---
 

@@ -110,7 +110,12 @@ class AdoptApp(App):
             )
             step = _STEPS.get(name, "")
             if name == "level":
-                screen = LevelScreen(section, step=step)
+                # The caret starts on the level the adopter's own answers point at. The note on
+                # the screen already says which that is, and `F39`'s lesson is that a value the
+                # plan computes has to be *handed to the screen* or the screen quietly does
+                # something else - so this is passed explicitly and joined in the TUI suite.
+                recommended, _ = plan.recommended_level(self.state.get("risk") or {})
+                screen = LevelScreen(section, step=step, recommended=recommended)
             elif name == "gates":
                 # `found=` matters and its absence cost a real adoption: without it every
                 # precondition artefact fell back to a plain text box while the controls screen,

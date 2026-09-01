@@ -269,6 +269,48 @@ def test_level_screen_numbers_its_options_and_marks_the_highlight() -> None:
     asyncio.run(_run())
 
 
+def test_a_multiselect_shows_each_row_state_in_the_text() -> None:
+    """`F41`. The same property as the checkbox below, for the widget that never got the fix.
+
+    `SelectionList` builds its tick box from `ToggleButton`'s CLASS attributes, so `_StatefulToggle`
+    - which sets them on an instance - could never reach it, and every multiselect in this wizard
+    rendered `[X]` on every row regardless of what was ticked. Ticked and unticked rows must differ
+    in TEXT, on the same screen, at the same moment: comparing one row before and after a change
+    would pass even if every row still drew the same glyph as its neighbours.
+    """
+
+    async def _run() -> None:
+        spec = plan.FieldSpec(
+            id="enf",
+            label="Enforcement",
+            kind="multiselect",
+            choices=(("a", "alpha"), ("b", "beta"), ("c", "gamma")),
+            default="a",  # exactly one ticked, so both states are on screen together
+            validate="",
+        )
+        section = plan.SectionPlan(name="s", title="Multiselect", fields=(spec,))
+        app = Host(FormScreen(section))
+        async with app.run_test(size=(90, 24)) as pilot:
+            await pilot.pause()
+            lines = rendered(app)
+            # Only the BUTTON, not the whole prefix. The field's label sits on the first row and
+            # not the second, so comparing prefixes passed with the defect fully present - this
+            # assertion was written, seen to pass against the broken widget, and narrowed. It is
+            # `DR-37`'s warning happening to the test written to honour it.
+            def button(line: str, option: str) -> str:
+                return line.split(option)[0][-4:] if option in line else ""
+
+            ticked = button(next((ln for ln in lines if "alpha" in ln), ""), "alpha")
+            unticked = button(next((ln for ln in lines if "beta" in ln), ""), "beta")
+        check(
+            "a ticked multiselect row and an unticked one differ in rendered text",
+            bool(ticked) and bool(unticked) and ticked != unticked,
+            f"both rows draw the same box - state is colour only: {ticked!r} vs {unticked!r}",
+        )
+
+    asyncio.run(_run())
+
+
 def test_a_toggle_shows_its_state_in_the_text_not_only_the_colour() -> None:
     """`F38`: *"some boxes (x) are not clearly visible so you don't know you have to click (X)."*
 
@@ -281,7 +323,10 @@ def test_a_toggle_shows_its_state_in_the_text_not_only_the_colour() -> None:
     async def _run() -> None:
         from textual.widgets import Checkbox
 
-        section = plan.controls_plan(level="essential", mode="simple")
+        # `stack`, not `controls`: `ACT-032` collapsed the eight `<control>.declared` booleans into
+        # one multiselect, so the controls section no longer contains a `bool` at all. Picking the
+        # section by "wherever a bool happens to live" is what made this break, so it is named.
+        section = plan.stack_plan(Path("."))
         spec = next(f for f in section.fields if f.kind == "bool")
         app = Host(FormScreen(section))
         async with app.run_test(size=(100, 40)) as pilot:
@@ -394,6 +439,7 @@ def main() -> int:
 
     print("\nF38: state and size")
     test_a_toggle_shows_its_state_in_the_text_not_only_the_colour()
+    test_a_multiselect_shows_each_row_state_in_the_text()
     test_a_small_window_scrolls_rather_than_clipping()
     test_an_empty_field_still_shows_where_to_type()
 

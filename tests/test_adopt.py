@@ -23,6 +23,7 @@ or sets a date.
 
 from __future__ import annotations
 
+import datetime as _dt
 import json
 import subprocess
 import sys
@@ -38,7 +39,7 @@ PAYLOAD = ROOT / "surfaceplate"  # the package itself - see surfaceplate/__init_
 # `import surfaceplate` resolves to the real package rather than some other installed copy.
 sys.path.insert(0, str(ROOT))
 
-from surfaceplate.adopt import catalogue, plan, wizard  # noqa: E402
+from surfaceplate.adopt import catalogue, plan, sections, wizard  # noqa: E402
 from surfaceplate.adopt.interview import Cancelled, ScriptedInterview  # noqa: E402
 
 FAILURES: list[str] = []
@@ -99,6 +100,11 @@ ESSENTIAL_ANSWERS: dict[str, object] = {
     "risk.materiality_definition": (
         "A reconciliation result reaching the finance team's own review queue is material."
     ),
+    # `ACT-032`: the two world-facing questions the level recommendation reads. This fixture is
+    # `essential`, and answers both "no" - which is what `essential` means in the framework's own
+    # words: nobody outside the team relies on the output.
+    "risk.relied_on_outside_team": False,
+    "risk.material_quantitative_output": False,
     "risk.data_classification": "internal",
     "level.conformance_level": "essential",
     "route.route": "customise",  # these fixtures exercise the full flow, not the defaults path
@@ -109,22 +115,15 @@ ESSENTIAL_ANSWERS: dict[str, object] = {
     "controls.scanner.wired_in": "workflows/secret-scan.yml",
     "controls.dependency_lock.rationale": "Supply-chain exposure exists regardless of output materiality.",
     "controls.dependency_lock.implementation_reference": "requirements.txt",
-    "controls.assurance_findings.declared": False,
-    "controls.contract_tests.declared": False,
-    "controls.deterministic_tests.declared": False,
-    "controls.documentation_authority.declared": False,
-    "controls.method_registry.declared": False,
-    "controls.overrides.declared": False,
-    "controls.provenance.declared": False,
-    "controls.run_lineage.declared": False,
+    # `ACT-032`: one opt-in, ticked empty. This replaced eight separate `<control>.declared`
+    # booleans - eight questions asking the adopter to re-decline what choosing the level had
+    # already declined.
+    "controls.above_floor": [],
     "gates.work_registration.artefact": "docs/DEVELOPMENT_REGISTER.md",
-    "gates.work_registration.precondition_description": (
-        "An identified, registered activity before implementation begins."
-    ),
     "gates.work_registration.paths": "src/**",
-    "gates.work_registration.gated_description": "Implementation work in the source tree.",
-    "gates.work_registration.effective_from": "2026-09-01",
-    "gates.work_registration.enforcement": "history_audit, review",
+    # `ACT-032`: the two descriptions, `effective_from` and `enforcement` are no longer asked -
+    # `sections.build_gate` derives them. `assert_no_unused_keys()` is what keeps this fixture
+    # honest: leaving them here would now be an answer to a question nobody is asked.
     "adoption.review_by": "2027-02-28",
     "adoption.framework_maintainer": "Finance Platform team",
     "adoption.repository_classification": "internal-service",
@@ -199,6 +198,11 @@ def answers_for(repo: Path, *, level: str, builds_ui: bool, mode: str, overrides
                 # Above-the-floor controls default to not declared; the level's own floor is not a
                 # field at all, so nothing here can accidentally decline a required control.
                 value = True if spec.id.endswith(".declared") and level == "full" else bool(spec.default)
+            elif spec.id == "above_floor":
+                # `ACT-032`. Sweep every above-floor control ON, so this fixture exercises the
+                # branch where ticking one really does ask for its rationale and reference - a
+                # sweep that always answered "nothing declared" would never reach that code.
+                value = [c for c, _ in spec.choices]
             elif spec.kind == "choice":
                 value = spec.choices[0][0]
             elif spec.default:
@@ -475,6 +479,160 @@ def test_multiline_prose_survives_the_whole_flow(tmp: Path) -> None:
         "and it is written as a readable block scalar, not an escaped one-liner",
         "|-" in raw or "|2-" in raw,
         raw[:200],
+    )
+
+
+def test_the_level_is_recommended_and_never_chosen() -> None:
+    """`ACT-032`. Two plain questions make the level answerable; they must not answer it.
+
+    `core/CONFORMANCE_LEVELS.md:214-216` forbids deriving the level automatically, so the two
+    properties here are equally load-bearing: the recommendation must agree with the framework's own
+    definition of each level, AND the level field must still be a choice with nothing pre-selected.
+    A recommendation that quietly became the default would breach that document while looking like
+    a convenience.
+    """
+    cases = [
+        ({"relied_on_outside_team": False, "material_quantitative_output": False}, "essential"),
+        ({"relied_on_outside_team": True, "material_quantitative_output": False}, "standard"),
+        ({"relied_on_outside_team": True, "material_quantitative_output": True}, "full"),
+        # Material output nobody outside the team reads is still `full`: materiality is about what
+        # the numbers are treated as, not about the size of the audience.
+        ({"relied_on_outside_team": False, "material_quantitative_output": True}, "full"),
+    ]
+    wrong = [
+        (answers, expected, plan.recommended_level(answers)[0])
+        for answers, expected in cases
+        if plan.recommended_level(answers)[0] != expected
+    ]
+    check(
+        "the recommendation matches the framework's own definition of each level",
+        not wrong,
+        str(wrong),
+    )
+
+    section = plan.level_plan(
+        ROOT,
+        builds_ui=False,
+        mode="simple",
+        risk={"relied_on_outside_team": True, "material_quantitative_output": True},
+    )
+    spec = next(f for f in section.fields if f.id == "conformance_level")
+    check(
+        "the recommendation and its reasoning are shown to the adopter",
+        any("full" in note and "recommendation" in note for note in section.notes),
+        str(section.notes),
+    )
+    check(
+        "but the level field pre-selects nothing, so the tool never makes the choice",
+        spec.kind == "choice" and not spec.default,
+        f"kind={spec.kind} default={spec.default!r}",
+    )
+
+
+def test_derived_gate_fields_are_correct_and_still_overridable() -> None:
+    """`ACT-032`. Removing a question only helps if the derived value is right.
+
+    The four fields dropped from the gate screen are checked here at their source: the precondition
+    description must be the framework's OWN sentence for that gate - not a neighbouring gate's, and
+    not a generic one - and the gated description must name the paths actually answered. The
+    override half matters as much: a saved draft written before this change supplies all four, and
+    an answer that exists must still win over the derived value.
+    """
+    spec = next(
+        s
+        for s in plan.gate_plan(level="essential", builds_ui=False, mode="simple")
+        if s.id == "work_registration"
+    )
+    gate = sections.build_gate(spec, {"artefact": "activity/register.md", "paths": "src/**"})
+
+    check(
+        "the precondition description is this gate's own definition from the catalogue",
+        gate["precondition"]["description"] == catalogue.GATE_CATALOGUE["work_registration"],
+        gate["precondition"]["description"],
+    )
+    check(
+        "the gated description names the paths that were actually answered",
+        "src/**" in gate["gated_activity"]["description"],
+        gate["gated_activity"]["description"],
+    )
+    check(
+        "enforcement derives to the two that need no extra tooling",
+        gate["enforcement"] == sections.DERIVED_ENFORCEMENT,
+        str(gate["enforcement"]),
+    )
+    check(
+        "effective_from derives to today, so no history is retroactively in scope",
+        gate["effective_from"] == _dt.date.today().isoformat(),
+        gate["effective_from"],
+    )
+
+    supplied = sections.build_gate(
+        spec,
+        {
+            "artefact": "activity/register.md",
+            "paths": "src/**",
+            "precondition_description": "A register entry, written first.",
+            "gated_description": "Everything under src.",
+            "effective_from": "2026-01-01",
+            "enforcement": "ci",
+        },
+    )
+    check(
+        "an answer that was supplied still wins over every derived value",
+        supplied["precondition"]["description"] == "A register entry, written first."
+        and supplied["gated_activity"]["description"] == "Everything under src."
+        and supplied["effective_from"] == "2026-01-01"
+        and supplied["enforcement"] == ["ci"],
+        str(supplied),
+    )
+
+
+def test_the_opt_in_removed_questions_not_answers() -> None:
+    """`ACT-032`. The load-bearing property of collapsing eight tick boxes into one list.
+
+    A reduction is only honest if the profile is unchanged for an adopter who answers the same way.
+    So: build the controls fragment from the OLD per-control shape and from the NEW list, with
+    nothing declared either way, and require them to be identical. If they ever diverge, the packet
+    removed an answer rather than a question, and the profile quietly says something different from
+    what it said before.
+
+    The second half is the one that could rot silently: ticking a control in the list must declare
+    it exactly as setting its boolean did.
+    """
+    base = {
+        f"{c}.rationale": f"rationale for {c}"
+        for c in catalogue.CONFORMANCE_LEVELS["full"] | set(plan.BASELINE_CONTROL_IDS)
+    }
+    base |= {
+        f"{c}.implementation_reference": f"ref/{c}" for c in sorted(catalogue.CONFORMANCE_LEVELS["full"])
+    }
+    base |= {"scanner.name": "gitleaks", "scanner.wired_in": "workflows/scan.yml"}
+
+    old_shape = base | {
+        f"{c}.declared": False
+        for c in sorted(catalogue.CONFORMANCE_LEVELS["full"])
+        if c not in catalogue.CONFORMANCE_LEVELS["essential"]
+    }
+    new_shape = base | {"above_floor": []}
+
+    check(
+        "declaring nothing above the floor writes an identical profile either way",
+        sections.build_controls(old_shape, level="essential")
+        == sections.build_controls(new_shape, level="essential"),
+        "the opt-in changed the written profile, so it removed an answer, not a question",
+    )
+
+    ticked = sections.build_controls(base | {"above_floor": ["provenance"]}, level="essential")
+    by_boolean = sections.build_controls(base | {"provenance.declared": True}, level="essential")
+    check(
+        "ticking a control in the list declares it exactly as its boolean did",
+        ticked == by_boolean and "provenance" in ticked["control_decisions"],
+        str(sorted(ticked["control_decisions"])),
+    )
+    check(
+        "and an unticked control is still absent",
+        "run_lineage" not in ticked["control_decisions"],
+        str(sorted(ticked["control_decisions"])),
     )
 
 
@@ -843,6 +1001,9 @@ def main() -> int:
         test_multiline_prose_survives_the_whole_flow(tmp)
 
         print("\nDR-40: the defaults route proposes, and says where each value came from")
+        test_the_level_is_recommended_and_never_chosen()
+        test_derived_gate_fields_are_correct_and_still_overridable()
+        test_the_opt_in_removed_questions_not_answers()
         test_defaults_propose_but_never_decide(tmp)
 
         print("\nfull-level, UI-building end to end")

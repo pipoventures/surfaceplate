@@ -72,7 +72,13 @@ class FieldSpec:
         if self.depends_on is None:
             return True
         other_id, wanted = self.depends_on
-        return answers.get(other_id) in wanted
+        value = answers.get(other_id)
+        # A `multiselect` answers with a list, so "depends on that field" means "is among what was
+        # ticked". This is the same rule generalised, not a second one: for every scalar answer the
+        # behaviour is unchanged, and a screen still has one question to ask of a field.
+        if isinstance(value, (list, tuple, set)):
+            return any(item in value for item in wanted)
+        return value in wanted
 
 
 @dataclass(frozen=True)
@@ -274,6 +280,35 @@ def risk_plan() -> SectionPlan:
                 kind="textarea",
                 help="which outputs or decisions are material - what would make a wrong one matter",
             ),
+            # `ACT-032`. Two plain questions about the adopter's world, asked BEFORE the level, so
+            # the level becomes answerable by someone who has not yet learned what a "conformance
+            # level" is. They are not new criteria: `catalogue.LEVEL_BLURBS` already defines each
+            # level exactly this way - *"anything whose output nobody outside the team relies on"*,
+            # *"anything a colleague or a customer depends on"*, *"material quantitative or AI
+            # output that other systems consume as fact"*. This asks the framework's own
+            # definitions instead of asking the adopter to map themselves onto its vocabulary.
+            FieldSpec(
+                id="relied_on_outside_team",
+                label="Does anyone outside your team rely on what this produces?",
+                kind="bool",
+                help=(
+                    "A colleague in another team, a customer, or another system reading your "
+                    "output. If it is a proof of concept or internal tooling nobody else depends "
+                    "on, the answer is no."
+                ),
+                validate="",
+            ),
+            FieldSpec(
+                id="material_quantitative_output",
+                label="Does it produce numbers or AI output that others treat as fact?",
+                kind="bool",
+                help=(
+                    "Figures, model outputs or AI-generated results that another system or another "
+                    "team consumes without re-deriving them. Not: logs, dashboards of your own "
+                    "activity, or output a human always checks before it is used."
+                ),
+                validate="",
+            ),
             FieldSpec(
                 id="data_classification",
                 label="Data classification",
@@ -351,9 +386,50 @@ def level_controls(level: str) -> tuple[str, ...]:
     return tuple(sorted(catalogue.CONFORMANCE_LEVELS[level]))
 
 
-def level_plan(repo: Path, *, builds_ui: bool, mode: str, recap: tuple[str, ...] = ()) -> SectionPlan:
+def recommended_level(risk: dict) -> tuple[str, str]:
+    """The level the adopter's own answers point at, and the sentence explaining why.
+
+    **This is a recommendation and never an answer.** `core/CONFORMANCE_LEVELS.md:214-216` is
+    explicit: *"The level is a human decision recorded in the adoption decision record. It is not
+    derived automatically from the stack, the repository size, or the data classification, because
+    materiality depends on intended use and reliance, which only the application owner can judge."*
+    So this is shown beside the choice with its reasoning, the choice is still made, and nothing is
+    pre-selected on the adopter's behalf.
+
+    The mapping is not a heuristic of ours - it is `catalogue.LEVEL_BLURBS` read back as questions.
+    """
+    outside = bool(risk.get("relied_on_outside_team"))
+    material = bool(risk.get("material_quantitative_output"))
+    if material:
+        return "full", (
+            "you said this produces numbers or AI output that others treat as fact, which is what "
+            "full exists for"
+        )
+    if outside:
+        return "standard", "you said someone outside your team relies on what this produces"
+    return "essential", (
+        "you said nobody outside your team relies on this output, and that it produces nothing "
+        "others treat as fact"
+    )
+
+
+def level_plan(
+    repo: Path,
+    *,
+    builds_ui: bool,
+    mode: str,
+    recap: tuple[str, ...] = (),
+    risk: dict | None = None,
+) -> SectionPlan:
     present, absent = detected_signals(repo)
     notes = []
+    if risk:
+        level, because = recommended_level(risk)
+        notes.append(
+            f"From your answers, {level} looks right - {because}. "
+            "It is a recommendation, not a decision: this one is yours to make, because how much "
+            "your output is relied on is something only you can judge."
+        )
     if present:
         notes.append(f"You appear to have: {'; '.join(present)}.")
     if absent:
@@ -379,6 +455,18 @@ def level_plan(repo: Path, *, builds_ui: bool, mode: str, recap: tuple[str, ...]
 # ---------------------------------------------------------------------------------------------
 # Section 5 — controls
 # ---------------------------------------------------------------------------------------------
+
+
+def _first_line(text: str, limit: int = 72) -> str:
+    """One line of an explanation, for a tick-box label that has to fit on a row.
+
+    The full explanation stays available as the field's help; this is the label beside the box, and
+    a label that wraps to four lines makes a list of nine unreadable.
+    """
+    line = text.strip().split("\n", 1)[0].strip()
+    if len(line) <= limit:
+        return line
+    return line[: limit - 1].rsplit(" ", 1)[0] + "…"
 
 
 def _implementation_reference_field(
@@ -410,7 +498,7 @@ def _implementation_reference_field(
         label=f"{prefix} {control_id}",
         help=help_text,
         candidates=candidates,
-        depends_on=None if at_floor else (f"{control_id}.declared", (True,)),
+        depends_on=None if at_floor else ("above_floor", (control_id,)),
     )
 
 
@@ -457,22 +545,34 @@ def controls_plan(
         )
     )
 
+    # `ACT-032`: ONE opt-in, not one tick box per control. A level is a floor, and choosing it has
+    # already declined everything above it - so asking the adopter to decline each one again, in
+    # turn, is asking them to restate an answer they have given. For a solo maintainer at
+    # `essential` that was eight separate questions out of fifteen in this section, and
+    # `defaults.propose_controls` computed `False` for every one of them without asking at all.
+    #
+    # Above the floor stays a real choice, because a level is a floor and not a ceiling; it is now
+    # a single list to tick through rather than a sequence of screens to say no to.
+    above_floor = [c for c in sorted(catalogue.CONFORMANCE_LEVELS["full"]) if c not in required]
+    if above_floor:
+        fields.append(
+            FieldSpec(
+                id="above_floor",
+                label=f"Declare any control beyond the {level} floor?",
+                kind="multiselect",
+                help=(
+                    f"{level} does not require these. Tick any you want this repository held to "
+                    "anyway - a level is a floor, not a ceiling. Leaving them all unticked is a "
+                    "complete answer."
+                ),
+                choices=tuple((c, f"{c} - {_first_line(explanations.explain(c, mode))}") for c in above_floor),
+                default="",
+                validate="",
+            )
+        )
+
     for control_id in sorted(catalogue.CONFORMANCE_LEVELS["full"]):
         at_floor = control_id in required
-        if not at_floor:
-            # Above the floor, declaring it is a real choice and gets a real question. At the floor
-            # it is not a choice at all, so no field is emitted - the same treatment a
-            # level-mandatory gate's status gets, for the same reason: offering a control the level
-            # requires as a tick box invites producing a profile the checker will reject.
-            fields.append(
-                FieldSpec(
-                    id=f"{control_id}.declared",
-                    label=f"{control_id} - above the floor here; declare it?",
-                    kind="bool",
-                    help=explanations.explain(control_id, mode),
-                    validate="",
-                )
-            )
         fields.append(
             FieldSpec(
                 id=f"{control_id}.rationale",
@@ -484,7 +584,7 @@ def controls_plan(
                     else TEMPLATE_PLACEHOLDER_HELP
                 ),
                 default=example_answers.rationale_example(control_id),
-                depends_on=None if at_floor else (f"{control_id}.declared", (True,)),
+                depends_on=None if at_floor else ("above_floor", (control_id,)),
             )
         )
         reference = _implementation_reference_field(control_id, at_floor=at_floor, found=found)
@@ -496,8 +596,9 @@ def controls_plan(
         title=f"Controls, floor: {level}",
         intro=(
             "Three baseline controls apply at every level and cannot be excluded, deferred or "
-            "omitted - but why each applies here is yours to state, not ours to assume. The rest "
-            "are shown with your level's floor already marked; a level is a floor, never a ceiling."
+            "omitted - but why each applies here is yours to state, not ours to assume. Everything "
+            f"the {level} floor requires is already included; anything beyond it is one optional "
+            "list at the end, because a level is a floor and never a ceiling."
         ),
         fields=tuple(fields),
     )
@@ -569,12 +670,24 @@ def _gate_fields(
             candidates=tuple(discover.rank_for_gate(found.artefacts, gate_id)),
             depends_on=None if mandatory else ("status", required_when),
         ),
-        FieldSpec(
-            id="precondition_description",
-            label="Why it must exist first",
-            kind="textarea",
-            depends_on=None if mandatory else ("status", required_when),
-        ),
+        # `ACT-032`: `precondition_description`, `gated_description`, `effective_from` and
+        # `enforcement` used to be asked here and are now DERIVED in `sections.build_gate`. Each is
+        # a consequence of an answer already given, not a judgement of its own:
+        #
+        #   - both descriptions restate what the gate is and which paths it covers. The framework
+        #     already writes the first, in `catalogue.GATE_CATALOGUE`, and uses that same sentence
+        #     to describe the gate on this very screen - so an adopter was being asked to
+        #     paraphrase text sitting directly above the box;
+        #   - `effective_from` is today; a gate cannot bind before it is declared, and the field
+        #     was already defaulted to today with no honest reason to choose otherwise;
+        #   - `enforcement` is a fixed schema enum, and `history_audit` + `review` are exactly the
+        #     two that need no tooling an adopter may not have. It was already the field's default
+        #     AND what `defaults.py` computed, so it was asked without ever being a live question.
+        #
+        # This is the borderline one: HOW a gate is enforced is a real decision for a repository
+        # with CI. It is derived rather than asked because the safe pair is the honest starting
+        # point, and the written profile is a file the adopter edits afterwards - which is what the
+        # run's closing message already tells them to do.
         # A pathspec, not a path: `src/**` never has to exist as a file, so this stays typeable
         # and offers the repository's real top-level directories as inline completions instead of
         # constraining to them.
@@ -583,32 +696,6 @@ def _gate_fields(
             label="Gated paths",
             help="a git pathspec, e.g. src/** - what may not proceed until the artefact exists",
             suggestions=found.paths,
-            depends_on=None if mandatory else ("status", required_when),
-        ),
-        FieldSpec(
-            id="gated_description",
-            label="What it gates",
-            kind="textarea",
-            depends_on=None if mandatory else ("status", required_when),
-        ),
-        FieldSpec(
-            id="effective_from",
-            label="Effective from",
-            help="YYYY-MM-DD. History before this date is out of scope for the audit",
-            default=_dt.date.today().isoformat(),
-            validate="date",
-            depends_on=None if mandatory else ("status", required_when),
-        ),
-        # A fixed schema enum, and it should never have been a comma-separated string: a typo
-        # here produced a profile the schema rejects, after the whole interview was answered.
-        FieldSpec(
-            id="enforcement",
-            label="Enforcement",
-            kind="multiselect",
-            help="how this gate is enforced - pick every one that applies",
-            choices=tuple((v, v) for v in validators.ENFORCEMENT_VALUES),
-            default="history_audit,review",
-            validate="",
             depends_on=None if mandatory else ("status", required_when),
         ),
     ]
@@ -895,7 +982,13 @@ def section_plan(
     if name == "risk":
         return risk_plan()
     if name == "level":
-        return level_plan(repo, builds_ui=builds_ui, mode=mode, recap=recap_lines(state))
+        return level_plan(
+            repo,
+            builds_ui=builds_ui,
+            mode=mode,
+            recap=recap_lines(state),
+            risk=state.get("risk") or {},
+        )
     if name == "route":
         return route_plan(state)
     if name == "controls":

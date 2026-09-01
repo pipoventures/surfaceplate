@@ -151,6 +151,15 @@ def allow_list() -> set[str]:
     allowed |= set(catalogue.CONFORMANCE_LEVELS["full"])  # a control's own id
     allowed |= {"required", "deferred", "not_applicable"}  # gate statuses
     allowed |= _all_choice_values()  # every value a dropdown can take
+    # `ACT-032`. The ONLY prose this list has ever admitted beyond `SCANNER_NOTES`, and the entries
+    # are taken from the catalogue rather than restated, so nothing can be added here by editing
+    # this file. Each is the framework's own one-line definition of a gate, published in
+    # `core/PREREQUISITE_GATES.md` and read out of the checker by `catalogue.py` - a fact about the
+    # framework, not a judgement about the adopter, which is the line this list exists to hold.
+    # The wizard now writes it as the gate's `precondition.description` instead of asking an
+    # adopter to paraphrase the sentence printed above the box.
+    allowed |= set(catalogue.GATE_CATALOGUE.values())
+    allowed |= set(sections.DERIVED_ENFORCEMENT)  # "history_audit", "review" - a fixed schema enum
     return allowed
 
 
@@ -189,15 +198,20 @@ def test_allow_list_is_small_and_declared() -> None:
     """The allow-list should be facts about the framework, not prose about an adopter. Nothing
     enforces brevity, but a sudden jump in size is worth a reviewer's attention, so the count is
     reported rather than left implicit."""
-    prose = [
-        value
-        for value in allow_list()
-        if " " in value and value not in {sections.SCANNER_NOTES}
-    ]
+    # The two admitted sources of prose, named exactly. `GATE_CATALOGUE.values()` is compared
+    # against the catalogue itself, so this exemption cannot be widened by adding a string here -
+    # a new sentence must first be a gate definition in `core/PREREQUISITE_GATES.md`.
+    admitted = {sections.SCANNER_NOTES} | set(catalogue.GATE_CATALOGUE.values())
+    prose = [value for value in allow_list() if " " in value and value not in admitted]
     check(
         "no free prose entered the allow-list unnoticed",
         not prose,
         f"prose-like entries: {prose}",
+    )
+    check(
+        "the admitted prose is exactly the framework's own gate definitions, one per gate",
+        len(set(catalogue.GATE_CATALOGUE.values())) == len(catalogue.GATE_CATALOGUE),
+        "two gates share a definition, so one gate's profile entry would describe another",
     )
 
 
