@@ -318,6 +318,67 @@ def neutralise_ambient_git_config(tmp: Path) -> None:
     os.environ["GIT_CONFIG_NOSYSTEM"] = "1"
 
 
+def test_the_history_window_does_not_drift_with_the_clock(tmp: Path) -> None:
+    """`F48`. `effective_from` never meant what the schema said it meant.
+
+    `git log --since=2026-09-01` is parsed by approxidate, which fills the missing time from the
+    **current clock** - so a bare date meant "that date, at whatever time you happen to run the
+    check". The audit window slid forward all day: a violation visible at 09:00 was gone by 23:00,
+    for no reason but the hour, in a published control.
+
+    Measured against git 2.43.0 with four commits at 01:00, 10:00, 19:00 and 23:00 on one day:
+    `--since=<date>` returned one and `--since=<date>T00:00:00` returned four.
+
+    The property asserted is determinism: a commit made earlier today is in scope for a gate
+    effective today, whatever the hour. Anything else makes the control's answer a function of when
+    it was asked.
+    """
+    import datetime as _dt
+
+    commits_touching = _checker.commits_touching
+    parse_effective_from = _checker.parse_effective_from
+
+    repo = make_git_repo(tmp, "clockdrift")
+    today = _dt.date.today()
+    tz = _dt.datetime.now().astimezone().tzinfo
+    # Fixed hours TODAY rather than offsets from now, so this test is not itself a function of the
+    # hour it runs at - which would be a poor way to assert determinism. Each commit touches a real
+    # file: an `--allow-empty` commit touches no path and `git log -- <pathspec>` drops it, which
+    # is a fixture mistake this assertion caught rather than a property of the code.
+    for hour in (0, 6, 12, 18):
+        (repo / f"src_{hour:02d}.py").write_text("x = 1\n", encoding="utf-8")
+        subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+        moment = _dt.datetime.combine(today, _dt.time(hour, 30), tzinfo=tz)
+        subprocess.run(
+            ["git", "-C", str(repo), "commit", "-q", "-m", f"at {hour:02d}:30"],
+            check=True,
+            env={
+                **os.environ,
+                "GIT_AUTHOR_DATE": moment.isoformat(),
+                "GIT_COMMITTER_DATE": moment.isoformat(),
+            },
+        )
+
+    _day, since = parse_effective_from(today.isoformat())
+    check(
+        "a date-only effective_from resolves to midnight, not to the current time",
+        since == f"{today.isoformat()}T00:00:00",
+        f"resolved to {since!r}",
+    )
+    in_scope, error = commits_touching(repo, ["**"], since)
+    bare, _ = commits_touching(repo, ["**"], today)
+    check(
+        "every commit made today is in scope for a gate effective today",
+        error is None and len(in_scope) >= 4,
+        f"only {len(in_scope)} of 4 same-day commits were in scope ({error})",
+    )
+    check(
+        "which the bare-date form did not do - the defect this pins",
+        len(in_scope) >= len(bare),
+        f"midnight saw {len(in_scope)}, the bare date saw {len(bare)}",
+    )
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory() as raw:
         tmp = Path(raw)
@@ -330,6 +391,9 @@ def main() -> int:
         )
         check("uninstalled repository fails", result.returncode == 1, result.stdout[-200:])
         check("and says why", "SP001" in result.stdout)
+
+        print("\nthe history window is a fixed instant, not the clock (F48)")
+        test_the_history_window_does_not_drift_with_the_clock(tmp)
 
         print("\nfresh install")
         repo = make_repo(tmp, "fresh")

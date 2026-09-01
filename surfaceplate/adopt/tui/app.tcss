@@ -77,8 +77,14 @@ Screen {
     padding: 0;
 }
 
+/* Proportional, not fixed. At `width: 32` on an 80-column terminal the value column got the
+   remaining ~44 characters, and the two most consequential choices in the wizard could not be read:
+   `Set defaults - propose answers f…` and `Customise adoption - ask me each…`. A share of the
+   terminal gives the narrow case room and still stops the label sprawling on a wide one. */
 .field-label {
-    width: 32;
+    width: 28%;
+    min-width: 16;
+    max-width: 34;
     color: #7a827e;
     height: 1;
     text-overflow: ellipsis;

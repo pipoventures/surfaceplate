@@ -186,16 +186,13 @@ def route_plan(state: dict) -> SectionPlan:
                 id="route",
                 label="How to complete the remaining sections",
                 kind="choice",
+                # Short enough to READ on an 80-column terminal, which the previous wording was
+                # not: it rendered as `Set defaults - propose answers f…`, leaving the adopter to
+                # choose between two options they could not finish reading. The detail that was cut
+                # is in the section intro directly above, where there is room for it.
                 choices=(
-                    (
-                        "defaults",
-                        "Set defaults - propose answers from this repository and the worked "
-                        "examples, then show me every one before anything is written",
-                    ),
-                    (
-                        "customise",
-                        "Customise adoption - ask me each control and each gate in turn",
-                    ),
+                    ("defaults", "Set defaults - propose, then show me"),
+                    ("customise", "Customise - ask me everything"),
                 ),
             ),
         ),

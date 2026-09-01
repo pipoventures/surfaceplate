@@ -269,6 +269,38 @@ def test_level_screen_numbers_its_options_and_marks_the_highlight() -> None:
     asyncio.run(_run())
 
 
+def test_the_most_consequential_choice_is_readable_at_80_columns() -> None:
+    """`ACT-035`. The route screen decides how the whole rest of the run behaves, and at 80 columns
+    both of its options used to end in an ellipsis - `Set defaults - propose answers f…`. An adopter
+    choosing between two options they cannot finish reading is not making the choice the screen
+    thinks it is offering.
+
+    Asserted on the ROUTE screen specifically rather than on every choice everywhere: this is the
+    one where the cost of mis-reading is a different run, and a blanket rule would force every
+    explanatory label in the wizard to be short whether or not that helped.
+    """
+
+    async def _run() -> None:
+        section = plan.route_plan({"level": {"conformance_level": "standard"}})
+        app = Host(FormScreen(section))
+        async with app.run_test(size=(80, 24)) as pilot:
+            await pilot.pause()
+            lines = rendered(app)
+        spec = section.fields[0]
+        cut = []
+        for value, label in spec.choices:
+            row = next((ln for ln in lines if label[:18] in ln), "")
+            if not row or label not in row:
+                cut.append((value, row.strip()))
+        check(
+            "every route option is readable in full at 80 columns",
+            not cut,
+            f"truncated on screen: {cut}",
+        )
+
+    asyncio.run(_run())
+
+
 def test_a_gate_explanation_is_never_silently_cut() -> None:
     """`F42`. The explanations exist so an adopter knows what they are declaring; discarding most
     of one without saying so is worse than not showing it, because the reader has no way to know
@@ -478,6 +510,7 @@ def main() -> int:
 
     print("\nF38: state and size")
     test_a_toggle_shows_its_state_in_the_text_not_only_the_colour()
+    test_the_most_consequential_choice_is_readable_at_80_columns()
     test_a_gate_explanation_is_never_silently_cut()
     test_a_multiselect_shows_each_row_state_in_the_text()
     test_a_small_window_scrolls_rather_than_clipping()

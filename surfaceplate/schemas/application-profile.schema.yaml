@@ -254,13 +254,24 @@ $defs:
         description: Mandatory, with owner, when status is `deferred`.
       effective_from:
         type: string
-        format: date
+        # A regex, not `format`, and deliberately: `format` is only asserted when a validator is
+        # built with a format checker, so an `anyOf` over two formats silently stops rejecting
+        # anything for any consumer that does not attach one. The pattern is always enforced.
+        # It checks SHAPE, not calendar validity - `2026-13-45T25:99` matches. The checker parses
+        # the value with `datetime.fromisoformat` and reports SP033 if it will not parse, so the
+        # two together are the guarantee; the pattern alone is not, and does not claim to be.
+        pattern: '^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:\d{2})?)?$'
         description: >-
-          The date from which this gate binds. Mandatory when status is `required`.
-          History before this date is out of scope, which is what makes adoption
-          possible without rewriting the past. The checker reads the profile's own git
-          history and refuses to let this date move forward, because doing so would
-          silently discard every violation in between.
+          The point from which this gate binds. Mandatory when status is `required`.
+          History before it is out of scope, which is what makes adoption possible
+          without rewriting the past. The checker reads the profile's own git history
+          and refuses to let this move forward, because doing so would silently
+          discard every violation in between.
+          A plain YYYY-MM-DD means midnight that day and is what most profiles carry.
+          A full instant (YYYY-MM-DDThh:mm:ss+hh:mm) exists because a repository
+          adopted midway through a working day would otherwise report that morning's
+          commits as crossing a gate whose precondition was created during adoption -
+          accurate by the letter of a date, and useless (`F47`).
       precondition:
         type: object
         additionalProperties: false

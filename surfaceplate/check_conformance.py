@@ -2224,13 +2224,15 @@ def check_staged_prerequisites(repo: Path, profile: dict, findings: list[Finding
 
 
 def commits_touching(
-    repo: Path, paths: list[str], since: _dt.date
+    repo: Path, paths: list[str], since: _dt.date | str
 ) -> tuple[list[str], str | None]:
+    """`since` may be a date or a full ISO instant. Git accepts both, and an instant is what makes
+    an adoption-day gate bind from the moment it was adopted rather than from that midnight."""
     code, out, error = git_diagnostic(
         repo,
         "log",
         f"-{MAX_HISTORY_COMMITS}",
-        f"--since={since.isoformat()}",
+        f"--since={since if isinstance(since, str) else since.isoformat()}",
         "--format=%H",
         "--",
         *paths,
@@ -2238,6 +2240,76 @@ def commits_touching(
     if code != 0:
         return [], error or f"git exited with status {code}"
     return [line for line in out.splitlines() if line], None
+
+
+def effective_instant(raw: object) -> _dt.datetime:
+    """`effective_from` as one comparable moment, for ordering only.
+
+    `SP034` refuses to let a gate's effective point move forward, because doing so silently discards
+    every violation in between. It compared DATES, which was complete while the field could only be
+    a date. `DR-44` let it carry a time, and a date-only comparison would then have let
+    `2026-09-01` become `2026-09-01T18:00` unnoticed - a real narrowing of the window, created by
+    the same change that widened the field.
+
+    A naive value is ordered as UTC. That is a choice about ORDERING within one repository's own
+    history, not a claim about which instant it denotes, and it cannot reorder two values that
+    already share a form.
+    """
+    _day, since = parse_effective_from(raw)
+    moment = _dt.datetime.fromisoformat(since)
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=_dt.timezone.utc)
+    return moment
+
+
+def _effective_is_future(raw: object, day: _dt.date, today: _dt.date) -> bool:
+    """Whether this `effective_from` is still to come. `F47` widened the field; this keeps
+    `SP033` exactly as strict, by comparing an instant against now when one is supplied."""
+    text = str(raw).strip()
+    if len(text) <= 10:
+        return day > today
+    try:
+        moment = _dt.datetime.fromisoformat(text)
+    except ValueError:
+        return day > today
+    now = _dt.datetime.now(moment.tzinfo) if moment.tzinfo else _dt.datetime.now()
+    return moment > now
+
+
+def parse_effective_from(raw: object) -> tuple[_dt.date, str]:
+    """`effective_from` as `(date, git --since argument)`.
+
+    **`F47`: this field may carry a time, and that is the whole point of accepting one.** A gate
+    binds from an instant, and a date can only say "midnight". A repository adopted at 16:37 on a
+    day it had already committed reported every one of that morning's commits as crossing a gate
+    whose precondition it had just created - accurately, by the letter of a date, and uselessly.
+    Binding from tomorrow instead is what the artefact's real history justifies, and `SP033`
+    refuses it, correctly.
+
+    Date-only values keep their exact previous meaning: midnight, so every existing profile reads
+    the same as it always has. The returned date is what `SP033`/`SP034` compare and what messages
+    print; the string is what `git log --since` receives, and it is the FULL value, which is where
+    the time actually does its work.
+    """
+    text = str(raw).strip()
+    # `date.fromisoformat` accepts a full ISO datetime in 3.11+, so the date half is parsed from
+    # the first ten characters deliberately rather than incidentally - the same slice this code has
+    # always used, now with the remainder kept instead of discarded.
+    day = _dt.date.fromisoformat(text[:10])
+    if len(text) <= 10:
+        # **`F48`: midnight, stated. Never the bare date.** `git log --since=2026-09-01` does NOT
+        # mean that date at 00:00 - approxidate fills the missing time from the CURRENT CLOCK, so
+        # the bare form means "that date, at whatever time you happen to run the check". The audit
+        # window therefore slid forward all day: a violation visible at 09:00 was gone by 23:00,
+        # for no reason but the hour. Measured against git 2.43.0 with four commits at 01:00,
+        # 10:00, 19:00 and 23:00 - `--since=<date>` returned one, `--since=<date>T00:00:00`
+        # returned four.
+        #
+        # Normalising to midnight makes the control deterministic and gives it the meaning the
+        # schema has always claimed. It widens the window, which is the safe direction: it can
+        # surface a violation that was being hidden, and cannot hide one that was being surfaced.
+        return day, f"{day.isoformat()}T00:00:00"
+    return day, text
 
 
 def blob_exists(repo: Path, sha: str, path: str) -> bool:
@@ -2502,7 +2574,7 @@ def load_staged_exceptions(repo: Path, findings: list[Finding]) -> dict[str, set
     return covered
 
 
-def earliest_declared_effective_from(repo: Path, gate_id: str) -> _dt.date | None:
+def earliest_declared_effective_from(repo: Path, gate_id: str) -> str | None:
     """The earliest effective_from this gate has ever carried, read from git history.
 
     This is what makes effective_from immutable in the only direction that matters.
@@ -2536,11 +2608,11 @@ def earliest_declared_effective_from(repo: Path, gate_id: str) -> _dt.date | Non
             if raw is None:
                 continue
             try:
-                seen = _dt.date.fromisoformat(str(raw)[:10])
+                seen = effective_instant(raw)
             except ValueError:
                 continue
-            if earliest is None or seen < earliest:
-                earliest = seen
+            if earliest is None or seen < effective_instant(earliest):
+                earliest = str(raw)
     return earliest
 
 
@@ -2551,6 +2623,7 @@ def audit_gate_history(
     exceptions: dict[str, set[str]],
     findings: list[Finding],
     notes: list[str] | None = None,
+    since: str | None = None,
 ) -> None:
     """Every commit touching a gated path must have had the preconditions in place."""
     gate_id = str(gate.get("id"))
@@ -2563,7 +2636,7 @@ def audit_gate_history(
 
     covered = exceptions.get(gate_id, set())
     violations: list[tuple[str, list[str]]] = []
-    commits, pathspec_error = commits_touching(repo, paths, effective_from)
+    commits, pathspec_error = commits_touching(repo, paths, since or effective_from)
     if pathspec_error:
         findings.append(
             Finding(
@@ -2609,7 +2682,7 @@ def audit_gate_history(
         Finding(
             "SP035",
             f"Gate '{gate_id}' was crossed without its precondition",
-            f"{len(violations)} commit(s) since {effective_from.isoformat()} changed a gated "
+            f"{len(violations)} commit(s) since {since or effective_from.isoformat()} changed a gated "
             f"path while a required artefact was absent: {shown}",
             "Either the gate was not honoured, or it is declared over paths it should not "
             f"cover. Correct the gate, or record the exception in {EXCEPTIONS_DIR}/ with a "
@@ -2939,19 +3012,23 @@ def check_prerequisites(
             )
             continue
         try:
-            effective_from = _dt.date.fromisoformat(str(raw_effective)[:10])
+            effective_from, effective_since = parse_effective_from(raw_effective)
         except ValueError:
             findings.append(
                 Finding(
                     "SP033",
                     f"Gate '{gate_id}' has an unreadable effective date",
                     f"effective_from is {raw_effective!r}, which is not an ISO date.",
-                    "Use the YYYY-MM-DD form.",
+                    "Use YYYY-MM-DD, or YYYY-MM-DDThh:mm:ss+hh:mm to bind from an instant.",
                     graceable=True,
                 )
             )
             continue
-        if effective_from > today:
+        # Compared as an INSTANT where one is given: a date-only value means midnight, so
+        # `date > today` was the right test for it and still is. An instant later today is
+        # genuinely in the future and must still be refused - widening the field must not widen
+        # what `SP033` tolerates.
+        if _effective_is_future(raw_effective, effective_from, today):
             findings.append(
                 Finding(
                     "SP033",
@@ -2965,13 +3042,16 @@ def check_prerequisites(
             continue
 
         earliest = earliest_declared_effective_from(repo, gate_id)
-        if earliest is not None and effective_from > earliest:
+        # Compared as INSTANTS since `DR-44`: a date-only comparison would let
+        # `2026-09-01` become `2026-09-01T18:00` unnoticed, narrowing the window this
+        # control exists to keep from narrowing.
+        if earliest is not None and effective_instant(raw_effective) > effective_instant(earliest):
             findings.append(
                 Finding(
                     "SP034",
                     f"Gate '{gate_id}' has had its effective date moved forward",
                     f"effective_from is {effective_from.isoformat()}, but this gate previously "
-                    f"declared {earliest.isoformat()} in the profile's own history.",
+                    f"declared {earliest} in the profile's own history.",
                     "Restore the earlier date. Moving it forward silently discards every "
                     "violation in between, which is the one way this control can be gamed from "
                     "inside the repository.",
@@ -2981,7 +3061,9 @@ def check_prerequisites(
             continue
 
         if history_available:
-            audit_gate_history(repo, gate, effective_from, exceptions, findings, notes)
+            audit_gate_history(
+                repo, gate, effective_from, exceptions, findings, notes, since=effective_since
+            )
 
     required = LEVEL_REQUIRED_GATES.get(level, set())
     builds_ui = profile.get("builds_user_interface")

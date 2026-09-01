@@ -968,16 +968,31 @@ class ReviewScreen(Screen):
         Binding("ctrl+s", "confirm", "write", show=True),
     ]
 
-    def __init__(self, rendered: str, error: str = "") -> None:
+    def __init__(self, rendered: str, error: str = "", creating: list | None = None) -> None:
         super().__init__()
         self.rendered = rendered
         self.error = error
+        # `ACT-035`: the files this run is about to create, named on the screen that actually
+        # commits them. The scaffold offer is where they are chosen, and its own docstring said the
+        # review "commits" - but the review showed only the rendered profile, so the last thing an
+        # adopter saw before `Ctrl+S` wrote files into their repository never mentioned them. The
+        # point of execution is here.
+        self.creating = list(creating or [])
 
     def compose(self) -> ComposeResult:
         with Frame(id="frame"):
             yield Static("[Review — nothing has been written yet]", classes="section-header")
             if self.error:
                 yield Static(self.error, id="review-error")
+            if self.creating:
+                yield Static(
+                    f"Writing this will also CREATE {len(self.creating)} file(s) in this "
+                    "repository:",
+                    classes="note",
+                    id="review-creating",
+                )
+                for offer in self.creating:
+                    yield Static(f"    {offer.path}", classes="gate-name", markup=False)
             with VerticalScroll(id="review-body"):
                 yield Static(self.rendered)
         yield Static(
@@ -1145,23 +1160,28 @@ class DefaultsScreen(Screen):
                 markup=False,
             )
             yield Static(
-                "  discovered - read from this repository · example - this framework's own worked "
-                "example · computed - derived from a fact",
+                "  [disc] read from this repository · [exam] this framework's own worked "
+                "example · [comp] derived from a fact",
                 classes="note",
                 markup=False,
             )
             with VerticalScroll(id="proposal-list"):
+                # `ACT-035`: grouped by section, and the origin is a tag rather than a sentence
+                # repeated on every row. Forty-six proposals as a flat list of dotted identifiers,
+                # each with the same explanatory sentence under it, was ~140 rows to scroll at
+                # 80x24 - a screen an adopter approves by pressing Ctrl+S rather than by reading,
+                # which defeats the only thing this screen is for.
+                section_of = ""
                 for proposal in self.proposals:
+                    section, _, field = proposal.field.partition(".")
+                    if section != section_of:
+                        section_of = section
+                        yield Static(f"  {section}", classes="section-header", markup=False)
                     yield Static(
-                        f"  {proposal.field}", classes="gate-name", markup=False
+                        f"    [{proposal.origin[:4]}] {field}", classes="gate-name", markup=False
                     )
                     yield Static(
-                        f"      {proposal.value}", classes="recap", markup=False
-                    )
-                    yield Static(
-                        f"      {proposal.origin} - {proposal.detail}",
-                        classes="gate-desc",
-                        markup=False,
+                        f"          {proposal.value}", classes="recap", markup=False
                     )
         yield Static(
             "[Ctrl+S] use these  [c] answer everything myself instead  [Ctrl+Q] cancel",
