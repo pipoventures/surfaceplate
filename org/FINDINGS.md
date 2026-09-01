@@ -115,6 +115,11 @@ an unknown number of releases with nothing noticing.
 | F48 | The prerequisite history audit's window slid forward with the clock: `git log --since=<bare date>` means that date at the CURRENT TIME, so a violation visible in the morning was gone by evening | high | Closed — `ACT-035`; a date-only `effective_from` resolves to midnight explicitly |
 | F49 | `DR-23`'s standing policy on the former organisation has no automated check, and cannot have one that carries the token | low | Open — remedy sketched in the entry; `ACT-007` closed on judgement with this recorded |
 | F50 | The adversarial-review hand-off command referenced a file deleted three packets earlier, so item 9 could not have been run as documented | medium | Closed — `ACT-037`; the command is corrected, guarded, and reproduces the list the prompt declares |
+| F51 | The wizard set `effective_from` itself, contradicting the binding rule that names that field as a human decision — and silently chose the narrowest audit window the rules permit | high | Closed — `ACT-038`; asked again, and the rule made precise about what the tool may supply |
+| F52 | `CONFORMANCE_LEVELS.md` claimed both that two baseline controls are unchecked and that nothing is declared-only | medium | Closed — `ACT-038`; the absolute claim was the false one |
+| F53 | An adopter could not tell a machine-verified control from a declared one by reading their own profile; `VERIFIED_CONTROLS` was itself incomplete | medium | Closed — `ACT-038`; each control is labelled from the checker's own set, and the set corrected |
+| F54 | The review packet omitted the artefacts its own question depended on, and asked a text-only reviewer to compute a SHA-256 digest | medium | Closed — `ACT-038`; seeds attached, and the recomputation scoped to a reviewer that can execute |
+| F55 | Narrative docstrings can drift from the code beneath them, and twice did | low | Open — recorded as a habit rather than remedied by deletion |
 
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -1034,6 +1039,155 @@ protects against an unexpected new release rather than a compromised re-upload o
 PyPI does not permit re-uploading a version, which makes that largely theoretical — but it is a
 weaker guarantee than a hash-bearing lock, and `pyproject.toml` says so rather than implying
 otherwise.
+
+---
+
+## F51 — The wizard set the one field the binding rule names as the human's
+
+**Severity: high. Closed.**
+
+Found by the first cross-provider adversarial review (`RELEASE_PLAN` item 9), and it is the finding
+that justifies the item.
+
+`org/RELEASE_PLAN.md` did not merely say the tool never sets a date. It named the field:
+
+> *"what `effective_from` should read — is a human decision the wizard elicits and records verbatim,
+> **never one it makes on the human's behalf**."*
+
+`ACT-032` derived it anyway, classing it a consequence rather than a judgement, and **did not amend
+the rule**. `sections.build_gate` read
+`answers.get("effective_from") or _dt.date.today().isoformat()`.
+
+**The safety argument is stronger than the rule, and nobody had made it.** `SP033` refuses a future
+value and `SP034` refuses moving one forward, so a human's answer can only ever *widen or equal* the
+audit window. Deriving "now" silently selected **the narrowest value the rules permit**, on the field
+that decides how much history the gate audit examines. The fallback also made the substitution
+unobservable: a missing answer and an answer of today produced an identical profile.
+
+**The rule was already narrowly false before `ACT-032`**, which is why it was amended rather than
+merely obeyed. `adoption_date` has been a tool-supplied date since the first version of this wizard,
+disclosed in `sections.build_adoption`'s docstring and named in `tests/test_provenance.py`'s
+allow-list — but not in the rule, which read as absolute over a documented carve-out. Obeying an
+inaccurate rule would have left the next person to trip on the same gap.
+
+**Remedy** (`ACT-038`): the field is asked again; the fallback is gone; `defaults.py` proposes today
+as a `computed` value on the defaults route, which a human approves. The rule now states exactly
+what the tool may write unasked — a fact of record, a value from the install record, the framework's
+own published prose — and what it never may: a level, a rationale, or a scope decision.
+
+**The transferable part: a rule and its implementation drifted, and the tests could not see it**,
+because they were written against the implementation. What caught it was a reader with no stake
+comparing the two documents.
+
+---
+
+## F52 — A normative document asserted both halves of a contradiction
+
+**Severity: medium. Closed.**
+
+Found by the same review. `core/CONFORMANCE_LEVELS.md` contained, thirty-eight lines apart and
+neither statement scoped:
+
+- line 29 — *"`agent_work_packets` and `actual_diff_review` remain declarations that nothing checks.
+  That is not an oversight to be read past: a repository can declare both, do neither, and pass."*
+- line 67 — *"**Every control this framework defines is now checked**, at every level. Nothing is
+  declared-only."*
+
+A governance standard cannot claim absolute enforcement and honour-system enforcement for the same
+controls. `.claude/rules/surfaceplate-authority.md` calls contradictory authority a **blocking
+defect**, and this repository publishes that rule to others.
+
+**Remedy:** line 67 replaced with what is true — ten of twelve controls are checked, the two that are
+not are named — and the superseded sentence is quoted in place, marked as superseded, so a reader who
+lands there sees what changed rather than only the correction.
+
+---
+
+## F53 — A profile could not tell its own reader which controls were real
+
+**Severity: medium. Closed.**
+
+The sharpest finding of the review, and the one nothing internal had noticed. `actual_diff_review`
+(nothing checks it) and `dependency_lock` (`SP051` checks it) rendered as structurally identical
+objects:
+
+```yaml
+actual_diff_review:  {decision: required, rationale: ...}
+dependency_lock:     {decision: required, rationale: ..., implementation_reference: pyproject.toml}
+```
+
+An adopter reading their own profile — the person most likely to over-read it — had no way to tell
+which of their controls the machine enforces. That cuts against
+`.claude/rules/surfaceplate-provenance.md`'s own rule that assurance states stay distinct, in the one
+file an adopter actually reads.
+
+**A second defect was found while building the fix, and it is the more interesting one.**
+`VERIFIED_CONTROLS` — the checker's own declaration of what it verifies — **omitted
+`secret_hygiene`**, which `check_secret_hygiene` genuinely verifies through `SP046` and `SP047`. By
+that set's own definition (*"controls this checker actually verifies against the repository, as
+opposed to verifying that they were declared"*) it qualified. So the checker under-reported itself,
+and a label derived from the set would have called a checked control trusted — the exact
+mislabelling the fix existed to remove.
+
+**Remedy:** `VERIFIED_CONTROLS` corrected, then each control in the rendered profile carries an
+inline comment saying whether the framework checks it, **derived from that set rather than restated**
+so it cannot claim a control is checked after the checker stops checking it. A comment and not a
+field: adding it as a value would put framework-supplied prose into the profile, which the binding
+rule forbids.
+
+---
+
+## F54 — The review packet omitted its own evidence, and asked for a computation
+
+**Severity: medium. Closed.**
+
+Two defects in the hand-off, both the maintainer's, both visible only once a reviewer had used it.
+
+**It asked a question whose evidence it withheld.** The prompt asked whether creating a governance
+artefact makes a gate pass while the practice does not exist — and did not attach
+`surfaceplate/seeds/*`, the four documents `scaffold.py` writes. The reviewer inferred "empty files"
+and reported it as fact. They are 852 to 2,396 bytes of prose, each opening by stating that its own
+existence is not the practice. **A reasonable inference from an incomplete bundle: a packet defect,
+not a reviewer error**, and the concern underneath it was legitimate.
+
+**It asked for something a text-only reviewer cannot do.** The recomputation of
+`sha256(MANIFEST.sha256)` was the entire reason the manifest was attached, and it is the step `F6`
+names as its closing condition. The reviewer answered honestly — *"I am unable to mathematically
+compute the raw SHA-256 byte digest"* — and was right to. **So `F6` was not narrowed by this review
+at all**, and the packet was asking for a fabricated hash from anyone less careful.
+
+**Remedy:** the seeds are attached; the recomputation is scoped to a reviewer with code execution,
+with everyone else told to report an evidence gap in one line and explicitly told not to estimate.
+
+**The transferable part: a review packet's defects are invisible until somebody uses it**, and both
+of these survived a rewrite made one day earlier specifically to bring it up to date.
+
+---
+
+## F55 — Narrative docstrings can drift from the code beneath them
+
+**Severity: low. Open.**
+
+Raised by the review as an over-engineering finding: the Python files carry multi-paragraph essays
+citing `DR-*`, `ACT-*` and `F*` codes, and the reviewer's argument is that they will drift.
+
+**Recorded rather than remedied, and the reasons for both halves are worth stating.**
+
+The argument has evidence. Two docstrings were found wrong about their own code on 2026-09-01:
+`scaffold.write` described its `exists()` check as a guarantee when it was a check-then-write race,
+and `check_vendored_current` described a comparison it was no longer making. Both were corrected in
+the same session. **Twice in one day is not an abstract risk.**
+
+The counter-argument is the register itself. Those comments have repeatedly carried the reasoning
+that prevented a repeat — `F41`'s note is why `F46` was recognised as the same shape, and `F39`'s is
+why the app-wiring test exists at all. Stripping them to decision records alone would move the
+reasoning away from the code that has to honour it, and this project has already recorded what that
+costs: `F29` is 501 lines of agent instruction that no agent read because they sat where nobody
+looked.
+
+**So the remedy is a habit, not a deletion: verify a docstring's claim when touching the code beneath
+it, and treat a comment describing a guarantee as a claim to be checked rather than a fact.** That is
+not mechanically enforceable, which is why this stays open rather than closing with a test.
 
 ---
 

@@ -334,13 +334,16 @@ def test_discovered_candidates_are_offered_as_choices() -> None:
                 str(artefact.value),
             )
 
-            # `ACT-032`: these four are derived by `sections.build_gate`, so the screen must not
-            # ask for them. Asserted against the real screen rather than the plan, because `F39`
-            # established that a plan and the screen built from it can disagree.
+            # `ACT-032`: derived by `sections.build_gate`, so the screen must not ask for them.
+            # Asserted against the real screen rather than the plan, because `F39` established that
+            # a plan and the screen built from it can disagree.
+            #
+            # `effective_from` was on this list and came OFF it at `F51`: the binding rule names it
+            # as a human decision, and deriving it picked the narrowest audit window the rules
+            # allow. It is asked again, and asserted as asked below.
             derived = [
                 "precondition_description",
                 "gated_description",
-                "effective_from",
                 "enforcement",
             ]
             still_asked = [
@@ -349,7 +352,12 @@ def test_discovered_candidates_are_offered_as_choices() -> None:
                 if screen.query(f"#f-work_registration--{name}")
             ]
             check(
-                "the four derived gate fields are not asked on the gate screen",
+                "effective_from IS asked on the gate screen (F51)",
+                bool(screen.query("#f-work_registration--effective_from")),
+                "the field the binding rule reserves to the human is not on the screen",
+            )
+            check(
+                "the three derived gate fields are not asked on the gate screen",
                 not still_asked,
                 f"still rendered as fields: {still_asked}",
             )

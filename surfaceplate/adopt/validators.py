@@ -55,6 +55,26 @@ def date(value: str) -> str | None:
     return None
 
 
+def effective_from(value: str) -> str | None:
+    """A date, or a full instant. `DR-44` widened the field; this accepts both.
+
+    Rejecting an instant here while the schema accepts one would make the wizard the strictest
+    reader of its own contract - an adopter who legitimately needs to bind a gate from a moment
+    would be told by the tool that the format its own schema documents is invalid.
+    """
+    text = value.strip()
+    if not text:
+        return "This cannot be blank."
+    try:
+        if len(text) <= 10:
+            _dt.date.fromisoformat(text)
+        else:
+            _dt.datetime.fromisoformat(text)
+    except ValueError:
+        return "Use YYYY-MM-DD, or YYYY-MM-DDThh:mm:ss+hh:mm to bind from an instant."
+    return None
+
+
 def enforcement(value: str) -> str | None:
     """A comma-separated list, every item of which the schema recognises.
 
@@ -75,6 +95,7 @@ _VALIDATORS = {
     "nonempty": nonempty,
     "application_id": application_id,
     "date": date,
+    "effective_from": effective_from,
     "enforcement": enforcement,
 }
 

@@ -64,7 +64,16 @@ history audit — whether anyone changed the gated paths while it was missing.
 | `provenance` | `SP055`/`SP056`, against the same record type as `run_lineage`. `SP057` — every id in a run's `overrides` resolves to an override record |
 | all four | `SP058` — no two records in one register claim one identity, and no record carries another application's `application_id` |
 
-**Every control this framework defines is now checked**, at every level. Nothing is declared-only.
+**Ten of the twelve controls this framework defines are checked**, at every level. The two that are
+not are `agent_work_packets` and `actual_diff_review`, named above and unchanged: neither leaves an
+artefact this framework can inspect without inspecting the quality of human work, which
+`core/CONTROL_PRINCIPLES.md` principle 9 places outside what a tool may claim.
+
+*This paragraph read "Every control this framework defines is now checked, at every level. Nothing is
+declared-only" until `F52`. That directly contradicted the statement thirty-eight lines above it, in
+this same document, and a cross-provider reviewer found it. A governance standard cannot claim both
+absolute enforcement and honour-system enforcement for its own baseline controls; the one above is
+the true one.*
 
 **The pre-commit hook is one enforcement route of three, not a requirement.** A gate declares
 `enforcement`, and `history_audit`, `review` and `local_hook` are all valid answers. A repository

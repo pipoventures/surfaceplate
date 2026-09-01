@@ -678,8 +678,29 @@ def _gate_fields(
             candidates=tuple(discover.rank_for_gate(found.artefacts, gate_id)),
             depends_on=None if mandatory else ("status", required_when),
         ),
-        # `ACT-032`: `precondition_description`, `gated_description`, `effective_from` and
-        # `enforcement` used to be asked here and are now DERIVED in `sections.build_gate`. Each is
+        # `F51`: **`effective_from` is asked, and this is the one of the four that came back.**
+        # `org/RELEASE_PLAN.md` names it: *"what `effective_from` should read ... is a human
+        # decision the wizard elicits and records verbatim, never one it makes on the human's
+        # behalf."* `ACT-032` derived it as a consequence rather than a judgement and did not amend
+        # the rule; a cross-provider reviewer found the contradiction.
+        #
+        # The safety argument is the stronger one. `SP033` refuses a future value and `SP034`
+        # refuses moving one forward, so a human's answer can only ever WIDEN or equal the audit
+        # window. Deriving "now" silently picked the narrowest value the rules permit, on the field
+        # that decides how much history the gate audit examines.
+        FieldSpec(
+            id="effective_from",
+            label="Effective from",
+            help=(
+                "YYYY-MM-DD, or a full instant. History before this is out of scope for the audit, "
+                "so an earlier value examines MORE of your history, never less"
+            ),
+            default=_dt.date.today().isoformat(),
+            validate="effective_from",
+            depends_on=None if mandatory else ("status", required_when),
+        ),
+        # `ACT-032`: `precondition_description`, `gated_description` and `enforcement` remain
+        # DERIVED in `sections.build_gate`. Each is
         # a consequence of an answer already given, not a judgement of its own:
         #
         #   - both descriptions restate what the gate is and which paths it covers. The framework

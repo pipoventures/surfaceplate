@@ -6,9 +6,9 @@ agent operating rules, an application-profile contract, conformance levels, prer
 a conformance checker that enforces all of it.
 
 **This is a narrower review than a full-archive audit, and that narrowing is disclosed rather than
-hidden.** The complete framework is roughly 170 files; attached here (`EVIDENCE_BUNDLE.md`) are 11,
+hidden.** The complete framework is roughly 170 files; attached here (`EVIDENCE_BUNDLE.md`) are 15,
 chosen as the minimum needed to test the claims below directly rather than from a description of
-them. Your coverage is genuinely partial — treat anything you cannot establish from these 11 files
+them. Your coverage is genuinely partial — treat anything you cannot establish from these 15 files
 as an `EVIDENCE GAP`, not as passing or failing by default. Do not extrapolate a verdict about a
 file you were not given.
 
@@ -27,6 +27,11 @@ file you were not given.
   `sections.py` assembles every value that reaches the profile, `defaults.py` **proposes** values,
   `scaffold.py` **creates files inside the adopting repository**, and `wizard.py` verifies the result
   before anything is written.
+- `surfaceplate/seeds/*` — **the four documents `scaffold.py` actually writes.** These are included
+  because the previous pass of this review asked whether creating an artefact makes a gate pass
+  while the practice does not exist, and did **not** attach the artefacts. The reviewer reasonably
+  inferred they were empty files. They are not, and the question cannot be answered without reading
+  them: judge the claim on the text, not on the module that copies it.
 
 **What is deliberately not included, so you do not assume it was reviewed:**
 `surfaceplate/core/REVIEW_AND_EVIDENCE.md` and `SECURITY_BASELINE.md`; the four non-profile schemas
@@ -61,16 +66,25 @@ production adoption. Three things this review is explicitly **not**:
 
 ## Required evidence handling
 
-1. Inspect `EVIDENCE_BUNDLE.md` in full — all 11 files, each under its own `## FILE:` heading. Do
+1. Inspect `EVIDENCE_BUNDLE.md` in full — all 15 files, each under its own `## FILE:` heading. Do
    not sample; a finding that cites "the package generally does X" without naming the exact file is
    not usable.
-2. **Recompute the manifest anchor.** `EVIDENCE_BUNDLE.md` contains the full text of
-   `surfaceplate/MANIFEST.sha256`. Compute `sha256` of that file's exact contents as given (the
-   `MANIFEST.sha256` file itself, not any one line inside it). Separately, the bundle contains
-   `governance/application-profile.yaml`, which has an `adoption.framework_digest` field. State the
-   exact hex digest you computed, the exact value that field declares, and whether they match.
+2. **The manifest anchor — attempt this ONLY if you can execute code.** The previous pass of this
+   review could not, and said so honestly: *"I am unable to mathematically compute the raw SHA-256
+   byte digest."* That was the correct answer and it cost nothing; what cost something was this
+   prompt asking for it as though a text-only reviewer could comply.
+
+   **If you have a code execution tool:** compute `sha256` of `surfaceplate/MANIFEST.sha256`'s exact
+   contents as given (the file itself, not any line inside it), and compare with the
+   `adoption.framework_digest` field in `governance/application-profile.yaml`. State both values and
+   whether they match.
+
+   **If you do not:** report it as an `EVIDENCE GAP` in one line and move on. Do not attempt it by
+   hand, do not estimate, and do not report a digest you did not compute. A fabricated hash in an
+   integrity review is worse than an admitted gap, and this framework's own findings register exists
+   because of failures of exactly that shape.
    **Report this as a fact, not a verdict.** Two cautions the maintainer would rather you had than
-   not: you cannot verify the rest of the archive from an 11-file subset, only this one value; and
+   not: you cannot verify the rest of the archive from a 15-file subset, only this one value; and
    this field is known to lag by one edit cycle, because the profile is itself inside the manifest
    it names the digest of. A mismatch here is expected and is not by itself a finding — **what is
    worth reporting is whether the framework's own documents disclose that property or quietly rely
@@ -85,7 +99,7 @@ production adoption. Three things this review is explicitly **not**:
    - `FACT FROM PACKAGE`: directly present in the bundle and internally verifiable;
    - `INFERENCE`: reasoned interpretation;
    - `RECOMMENDATION`: proposed improvement;
-   - `EVIDENCE GAP`: not established by the 11 files given — including anything that would need one
+   - `EVIDENCE GAP`: not established by the 15 files given — including anything that would need one
      of the excluded files above.
 5. Do not rely on summaries from the sender, including this prompt's own framing. Reach your own
    conclusions from the bundle.
@@ -177,7 +191,7 @@ omitting them silently from your report.
 
 ## Over-engineering test
 
-Based only on what you were given: does anything in these 11 files look disproportionate to the
+Based only on what you were given: does anything in these 15 files look disproportionate to the
 problem it solves — more schema, more process, more code, or more explanatory prose than the stated
 risk justifies? Do not reward comprehensiveness by itself. **Comment specifically on the density of
 narrative comments in the Python files**: they carry real history, and they are also a maintenance
@@ -185,7 +199,7 @@ surface that can drift from the code beneath them.
 
 ## Required output
 
-1. **Verdict on the 11 files reviewed:** `PASS`, `PASS WITH REQUIRED CHANGES`, or `FAIL` — scoped
+1. **Verdict on the 15 files reviewed:** `PASS`, `PASS WITH REQUIRED CHANGES`, or `FAIL` — scoped
    explicitly to what was given, not to the framework as a whole.
 2. **Manifest recomputation result:** the digest you computed, the digest the profile declares,
    whether they match, and whether the framework's documents disclose the lag described above.

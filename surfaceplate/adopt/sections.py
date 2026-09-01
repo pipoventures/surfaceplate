@@ -154,7 +154,12 @@ def build_gate(spec: plan.GateSpec, answers: dict) -> dict:
             # already given, and asking for it made the adopter restate something the framework or
             # their own earlier answer had already settled. An answer is still honoured when one is
             # supplied - a saved draft written before this change carries all four.
-            "effective_from": answers.get("effective_from") or _dt.date.today().isoformat(),
+            # `F51`: **no fallback.** This read `answers.get(...) or date.today()`, which meant a
+            # missing answer and an answer of today produced the same profile - so the tool setting
+            # the date on the human's behalf was not observable in the output. The field is asked
+            # again; if it is absent the profile carries what was given, and `_verify` and the
+            # schema report the absence rather than this line papering over it.
+            "effective_from": answers.get("effective_from", ""),
             "precondition": {
                 "artefacts": [answers["artefact"]],
                 # The framework's own sentence for this gate, which the gate screen already prints

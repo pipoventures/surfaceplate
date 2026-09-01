@@ -144,11 +144,23 @@ def propose_gates(*, level: str, builds_ui: bool, mode: str, found: discover.Dis
                     "this repository's main source directory",
                 )
             )
-            # `ACT-032` removed `effective_from`, `enforcement` and both description fields from
-            # what is asked; `sections.build_gate` derives them. There is nothing left to propose
-            # for them, and proposing a value for a field no adopter is shown would put rows on the
-            # review screen that correspond to no question - noise that makes the rows which DO
-            # need reading harder to find.
+            # `F51`: `effective_from` is asked again, so it is PROPOSED again - today's date, as a
+            # computed fact, shown on the defaults screen and written only once a human passes it.
+            # That is the distinction the amended binding rule turns on: proposing a fact a human
+            # approves is not the same act as writing one nobody was shown, which is what
+            # `ACT-032` did and what the review caught.
+            #
+            # `enforcement` and both description fields remain derived and are not proposed:
+            # proposing a value for a field no adopter is shown would put rows on the review screen
+            # that correspond to no question.
+            out.append(
+                Proposal(
+                    f"{prefix}.effective_from",
+                    today,
+                    "computed",
+                    "today - history before it is out of scope; an earlier date audits more",
+                )
+            )
         else:
             example = example_answers.rationale_example(spec.id)
             if example:

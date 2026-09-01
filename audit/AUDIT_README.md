@@ -39,7 +39,7 @@ marked as such in that file.
 
 Some chat interfaces reject an archive, or limit how many files a single message can carry.
 `GEMINI_ADVERSARIAL_REVIEW_PROMPT_CURATED.md` is the fallback for that case: a shorter prompt scoped
-to a **curated 11-file subset** rather than the complete archive, with the narrowing disclosed in the
+to a **curated 15-file subset** rather than the complete archive, with the narrowing disclosed in the
 prompt's own text — which files are included, which are deliberately left out, and which audit
 questions are softened or marked as expected evidence gaps because of it.
 
@@ -57,7 +57,9 @@ directly from the repository root:
            surfaceplate/core/CONFORMANCE_LEVELS.md surfaceplate/core/PREREQUISITE_GATES.md \
            surfaceplate/schemas/application-profile.schema.yaml \
            surfaceplate/adopt/sections.py surfaceplate/adopt/defaults.py \
-           surfaceplate/adopt/scaffold.py surfaceplate/adopt/wizard.py; do
+           surfaceplate/adopt/scaffold.py surfaceplate/adopt/wizard.py \
+           surfaceplate/seeds/activity-register.md surfaceplate/seeds/decision-log.md \
+           surfaceplate/seeds/CHANGELOG.md surfaceplate/seeds/source-of-truth-matrix.yaml; do
     [ -f "$f" ] || { echo "MISSING: $f" >&2; exit 1; }
     echo "## FILE: \`$f\`"; echo '```'; cat "$f"; echo '```'; echo
   done
@@ -66,6 +68,12 @@ directly from the repository root:
 
 The file list is stated once, in the curated prompt's own "What is included" section — this command
 must match it; if the two drift, the prompt's text is authoritative and the command is wrong.
+
+**Who can perform the manifest recomputation.** The first pass could not: a text-only reviewer has
+no way to compute a SHA-256 digest, said so, and was right to. The prompt now asks for it only from
+a reviewer with code execution and tells everyone else to report an evidence gap. **`F6` is not
+narrowed by a review that cannot compute the anchor** — closing it needs a party who can run
+`sha256sum`, which is a person with a shell or a reviewer with tools, not a chat model.
 
 **They did drift, and nothing caught it.** The command referenced `surfaceplate/adopt/prompting.py`
 for three packets after `DR-36` deleted that file, so running it would have failed at `cat` and
