@@ -39,7 +39,7 @@ marked as such in that file.
 
 Some chat interfaces reject an archive, or limit how many files a single message can carry.
 `GEMINI_ADVERSARIAL_REVIEW_PROMPT_CURATED.md` is the fallback for that case: a shorter prompt scoped
-to a **curated 10-file subset** rather than the complete archive, with the narrowing disclosed in the
+to a **curated 11-file subset** rather than the complete archive, with the narrowing disclosed in the
 prompt's own text — which files are included, which are deliberately left out, and which audit
 questions are softened or marked as expected evidence gaps because of it.
 
@@ -56,7 +56,9 @@ directly from the repository root:
            surfaceplate/core/AI_OPERATING_MODEL.md surfaceplate/core/CONTROL_PRINCIPLES.md \
            surfaceplate/core/CONFORMANCE_LEVELS.md surfaceplate/core/PREREQUISITE_GATES.md \
            surfaceplate/schemas/application-profile.schema.yaml \
-           surfaceplate/adopt/prompting.py surfaceplate/adopt/sections.py surfaceplate/adopt/wizard.py; do
+           surfaceplate/adopt/sections.py surfaceplate/adopt/defaults.py \
+           surfaceplate/adopt/scaffold.py surfaceplate/adopt/wizard.py; do
+    [ -f "$f" ] || { echo "MISSING: $f" >&2; exit 1; }
     echo "## FILE: \`$f\`"; echo '```'; cat "$f"; echo '```'; echo
   done
 } > EVIDENCE_BUNDLE.md
@@ -64,3 +66,11 @@ directly from the repository root:
 
 The file list is stated once, in the curated prompt's own "What is included" section — this command
 must match it; if the two drift, the prompt's text is authoritative and the command is wrong.
+
+**They did drift, and nothing caught it.** The command referenced `surfaceplate/adopt/prompting.py`
+for three packets after `DR-36` deleted that file, so running it would have failed at `cat` and
+produced a truncated bundle — or, worse, a bundle silently missing its most probative file. The
+`[ -f "$f" ]` guard above now makes that loud instead of quiet. This is the derived-artefact drift
+`DR-6` and `F12` are both about, in the one place this repository had not applied the lesson:
+a hand-off command is a derived artefact too, and this one had no `--check` mode and no reader until
+somebody needed it. Recorded as `F50`.
