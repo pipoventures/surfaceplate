@@ -334,16 +334,24 @@ def test_discovered_candidates_are_offered_as_choices() -> None:
                 str(artefact.value),
             )
 
-            enforcement = screen.query_one("#f-work_registration--enforcement")
+            # `ACT-032`: these four are derived by `sections.build_gate`, so the screen must not
+            # ask for them. Asserted against the real screen rather than the plan, because `F39`
+            # established that a plan and the screen built from it can disagree.
+            derived = [
+                "precondition_description",
+                "gated_description",
+                "effective_from",
+                "enforcement",
+            ]
+            still_asked = [
+                name
+                for name in derived
+                if screen.query(f"#f-work_registration--{name}")
+            ]
             check(
-                "enforcement is ticked from its fixed enum, not typed as a comma-separated string",
-                isinstance(enforcement, SelectionList),
-                type(enforcement).__name__,
-            )
-            check(
-                "and it starts on the two the old default named",
-                set(enforcement.selected) == {"history_audit", "review"},
-                str(enforcement.selected),
+                "the four derived gate fields are not asked on the gate screen",
+                not still_asked,
+                f"still rendered as fields: {still_asked}",
             )
 
             paths = screen.query_one("#f-work_registration--paths")

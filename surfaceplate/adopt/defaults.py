@@ -144,17 +144,11 @@ def propose_gates(*, level: str, builds_ui: bool, mode: str, found: discover.Dis
                     "this repository's main source directory",
                 )
             )
-            out.append(
-                Proposal(f"{prefix}.effective_from", today, "computed", "today; history before it is out of scope")
-            )
-            out.append(
-                Proposal(
-                    f"{prefix}.enforcement",
-                    ["history_audit", "review"],
-                    "computed",
-                    "the two that need no extra tooling",
-                )
-            )
+            # `ACT-032` removed `effective_from`, `enforcement` and both description fields from
+            # what is asked; `sections.build_gate` derives them. There is nothing left to propose
+            # for them, and proposing a value for a field no adopter is shown would put rows on the
+            # review screen that correspond to no question - noise that makes the rows which DO
+            # need reading harder to find.
         else:
             example = example_answers.rationale_example(spec.id)
             if example:

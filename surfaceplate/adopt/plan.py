@@ -600,12 +600,24 @@ def _gate_fields(
             candidates=tuple(discover.rank_for_gate(found.artefacts, gate_id)),
             depends_on=None if mandatory else ("status", required_when),
         ),
-        FieldSpec(
-            id="precondition_description",
-            label="Why it must exist first",
-            kind="textarea",
-            depends_on=None if mandatory else ("status", required_when),
-        ),
+        # `ACT-032`: `precondition_description`, `gated_description`, `effective_from` and
+        # `enforcement` used to be asked here and are now DERIVED in `sections.build_gate`. Each is
+        # a consequence of an answer already given, not a judgement of its own:
+        #
+        #   - both descriptions restate what the gate is and which paths it covers. The framework
+        #     already writes the first, in `catalogue.GATE_CATALOGUE`, and uses that same sentence
+        #     to describe the gate on this very screen - so an adopter was being asked to
+        #     paraphrase text sitting directly above the box;
+        #   - `effective_from` is today; a gate cannot bind before it is declared, and the field
+        #     was already defaulted to today with no honest reason to choose otherwise;
+        #   - `enforcement` is a fixed schema enum, and `history_audit` + `review` are exactly the
+        #     two that need no tooling an adopter may not have. It was already the field's default
+        #     AND what `defaults.py` computed, so it was asked without ever being a live question.
+        #
+        # This is the borderline one: HOW a gate is enforced is a real decision for a repository
+        # with CI. It is derived rather than asked because the safe pair is the honest starting
+        # point, and the written profile is a file the adopter edits afterwards - which is what the
+        # run's closing message already tells them to do.
         # A pathspec, not a path: `src/**` never has to exist as a file, so this stays typeable
         # and offers the repository's real top-level directories as inline completions instead of
         # constraining to them.
@@ -614,32 +626,6 @@ def _gate_fields(
             label="Gated paths",
             help="a git pathspec, e.g. src/** - what may not proceed until the artefact exists",
             suggestions=found.paths,
-            depends_on=None if mandatory else ("status", required_when),
-        ),
-        FieldSpec(
-            id="gated_description",
-            label="What it gates",
-            kind="textarea",
-            depends_on=None if mandatory else ("status", required_when),
-        ),
-        FieldSpec(
-            id="effective_from",
-            label="Effective from",
-            help="YYYY-MM-DD. History before this date is out of scope for the audit",
-            default=_dt.date.today().isoformat(),
-            validate="date",
-            depends_on=None if mandatory else ("status", required_when),
-        ),
-        # A fixed schema enum, and it should never have been a comma-separated string: a typo
-        # here produced a profile the schema rejects, after the whole interview was answered.
-        FieldSpec(
-            id="enforcement",
-            label="Enforcement",
-            kind="multiselect",
-            help="how this gate is enforced - pick every one that applies",
-            choices=tuple((v, v) for v in validators.ENFORCEMENT_VALUES),
-            default="history_audit,review",
-            validate="",
             depends_on=None if mandatory else ("status", required_when),
         ),
     ]

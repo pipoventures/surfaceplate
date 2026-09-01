@@ -23,6 +23,7 @@ or sets a date.
 
 from __future__ import annotations
 
+import datetime as _dt
 import json
 import subprocess
 import sys
@@ -114,13 +115,10 @@ ESSENTIAL_ANSWERS: dict[str, object] = {
     # already declined.
     "controls.above_floor": [],
     "gates.work_registration.artefact": "docs/DEVELOPMENT_REGISTER.md",
-    "gates.work_registration.precondition_description": (
-        "An identified, registered activity before implementation begins."
-    ),
     "gates.work_registration.paths": "src/**",
-    "gates.work_registration.gated_description": "Implementation work in the source tree.",
-    "gates.work_registration.effective_from": "2026-09-01",
-    "gates.work_registration.enforcement": "history_audit, review",
+    # `ACT-032`: the two descriptions, `effective_from` and `enforcement` are no longer asked -
+    # `sections.build_gate` derives them. `assert_no_unused_keys()` is what keeps this fixture
+    # honest: leaving them here would now be an answer to a question nobody is asked.
     "adoption.review_by": "2027-02-28",
     "adoption.framework_maintainer": "Finance Platform team",
     "adoption.repository_classification": "internal-service",
@@ -476,6 +474,64 @@ def test_multiline_prose_survives_the_whole_flow(tmp: Path) -> None:
         "and it is written as a readable block scalar, not an escaped one-liner",
         "|-" in raw or "|2-" in raw,
         raw[:200],
+    )
+
+
+def test_derived_gate_fields_are_correct_and_still_overridable() -> None:
+    """`ACT-032`. Removing a question only helps if the derived value is right.
+
+    The four fields dropped from the gate screen are checked here at their source: the precondition
+    description must be the framework's OWN sentence for that gate - not a neighbouring gate's, and
+    not a generic one - and the gated description must name the paths actually answered. The
+    override half matters as much: a saved draft written before this change supplies all four, and
+    an answer that exists must still win over the derived value.
+    """
+    spec = next(
+        s
+        for s in plan.gate_plan(level="essential", builds_ui=False, mode="simple")
+        if s.id == "work_registration"
+    )
+    gate = sections.build_gate(spec, {"artefact": "activity/register.md", "paths": "src/**"})
+
+    check(
+        "the precondition description is this gate's own definition from the catalogue",
+        gate["precondition"]["description"] == catalogue.GATE_CATALOGUE["work_registration"],
+        gate["precondition"]["description"],
+    )
+    check(
+        "the gated description names the paths that were actually answered",
+        "src/**" in gate["gated_activity"]["description"],
+        gate["gated_activity"]["description"],
+    )
+    check(
+        "enforcement derives to the two that need no extra tooling",
+        gate["enforcement"] == sections.DERIVED_ENFORCEMENT,
+        str(gate["enforcement"]),
+    )
+    check(
+        "effective_from derives to today, so no history is retroactively in scope",
+        gate["effective_from"] == _dt.date.today().isoformat(),
+        gate["effective_from"],
+    )
+
+    supplied = sections.build_gate(
+        spec,
+        {
+            "artefact": "activity/register.md",
+            "paths": "src/**",
+            "precondition_description": "A register entry, written first.",
+            "gated_description": "Everything under src.",
+            "effective_from": "2026-01-01",
+            "enforcement": "ci",
+        },
+    )
+    check(
+        "an answer that was supplied still wins over every derived value",
+        supplied["precondition"]["description"] == "A register entry, written first."
+        and supplied["gated_activity"]["description"] == "Everything under src."
+        and supplied["effective_from"] == "2026-01-01"
+        and supplied["enforcement"] == ["ci"],
+        str(supplied),
     )
 
 
@@ -893,6 +949,7 @@ def main() -> int:
         test_multiline_prose_survives_the_whole_flow(tmp)
 
         print("\nDR-40: the defaults route proposes, and says where each value came from")
+        test_derived_gate_fields_are_correct_and_still_overridable()
         test_the_opt_in_removed_questions_not_answers()
         test_defaults_propose_but_never_decide(tmp)
 
