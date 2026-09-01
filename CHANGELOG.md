@@ -1975,3 +1975,42 @@ implementation's docstring claimed a fallback the code did not have; directories
 check explicitly. And `GX-0001`/`GX-0002` are **kept and marked superseded** rather than deleted:
 they cover violations that no longer occur, but deleting an exception record is the retrospective
 edit the standard says an exception must never be able to make invisibly.
+
+### `adopt` remediation, phase 5: the scan that never reached the gates (`ACT-031`, `DR-40`, `F39`)
+
+**The wizard completed a real adoption for the first time, and produced an unusable profile.** Seven
+gates name `asdf` as their precondition. `tui/app.py` built the gate catalogue from
+`plan.gate_plan(...)` without passing the repository scan, while the controls screen went through
+`section_plan()`, which scans — so controls offered dropdowns of real files and gates offered blank
+boxes. Facing an empty required field, placeholder text is the correct human response and the wrong
+wizard behaviour.
+
+**The join test added at `ACT-028` could not have caught it, and strengthening it was still not
+enough.** It compared field *ids*, which are identical whether a field renders as a dropdown or a
+text box; only the *kind* differs — `F37`'s shape one level up, the right questions asked in the
+wrong form. Comparing `(id, kind)` was necessary and insufficient: the join builds both sides
+itself, so it can never see the app wiring two screens from different sources. Only a test that
+drives the real `AdoptApp` catches it, and it is seen to fail with the defect reintroduced. A join
+test proves the parts agree; it says nothing about the assembly.
+
+**The wizard's shape changed on the maintainer's own proposal.** It asks the minimum first —
+identity, stack, risk, level, the four nobody can answer on an adopter's behalf — then offers **Set
+defaults** or **Customise adoption**. Defaults propose from three honest sources only: *discovered*
+(a real path or CI step read from the repository), *example* (worked prose this framework already
+ships), *computed* (today's date, the review horizon, the owner already given). A field with none of
+those is **not proposed and still asked** — a gate's description, an adoption decision-record id.
+Against real Plutos that is 63 proposals with 17 left over, and `work_registration` proposes
+`activity/register.md`, which `DR-34` had independently identified as Plutos's real register.
+
+`DR-40` records why this does not breach *it asks, the human answers, the tool writes*: a proposal is
+a suggestion until a human passes a screen showing it and its origin, so an accepted proposal is an
+answer — and the provenance walk needed no change at all.
+
+The opening question also stopped asking which register of explanation you want, which is a question
+about the tool's output asked before any has been seen, and now asks about experience instead.
+
+Four interface faults from the same run: the tick that did not fit its box (`[X]` / `[ ]` and
+`(●)` / `( )` now), three interaction models on one screen (the gate chip row is a radio set), a
+dropdown that needed two clicks, and forty alphabetical candidates — now ranked per gate and cut to
+twelve **after** ranking, since capping first buried the register beneath `docs/archive/`. And the
+run no longer ends in silence: it states the path it wrote and runs the checker against it.

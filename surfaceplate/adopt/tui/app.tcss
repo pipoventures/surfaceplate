@@ -62,9 +62,19 @@ Screen {
    The row is a HorizontalGroup, so the label genuinely sits BESIDE its value. Heights are held to
    one line wherever possible: F37 #6 was caused by exactly this kind of vertical slack, three or
    four rows per field, which pushed everything but one gate off the screen. */
+/* "Sometimes it is difficult to distinguish one line from the next." A hairline under each row
+   and a lift on the focused one; the row you are in should never be in doubt. */
 .field-row {
     height: auto;
     margin: 0;
+    border-bottom: solid #1c2226;
+    padding: 0 0 0 1;
+}
+
+.field-row:focus-within {
+    background: #12181b;
+    border-left: thick #d79a3c;
+    padding: 0;
 }
 
 .field-label {
