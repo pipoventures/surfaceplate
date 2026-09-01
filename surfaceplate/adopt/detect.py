@@ -51,6 +51,53 @@ def detect_ui_hint(repo: Path) -> str | None:
     return None
 
 
+# Marker paths for the level-choice screen's detected signals (DR-35). Files-exist checks, in the
+# same spirit as _LANGUAGE_MARKERS above: enough to show the honest starting cost of a level before
+# it's chosen, never a claim to detect every possible shape a repository might already have. Shown,
+# never acted on - the level choice itself stays a human decision either way (DR-35: "they are
+# tool/repo dependent", the maintainer's own words for why this framework does not steer it).
+_CI_WORKFLOW_DIRS = (".github/workflows", ".gitlab-ci.d")
+_DECISIONS_FOLDER_MARKERS = ("docs/decisions", "docs/adr", "decisions", "adr")
+_CHANGELOG_MARKERS = ("CHANGELOG.md", "CHANGELOG.rst", "CHANGELOG")
+
+
+def detect_ci_workflows(repo: Path) -> list[str]:
+    """Existing CI workflow files, repository-relative - a candidate home for a control's CI-step
+    `implementation_reference` (`deterministic_tests`, `contract_tests`) or a gate's `enforcement:
+    [ci]`. Returns paths, not a verdict: this module never tells whether a step in one of them
+    actually fails the build, which only `check_conformance.py`'s own pattern-B check can."""
+    found: list[str] = []
+    for directory in _CI_WORKFLOW_DIRS:
+        d = repo / directory
+        if not d.is_dir():
+            continue
+        found.extend(
+            str(p.relative_to(repo)) for p in sorted(d.glob("*.y*ml")) if p.is_file()
+        )
+    return found
+
+
+def detect_decisions_folder(repo: Path) -> str | None:
+    """A decisions/ADR-shaped folder that already exists, or None. A candidate precondition
+    artefact for `decision_before_implementation` - never asserted to already satisfy that gate,
+    since satisfying it also depends on real content and, for the gate itself, on git history."""
+    for marker in _DECISIONS_FOLDER_MARKERS:
+        d = repo / marker
+        if d.is_dir():
+            return marker
+    return None
+
+
+def detect_changelog(repo: Path) -> str | None:
+    """An existing CHANGELOG file, or None - a candidate precondition artefact for
+    `change_record_before_completion`."""
+    for marker in _CHANGELOG_MARKERS:
+        f = repo / marker
+        if f.is_file():
+            return marker
+    return None
+
+
 def detect_git_state(repo: Path) -> tuple[str | None, bool]:
     """(current branch, working tree is clean) - best-effort, never raises."""
     import subprocess

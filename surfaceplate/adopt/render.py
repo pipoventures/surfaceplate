@@ -70,6 +70,18 @@ def _block(value: str) -> str:
     return _strip_document_end(yaml.safe_dump(_single_line(value), width=_NO_WRAP))
 
 
+def _flow_list(values: list[str]) -> str:
+    """A one-line `[a, b, c]` YAML flow sequence, escaped by PyYAML for the structure it is
+    actually part of - not built by wrapping brackets around individually-`_scalar()`-rendered
+    items. `_scalar()` escapes a value correctly for a scalar that is its own document; a flow
+    sequence has stricter rules for what an ITEM inside it needs quoted (for example a bare `?`
+    is legal as a whole scalar document but not as one item among `[...]`). Hand-composing the
+    two contexts is exactly the bug this replaces: a real adopter's `what is this?` rationale was
+    lost outright because `artefacts: [{_scalar(value)}]` produced unparseable YAML. Dumping the
+    whole Python list in one call lets PyYAML see the actual structure it is escaping for."""
+    return _strip_document_end(yaml.safe_dump(values, default_flow_style=True, width=_NO_WRAP))
+
+
 def _render_list_block(values: list[str], indent: int) -> str:
     if not values:
         return " []"
@@ -82,13 +94,12 @@ def _render_gate(gate: dict) -> str:
     if gate["status"] == "required":
         lines.append(f"    effective_from: {_scalar(gate['effective_from'])}")
         lines.append("    precondition:")
-        lines.append(f"      artefacts: [{_scalar(gate['precondition']['artefacts'][0])}]")
+        lines.append(f"      artefacts: {_flow_list(gate['precondition']['artefacts'])}")
         lines.append(f"      description: {_block(gate['precondition']['description'])}")
         lines.append("    gated_activity:")
-        lines.append(f"      paths: [{_scalar(gate['gated_activity']['paths'][0])}]")
+        lines.append(f"      paths: {_flow_list(gate['gated_activity']['paths'])}")
         lines.append(f"      description: {_block(gate['gated_activity']['description'])}")
-        enforcement = ", ".join(gate["enforcement"])
-        lines.append(f"    enforcement: [{enforcement}]")
+        lines.append(f"    enforcement: {_flow_list(gate['enforcement'])}")
     elif gate["status"] == "deferred":
         lines.append(f"    owner: {_scalar(gate['owner'])}")
         lines.append(f"    revisit_by: {_scalar(gate['revisit_by'])}")
@@ -184,7 +195,7 @@ baseline_controls:
     rationale: {_block(bc['secret_hygiene']['rationale'])}
     scanner:
       name: {_scalar(scanner['name'])}
-      wired_in: [{_scalar(scanner['wired_in'][0])}]
+      wired_in: {_flow_list(scanner['wired_in'])}
       notes: {_block(scanner['notes'])}
 
 control_decisions:

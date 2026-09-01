@@ -99,6 +99,7 @@ class InterruptAfter:
 # ---------------------------------------------------------------------------------------------
 
 ESSENTIAL_ANSWERS: list[object] = [
+    "simple",  # explanation mode (DR-35)
     "billing-reconciler", "Billing Reconciler", "Finance Platform team",  # identity
     "Python 3.12", False,  # stack, builds_user_interface
     "Reconciles daily settlement files against the ledger; no external users.",  # risk_profile
@@ -122,6 +123,44 @@ ESSENTIAL_ANSWERS: list[object] = [
 ]
 
 
+# F36 regression: `render.py` hand-built `artefacts: [...]` / `paths: [...]` / `enforcement: [...]`
+# / `wired_in: [...]` by wrapping brackets around an individually-escaped value - correct for a
+# scalar that is its own document, not for one item inside an existing flow sequence, which has
+# stricter escaping rules. A real adopter's `what is this?` rationale broke exactly this way and
+# was lost outright: the wizard's own round-trip check refused to write, with no way to recover
+# the ~20 minutes of already-answered questions. This fixture is `ESSENTIAL_ANSWERS` with the
+# `_flow_list`-rendered free-text fields (`artefacts`, `paths`, `wired_in`) deliberately carrying
+# `?`, `,`, `[`, `]`, and a leading `-` - the characters a YAML flow sequence treats specially - so
+# the regression is exercised through the real wizard flow, not just at the render.py unit level.
+# `enforcement` is also `_flow_list`-rendered, but its items are schema-constrained to a fixed
+# enum (application-profile.schema.yaml) with no special characters in any legal value, so it is
+# left at a normal, schema-valid answer here rather than manufacturing a value no real adopter
+# could ever legally type.
+TRICKY_CHARACTER_ANSWERS: list[object] = [
+    "advanced",  # explanation mode (DR-35)
+    "billing-reconciler", "Billing Reconciler", "Finance Platform team",  # identity
+    "Python 3.12", False,  # stack, builds_user_interface
+    "Reconciles daily settlement files against the ledger; no external users.",  # risk_profile
+    "A reconciliation result reaching the finance team's own review queue is material.",
+    "internal",  # data_classification
+    "essential",  # conformance_level
+    "All agent-assisted work is bounded, scoped, and reviewable.",  # agent_work_packets rationale
+    "Material changes are reviewed against their actual diff content.",  # actual_diff_review rationale
+    "Secrets and sensitive data must not enter uncontrolled storage.",  # secret_hygiene rationale
+    "gitleaks", "workflows/secret-scan.yml?raw=true",  # scanner name, wired_in (contains `?`)
+    "Supply-chain exposure exists regardless of output materiality.", "requirements.txt",  # dependency_lock
+    False,  # declare more controls
+    "-docs/DEVELOPMENT_REGISTER.md",  # work_registration artefact (leading `-`)
+    "An identified, registered activity before implementation begins.",
+    "src/**, [other]?", "Implementation work in the source tree.",  # paths (`,`, `[`, `]`, `?`)
+    "2026-09-01", "history_audit, review",  # enforcement (schema-valid; see note above)
+    "2027-02-28", "Finance Platform team", "internal-service", "DR-FIN-001",  # adoption identity
+    "in_progress", False,  # adoption_status, needs_validator
+    "", "Merges to main require review; deploys are manual.",  # roles (blank), release_route
+    True,  # final write confirm
+]
+
+
 def build_full_ui_answers() -> list[object]:
     """Generates a scripted answer sequence for a `full`-level, UI-building run by walking the
     same catalogue data the wizard itself asks against. This is a FIXTURE BUILDER, not a
@@ -132,6 +171,7 @@ def build_full_ui_answers() -> list[object]:
     without weakening what the test actually checks.
     """
     answers: list[object] = [
+        "advanced",  # explanation mode (DR-35)
         "payments-orchestrator", "Payments Orchestrator", "Payments team",
         "Python 3.12, React", True,  # stack, builds_user_interface
         "Routes and settles customer payments across three providers.",
@@ -186,6 +226,7 @@ def build_standard_no_ui_answers() -> list[object]:
     note on this in `test_design_gates_rationale_is_asked`.
     """
     answers: list[object] = [
+        "simple",  # explanation mode (DR-35)
         "internal-tool", "Internal Tool", "Platform team",
         "Python 3.12", False,  # stack, builds_user_interface
         "An internal batch service with no external users.",
@@ -254,6 +295,139 @@ def test_catalogue_sections_sum_to_the_whole_catalogue() -> None:
     )
 
 
+def test_explanations_cover_every_catalogue_item() -> None:
+    """DR-35: every item the wizard can ever ask about has BOTH a `simple` and an `advanced`
+    explanation, non-empty. Fails loudly on a gap rather than letting the wizard silently fall
+    back to no explanation for whatever this module happened to miss - the same discipline
+    `test_catalogue_sections_sum_to_the_whole_catalogue` already applies to the gate catalogue
+    itself, extended to the content module built on top of it."""
+    from surfaceplate.adopt import explanations
+
+    all_gates = set(catalogue.GATE_CATALOGUE)
+    all_controls = set(catalogue.CONFORMANCE_LEVELS["full"])  # the union across every level
+    baseline = {"agent_work_packets", "actual_diff_review", "secret_hygiene"}
+    expected_items = all_gates | all_controls | baseline
+
+    covered_items = set(explanations.EXPLANATIONS)
+    check(
+        "explanations.py covers exactly the catalogue's gates, controls, and baseline controls",
+        covered_items == expected_items,
+        f"missing: {expected_items - covered_items}; extra: {covered_items - expected_items}",
+    )
+
+    empty = [
+        f"{item_id}/{mode}"
+        for item_id, registers in explanations.EXPLANATIONS.items()
+        for mode in explanations.MODES
+        if not registers.get(mode, "").strip()
+    ]
+    check("every item has a non-empty entry in both registers", not empty, f"empty: {empty}")
+
+    check(
+        "LEVEL_CHOICE also carries both registers, non-empty",
+        all(explanations.LEVEL_CHOICE.get(m, "").strip() for m in explanations.MODES),
+        str(explanations.LEVEL_CHOICE),
+    )
+
+
+def test_example_answers_cover_every_reachable_rationale_field() -> None:
+    """DR-35: every baseline and conformance-level control always gets an example (`ask_controls`
+    asks a rationale for each unconditionally); every gate whose status is EVER a genuine choice
+    (not forced `required` by `mandatory=True`, and not one of the four interface gates
+    `_ask_one_gate` never even reaches) gets one too. Derives the reachable gate set the same way
+    `sections.ask_gates` itself decides which gates are optional - `GATE_CATALOGUE` minus
+    `DESIGN_GATES` minus `LEVEL_REQUIRED_GATES["standard"]` - rather than a hand-copied list, so
+    this test cannot silently drift from what the wizard actually asks."""
+    from surfaceplate.adopt import example_answers
+
+    baseline = {"agent_work_packets", "actual_diff_review", "secret_hygiene"}
+    all_controls = set(catalogue.CONFORMANCE_LEVELS["full"])
+    reachable_gates = (
+        set(catalogue.GATE_CATALOGUE)
+        - catalogue.DESIGN_GATES
+        - catalogue.LEVEL_REQUIRED_GATES["standard"]
+    )
+    expected = baseline | all_controls | reachable_gates
+
+    covered = set(example_answers.RATIONALE_EXAMPLES)
+    check(
+        "example_answers.py covers exactly the reachable rationale fields",
+        covered == expected,
+        f"missing: {expected - covered}; extra: {covered - expected}",
+    )
+    empty = [k for k, v in example_answers.RATIONALE_EXAMPLES.items() if not v.strip()]
+    check("no example answer is blank", not empty, f"blank: {empty}")
+
+
+def test_mode_selects_the_shown_register(tmp: Path) -> None:
+    """DR-35: choosing `simple` shows the plain-English explanation; choosing `advanced` shows
+    the technical one. Captures real stdout from a real `wizard.run` rather than calling
+    `explanations.explain` directly, so this proves the wizard actually prints what the chosen
+    mode selects - not merely that the content module itself is self-consistent."""
+    import contextlib
+    import io
+
+    from surfaceplate.adopt import explanations
+
+    repo = make_installed_repo(tmp, "mode-repo")
+    (repo / "requirements.txt").write_text("PyYAML==6.0.3\n", encoding="utf-8")
+    (repo / "docs").mkdir()
+    (repo / "docs" / "DEVELOPMENT_REGISTER.md").write_text("# Register\n", encoding="utf-8")
+    (repo / "workflows").mkdir()
+    (repo / "workflows" / "secret-scan.yml").write_text("name: scan\n", encoding="utf-8")
+
+    buffer = io.StringIO()
+    with contextlib.redirect_stdout(buffer):
+        wizard.run(repo, ScriptedPrompt(answers=list(ESSENTIAL_ANSWERS)))
+    output = buffer.getvalue()
+
+    simple_line = explanations.explain("agent_work_packets", "simple")
+    advanced_line = explanations.explain("agent_work_packets", "advanced")
+    check(
+        "mode=simple: the simple register of agent_work_packets was actually printed",
+        simple_line in output,
+    )
+    check(
+        "mode=simple: the advanced register was NOT printed instead",
+        advanced_line not in output,
+    )
+
+
+def test_detected_signals_shown_on_level_screen(tmp: Path) -> None:
+    """DR-35: the level-choice screen states what it detected AND what it didn't - never picking
+    a level, per the maintainer's own instruction that level choice stays repository-dependent.
+    A fixture repository with a real CI workflow and no decisions folder proves both halves of
+    the sentence are correct, not just that something gets printed."""
+    import contextlib
+    import io
+
+    from surfaceplate.adopt import sections
+
+    repo = make_installed_repo(tmp, "signals-repo")
+    (repo / ".github" / "workflows").mkdir(parents=True, exist_ok=True)
+    (repo / ".github" / "workflows" / "ci.yml").write_text("name: ci\n", encoding="utf-8")
+
+    buffer = io.StringIO()
+    with contextlib.redirect_stdout(buffer):
+        sections.ask_conformance_level(
+            ScriptedPrompt(answers=["essential"]), repo, builds_user_interface=False, mode="simple"
+        )
+    output = buffer.getvalue()
+
+    check(
+        "detected: the real CI workflow is named as present",
+        "You appear to have" in output and ".github/workflows/ci.yml" in output,
+        output,
+    )
+    check(
+        "detected: the absent decisions folder and CHANGELOG are named as absent",
+        "You don't yet have" in output
+        and "decisions/ADR folder" in output
+        and "CHANGELOG" in output,
+        output,
+    )
+
+
 def test_essential_end_to_end(tmp: Path) -> tuple[Path, dict]:
     repo = make_installed_repo(tmp, "essential-repo")
     # The dependency_lock artefact and the scanner workflow both need to exist for a clean
@@ -303,6 +477,60 @@ def test_essential_end_to_end(tmp: Path) -> tuple[Path, dict]:
         "\n".join(schema_findings) or result.stdout[-600:],
     )
     return repo, data
+
+
+def test_tricky_characters_round_trip(tmp: Path) -> None:
+    """F36: an answer containing YAML-flow-sequence-special characters must survive the full
+    wizard flow - written, re-parsed, and equal to exactly what was typed. Before the fix this
+    failed at the write step itself (`WriteRefused`, no output on disk), not merely with a wrong
+    value - so the first check is that it writes at all."""
+    repo = make_installed_repo(tmp, "tricky-characters-repo")
+
+    prompt = ScriptedPrompt(answers=list(TRICKY_CHARACTER_ANSWERS))
+    try:
+        written = wizard.run(repo, prompt)
+    except wizard.WriteRefused as exc:
+        check(
+            "tricky-character answers: wizard writes successfully (not refused)",
+            False,
+            f"WriteRefused: {exc.detail}",
+        )
+        return
+
+    check("tricky-character answers: wizard writes successfully (not refused)", True)
+
+    try:
+        prompt.assert_exhausted()
+        check("tricky-character run: every scripted answer was used", True)
+    except AssertionError as exc:
+        check("tricky-character run: every scripted answer was used", False, str(exc))
+
+    import yaml
+
+    data = yaml.safe_load(written.read_text(encoding="utf-8"))
+    gate = next(g for g in data["prerequisites"] if g["id"] == "work_registration")
+    scanner = data["baseline_controls"]["secret_hygiene"]["scanner"]
+
+    check(
+        "tricky artefact round-trips exactly, leading `-` included",
+        gate["precondition"]["artefacts"] == ["-docs/DEVELOPMENT_REGISTER.md"],
+        str(gate["precondition"]["artefacts"]),
+    )
+    check(
+        "tricky paths round-trips exactly, `,`, `[`, `]` and `?` included",
+        gate["gated_activity"]["paths"] == ["src/**, [other]?"],
+        str(gate["gated_activity"]["paths"]),
+    )
+    check(
+        "enforcement (schema-valid, unaffected by the tricky answers elsewhere) round-trips",
+        gate["enforcement"] == ["history_audit", "review"],
+        str(gate["enforcement"]),
+    )
+    check(
+        "tricky scanner wired_in round-trips exactly, `?` included",
+        scanner["wired_in"] == ["workflows/secret-scan.yml?raw=true"],
+        str(scanner["wired_in"]),
+    )
 
 
 def test_full_ui_end_to_end(tmp: Path) -> None:
@@ -409,7 +637,7 @@ def test_interrupt_leaves_repo_untouched(tmp: Path) -> None:
     before_profile = (repo / "governance" / "application-profile.yaml").read_text(encoding="utf-8")
     before_files = {p.relative_to(repo) for p in repo.rglob("*") if p.is_file() and ".git" not in p.parts}
 
-    prompt = InterruptAfter(list(ESSENTIAL_ANSWERS), count=5)  # cancels partway through section 2
+    prompt = InterruptAfter(list(ESSENTIAL_ANSWERS), count=6)  # sections 0-2 complete; cancels at the start of section 3
     try:
         wizard.run(repo, prompt)
         check("an interrupt raises Cancelled", False, "wizard.run returned instead of raising")
@@ -419,10 +647,90 @@ def test_interrupt_leaves_repo_untouched(tmp: Path) -> None:
     after_profile = (repo / "governance" / "application-profile.yaml").read_text(encoding="utf-8")
     after_files = {p.relative_to(repo) for p in repo.rglob("*") if p.is_file() and ".git" not in p.parts}
     check("the profile is byte-for-byte unchanged after an interrupt", before_profile == after_profile)
+
+    # DR-35: an interrupt now legitimately leaves ONE new file behind - a resumable draft, not
+    # the profile itself. "No stray file" is no longer the right property to check; "no file
+    # other than the draft" is.
+    new_files = after_files - before_files
     check(
-        "no stray file was left behind by the interrupted run",
-        before_files == after_files,
-        f"new files: {after_files - before_files}",
+        "the only new file after an interrupt is the resumable draft",
+        new_files == {Path(wizard.DRAFT_FILENAME)},
+        f"new files: {new_files}",
+    )
+    draft = json.loads((repo / wizard.DRAFT_FILENAME).read_text(encoding="utf-8"))
+    check(
+        "the draft records only the sections actually completed before the interrupt",
+        set(draft["sections"]) == {"mode", "identity", "stack"},
+        str(set(draft["sections"])),
+    )
+    check(
+        "the draft's completed sections carry the real scripted answers, not placeholders",
+        draft["sections"]["mode"] == "simple"
+        and draft["sections"]["identity"]["application_id"] == "billing-reconciler",
+        str(draft["sections"]),
+    )
+
+
+def test_resume_from_draft(tmp: Path) -> None:
+    """DR-35: a second invocation offers to resume an interrupted draft, does not re-ask what was
+    already answered, and the resumed answer set survives to the final written profile. Proves
+    resumability end to end - not just that a draft file gets written (`test_interrupt_leaves_
+    repo_untouched` already covers that), but that resuming actually skips re-asking rather than
+    merely re-accepting the same answers a second time."""
+    repo = make_installed_repo(tmp, "resume-repo")
+    (repo / "requirements.txt").write_text("PyYAML==6.0.3\n", encoding="utf-8")
+    (repo / "docs").mkdir()
+    (repo / "docs" / "DEVELOPMENT_REGISTER.md").write_text("# Register\n", encoding="utf-8")
+    (repo / "workflows").mkdir()
+    (repo / "workflows" / "secret-scan.yml").write_text("name: scan\n", encoding="utf-8")
+
+    # First attempt: interrupted right after the level (section 4) completes - answers 0-9
+    # (mode, identity ×3, stack ×2, risk ×2, data_classification, conformance_level) succeed, and
+    # the 11th ask (the first controls question) raises Cancelled.
+    first = InterruptAfter(list(ESSENTIAL_ANSWERS), count=10)
+    try:
+        wizard.run(repo, first)
+        check("resume fixture: the first attempt is interrupted as designed", False, "did not raise")
+    except Cancelled:
+        check("resume fixture: the first attempt is interrupted as designed", True)
+
+    draft_path = repo / wizard.DRAFT_FILENAME
+    check("resume fixture: a draft exists after the interrupt", draft_path.is_file())
+    draft = json.loads(draft_path.read_text(encoding="utf-8"))
+    check(
+        "resume fixture: the draft completed exactly through the level section",
+        set(draft["sections"]) == {"mode", "identity", "stack", "risk", "level"},
+        str(set(draft["sections"])),
+    )
+
+    # Second attempt: resume, then answer only what remains. The second ScriptedPrompt is NOT
+    # given the already-completed sections' answers at all - ScriptedPrompt raises on any ask it
+    # wasn't given an answer for, so if a resumed section were re-asked instead of skipped, this
+    # would fail with "no more answers" rather than silently passing.
+    remaining_answers = [True] + list(ESSENTIAL_ANSWERS[10:])  # True answers "Resume it?"
+    second = ScriptedPrompt(answers=remaining_answers)
+    written = wizard.run(repo, second)
+    try:
+        second.assert_exhausted()
+        check("resume run: every remaining scripted answer was used, and none extra", True)
+    except AssertionError as exc:
+        check("resume run: every remaining scripted answer was used, and none extra", False, str(exc))
+
+    check("resume run: the draft is cleared after a successful write", not draft_path.is_file())
+
+    import yaml
+
+    data = yaml.safe_load(written.read_text(encoding="utf-8"))
+    check(
+        "resume run: the resumed identity answers reached the final profile",
+        data.get("application_id") == "billing-reconciler"
+        and data.get("owner") == "Finance Platform team",
+        str(data),
+    )
+    check(
+        "resume run: the resumed conformance-level answer reached the final profile",
+        data.get("conformance_level") == "essential",
+        str(data.get("conformance_level")),
     )
 
 
@@ -475,8 +783,21 @@ def main() -> int:
         print("catalogue")
         test_catalogue_sections_sum_to_the_whole_catalogue()
 
+        print("\nDR-35: explanation and example-answer coverage over the whole catalogue")
+        test_explanations_cover_every_catalogue_item()
+        test_example_answers_cover_every_reachable_rationale_field()
+
+        print("\nDR-35: mode selects the register actually shown")
+        test_mode_selects_the_shown_register(tmp)
+
+        print("\nDR-35: detected signals on the level-choice screen")
+        test_detected_signals_shown_on_level_screen(tmp)
+
         print("\nessential-level end to end")
         essential_repo, essential_profile = test_essential_end_to_end(tmp)
+
+        print("\nF36 regression: flow-sequence-special characters round-trip through the real wizard flow")
+        test_tricky_characters_round_trip(tmp)
 
         print("\nfull-level, UI-building end to end")
         test_full_ui_end_to_end(tmp)
@@ -486,6 +807,9 @@ def main() -> int:
 
         print("\ninterrupt mid-flow")
         test_interrupt_leaves_repo_untouched(tmp)
+
+        print("\nresumability (DR-35): resume an interrupted draft, skip what was already answered")
+        test_resume_from_draft(tmp)
 
         print("\nrefusals")
         test_refuses_without_install(tmp)
