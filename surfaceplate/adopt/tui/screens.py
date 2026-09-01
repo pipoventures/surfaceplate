@@ -67,6 +67,20 @@ class Frame(VerticalScroll):
 
     can_focus = False
 
+    def on_mount(self) -> None:
+        """Open at the top, whatever the initially focused widget wants.
+
+        Textual scrolls the focused widget into view on mount. Where that widget sits below a long
+        intro - the conformance-level screen with its recommendation, the scaffold offer with its
+        previews - the frame opened already scrolled, so the screen's own title and the first words
+        of its explanation were off the top and the adopter began mid-sentence. Deferred, because
+        that scrolling happens after this returns.
+
+        Fixed here rather than on each screen because it had already appeared twice; a third
+        instance would have been three copies of the same three lines.
+        """
+        self.call_after_refresh(lambda: self.scroll_home(animate=False))
+
 
 class _StatefulToggle:
     """Mixin: draw a DIFFERENT character for on and off.
@@ -592,14 +606,8 @@ class LevelScreen(_SectionScreenBase):
         # makes the first paint deterministic instead of dependent on Textual's mount ordering.
         self._update_meta(self._start)
         self._set_hint()
-        # Moving the highlight scrolls it into view, which on a long recommendation pushed the
-        # screen's own title and the first words of that recommendation off the top at 80x24 - the
-        # adopter opened mid-sentence with no heading. Deferred, because the highlight does its own
-        # scrolling after this method returns.
-        self.call_after_refresh(self._scroll_to_top)
-
-    def _scroll_to_top(self) -> None:
-        self.query_one("#frame").scroll_home(animate=False)
+        # The frame opens at its own top - see `Frame.on_mount`, which handles this for every
+        # screen now that it had appeared here and on the scaffold offer.
 
     def _options(self, highlighted: int | None = 0) -> list[Option]:
         """Numbered, with a caret on the highlighted row.

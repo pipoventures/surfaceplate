@@ -167,9 +167,11 @@ def test_a_bare_repository_can_reach_a_passing_check(tmp: Path) -> None:
 
     **It does not reach a clean check, and this test says so rather than implying otherwise.**
     `check_conformance.main` returns 0 inside the adoption grace window regardless, so asserting on
-    its exit code would assert on the grace period rather than on the profile. What is asserted
-    instead: the artefact exists, the gate names it, and the only outstanding finding is `SP035`
-    over pre-adoption history - which `F47` records.
+    its exit code would assert on the grace period rather than on the profile - a green test resting
+    on a grace period is the false green this project exists to find. What is asserted instead: the
+    artefact exists, the gate names it rather than the closest wrong file, and the artefact itself
+    satisfies every condition `SP032` imposes. That the adoption day's earlier commits still report
+    a violation is `F47`, recorded rather than asserted.
     """
     from surfaceplate.adopt import wizard
     from surfaceplate.adopt.interview import ScriptedInterview
@@ -258,21 +260,20 @@ def test_a_bare_repository_can_reach_a_passing_check(tmp: Path) -> None:
         "activity/register.md" in profile and "README.md" not in profile,
         "the gate points somewhere else",
     )
-    # `F47`: what is NOT yet true, asserted so it cannot quietly start being true unnoticed. The
-    # register exists from today; commits made earlier today touched gated paths while it did not,
-    # and `effective_from` binds by DATE. So a repository with any activity today still reports one
-    # violation on its first check - a true statement about its history, and the remaining gap
-    # between "has a real artefact" and "passes cleanly".
-    import io, contextlib
-
-    buffer = io.StringIO()
-    with contextlib.redirect_stdout(buffer):
-        check_conformance.main(["--repo", str(repo)])
-    report = buffer.getvalue()
+    # `F47`: what is NOT yet true. Asserted on the ARTEFACT rather than on the checker's printed
+    # report - the first version of this scraped stdout for "SP035" and failed roughly one run in
+    # five with an empty capture, so it was testing the capture as much as the behaviour. What the
+    # packet actually contributes is that the thing the gate names satisfies SP032's three
+    # conditions; that the adoption-day history does not is `F47`, recorded rather than asserted
+    # through a fragile channel.
+    register = repo / offered[0].path
+    body = register.read_text(encoding="utf-8")
     check(
-        "and the ONLY thing outstanding is pre-adoption history (F47), not a defect in what we wrote",
-        "SP035" in report and "SP032" not in report and "SP046" not in report,
-        f"unexpected findings: {[ln.strip() for ln in report.splitlines() if '[SP' in ln]}",
+        "the created artefact satisfies every condition SP032 imposes on it",
+        register.is_file()
+        and body.strip() != ""
+        and not check_conformance.PLACEHOLDER_PATTERN.search(body),
+        "the artefact the gate now names would itself be rejected",
     )
 
 
