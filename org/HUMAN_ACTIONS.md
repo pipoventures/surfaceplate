@@ -31,6 +31,7 @@ been done, so the human action can start cold rather than beginning with an hour
 | # | Practice | Why it is here |
 |---|---|---|
 | S1 | **`F55`: verify a docstring's claim when touching the code beneath it** | Open with no mechanical remedy. Two docstrings were found wrong about their own code on 2026-09-01, both corrected. A comment describing a guarantee is a claim to be checked, not a fact |
+| S3 | **Run an instruction before publishing it** | `F50` and `F57` are the same defect one layer apart: a hand-off command naming a file deleted three packets earlier, and a README, an `INSTALL.md` and the tool itself naming a package that 404s. Both survived because **a document is read for sense rather than run**. `F50`'s half is now checked by `tests/check_audit_packet.py`; **`F57`'s is not, and deliberately so** — whether `pip install X` resolves cannot be answered offline, and a check that would not have caught the defect it is named for is the false green this project exists to find |
 | S2 | **Approve, or decline, each merge** | An agent merges on your authorisation and never on its own judgement. Where a packet was planned and approved, the merge is mechanical; where it was not, it waits |
 
 ## Closed
