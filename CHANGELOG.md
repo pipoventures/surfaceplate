@@ -1949,3 +1949,29 @@ drawn in *both* states, so an **unchecked** box rendered a tick and looked answe
 stripped the underline from the one field being typed in; and `Select` exposes both `BLANK` and
 `NULL` as different objects, so the blank test was silently always false. All three were invisible
 to the loose versions, which is `DR-37`'s point demonstrated against this packet's own code.
+
+### The history audit follows renames (`ACT-030`, `DR-39`, `F30` closed)
+
+`F30` has been open since `ACT-018`. The audit resolved a gate's precondition artefact by its
+**current** path and asked whether that path existed in each historical commit — so renaming a file,
+without changing a word of it, retroactively reported every earlier commit as having crossed the
+gate uncovered. It fired twice on this repository's own renames (`DR-30` making the agent
+instructions agent-neutral, `DR-31` packaging the payload for pip) and cost two exception records
+for work that violated nothing, which is exactly what `DR-22` names as evidence a gate is wrongly
+scoped.
+
+It was left unbuilt through four packets on a real objection, recorded at the time: *"`--follow` is
+heuristic, single-path, and its results would have to be trusted by a control."* `DR-39` answers
+that rather than waving it past. The lookup can only ever **add** names to search, so it can clear a
+false violation and can never hide a commit where the artefact was absent under every name it has
+ever had; and every followed rename is **stated on the run**, so a cleared violation is never
+silent. This repository's own output now carries the chain: *"test_convention: precondition … followed
+through 2 rename(s)…"*.
+
+Two things worth recording. The directory case was found by driving it, not by reading: `--follow`
+pointed at a directory does not error — it silently traces some file *inside* it and reports that as
+the directory's former name. Harmless in effect, accidental rather than designed, and the first
+implementation's docstring claimed a fallback the code did not have; directories now keep the strict
+check explicitly. And `GX-0001`/`GX-0002` are **kept and marked superseded** rather than deleted:
+they cover violations that no longer occur, but deleting an exception record is the retrospective
+edit the standard says an exception must never be able to make invisibly.

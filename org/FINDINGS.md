@@ -94,7 +94,7 @@ an unknown number of releases with nothing noticing.
 | F27 | The installer forbade what the standard permits: no way to adopt without the hook | high | Closed — `--no-hooks`, recorded and announced |
 | F28 | `SP038` accepted any pre-commit hook as satisfying a `local_hook` claim | high | Closed — the active hook is compared against the one installed |
 | F29 | The agent instructions the framework ships are not read by the agent that uses it | high | Closed — emitted per agent; surfaceplate finally subject to its own |
-| F30 | The history audit resolves a precondition by its current path, so a rename falsifies the whole history | medium | **Open** — cleared by exception `GX-0001`; following renames is unbuilt |
+| F30 | The history audit resolves a precondition by its current path, so a rename falsifies the whole history | medium | Closed — `ACT-030`; the audit follows renames, and says which chain it followed |
 | F31 | The history audit ran against a depth-1 clone in CI and reported nothing wrong | high | Closed — `fetch-depth: 0`, and a shallow clone is now reported |
 | F32 | The wizard invented rationale text for baseline controls and auto-masked UI gates | high | Closed — `ACT-022`, routed through `Prompt`; found by the review `ACT-021` requested |
 | F33 | An all-digit commit SHA silently fails a gate exception, and the lesson never propagated | medium | Closed — `ACT-024`; template, checker message, and test all fixed |
@@ -1421,6 +1421,29 @@ that the gate is wrongly scoped or the process is wrong."*
 precondition's path *as at each commit* rather than as at HEAD. It is not built, and it is not a
 small change: `--follow` is heuristic, single-path, and its results would have to be trusted by a
 control. Left open rather than half-built.
+
+**Closed at `ACT-030` (`DR-39`), and the heuristic objection was answered rather than waved past.**
+`historical_paths()` collects every name an artefact has had and the audit looks for it under all of
+them. Two properties make a heuristic safe to put inside a control:
+
+- **It can only ever add names to look for.** So it can clear a false violation and can never hide
+  a commit where nothing existed under any name. Verified: an artefact that never existed still
+  resolves to itself alone, and a genuine violation after a rename is still reported.
+- **Every rename it follows is stated on the run.** This repository's own output now reads
+  *"test_convention: precondition ... followed through 2 rename(s): ... <- ... <- ..."* - the exact
+  chain `DR-30` and `DR-31` created. An adopter sees which chain was trusted rather than watching a
+  check go quiet.
+
+Where git cannot answer - a directory rather than a file, no history - it falls back to the strict
+pre-`F30` behaviour, which errs toward reporting. The directory case was found by driving it:
+`--follow` pointed at a directory silently traces some file *inside* it and reports that as the
+directory's former name. Harmless in effect, since a file existing implies its directory did, but
+accidental rather than designed, so directories now keep the strict check explicitly.
+
+`GX-0001` and `GX-0002` are **kept and marked superseded**, not deleted. They cover violations that
+no longer occur, but they are the record of what was decided and when, and deleting an exception
+record is precisely the retrospective edit `core/PREREQUISITE_GATES.md` says an exception must never
+be able to make invisibly.
 
 **A trap found on the way, worth its own line.** The exception record listed abbreviated SHAs
 unquoted, and `7547482` — seven digits, no letters — parsed as an **integer**. `SP043` rejected the
