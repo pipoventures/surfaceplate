@@ -55,7 +55,7 @@ Then, to fill in `governance/application-profile.yaml` — the one file the inst
 to write — run the interactive wizard rather than editing the template by hand:
 
 ```bash
-pip install surfaceplate[adopt]   # or: python -m pip install questionary==2.1.1
+pip install surfaceplate[adopt]   # or: python -m pip install textual==8.2.8
 surfaceplate adopt --target /path/to/your-repo
 ```
 

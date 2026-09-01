@@ -121,9 +121,10 @@ apply to this repository and why.
 conformance level, controls, and every prerequisite gate — as a terminal wizard, and writes a
 complete, schema-valid profile only once you confirm a final review screen. It never selects a
 level, invents a rationale, or sets a date on your behalf: it asks, you answer, it writes. Needs
-the `adopt` extra (`pip install surfaceplate[adopt]`, or `python -m pip install questionary==2.1.1`
-alongside a git-clone install); `surfaceplate install`/`check` need nothing beyond `PyYAML` and
-`jsonschema`. Once it has written the profile, hand the repository to
+the `adopt` extra (`pip install surfaceplate[adopt]`, or `python -m pip install textual==8.2.8`
+alongside a git-clone install) and a real terminal — it is a full-screen interface and refuses,
+with a route you can take, when output is piped or running in CI. `surfaceplate install`/`check`
+need nothing beyond `PyYAML` and `jsonschema`. Once it has written the profile, hand the repository to
 `prompts/copilot-implementation-assistant.prompt.md` to implement what it declared.
 
 The steps below are what `surfaceplate adopt` does on your behalf — read them if you are filling

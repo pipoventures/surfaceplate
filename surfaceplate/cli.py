@@ -27,13 +27,13 @@ def _cmd_check(argv: list[str]) -> int:
 
 def _cmd_adopt(argv: list[str]) -> int:
     from surfaceplate.adopt import wizard
-    from surfaceplate.adopt.prompting import Cancelled, InteractivePrompt
+    from surfaceplate.adopt.interview import Cancelled
 
     try:
-        import questionary  # noqa: F401  (checked here so the failure is clear, not a bare traceback)
+        import textual  # noqa: F401  (checked here so the failure is clear, not a bare traceback)
     except ImportError:
         print(
-            "`adopt` needs the optional `questionary` dependency, which is not installed.\n"
+            "`adopt` needs the optional `textual` dependency, which is not installed.\n"
             "Run: pip install surfaceplate[adopt]",
             file=sys.stderr,
         )
@@ -46,13 +46,28 @@ def _cmd_adopt(argv: list[str]) -> int:
     args = parser.parse_args(argv)
     repo = Path(args.target).resolve()
 
-    print("Surfaceplate — adoption wizard")
-    print("This asks; you answer; nothing is written until you confirm at the end.\n")
+    # `adopt` is a full-screen interface and needs a real terminal. Refusing with a route the
+    # reader can take is the `F35`/`ACT-025` lesson: a refusal that only describes an outcome is
+    # not a refusal anyone can act on. The draft, if any, is named as preserved so a piped or
+    # CI invocation cannot read as having lost work.
+    if not (sys.stdin.isatty() and sys.stdout.isatty()):
+        print(
+            "`adopt` is an interactive, full-screen wizard and needs a real terminal; this one is "
+            "not attached to a TTY (output is piped, redirected, or running in CI).\n"
+            "\n"
+            "  Run it directly in a terminal:  surfaceplate adopt --target " + str(repo) + "\n"
+            "\n"
+            "Nothing was read or written, and any saved draft in that repository is untouched.",
+            file=sys.stderr,
+        )
+        return 2
+
+    from surfaceplate.adopt.tui.app import TextualInterview
 
     try:
-        written = wizard.run(repo, InteractivePrompt())
+        written = wizard.run(repo, TextualInterview())
     except Cancelled:
-        print("\nCancelled. Nothing was written.")
+        print("\nCancelled. Nothing was written; your draft is kept so you can resume.")
         return 1
     except wizard.NotInstalled as exc:
         print(f"\n{exc}")

@@ -1,0 +1,176 @@
+/* The approved mockup's own chrome (artifact 8b82b21c, "Adopt, Two Ways").
+   Colours are taken from it rather than chosen again: ground #0e1316, border #262c30,
+   ink #dce0dd, muted #7a827e, amber accent #d79a3c, success #6fae8a. */
+
+Screen {
+    background: #0e1316;
+    color: #dce0dd;
+}
+
+#frame {
+    border: round #262c30;
+    padding: 1 2;
+    height: 1fr;
+}
+
+.section-header {
+    color: #7a827e;
+    margin-bottom: 1;
+}
+
+.section-subline {
+    color: #7a827e;
+}
+
+.intro {
+    color: #dce0dd;
+    margin-bottom: 1;
+}
+
+.recap {
+    color: #7a827e;
+    margin-bottom: 1;
+}
+
+.note {
+    color: #6fae8a;
+}
+
+.rule {
+    color: #262c30;
+}
+
+/* --- the hint line: always the last row, kbd chips and the current field's help --- */
+#hint {
+    dock: bottom;
+    height: auto;
+    color: #7a827e;
+    border-top: solid #262c30;
+    padding-top: 1;
+}
+
+.error {
+    color: #d79a3c;
+}
+
+/* --- generic form rows: a fixed label column, values in ink (mockup frame 01) --- */
+.field-row {
+    height: auto;
+    margin-bottom: 1;
+}
+
+.field-label {
+    width: 34;
+    color: #7a827e;
+    padding-top: 1;
+}
+
+.field-help {
+    color: #7a827e;
+    margin-left: 34;
+}
+
+Input, TextArea {
+    background: #0e1316;
+    border: none;
+    color: #dce0dd;
+    padding: 0 1;
+}
+
+Input:focus, TextArea:focus {
+    background: #171c1f;
+    border: none;
+}
+
+TextArea {
+    height: 3;
+}
+
+Checkbox {
+    background: #0e1316;
+    border: none;
+}
+
+Checkbox:focus {
+    background: #171c1f;
+}
+
+/* --- level screen (mockup frame 02): highlight is not selection --- */
+OptionList {
+    background: #0e1316;
+    border: none;
+    padding: 0;
+}
+
+OptionList > .option-list--option-highlighted {
+    background: #1c1f1c;
+    color: #dce0dd;
+    text-style: bold;
+}
+
+.level-meta {
+    color: #d79a3c;
+    margin-left: 4;
+}
+
+/* --- gate catalogue (mockup frame 03): several gates at once --- */
+.gate {
+    height: auto;
+    border-bottom: solid #262c30;
+    padding: 1 0;
+}
+
+.gate-focused {
+    background: #12181b;
+}
+
+.gate-name {
+    color: #dce0dd;
+    text-style: bold;
+}
+
+.gate-desc {
+    color: #7a827e;
+    max-width: 72;
+}
+
+.chip-row {
+    height: auto;
+    margin-top: 1;
+}
+
+.chip {
+    border: none;
+    min-width: 18;
+    height: 1;
+    background: #0e1316;
+    color: #7a827e;
+}
+
+.chip-selected {
+    background: #d79a3c;
+    color: #0e1316;
+    text-style: bold;
+}
+
+.followups {
+    margin-top: 1;
+    margin-left: 2;
+    height: auto;
+}
+
+.gate-locked {
+    color: #6fae8a;
+}
+
+/* --- review --- */
+#review-body {
+    height: 1fr;
+    border: solid #262c30;
+    padding: 1;
+}
+
+#review-error {
+    color: #d79a3c;
+    height: auto;
+}

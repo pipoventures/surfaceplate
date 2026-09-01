@@ -1,491 +1,230 @@
-"""The seven sections, in order. Each function asks; none of them decide.
+"""Turning answers into profile fragments. Pure functions: no prompting, no I/O, no defaults.
 
-Every function takes a `Prompt` and returns a plain dict fragment shaped exactly like the piece of
-`governance/application-profile.yaml` it fills. `wizard.py` assembles the fragments; nothing here
-writes a file, and nothing here is reachable except through a `Prompt.text`/`.select`/`.confirm`
-call - there is no code path from a detected fact or a suggested default to the written profile that
-does not pass through the human answering.
+Every function here takes a flat dict of answers - keyed by the `FieldSpec.id`s that `plan.py`
+declared for that section - and returns the piece of `governance/application-profile.yaml` it
+fills. `wizard.py` assembles the fragments; `render.py` writes them out.
 
-A default shown in a prompt (a suggested `review_by` date, a pre-checked `enforcement` set) is not
-an invented answer: `questionary` shows it, the human sees it, and pressing Enter is still an
-answer - the same way accepting a form's pre-filled field is still submitting the form. What would
-cross the line is writing a value the human never saw asked. Nothing here does that.
+**Why this module stopped asking questions (`DR-36`).** Until Phase 2 these were `ask_*` functions
+that called a `Prompt` one question at a time. That coupled three separable things: which questions
+exist (now `plan.py`), how they get asked (now `tui/` and `interview.py`), and what shape the answers
+take (here). Splitting them is what makes the binding rule provable rather than merely asserted:
+because these functions are pure and total, `tests/test_provenance.py` can feed every free-text
+field a unique sentinel, assemble a whole profile, and assert that **every string in the result is
+either sentinel-derived or on an explicit allow-list of things the tool contributes**.
+
+That allow-list is the honest statement of what this wizard writes on its own behalf, and adding to
+it is a code-review event. It is a strictly stronger guarantee than the old `ScriptedPrompt` gave:
+this repository's own test file records that the old one "only objects to a call it wasn't given an
+answer for, never to a value written without any call" - which is exactly how `F32`/`ACT-022`
+(rationale text invented for seven controls and gates) escaped every scripted test it had.
 """
 
 from __future__ import annotations
 
 import datetime as _dt
-from pathlib import Path
 
-from surfaceplate.adopt import catalogue, example_answers, explanations
-from surfaceplate.adopt.prompting import Prompt
+from surfaceplate.adopt import catalogue, plan
 
-TEMPLATE_PLACEHOLDER_HELP = (
-    "Type an actual value. \"TBD\", \"TODO\" and similar are template placeholders this "
-    "framework's own checker rejects (SP020) - writing one here would fail the profile you're "
-    "about to produce."
-)
-
-
-def _nonempty_text(prompt: Prompt, message: str, *, help: str | None = None, default: str = "") -> str:
-    """A text answer that cannot be blank. The one validation rule applied uniformly, everywhere:
-    an empty string is never a decision, on any field, at any point in this wizard."""
-    while True:
-        answer = prompt.text(message, help=help, default=default).strip()
-        if answer:
-            return answer
+# Values this module supplies on nobody's behalf but the framework's. Every one of these appears in
+# `tests/test_provenance.py`'s allow-list, and that test fails if this module writes a string that
+# is neither one of these nor traceable to an answer.
+SCHEMA_VERSION = "1.0"
+SCANNER_NOTES = "Blocking."
+DECISION_REQUIRED = "required"
 
 
-# ---------------------------------------------------------------------------------------------
-# Section 0 — Mode (DR-35). Asked once, before anything else, and threaded through every
-# subsequent explanation this wizard shows. Both modes explain - the maintainer's own correction,
-# preserved because it is this section's whole design constraint: "don't ever think what we have
-# now would be suitable to advance." `advanced` is a different vocabulary, not a smaller one.
-# ---------------------------------------------------------------------------------------------
-
-def ask_mode(prompt: Prompt) -> str:
-    print("Two ways to see what each question means - pick whichever matches how you think about")
-    print("software and governance today. Either way, every control and gate gets a real")
-    print("explanation before you're asked about it - this choice is about the words used, not")
-    print("about whether an explanation is given at all.")
-    return prompt.select(
-        "Explanation style",
-        [
-            (
-                "simple",
-                "simple — plain English, no jargon; assumes no software or governance background",
-            ),
-            (
-                "advanced",
-                "advanced — precise technical terms; still explains this framework's own "
-                "vocabulary, just not general software-engineering concepts",
-            ),
-        ],
-    )
+def build_mode(answers: dict) -> dict:
+    """Session state, not profile content - the chosen register is never written to disk."""
+    return {"mode": answers["mode"]}
 
 
-# ---------------------------------------------------------------------------------------------
-# Section 1 — Identity
-# ---------------------------------------------------------------------------------------------
-
-_APPLICATION_ID_HELP = "short, stable, used in file paths and IDs - lowercase, digits, hyphen or underscore"
-
-
-def ask_identity(prompt: Prompt) -> dict:
-    import re
-
-    while True:
-        application_id = _nonempty_text(prompt, "Application ID", help=_APPLICATION_ID_HELP)
-        if re.match(r"^[a-z0-9][a-z0-9_-]+$", application_id):
-            break
-        print(f'  "{application_id}" must start with a letter or digit and use only lowercase, '
-              "digits, hyphens or underscores - try again.")
-
-    display_name = _nonempty_text(prompt, "Display name", help="what humans call it")
-    owner = _nonempty_text(
-        prompt, "Owner",
-        help="who is accountable for this application, not this adoption",
-    )
-    return {"application_id": application_id, "display_name": display_name, "owner": owner}
-
-
-# ---------------------------------------------------------------------------------------------
-# Section 2 — Stack
-# ---------------------------------------------------------------------------------------------
-
-def ask_stack(prompt: Prompt, repo: Path) -> dict:
-    from surfaceplate.adopt import detect
-
-    languages = detect.detect_languages(repo)
-    ui_hint = detect.detect_ui_hint(repo)
-    if languages:
-        print(f"  Detected: {', '.join(languages)}")
-    if ui_hint:
-        print(f"  Detected a UI-framework dependency: {ui_hint}")
-
-    language = _nonempty_text(
-        prompt, "Language(s) / framework", default=", ".join(languages) if languages else "",
-        help="shown above if detected - confirm or correct it",
-    )
-
-    # builds_user_interface is asked outright and never set from ui_hint. core/CONFORMANCE_LEVELS.md
-    # is explicit about why: "a reviewer can falsify a wrong answer in seconds" - which is only a
-    # meaningful check if a human, not a heuristic, gave the answer being checked.
-    builds_ui_help = (
-        "Decides whether the four interface gates are a floor at standard and full. Not "
-        "descriptive - answer for what this repository actually does, not what it might do later."
-    )
-    builds_user_interface = prompt.confirm(
-        "Does this repository build a user interface?", help=builds_ui_help
-    )
-
-    return {"stack": {"language": language}, "builds_user_interface": builds_user_interface}
-
-
-# ---------------------------------------------------------------------------------------------
-# Section 3 — Risk & materiality
-# ---------------------------------------------------------------------------------------------
-
-def ask_risk(prompt: Prompt) -> dict:
-    risk_profile = _nonempty_text(
-        prompt, "Risk profile",
-        help="intended use, uncertainty, materiality - a sentence or two, in your own words",
-    )
-    materiality_definition = _nonempty_text(
-        prompt, "Materiality definition",
-        help="which outputs or decisions are material - what would make a wrong one matter",
-    )
-    data_classification = prompt.select(
-        "Data classification",
-        [
-            ("public", "public — no restriction"),
-            ("internal", "internal — not for external release"),
-            ("confidential", "confidential — restricted within the organisation"),
-            ("restricted", "restricted — the strictest tier this framework recognises"),
-        ],
-    )
+def build_identity(answers: dict) -> dict:
     return {
-        "risk_profile": risk_profile,
-        "materiality_definition": materiality_definition,
-        "data_classification": data_classification,
+        "application_id": answers["application_id"],
+        "display_name": answers["display_name"],
+        "owner": answers["owner"],
     }
 
 
-# ---------------------------------------------------------------------------------------------
-# Section 4 — Conformance level
-# ---------------------------------------------------------------------------------------------
-
-def _detected_signals(repo: Path) -> tuple[list[str], list[str]]:
-    """(present, absent) signal descriptions for the level-choice screen. Light, disclosed
-    detection only - `detect.py`'s own module docstring states why this never picks a level: the
-    same "a reviewer can falsify a wrong answer in seconds" reasoning `builds_user_interface`
-    already rests on. Shown so the honest cost of a level is visible before it is chosen, not
-    discovered mid-adoption the way `DR-28` and `DR-34` both found it was for Plyego and Plutos."""
-    from surfaceplate.adopt import detect
-
-    present: list[str] = []
-    absent: list[str] = []
-
-    ci_workflows = detect.detect_ci_workflows(repo)
-    if ci_workflows:
-        present.append(f"a CI workflow ({', '.join(ci_workflows)})")
-    else:
-        absent.append("a CI workflow")
-
-    decisions = detect.detect_decisions_folder(repo)
-    if decisions:
-        present.append(f"a decisions/ADR folder ({decisions})")
-    else:
-        absent.append("a decisions/ADR folder")
-
-    changelog = detect.detect_changelog(repo)
-    if changelog:
-        present.append(f"a CHANGELOG ({changelog})")
-    else:
-        absent.append("a CHANGELOG")
-
-    return present, absent
+def build_stack(answers: dict) -> dict:
+    return {
+        "stack": {"language": answers["language"]},
+        "builds_user_interface": bool(answers["builds_user_interface"]),
+    }
 
 
-def ask_conformance_level(prompt: Prompt, repo: Path, *, builds_user_interface: bool, mode: str) -> str:
-    print(f"  {explanations.LEVEL_CHOICE[mode]}")
-
-    present, absent = _detected_signals(repo)
-    print("\n  Detected, before you choose - shown so the cost is visible, never to pick for you:")
-    if present:
-        print(f"    You appear to have: {'; '.join(present)}.")
-    if absent:
-        print(f"    You don't yet have: {'; '.join(absent)}.")
-
-    choices = []
-    for level in ("essential", "standard", "full"):
-        summary = catalogue.level_summary(level, builds_user_interface)
-        label = (
-            f"{level} — {summary['gate_count']} gate(s), {summary['control_count']} control(s). "
-            f"{summary['blurb']}"
-        )
-        choices.append((level, label))
-    return prompt.select(
-        "Conformance level — a floor, not a ceiling; you may require more than the level asks",
-        choices,
-    )
+def build_risk(answers: dict) -> dict:
+    return {
+        "risk_profile": answers["risk_profile"],
+        "materiality_definition": answers["materiality_definition"],
+        "data_classification": answers["data_classification"],
+    }
 
 
-# ---------------------------------------------------------------------------------------------
-# Section 5 — Controls
-# ---------------------------------------------------------------------------------------------
-
-_BASELINE_CONTROL_IDS = ("agent_work_packets", "actual_diff_review", "secret_hygiene")
+def build_level(answers: dict) -> dict:
+    return {"conformance_level": answers["conformance_level"]}
 
 
-def ask_controls(prompt: Prompt, *, level: str, mode: str) -> dict:
-    """Every rationale below, baseline or level-required, is asked - none is ever supplied by
-    this module. A Gemini adversarial review (`ACT-021`) found that `agent_work_packets`,
-    `actual_diff_review`, and `secret_hygiene` used to get a hardcoded rationale string here,
-    never routed through `Prompt` at all - a real violation of this package's own binding rule,
-    confirmed against the code before this fix (`ACT-022`; `org/FINDINGS.md`). It applied
-    regardless of whether the reasoning was true for every adopter; the rule is about what asked
-    the question, not about whether the answer was likely to be uncontroversial."""
-    print("  Three baseline controls apply at every level and cannot be excluded, deferred, or")
-    print("  omitted - but why each applies here is still yours to state, not ours to assume.")
+def build_controls(answers: dict, *, level: str) -> dict:
+    """Baseline controls, the scanner, and every control this profile declares.
 
+    A control at the level's floor is written because the level requires it - it is never offered
+    as a tick box, exactly as a level-mandatory gate's status is never offered as a choice. Above
+    the floor it is written only when a human answered `declared`. Either way its *rationale* is
+    always answered, never supplied here.
+    """
     baseline_controls: dict = {}
-    for control_id in _BASELINE_CONTROL_IDS:
-        print(f"  --- {control_id} ---")
-        print(f"  {explanations.explain(control_id, mode)}")
-        rationale = _nonempty_text(
-            prompt, f"Why does {control_id} apply here?",
-            help=TEMPLATE_PLACEHOLDER_HELP,
-            default=example_answers.rationale_example(control_id),
-        )
-        baseline_controls[control_id] = {"decision": "required", "rationale": rationale}
+    for control_id in plan.BASELINE_CONTROL_IDS:
+        baseline_controls[control_id] = {
+            "decision": DECISION_REQUIRED,
+            "rationale": answers[f"{control_id}.rationale"],
+        }
 
-    scanner_name = _nonempty_text(
-        prompt, "Secret scanner", default="gitleaks",
-        help="the tool that scans for secrets before they're committed",
-    )
-    scanner_workflow = _nonempty_text(
-        prompt, "Workflow file the scanner is wired into",
-        help="e.g. .github/workflows/secret-scan.yml - a step naming this scanner must be able to fail the build",
-    )
     baseline_controls["secret_hygiene"]["scanner"] = {
-        "name": scanner_name, "wired_in": [scanner_workflow], "notes": "Blocking."
+        "name": answers["scanner.name"],
+        "wired_in": [answers["scanner.wired_in"]],
+        "notes": SCANNER_NOTES,
     }
 
-    required = catalogue.CONFORMANCE_LEVELS[level]
+    floor = catalogue.CONFORMANCE_LEVELS[level]
     control_decisions: dict = {}
-    for control_id in sorted(required):
-        print(f"  --- {control_id} (required at {level}) ---")
-        print(f"  {explanations.explain(control_id, mode)}")
-        rationale = _nonempty_text(
-            prompt, f"Why does {control_id} apply here?",
-            help=TEMPLATE_PLACEHOLDER_HELP,
-            default=example_answers.rationale_example(control_id),
-        )
-        entry: dict = {"decision": "required", "rationale": rationale}
-        if control_id in catalogue.PATTERN_A_CONTROLS:
-            entry["implementation_reference"] = _nonempty_text(
-                prompt, f"File that implements {control_id}",
-                help="a lock file, a findings register - whatever this control is actually checked against",
-            )
-        elif control_id in catalogue.PATTERN_B_CONTROLS:
-            entry["implementation_reference"] = _nonempty_text(
-                prompt, f"CI step name that implements {control_id}",
-                help="the exact step name in your workflow file - matched by name, not by job",
-            )
-        elif control_id in catalogue.PATTERN_C_CONTROLS:
-            entry["implementation_reference"] = _nonempty_text(
-                prompt, f"Register directory for {control_id}",
-                help="a directory of records validating against this control's schema - empty is a valid, honest start",
-            )
+    for control_id in sorted(catalogue.CONFORMANCE_LEVELS["full"]):
+        declared = control_id in floor or bool(answers.get(f"{control_id}.declared"))
+        if not declared:
+            continue
+        entry: dict = {
+            "decision": DECISION_REQUIRED,
+            "rationale": answers[f"{control_id}.rationale"],
+        }
+        reference = answers.get(f"{control_id}.implementation_reference")
+        if reference:
+            entry["implementation_reference"] = reference
         control_decisions[control_id] = entry
-
-    add_more = prompt.confirm(
-        "Declare any control above the floor? (a level is a floor, not a ceiling)", default=False
-    )
-    while add_more:
-        remaining = sorted(set(catalogue.CONFORMANCE_LEVELS["full"]) - set(control_decisions))
-        if not remaining:
-            break
-        control_id = prompt.select(
-            "Which control?", [(c, c) for c in remaining]
-        )
-        print(f"  {explanations.explain(control_id, mode)}")
-        rationale = _nonempty_text(
-            prompt, f"Why declare {control_id} here, above the floor?",
-            default=example_answers.rationale_example(control_id),
-        )
-        entry = {"decision": "required", "rationale": rationale}
-        if control_id in catalogue.PATTERN_A_CONTROLS or control_id in catalogue.PATTERN_C_CONTROLS:
-            entry["implementation_reference"] = _nonempty_text(prompt, f"Reference for {control_id}")
-        elif control_id in catalogue.PATTERN_B_CONTROLS:
-            entry["implementation_reference"] = _nonempty_text(prompt, f"CI step name for {control_id}")
-        control_decisions[control_id] = entry
-        add_more = prompt.confirm("Declare another?", default=False)
 
     return {"baseline_controls": baseline_controls, "control_decisions": control_decisions}
 
 
-# ---------------------------------------------------------------------------------------------
-# Section 6 — Prerequisite gates
-# ---------------------------------------------------------------------------------------------
+def build_gate(spec: plan.GateSpec, answers: dict) -> dict:
+    """One gate's entry, from the answers given for it.
 
-def ask_gates(prompt: Prompt, *, level: str, builds_user_interface: bool, mode: str) -> list[dict]:
-    mandatory = set(catalogue.LEVEL_REQUIRED_GATES[level])
-    if builds_user_interface and level in catalogue.LEVELS_REQUIRING_FULL_DECLARATION:
-        mandatory |= catalogue.DESIGN_GATES
-
-    full_declaration = level in catalogue.LEVELS_REQUIRING_FULL_DECLARATION
-    if not full_declaration:
-        # essential only requires work_registration to be declared; everything else is silent by
-        # design at this level, and asking 18 questions the checker will not read is exactly the
-        # volume problem the terminal-vs-form comparison (DR-32) was built to avoid.
-        print("  At essential, only work_registration must be declared. The other 18 gates are")
-        print("  not read by the checker at this level and are skipped.")
-        gate = _ask_one_gate(prompt, "work_registration", mandatory=True, mode=mode)
-        return [gate]
-
-    gates: list[dict] = []
-    total = len(catalogue.GATE_CATALOGUE)
-    answered = 0
-    for section_name, gate_ids in catalogue.sectioned_gates():
-        applicable_ids = gate_ids
-        if not builds_user_interface:
-            applicable_ids = [g for g in gate_ids if g not in catalogue.DESIGN_GATES]
-            for g in gate_ids:
-                if g in catalogue.DESIGN_GATES:
-                    # The STATUS is not asked again here - `builds_user_interface: false`, a
-                    # real answer given earlier in section 2, already settles that these four
-                    # are not_applicable. The RATIONALE still is: a Gemini adversarial review
-                    # found this used to write a fixed string with no Prompt call at all, the
-                    # same defect ask_controls had (ACT-022). Offering the old text as an
-                    # editable default keeps this from turning into four redundant re-typings
-                    # of a fact already given, while still making it a real answer, not an
-                    # invented one - the same "shown, must submit" pattern review_by and
-                    # enforcement already use elsewhere in this module. What DID need adding
-                    # (DR-35): these four never printed what they actually mean before this
-                    # fixed string was asked for - being auto-decided is not a reason to skip
-                    # explaining what was decided.
-                    print(f"  {g}: {explanations.explain(g, mode)}")
-                    rationale = _nonempty_text(
-                        prompt, f"Rationale for {g} being not applicable",
-                        default="This repository has no user interface.",
-                    )
-                    gates.append({"id": g, "status": "not_applicable", "rationale": rationale})
-                    answered += 1
-        print(f"  --- {section_name} ({answered + 1}-{answered + len(applicable_ids)} of {total}) ---")
-        for gate_id in applicable_ids:
-            gates.append(
-                _ask_one_gate(prompt, gate_id, mandatory=gate_id in mandatory, mode=mode)
-            )
-            answered += 1
-    return gates
-
-
-def _ask_one_gate(prompt: Prompt, gate_id: str, *, mandatory: bool, mode: str) -> dict:
-    print(f"  {gate_id}: {explanations.explain(gate_id, mode)}")
-
-    if mandatory:
-        print("  Required at this level - not a free choice. Its precondition is.")
+    `answers` is keyed without the gate-id prefix - `{"status": ..., "artefact": ...}` - so this
+    function is testable against a single gate in isolation.
+    """
+    if spec.mandatory:
         status = "required"
+    elif spec.auto_status:
+        status = spec.auto_status
     else:
-        status = prompt.select(
-            f"{gate_id}",
-            [
-                ("required", "required — a precondition must exist before the gated paths change"),
-                ("deferred", "deferred — not yet, with an owner and a date"),
-                ("not_applicable", "not applicable — with a stated reason"),
-            ],
-        )
+        status = answers["status"]
 
     if status == "required":
-        artefact = _nonempty_text(prompt, "  Precondition artefact (a real path)")
-        precondition_description = _nonempty_text(prompt, "  What must exist first, and why")
-        paths = _nonempty_text(
-            prompt, "  Gated paths (git pathspec, e.g. src/**)", help="what may not proceed until then"
-        )
-        gated_description = _nonempty_text(prompt, "  What may not proceed until then")
-        effective_from = prompt.text(
-            "  Effective from (YYYY-MM-DD)", default=_dt.date.today().isoformat()
-        ).strip()
-        enforcement = prompt.text(
-            "  Enforcement (comma-separated: history_audit, review, ci, local_hook)",
-            default="history_audit, review",
-        )
         return {
-            "id": gate_id,
+            "id": spec.id,
             "status": "required",
-            "effective_from": effective_from,
-            "precondition": {"artefacts": [artefact], "description": precondition_description},
-            "gated_activity": {"paths": [paths], "description": gated_description},
-            "enforcement": [e.strip() for e in enforcement.split(",") if e.strip()],
+            "effective_from": answers["effective_from"],
+            "precondition": {
+                "artefacts": [answers["artefact"]],
+                "description": answers["precondition_description"],
+            },
+            "gated_activity": {
+                "paths": [answers["paths"]],
+                "description": answers["gated_description"],
+            },
+            "enforcement": [e.strip() for e in answers["enforcement"].split(",") if e.strip()],
         }
 
     if status == "deferred":
-        owner = _nonempty_text(prompt, "  Owner")
-        revisit_by = _nonempty_text(prompt, "  Revisit by (YYYY-MM-DD)")
-        rationale = _nonempty_text(
-            prompt, "  Why defer, and what happens instead",
-            default=example_answers.rationale_example(gate_id),
-        )
-        return {"id": gate_id, "status": "deferred", "owner": owner, "revisit_by": revisit_by, "rationale": rationale}
+        return {
+            "id": spec.id,
+            "status": "deferred",
+            "owner": answers["owner"],
+            "revisit_by": answers["revisit_by"],
+            "rationale": answers["rationale"],
+        }
 
-    rationale = _nonempty_text(
-        prompt, "  Why is this not applicable here",
-        default=example_answers.rationale_example(gate_id),
-    )
-    return {"id": gate_id, "status": "not_applicable", "rationale": rationale}
+    return {"id": spec.id, "status": "not_applicable", "rationale": answers["rationale"]}
 
 
-# ---------------------------------------------------------------------------------------------
-# Wrap-up — adoption identity, roles, release route (asked just before the final review)
-# ---------------------------------------------------------------------------------------------
+def build_gates(answers: dict, *, level: str, builds_ui: bool, mode: str) -> list[dict]:
+    """Every gate this run asked about, in catalogue order.
 
-def ask_adoption_identity(prompt: Prompt, *, framework_version: str, framework_digest: str, owner: str) -> dict:
-    review_by = prompt.text(
-        "Review by (YYYY-MM-DD)",
-        default=(_dt.date.today() + _dt.timedelta(days=180)).isoformat(),
-        help="180 days is the suggested interval; the checker fails once this date passes",
-    ).strip()
-    framework_maintainer = _nonempty_text(
-        prompt, "Framework maintainer", default=owner,
-        help="the change authority for the standard in this repository - often the same as owner",
-    )
-    repository_classification = _nonempty_text(prompt, "Repository classification")
-    decision_record_id = _nonempty_text(
-        prompt, "Adoption decision record ID",
-        help="if none exists yet, this is the moment to name one - it does not need to be written yet",
-    )
-    adoption_status = prompt.select(
-        "Adoption status",
-        [
-            ("in_progress", "in_progress"),
-            ("complete", "complete"),
-            ("blocked", "blocked"),
-            ("deferred", "deferred"),
-        ],
-    )
-    status_rationale = None
-    if adoption_status in ("blocked", "deferred"):
-        status_rationale = _nonempty_text(prompt, "Why is adoption blocked/deferred?")
+    Walks the same `plan.gate_plan` the screens walked, so a gate the plan did not include cannot
+    appear here and a gate it did include cannot be silently dropped.
+    """
+    gates = []
+    for spec in plan.gate_plan(level=level, builds_ui=builds_ui, mode=mode):
+        prefix = f"{spec.id}."
+        gate_answers = {
+            key[len(prefix):]: value for key, value in answers.items() if key.startswith(prefix)
+        }
+        gates.append(build_gate(spec, gate_answers))
+    return gates
 
-    needs_validator = prompt.confirm(
-        "Does independent (Level 3) review apply to this adoption?", default=False
-    )
-    independent_validator = _nonempty_text(prompt, "Independent validator") if needs_validator else None
 
+def build_adoption(answers: dict, *, framework_version: str, framework_digest: str) -> dict:
+    """`adoption_date` is today's date, and `framework_version`/`framework_digest` come from the
+    install record - the three values in this profile the tool legitimately supplies, each named in
+    the provenance allow-list rather than left to be noticed."""
     result: dict = {
         "framework_version": framework_version,
         "framework_digest": framework_digest,
         "adoption_date": _dt.date.today().isoformat(),
-        "review_by": review_by,
-        "framework_maintainer": framework_maintainer,
-        "repository_classification": repository_classification,
-        "decision_record_id": decision_record_id,
-        "adoption_status": adoption_status,
-        "independent_validator": independent_validator,
+        "review_by": answers["review_by"],
+        "framework_maintainer": answers["framework_maintainer"],
+        "repository_classification": answers["repository_classification"],
+        "decision_record_id": answers["decision_record_id"],
+        "adoption_status": answers["adoption_status"],
+        "independent_validator": (
+            answers["independent_validator"] if answers.get("needs_validator") else None
+        ),
+        # v1: `control_decisions` offers `required` only, so there is nothing to defer. Disclosed
+        # in `DR-32` and untouched by Phase 2.
+        "deferrals": [],
     }
-    # The KEY is absent when there is no rationale, not present-with-null. The schema does not
-    # require this field outside blocked/deferred, so an absent key is the correct representation
-    # - unlike independent_validator, which the schema types as [string, "null"] and the template
-    # itself always writes explicitly, even when null.
-    if status_rationale is not None:
-        result["status_rationale"] = status_rationale
+    # The KEY is absent when there is no rationale, not present-with-null: the schema does not
+    # require this field outside blocked/deferred, so an absent key is the correct representation -
+    # unlike `independent_validator`, which the schema types as [string, "null"].
+    if answers.get("status_rationale"):
+        result["status_rationale"] = answers["status_rationale"]
     return result
 
 
-def ask_roles_and_release(prompt: Prompt) -> dict:
-    roles: list[str] = []
-    while True:
-        role = prompt.text(
-            "Human role (blank to finish)",
-            help="e.g. \"Maintainer — Jane Doe. Sole change authority.\"",
-        ).strip()
-        if not role:
-            break
-        roles.append(role)
+def build_wrap(answers: dict) -> dict:
+    roles = [line.strip() for line in str(answers.get("human_roles", "")).splitlines() if line.strip()]
+    return {
+        "human_roles": roles,
+        "release_route": answers["release_route"],
+        "exclusions": [],
+    }
 
-    release_route = _nonempty_text(
-        prompt, "Release route", help="human and platform release controls, in your own words"
+
+def build_profile(state: dict, *, framework_version: str, framework_digest: str) -> dict:
+    """The whole profile, from every section's answers. Pure - the same state always produces the
+    same dict, apart from `adoption_date`, which is today's."""
+    level = state["level"]["conformance_level"]
+    builds_ui = bool(state["stack"]["builds_user_interface"])
+    mode = state["mode"]["mode"]
+
+    identity = build_identity(state["identity"])
+    stack = build_stack(state["stack"])
+    risk = build_risk(state["risk"])
+    controls = build_controls(state["controls"], level=level)
+    gates = build_gates(state["gates"], level=level, builds_ui=builds_ui, mode=mode)
+    adoption = build_adoption(
+        state["adoption"],
+        framework_version=framework_version,
+        framework_digest=framework_digest,
     )
-    return {"human_roles": roles, "release_route": release_route, "exclusions": []}
+    wrap = build_wrap(state["wrap"])
+
+    return {
+        "schema_version": SCHEMA_VERSION,
+        **identity,
+        **stack,
+        **risk,
+        "conformance_level": level,
+        "adoption": adoption,
+        **controls,
+        "prerequisites": gates,
+        **wrap,
+    }
