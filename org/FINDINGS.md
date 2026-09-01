@@ -113,6 +113,7 @@ an unknown number of releases with nothing noticing.
 | F46 | The conformance-level screen span in an unbounded redraw loop whenever the caret did not start at index 0 | high | Closed — `ACT-034`; prompts are replaced in place instead of cleared and re-added |
 | F47 | A repository adopted on a day it already had commits reports a gate violation it cannot clear: the artefact is created today, `effective_from` binds by DATE, and `SP033` forbids a future date | medium | Closed — `ACT-035`; `effective_from` accepts an instant, so adoption binds from the moment |
 | F48 | The prerequisite history audit's window slid forward with the clock: `git log --since=<bare date>` means that date at the CURRENT TIME, so a violation visible in the morning was gone by evening | high | Closed — `ACT-035`; a date-only `effective_from` resolves to midnight explicitly |
+| F49 | `DR-23`'s standing policy on the former organisation has no automated check, and cannot have one that carries the token | low | Open — remedy sketched in the entry; `ACT-007` closed on judgement with this recorded |
 
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -1032,6 +1033,47 @@ protects against an unexpected new release rather than a compromised re-upload o
 PyPI does not permit re-uploading a version, which makes that largely theoretical — but it is a
 weaker guarantee than a hash-bearing lock, and `pyproject.toml` says so rather than implying
 otherwise.
+
+---
+
+## F49 — The standing policy that decided publication has no automated guard
+
+**Severity: low. Open.**
+
+Recorded when `ACT-007` was closed, so that an activity marked `done` does not imply coverage that
+does not exist.
+
+`DR-23` establishes a **standing, unconditional policy**: no reference to the former organisation on
+any brand-facing or public-adjacent surface, no exception process, and public git history counts as
+such a surface. Nothing checks it.
+
+**It cannot be checked the obvious way, and that is by design rather than by omission.** A test would
+have to carry the token, and `DR-23` deliberately does not write it down - *"writing it out here
+would put it back on the public surface the whole decision exists to keep clear"*. A check that
+committed the token would defeat the policy it enforced.
+
+**What IS covered, and it is the part that mattered.** `tests/check_identifiers.py` Rules 1-3 assert
+that every URN authority and GitHub organisation in the tree equals the declared one, and reject an
+undeclared token sharing the organisation's stem. `DR-23` says the token was embedded as a URN
+authority *"in every schema `$id`"*, so the dominant form is guarded. The public repository's history
+carries none of it by construction: its first commit is the clean tree.
+
+**What is not covered** is a bare prose mention sharing no stem and appearing in neither form. That
+is the residue `ACT-007` was closed over.
+
+**Remedy sketch, not built.** A check could read the token from an untracked local file or an
+environment variable and skip cleanly when absent - full strength for the maintainer, silent for
+everyone else, and nothing committed. That is a real design and it has a real cost: a check that
+usually skips is a check whose green means almost nothing, and this register already carries `F3`
+about exactly that shape. Deciding between them is a judgement, not an omission, and it is recorded
+here rather than taken quietly.
+
+**One thing worth carrying forward.** Two attempts to verify the residue mechanically were made and
+both produced false alarms - one from a regex matching inside the word `return:`, one from
+recovering a redaction marker out of the archive and reporting fifteen ordinary English words as
+hits. Neither found anything; both looked as though they had. **A policy whose subject cannot be
+named resists tooling**, and the failure mode is a confident false positive rather than a silent
+miss.
 
 ---
 

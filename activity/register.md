@@ -40,7 +40,7 @@ on an agent's authority.
 | `ACT-005` | Item 4: `secret_hygiene` gains an actual check | maintainer | maintainer | `done` | `ACT-001` | hard | yes — it adds a control every adopting repository must satisfy at every conformance level | high — the control must verify a scanner is wired without ever implying that no secrets are present | A new finding code that fires when no scanner is declared and when a declared scanner cannot fail; surfaceplate itself passes it; the standard's own documents updated in the same change | A decision record; both directions seen to fail in a scratch copy; suite counts accounted for; `check_conformance.py --repo .` still `PASS` on both copies after reinstalling |
 
 | `ACT-006` | Close `F9` and `F10`; discharge `F8`'s documentation half | maintainer | maintainer | `done` | — | hard | yes — `F10` removes a false claim from an evidence document, and `F9` changes adopter-facing remediation text | medium — the `F10` decision (retire vs regenerate) is a judgement about what producer evidence is for | `audit/VALIDATION_RESULTS.md` no longer asserts anything untrue; the `SP005` remedy names a version; the installer reports a version mismatch; `README.md`'s history-audit claim is corrected | A decision record for the `F10` outcome; the version-mismatch report seen to fire and seen to stay silent; suites and manifest accounted for |
-| `ACT-007` | Publication pass: sanitise, close `F13`/`F15`/`F16`, decide publication | maintainer | maintainer | `waiting_for_review` | — | hard | yes — it changes a published control (`SP032`), ships two new obligations to adopters, and decides where the project lives | high — publication is not reversible, and the history question had three plausible answers with very different costs | The working tree carries no reference to the former organisation; `F13`, `F15` and `F16` are closed or their obligations shipped; `DR-22` and `DR-23` recorded; the full-history sweep is runnable | Seen-to-fail probes in both directions for the exemption mechanism; the 403s read live; the former organisation's footprint counted across all commits; a full backup bundle taken before any of it |
+| `ACT-007` | Publication pass: sanitise, close `F13`/`F15`/`F16`, decide publication | maintainer | maintainer | `done` | — | hard | yes — it changes a published control (`SP032`), ships two new obligations to adopters, and decides where the project lives | high — publication is not reversible, and the history question had three plausible answers with very different costs | The working tree carries no reference to the former organisation; `F13`, `F15` and `F16` are closed or their obligations shipped; `DR-22` and `DR-23` recorded; the full-history sweep is runnable | Seen-to-fail probes in both directions for the exemption mechanism; the 403s read live; the former organisation's footprint counted across all commits; a full backup bundle taken before any of it |
 | `ACT-008` | Remove inherited internal jargon from the public tree (`F18`) | maintainer | maintainer | `done` | — | hard | yes — `adapters/**` and `SETUP_GUIDE.md` are adopter-facing, and `adapters/` is in the install payload | low for the live guidance; the judgement is in what NOT to touch — the audit records are true statements about a repository that had that name | No inherited product or methodology name remains in live guidance; historical audit records keep their text under an explanatory note | A grep showing the remaining occurrences are confined to `audit/`, each under a note; suites and manifest accounted for; both checker copies PASS after reinstall |
 | `ACT-009` | Implement the dual licence decided in `hermes` (`F19`) | maintainer | maintainer | `done` | — | hard | yes — it changes the terms under which every copied file is licensed, on a published artefact | low on mechanism, and the boundary is already locked; the judgement was made in `hermes` and is cited rather than retaken here | `LICENSE-DOCS` carries CC0-1.0, `NOTICE` exists, and `README.md` states which licence covers which paths | The CC0 text fetched from creativecommons.org and diffed byte-for-byte against the SPDX copy; suites and manifest accounted for; both checker copies PASS |
 | `ACT-010` | Architecture for provable controls, and say which are checked (`F20`) | maintainer | maintainer | `done` | — | hard | yes — it fixes the shape every future control validator must follow, and changes what a passing check reports | high — the architecture constrains eight validators that follow it, and the boundary between what can and cannot be proven is a judgement the whole design rests on | `DR-25` records four patterns and the meaning of `implementation_reference`; `CONFORMANCE_LEVELS.md` and the checker's output distinguish a checked control from a declared one | The demonstration reproduced — a profile claiming `full` with no records still passes, and the output now says why; suites and manifest accounted for |
@@ -302,28 +302,37 @@ tomorrow is what the artefact's history would justify and `SP033` refuses it. `F
 gap; the test asserts what is actually true rather than resting on the adoption grace window, which
 returns success regardless and would have made a false claim pass.
 
-`ACT-007`'s definition of done is **three-quarters verified mechanically, and the remaining quarter
-cannot be verified by an agent** - which is the honest reason it is still open rather than an
-oversight.
+`ACT-007` moved to `done` on 2026-09-01, **on the maintainer's judgement rather than on a complete
+mechanical verification**, and the difference is recorded because it is the whole basis.
 
-Verified 2026-09-01 against the current tree: `F13`, `F15` and `F16` are all Closed; `DR-22` and
+Three of its four done-clauses verify directly: `F13`, `F15` and `F16` are Closed; `DR-22` and
 `DR-23` are recorded; and publication was not merely decided but **executed exactly as `DR-23`
-specified** - a new public repository whose first commit is the current tree (`1b0df98`, 79 commits,
-none earlier), with `surfaceplate-history` private and archived. The 403s `DR-23` recorded as its
-premise are themselves superseded: a `main-required-checks` ruleset is active on the public
-repository, which is what that decision was for.
+specified** - a new public repository whose first commit is the current tree (`1b0df98`, no earlier
+history), with `surfaceplate-history` private and archived. The 403s that were `DR-23`'s premise are
+themselves superseded: a `main-required-checks` ruleset is active.
 
 The fourth clause - *"the working tree carries no reference to the former organisation"* - is
-verified for **the forms `DR-23` says the token actually took**. It was embedded as
+verified for **the forms `DR-23` says the token took**. It was embedded as
 `urn:[organisation]:uk:risk-ai:...` in every schema `$id`, and `tests/check_identifiers.py` Rule 2
-asserts every URN authority in the tree equals the declared one, Rule 1 does the same for the GitHub
-organisation in URLs, and Rule 3 rejects an undeclared token sharing the organisation's stem. All
-pass, so any surviving occurrence in those forms would fail the build.
+asserts every URN authority equals the declared one, Rule 1 does the same for the GitHub
+organisation, Rule 3 rejects an undeclared token sharing the organisation's stem. All pass. The
+public repository's history carries none of it by construction, because its first commit is the
+clean tree.
 
-**What is not covered is a bare prose mention** sharing no stem and appearing in neither form. That
-needs a search for the token itself, and `DR-23` deliberately does not write it down - so no agent
-working from this repository holds it, by design. That residue is the maintainer's to check, and it
-is the only thing between this activity and `done`.
+**What is NOT verified is a bare prose mention**, and closing on judgement rather than on a check is
+the maintainer's decision, taken with that stated. `F49` records the residue as a standing gap rather
+than leaving it implied by an activity marked `done`.
+
+**Two attempts to verify it mechanically both produced false alarms, which is part of why it was
+closed this way.** The first used `urn:[a-z0-9-]+:` to recover the token from the archive and matched
+inside the word `return:` - `check_identifiers.py` uses `\burn:` for exactly that reason, and the
+ad-hoc copy did not. The second, corrected, recovered an authority segment reading
+*"redacted"* - a redaction marker left in the archive, not an organisation - and reported 15
+working-tree files that were all ordinary uses of that word in security and audit documents.
+(Writing that segment out in its full URN form here failed Rule 2 while this note was being
+drafted, which is the coverage being cited demonstrating itself.) Neither run found anything; both looked as though they
+had. `DR-23`'s design is what defeats the tooling: the record describes the token rather than
+reproducing it, so nothing working from the public repository holds it.
 
 `ACT-035` set out to close recorded gaps and found a worse defect than any of them. `F47` had been
 written on the assumption that `effective_from: 2026-09-01` meant midnight. It never did: `git log
