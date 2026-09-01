@@ -114,12 +114,17 @@ def propose_gates(*, level: str, builds_ui: bool, mode: str, found: discover.Dis
             )
 
         if status == "required":
-            ranked = discover.rank_for_gate(found.artefacts, spec.id)
-            if ranked:
+            # `F40`: MATCHED, not merely ranked. `rank_for_gate` returns every candidate so the
+            # dropdown offers everything; its first entry is the best *available* one, which in a
+            # repository with nothing relevant is just the only file. Proposing that produced a
+            # gate satisfying `SP032` while guarding nothing. No match -> no proposal, and
+            # `unanswered()` asks.
+            matched = discover.matched_for_gate(found.artefacts, spec.id)
+            if matched:
                 out.append(
                     Proposal(
                         f"{prefix}.artefact",
-                        ranked[0],
+                        matched[0],
                         "discovered",
                         "the closest match in this repository for this gate",
                     )

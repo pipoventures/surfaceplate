@@ -21,7 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from surfaceplate.adopt import discover  # noqa: E402
+from surfaceplate.adopt import defaults, discover  # noqa: E402
 
 FAILURES: list[str] = []
 PASSES = 0
@@ -163,6 +163,71 @@ def test_a_repository_git_cannot_read_yields_nothing(tmp: Path) -> None:
     )
 
 
+def test_a_proposal_needs_evidence_not_merely_a_candidate(tmp: Path) -> None:
+    """`F40`. Ranking orders candidates; it never establishes that any of them are right.
+
+    `rank_for_gate` returns `hit + rest` so the dropdown offers everything - correct, and `DR-38`'s
+    rule. But `defaults.propose_gates` took `ranked[0]`, so in a repository holding one unrelated
+    file the wizard PROPOSED that file as the precondition for `work_registration` - the gate
+    meaning *no work begins until it is registered as an activity*. A README satisfies `SP032`
+    (exists, non-empty, no placeholder), so the resulting gate passes while guarding nothing.
+
+    The rule this pins: a proposal may only come from a candidate that actually matched the gate.
+    Offering is not proposing.
+    """
+    bare = tmp / "bare-repo"
+    bare.mkdir()
+    (bare / "README.md").write_text("# a small tool\n", encoding="utf-8")
+    (bare / "main.py").write_text("x = 1\n", encoding="utf-8")
+    for args in (
+        ["init", "-q"],
+        ["config", "user.email", "h@example.invalid"],
+        ["config", "user.name", "H"],
+        ["config", "commit.gpgsign", "false"],
+    ):
+        subprocess.run(["git", "-C", str(bare), *args], check=True)
+    subprocess.run(["git", "-C", str(bare), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(bare), "commit", "-qm", "bare"], check=True)
+
+    found = discover.scan(bare)
+    check(
+        "the unrelated file is still OFFERED - nothing is hidden from the adopter",
+        "README.md" in discover.rank_for_gate(found.artefacts, "work_registration"),
+        str(found.artefacts),
+    )
+    check(
+        "but it is not a MATCH for that gate, because it matched no keyword",
+        discover.matched_for_gate(found.artefacts, "work_registration") == [],
+        str(discover.matched_for_gate(found.artefacts, "work_registration")),
+    )
+
+    proposals = defaults.propose_gates(
+        level="essential", builds_ui=False, mode="simple", found=found
+    )
+    artefact_proposals = [p for p in proposals if p.field.endswith(".artefact")]
+    check(
+        "so no precondition artefact is proposed at all (F40)",
+        artefact_proposals == [],
+        f"proposed anyway: {[p.describe() for p in artefact_proposals]}",
+    )
+
+    # The positive control. Without it this suite would pass by proposing nothing, ever.
+    (bare / "activity").mkdir()
+    (bare / "activity" / "register.md").write_text("# activity register\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(bare), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(bare), "commit", "-qm", "register"], check=True)
+    found = discover.scan(bare)
+    proposals = defaults.propose_gates(
+        level="essential", builds_ui=False, mode="simple", found=found
+    )
+    proposed = {p.field: p.value for p in proposals}
+    check(
+        "and a real register IS proposed once one exists",
+        proposed.get("gates.work_registration.artefact") == "activity/register.md",
+        str(proposed.get("gates.work_registration.artefact")),
+    )
+
+
 def test_the_cap_is_on_the_offer_not_on_the_answer(repo: Path) -> None:
     found = discover.scan(repo)
     check(
@@ -185,6 +250,9 @@ def main() -> int:
         print("\nand never offers what is not (the load-bearing half)")
         test_never_offers_what_is_not_really_there(repo)
         test_a_repository_git_cannot_read_yields_nothing(tmp)
+
+        print("\nand never PROPOSES what it merely offers (F40)")
+        test_a_proposal_needs_evidence_not_merely_a_candidate(tmp)
 
         print("\nlist sizes")
         test_the_cap_is_on_the_offer_not_on_the_answer(repo)

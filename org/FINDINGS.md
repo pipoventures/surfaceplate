@@ -1007,6 +1007,52 @@ otherwise.
 
 ---
 
+## F40 — The wizard proposed a README as the precondition for registering work
+
+**Severity: high. Closed.**
+
+Found by walking four adopter personas through every route of the wizard, after the maintainer
+challenged whether the package is itself easy enough to be worth adopting.
+
+For a repository with nothing in place — a solo maintainer, one Python file, a README — the `Set
+defaults` route proposed `README.md` as the precondition artefact for `work_registration`, the gate
+meaning *no work begins until it is registered as an identified activity*.
+
+```
+gates.work_registration.artefact = 'README.md'
+  (the closest match in this repository for this gate)
+```
+
+**Why this is worse than an excessive question.** A README satisfies every test `SP032` applies:
+it exists, it is non-empty, it carries no placeholder token. So the gate would have **passed while
+guarding nothing** — a green check over a practice that does not exist. The framework's whole
+argument is that a gate means something; this shipped a gate that means nothing, and labelled it
+`discovered`, which is the origin an adopter is most likely to trust.
+
+**Cause.** `discover.rank_for_gate` returns `hit + rest` — candidates that matched a gate keyword,
+then everything else — so the dropdown can offer the full list and let the adopter choose. That is
+correct, and it is `DR-38`'s rule. But `defaults.propose_gates` took `ranked[0]` as a **proposal**.
+Ranking answers *"which of these is most plausible?"*; it never answers *"is any of these right?"*
+With nothing relevant in the repository, the top of the ranking is simply the only file there is,
+and the accompanying detail said *"the closest match in this repository for this gate"* about a file
+that matched nothing.
+
+**This is `DR-40`'s own standard, missed in one place.** That record was careful about what must
+*not* be proposed — no gate descriptions, no invented decision-record id — on the principle that *a
+field with no honest source is left unanswered and still asked*. An unmatched file is not an honest
+source. The rule was right; one call site did not apply it.
+
+**Remedy** (`ACT-032`): `discover.matched_for_gate()` exposes the matched subset `rank_for_gate`
+already computed, and `propose_gates` proposes only from it. No match → no proposal, and
+`unanswered()` asks the question. The dropdown is unchanged and still offers everything.
+
+**The transferable part: offering is not proposing.** The same list can be honest as an offer and
+dishonest as a proposal, because an offer says *"here is what I found"* while a proposal says
+*"this is the answer"*. Any ranking used for both needs to carry whether anything actually matched —
+ordering alone cannot distinguish the best candidate from the only one.
+
+---
+
 ## F39 — The gate catalogue never received the repository scan
 
 **Severity: high. Closed.**
