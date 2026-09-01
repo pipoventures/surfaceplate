@@ -1752,6 +1752,21 @@ conditional, naming `history_audit` and `review` when the hook was declined. A p
 added alongside the negative one, proving both branches of the conditional, not just the one that
 was wrong.
 
+**A second defect this packet's own verification found, unrelated to Plutos (`F33`)**:
+`tests/test_install_and_check.py` failed intermittently — an abbreviated commit SHA that happens to
+be all digits parses as a YAML integer unless quoted, failing the gate-exception schema.
+`governance/exceptions/GX-0001.yaml`'s own comment already documented this trap once; it never
+reached the adopter-facing template, this test, or the checker's error message. Fixed in all three,
+confirmed with a 40-iteration reproduction and 10 further clean runs.
+
+**A third, found by CI itself minutes after `F33` landed (`F34`)**: the release manifest named a
+file — a Claude Code harness runtime artefact — that existed on the machine that built it and
+nowhere else, because `scripts/build_release.py`'s payload walk never asked git anything and could
+not see the machine-local `.git/info/exclude` that kept the file out of the repository proper. Fixed
+at the actual boundary: the walk now intersects against `git ls-files --cached --others
+--exclude-standard`, deliberately including not-yet-added new files so this project's own
+build-then-stage-then-commit packet order keeps working.
+
 **Plutos is not adopted.** The same principle `DR-28` established still holds: gate and control
 decisions are the maintainer's to make with the per-gate cost in front of him, not an agent's to
 infer from a probe. `DR-34` carries the full cost table, including a genuine open question this

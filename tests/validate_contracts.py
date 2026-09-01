@@ -804,4 +804,50 @@ for workflow in (
         )
     CHECKS += 1
 
+# F34: the release manifest must reflect what git considers part of the repository, not
+# whatever a filesystem walk happened to find sitting in the working tree. Regression for the
+# fix: payload_files() used to walk the filesystem alone, and a Claude Code harness runtime
+# artefact - present locally, excluded only by the machine-local .git/info/exclude, which
+# travels with no clone - entered a real manifest and failed CI on the very next commit.
+import subprocess
+import tempfile
+
+sys.path.insert(0, str(ROOT / "scripts"))
+import build_release  # noqa: E402
+
+with tempfile.TemporaryDirectory() as tmp_str:
+    fixture = Path(tmp_str)
+    subprocess.run(["git", "init", "-q"], cwd=fixture, check=True)
+    subprocess.run(["git", "config", "user.email", "harness@example.invalid"], cwd=fixture, check=True)
+    subprocess.run(["git", "config", "user.name", "Harness"], cwd=fixture, check=True)
+
+    (fixture / "tracked.txt").write_text("tracked\n", encoding="utf-8")
+    subprocess.run(["git", "add", "tracked.txt"], cwd=fixture, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "add tracked file"], cwd=fixture, check=True)
+
+    (fixture / "new_but_unstaged.txt").write_text("addable\n", encoding="utf-8")
+
+    (fixture / ".git" / "info").mkdir(parents=True, exist_ok=True)
+    (fixture / ".git" / "info" / "exclude").write_text("locally_excluded.txt\n", encoding="utf-8")
+    (fixture / "locally_excluded.txt").write_text("should never enter a manifest\n", encoding="utf-8")
+
+    original_root = build_release.ROOT
+    try:
+        build_release.ROOT = fixture
+        seen = build_release._git_tracked_or_addable()
+    finally:
+        build_release.ROOT = original_root
+
+assert "tracked.txt" in seen, "a committed, tracked file must be in the addable set"
+assert "new_but_unstaged.txt" in seen, (
+    "a new file not yet `git add`ed must still be in the addable set - this project's own "
+    "packet order builds the manifest before staging, so a build restricted to already-"
+    "tracked files would silently drop every packet's own new files from its own release"
+)
+assert "locally_excluded.txt" not in seen, (
+    "a file excluded only by .git/info/exclude - the exact shape F34 found - must not enter "
+    "the addable set: that file lives outside the repository and reaches no clone or CI checkout"
+)
+CHECKS += 3
+
 print(f"CONTRACT_CONFORMANCE=PASS  ({CHECKS} checks)")
