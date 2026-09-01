@@ -46,22 +46,38 @@ designed to run in CI; where CI is unavailable it still runs on demand, and says
 ## Install
 
 ```bash
-python surfaceplate/install_standard.py --target /path/to/your-repo --dry-run
-python surfaceplate/install_standard.py --target /path/to/your-repo
-python /path/to/your-repo/.standards/check_conformance.py --repo /path/to/your-repo
+pip install 'git+https://github.com/pipoventures/surfaceplate@main'
+
+surfaceplate install --target /path/to/your-repo --dry-run
+surfaceplate install --target /path/to/your-repo
+surfaceplate check --repo /path/to/your-repo
 ```
+
+**Not `pip install surfaceplate` — this is not published to PyPI yet.** The git form above is what
+works today; it was run into a clean virtualenv before being written here, which is more than could
+be said for the instruction it replaced (`F57`). Publishing is a release decision and is listed in
+[`org/HUMAN_ACTIONS.md`](org/HUMAN_ACTIONS.md).
+
+Working from a clone instead? `python surfaceplate/install_standard.py --target ...` does the same
+thing without installing anything.
 
 Then, to fill in `governance/application-profile.yaml` — the one file the installer leaves for you
 to write — run the interactive wizard rather than editing the template by hand:
 
 ```bash
-pip install surfaceplate[adopt]   # or: python -m pip install textual==8.2.8
+pip install 'git+https://github.com/pipoventures/surfaceplate@main#egg=surfaceplate[adopt]'
 surfaceplate adopt --target /path/to/your-repo
 ```
 
 It asks every question the profile requires — conformance level, controls, all 19 prerequisite
-gates — and writes nothing until you confirm a final review screen. It never picks a level,
-invents a rationale, or sets a date for you.
+gates — and writes nothing until you confirm a final review screen.
+
+**What it will and will not fill in for you**, stated precisely because the looser version of this
+sentence turned out to be false (`F51`): it never chooses your conformance level, writes a
+rationale, or makes a scope decision such as which paths a gate covers or the date it binds from. It
+does supply facts of record — the date you adopted, the version you installed — and its own
+published prose, such as a gate's definition. Where it can propose an answer it shows you the
+proposal and where it came from, and writes nothing you have not passed a screen approving.
 
 Full instructions: **[INSTALL.md](INSTALL.md)**.
 If the installer stops because of existing files: **[RECONCILIATION.md](RECONCILIATION.md)**.

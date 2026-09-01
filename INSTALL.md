@@ -121,7 +121,7 @@ apply to this repository and why.
 conformance level, controls, and every prerequisite gate — as a terminal wizard, and writes a
 complete, schema-valid profile only once you confirm a final review screen. It never selects a
 level, invents a rationale, or sets a date on your behalf: it asks, you answer, it writes. Needs
-the `adopt` extra (`pip install surfaceplate[adopt]`, or `python -m pip install textual==8.2.8`
+the `adopt` extra (`pip install 'git+https://github.com/pipoventures/surfaceplate@main#egg=surfaceplate[adopt]'`, or `python -m pip install textual==8.2.8`
 alongside a git-clone install) and a real terminal — it is a full-screen interface and refuses,
 with a route you can take, when output is piped or running in CI. `surfaceplate install`/`check`
 need nothing beyond `PyYAML` and `jsonschema`. Once it has written the profile, hand the repository to

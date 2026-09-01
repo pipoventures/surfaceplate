@@ -33,8 +33,14 @@ def _cmd_adopt(argv: list[str]) -> int:
         import textual  # noqa: F401  (checked here so the failure is clear, not a bare traceback)
     except ImportError:
         print(
+            # `F57`: this said `pip install surfaceplate[adopt]`, and the package is not
+            # published - so a refusal that exists to name a route the reader can take was
+            # naming one that 404s. The form below was run into a clean virtualenv before
+            # being written here.
             "`adopt` needs the optional `textual` dependency, which is not installed.\n"
-            "Run: pip install surfaceplate[adopt]",
+            "Run:  pip install 'git+https://github.com/pipoventures/surfaceplate"
+            "@main#egg=surfaceplate[adopt]'\n"
+            "Or, if you have a clone:  pip install 'textual==8.2.8'",
             file=sys.stderr,
         )
         return 2
