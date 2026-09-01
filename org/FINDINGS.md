@@ -99,6 +99,7 @@ an unknown number of releases with nothing noticing.
 | F32 | The wizard invented rationale text for baseline controls and auto-masked UI gates | high | Closed — `ACT-022`, routed through `Prompt`; found by the review `ACT-021` requested |
 | F33 | An all-digit commit SHA silently fails a gate exception, and the lesson never propagated | medium | Closed — `ACT-024`; template, checker message, and test all fixed |
 | F34 | The release manifest could name a file that exists on no machine but the one that built it | high | Closed — `ACT-024`; `payload_files()` now intersects against `git ls-files` |
+| F35 | A refusal named three routes; only one was a route a reader could actually take | medium | Closed — `ACT-025`; scope named, each route made a real step |
 
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -1001,6 +1002,47 @@ weaker guarantee than a hash-bearing lock, and `pyproject.toml` says so rather t
 otherwise.
 
 ---
+
+## F35 — A refusal named three routes; only one was a route a reader could actually take
+
+**Severity: medium. Closed.**
+
+Found by the maintainer, not by a probe or a review — the first time anyone but the agent that
+built this framework ran the installer against a real repository and had to act on what it said.
+Running `surfaceplate install --target plutos --dry-run` hit the hook-configuration refusal
+immediately, and his own words are the finding: *"I run it and didn't understand what was
+happening... we don't give the user any alternative or way out. It just stops."*
+
+`FACT FROM PACKAGE`, read against the message as it stood: it named the conflicting
+`core.hooksPath` value and stated three routes — reconcile, remove, or `--no-hooks`. Only the
+third was something a reader could type. "Reconcile the existing hooks into `.githooks` without
+losing their behaviour" and "Remove the old hook configuration" each described an *outcome*, never
+a *step*. And nothing in the message said whether the conflicting value was set for this one
+repository or for every repository on the machine — confirmed directly to be knowable
+(`git config --local --get core.hooksPath` exits 1 on the maintainer's real case;
+`git config --global --get core.hooksPath` prints the value) but never checked.
+
+**`F27` closed the first half of this and left the second half looking closed when it wasn't.**
+`F27` gave this refusal a third route where before there were only two — a genuine fix, and this
+finding does not reopen it. What `F27` did not establish, because nothing had tested it against a
+real human's real decision, is that *naming* a route and *reaching* it are different bars. Every
+probe this session ran past this refusal used `--no-hooks` programmatically; none of them stood in
+the position of a reader trying to act on "reconcile" or "remove" with nothing but that sentence.
+
+**Closed by making both the fact and each route actionable, not by rewording.** A new
+`hooks_path_scope()` checks `core.hooksPath` at `--local`, `--global`, and `--system`
+individually (deliberately not `--worktree`: an intermediate version of this fix checked it first,
+and without `extensions.worktreeConfig` enabled — the common case — git reads `--worktree` from
+the same file as `--local`, so checking it first misattributed every plain local setting as
+worktree-scoped; caught in this project's own manual testing before it shipped, and dropped rather
+than special-cased, since only `--local`/`--global`/`--system` are ever genuinely distinct
+storage). The rewritten message states what `core.hooksPath` does before naming the conflicting
+value, names the scope and its blast radius explicitly (a global or system value: *"every
+repository on this machine, not just this one"*), gives the exact, scope-correct
+`git config --<scope> --unset core.hooksPath` for "remove," and for "reconcile" — genuinely harder
+to reduce to one command, since it depends on what the existing hook does — points at the actual
+delegation pattern this exact machine's own conflicting hook already uses (found while diagnosing
+the case that prompted this) as a worked model rather than a vague instruction to merge behaviour.
 
 ## F34 — The release manifest could name a file that exists on no machine but the one that built it
 

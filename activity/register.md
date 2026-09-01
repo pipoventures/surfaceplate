@@ -58,6 +58,7 @@ on an agent's authority.
 | `ACT-022` | Gemini's first finding: `adopt` invents rationale text for baseline controls and auto-masked UI gates | maintainer | maintainer | `waiting_for_review` | `ACT-021` | hard | yes — it is the framework's own binding rule for its own wizard, found violated by the review the framework requested of itself | medium — the mechanism is routing existing hardcoded strings through `Prompt.text` calls already used elsewhere in the same file; the judgement was which of Gemini's five findings were real (verified against the code directly, not accepted on the report's authority alone) | Every rationale written to a profile by `agent_work_packets`, `actual_diff_review`, `secret_hygiene`, and the four UI gates traces to a `Prompt` call a human actually answered, with the existing scripted-answer test suite updated to prove it | The negative control: a scripted run with the old hardcoded strings removed from the source fails loudly if any code path still writes a rationale `ScriptedPrompt` was never asked for |
 | `ACT-023` | Decide Gemini's material finding: should the schema enforce per-level control presence? | maintainer | maintainer | `waiting_for_review` | `ACT-021` | review | yes — it decides whether `application-profile.schema.yaml`, a published contract, gains conditional logic duplicating `check_conformance.py`'s own `CONFORMANCE_LEVELS` data | medium — the checker already runs schema validation as its own first step, so no separate schema-only bypass exists in this project's real pipeline; the judgement is whether the residual defense-in-depth value is worth a second, hand-maintained copy of the same rule | A decision record either way, reasoned rather than asserted, so a future reviewer raising the same idea finds the answer already worked through | The two things checked before recommending against it: that `check_conformance.py` validates against the schema before its own semantic checks (so nothing bypasses the schema alone), and that `CONFORMANCE_LEVELS` has no generator feeding the schema, meaning any schema-side copy would need hand-kept sync |
 | `ACT-024` | `RELEASE_PLAN` item 5, phase 1: exercise Plutos (Plyego deferred — mid-migration) | maintainer | maintainer | `waiting_for_review` | `ACT-020` | hard | yes — it is the second time this framework has been run against a repository it did not write, and any defect it exposes is unreachable from self-check alone, the same shape `F25`/`F26` were | medium — the mechanism repeats `DR-28`'s own probe exactly; the judgement is scoped deliberately narrow, per `DR-28`'s own principle that gate decisions are the maintainer's to make with the per-gate cost in front of them, not an agent's to infer from a probe | A throwaway clone of Plutos installed and checked at `essential`, any newly-exposed surfaceplate defect fixed with tests, and a decision record carrying the cost table — with nothing written to the real Plutos repository | The negative control: `git status` on the real Plutos checkout shows no changes; the clone's own history and objects are shared read-only, never a checkout of the real working tree |
+| `ACT-025` | The hook-conflict `STOPPED` message names routes without making two of them actionable | maintainer | maintainer | `waiting_for_review` | `ACT-024` | hard | yes — it changes what every adopter sees the first time this specific refusal fires, on a path `F27` already made this framework's stated policy | medium — the mechanism is a new git-scope-detection helper and a rewritten message; the judgement is what each route needs to become a genuine next step rather than a description of an outcome | The message names which git config scope set the conflict and its blast radius, and each of the three routes is a real, copy-pasteable or concretely-pointed-at next step, not a description | Read back against the exact scenario that prompted this — a global `core.hooksPath` conflict on Plutos — and confirmed it would have made this session's manual explanation unnecessary; two fixture scopes (global, local) asserted in the test suite |
 ## Notes on the entries
 
 `ACT-002` and `ACT-003` are both raised by `DR-16` and are deliberately **not** resolved by
@@ -179,7 +180,7 @@ maintainer before this packet's plan was written, and the maintainer's own first
 "how does someone answer in a prompt back" — is why that artifact exists rather than a written
 argument alone.
 
-`ACT-005` to `ACT-024` were registered **before** implementation begins, not alongside it. `work_registration` is
+`ACT-005` to `ACT-025` were registered **before** implementation begins, not alongside it. `work_registration` is
 live over `scripts/**` and `schemas/**`, which is exactly what item 4 changes, and a gate satisfied
 retrospectively is the failure mode `core/PREREQUISITE_GATES.md` warns is most common — satisfied on
 paper, violated in spirit.
@@ -218,6 +219,14 @@ unremarkable, since `DR-28`'s own reading of Plyego's result leaned on exactly t
 data point now provides. The one real defect found (`--no-hooks`'s misleading next steps) was
 unreachable from self-check for the same structural reason `F25`/`F26` were: surfaceplate has never
 run its own declined-hook path against itself for real.
+
+`ACT-025` is the first defect found by a human standing in front of surfaceplate's own output, not
+by a probe or a review. Running the installer against Plutos for real, the maintainer's own words —
+*"I run it and didn't understand what was happening... we don't give the user any alternative or
+way out. It just stops"* — are the finding. `F27` gave the hook-conflict refusal a third route in
+principle; this is the discovery that a route named in the message and a route the reader can
+actually take are not the same thing, and that the message never said whether the conflict was
+about this one repository or the whole machine, which turned out to be the fact that mattered most.
 
 `ACT-002` and `ACT-003` are both answered by `DR-20`. They, and `ACT-006`, moved to `done` on
 2026-08-31 when the maintainer merged [PR #9](https://github.com/pipoventures/surfaceplate/pull/9)

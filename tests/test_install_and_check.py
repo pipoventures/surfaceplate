@@ -461,6 +461,18 @@ def main() -> int:
         result = install(hooked_elsewhere)
         check("refuses to replace an existing hooks path", result.returncode == 4, result.stdout[-400:])
         check("and writes nothing", not (hooked_elsewhere / ".standards").exists())
+        # ACT-025 / F35: the message must name the correct scope and give a real command, not a
+        # description - the maintainer's own complaint, running this against a real repository.
+        check(
+            "a --local conflict is reported as --local, not misattributed to --worktree",
+            "--local" in result.stdout and "--worktree" not in result.stdout,
+            result.stdout[-800:],
+        )
+        check(
+            "and the remove route is a real, scope-correct command",
+            "git config --local --unset core.hooksPath" in result.stdout,
+            result.stdout[-800:],
+        )
 
         enclosing = make_repo(tmp, "enclosing")
         nested = enclosing / "nested"
@@ -487,6 +499,16 @@ def main() -> int:
             result.returncode == 4,
             result.stdout[-400:],
         )
+        check(
+            "a --global conflict names its actual blast radius, not just its scope",
+            "--global" in result.stdout and "every repository on this machine" in result.stdout,
+            result.stdout[-800:],
+        )
+        check(
+            "and the remove route is a real, scope-correct command",
+            "git config --global --unset core.hooksPath" in result.stdout,
+            result.stdout[-800:],
+        )
 
         default_hooked = make_git_repo(tmp, "default-hooked")
         commit_msg_hook = default_hooked / ".git" / "hooks" / "commit-msg"
@@ -496,6 +518,11 @@ def main() -> int:
             "refuses to disable a non-pre-commit default hook",
             result.returncode == 4,
             result.stdout[-400:],
+        )
+        check(
+            "names the actual conflicting file and a real remove command for it",
+            "commit-msg" in result.stdout and "rm $(git rev-parse --git-path hooks)/commit-msg" in result.stdout,
+            result.stdout[-800:],
         )
 
         print("\nadditive layering")
