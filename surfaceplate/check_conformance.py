@@ -1013,8 +1013,25 @@ def find_workflow_step(repo: Path, step_name: str) -> tuple[str | None, dict | N
     return None, None
 
 
+def framework_owned(path: str, install_record: dict | None) -> bool:
+    """Whether `path` is a file this framework installed, read from the install record: its file
+    list, plus the profile the installer created. `F61`: a gate whose precondition is one of these
+    is satisfied by installing the framework, and a control whose CI step is the installed
+    workflow's is verified against the checker rather than the adopter's tests."""
+    if not install_record:
+        return False
+    files = install_record.get("files")
+    if isinstance(files, dict) and path in files:
+        return True
+    return path == install_record.get("profile_path")
+
+
 def check_pattern_b_controls(
-    repo: Path, profile: dict, findings: list[Finding], notes: list[str]
+    repo: Path,
+    profile: dict,
+    findings: list[Finding],
+    notes: list[str],
+    install_record: dict | None = None,
 ) -> None:
     """Verify that controls claiming pattern B name a CI step that exists and can fail (DR-25).
 
@@ -1064,6 +1081,21 @@ def check_pattern_b_controls(
                     f"No workflow contains a step named {reference!r}.",
                     "Correct the name or add the step. A reference resolving to nothing reads as "
                     "evidence and is not.",
+                    graceable=True,
+                )
+            )
+            continue
+
+        if workflow is not None and framework_owned(workflow, install_record):
+            findings.append(
+                Finding(
+                    "SP059",
+                    f"Control '{control_id}' names a step of the workflow this framework installed",
+                    f"{reference!r} is a step in {workflow}, which Surfaceplate installed. That "
+                    f"step runs the conformance checker, not this repository's own tests.",
+                    "Name a step in one of this repository's own workflows - the one that runs "
+                    "these tests. A control verified against the framework's own workflow "
+                    "verifies nothing about this repository.",
                     graceable=True,
                 )
             )
@@ -2933,6 +2965,21 @@ def check_prerequisites(
             a for a in (precondition.get("artefacts") or []) if isinstance(a, str) and a
         ]
         for artefact in artefacts:
+            if framework_owned(artefact, install_record):
+                findings.append(
+                    Finding(
+                        "SP059",
+                        f"Gate '{gate_id}' names a file this framework installed as its precondition",
+                        f"{artefact} is in the install record: it exists because Surfaceplate was "
+                        f"installed, so this gate is satisfied by installing the framework and "
+                        f"guards nothing of this repository's own.",
+                        "Name an artefact of this repository's own - the register, the decision "
+                        "log, the changelog this gate is about. If none exists yet, "
+                        "`surfaceplate adopt` offers to create one.",
+                        graceable=True,
+                    )
+                )
+                continue
             target = repo / artefact
             staged_exists, staged_content = (
                 staged_artefact(repo, artefact) if staged_snapshot else (False, None)
@@ -3264,7 +3311,7 @@ def run(repo: Path, today: _dt.date, no_grace: bool, staged: bool) -> int:
             # exactly the output that says a control was narrowed.
             exempt = placeholder_exemptions(repo, profile, findings, notes)
             check_control_implementations(repo, profile, findings, notes, exempt)
-            check_pattern_b_controls(repo, profile, findings, notes)
+            check_pattern_b_controls(repo, profile, findings, notes, install_record=record)
             registers, incomplete = check_pattern_c_controls(repo, profile, findings, notes)
             check_record_references(
                 profile, registers, incomplete, findings, notes

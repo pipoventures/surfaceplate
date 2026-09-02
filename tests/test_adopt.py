@@ -1189,6 +1189,8 @@ def test_every_checker_code_has_a_validator_or_an_exemption(tmp: Path) -> None:
     from surfaceplate.adopt import validators
 
     repo = make_installed_repo(tmp, "parity-table-repo")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "install"], check=True)
     (repo / "untracked.md").write_text("x\n", encoding="utf-8")
     yesterday = (_dt.date.today() - _dt.timedelta(days=1)).isoformat()
     far = (_dt.date.today() + _dt.timedelta(days=401)).isoformat()
@@ -1252,6 +1254,7 @@ def test_every_checker_code_has_a_validator_or_an_exemption(tmp: Path) -> None:
         "SP056": (X, "reads the records inside a register, which the wizard does not write"),
         "SP057": (X, "reads the records inside a register, which the wizard does not write"),
         "SP058": (X, "reads the records inside a register, which the wizard does not write"),
+        "SP059": (V, "tracked_path", ".standards/VERSION"),
     }
     source = (PAYLOAD / "check_conformance.py").read_text(encoding="utf-8")
     emitted = set(re.findall(r'Finding\(\s*"(SP\d{3})"', source))

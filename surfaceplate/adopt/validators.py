@@ -120,6 +120,14 @@ def tracked_path(value: str, repo: Path | None) -> str | None:
         return None
     if not (repo / value.strip()).exists():
         return "Nothing exists at that path in this repository."
+    from surfaceplate.adopt import discover
+
+    installed, _steps = discover.framework_paths(repo)
+    if value.strip() in installed or value.strip().startswith(".standards/"):
+        return (
+            "Surfaceplate installed that file. A gate or control satisfied by installing the "
+            "framework guards nothing of your own (SP059)."
+        )
     if not rules.is_tracked(repo, value.strip()):
         return "That path exists but is not tracked by git. Commit it first - the checker only counts what git holds."
     return None

@@ -48,7 +48,7 @@ state, until 2026-08-31, that the space ended at `SP043` — after `SP046` and `
 added and while the person adding them was editing this file.
 
 ```text
-emitted:  SP001-SP035, SP037-SP043, SP046-SP058
+emitted:  SP001-SP035, SP037-SP043, SP046-SP059
 gap:      SP036
 reserved: SP044-SP045
 ```
@@ -126,7 +126,7 @@ an unknown number of releases with nothing noticing.
 
 | F59 | Every undecided gate's status radio is invisible at every terminal size: `.chip-row { height: 1 }` leaves no row for Textual's bordered `RadioSet` | high | Closed — `ACT-043`; `.chip-row` is `height: auto` with no border or padding, and `tests/test_render.py` reads the three options off the screen at 80×24 |
 | F60 | The defaults route discards its gate proposals: `GatesScreen` is built without `initial`, and the "N more" count excludes what it will re-ask | high | Closed — `ACT-043`; `GatesScreen` takes `initial` and the app passes the seeded proposals; the "N more" figure is asserted equal to what the remaining screens present unfilled at all three levels |
-| F61 | Discovery proposes the framework's own installed files and CI step as the adopter's preconditions, and the checker passes them | high | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
+| F61 | Discovery proposes the framework's own installed files and CI step as the adopter's preconditions, and the checker passes them | high | Closed — `ACT-044`; discovery excludes the install record's files, the profile and the installed workflow's steps, the field refuses them, and `SP059` reports them on any profile |
 | F62 | The profile header asserts every value was typed by a human above canned rationales, computed dates and derived text | high | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
 | F63 | A real profile whose prose mentions "replace-me" is mistaken for the template and overwritten without a prompt | critical | Closed — `ACT-043`; the guard looks for the token in the template's identifying scalars, not the byte stream, and both directions are asserted in `tests/test_adopt.py` |
 | F64 | `validators.check` passes any non-string, so an unpressed radio set and a blank dropdown commit; one path ends in a black screen, the other in an unactionable `KeyError` | high | Closed — `ACT-043`; `None` is blank in `validators.check`, a choice must be one of its choices at commit, and both paths are refused at the field in `tests/test_adopt_tui.py` |
@@ -1426,11 +1426,24 @@ Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, 
 
 ## F61 — Discovery proposes the framework's own installed files and CI step as the adopter's preconditions, and the checker passes them
 
-**Severity: high. Open.**
+**Severity: high. Closed.**
 
 Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, the adversarial product review of 2026-09-02, authorised by the maintainer in the review session (https://claude.ai/code/session_01X1MZfNScrJjgD5e2AGBjvs). Closes by `ACT-044`; see `org/REMEDIATION_PLAN.md`.
 
 `defaults.propose` on the Plutos copy proposes `gates.authority_map.artefact = '.github/instructions/authority.instructions.md'` and `gates.change_record_before_completion.artefact = '.github/skills/change/SKILL.md'` as "the closest match in this repository", and `controls.contract_tests.implementation_reference = 'Check conformance to Surfaceplate'`, the installed workflow's own step; the register-directory candidates include `.standards/examples`, `.standards/schemas`, `.standards/templates`. On a bare repository with one file and a fresh install, the level screen says "You appear to have: a CI workflow (.github/workflows/standards-conformance.yml)". `SP032` and `SP053` then pass, which is `F40`'s shape with the framework's own footprint as the false green. `discover.py:97-100` says framework-owned paths are offered "never ahead of the adopter's own documents"; `matched_for_gate` (`:185-203`) sorts by keyword score and ignores that ranking — `F55`'s class. The maintainer's own draft of 2026-09-02 carries the CI-step value. Note: on a fresh install the installer's output is untracked and invisible to `git ls-files`, so this bites once the install is committed.
+
+**Closed by `ACT-044`, items 1.4 and 1.5 (2026-09-02).** On the wizard's side,
+`discover.framework_paths` reads the install record's file list, the profile path and the
+installed workflow's step names, and every candidate list, every proposal and the level screen's
+"you appear to have" exclude them; `validators.tracked_path` refuses a framework-installed path
+typed by hand. `tests/test_discover.py::test_discovery_cannot_find_the_framework_in_the_mirror`
+installs the payload into an otherwise empty repository, commits it, and asserts no candidate, no
+discovered proposal and no CI-workflow signal. On the checker's side, new `SP059` reports a
+required gate whose artefact is in the install record and a control whose CI step belongs to the
+installed workflow, whether or not a provenance record exists, so every existing profile is
+covered; `tests/test_install_and_check.py` drives both directions and the negative.
+`org/FINDINGS.md`'s declared code space now ends at `SP059` and `check_code_registers.py` agrees
+(56 codes). All seen to fail before and pass after.
 
 ## F60 — The defaults route discards its gate proposals: `GatesScreen` is built without `initial`, and the "N more" count excludes what it will re-ask
 

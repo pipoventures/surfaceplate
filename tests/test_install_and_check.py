@@ -21,6 +21,8 @@ import tempfile
 import datetime as _dt
 from pathlib import Path
 
+import yaml
+
 ROOT = Path(__file__).resolve().parent.parent
 PAYLOAD = ROOT / "surfaceplate"  # ACT-019: install_standard.py and check_conformance.py moved here
 
@@ -1053,6 +1055,49 @@ def main() -> int:
         check(
             "a correctly referenced CI step raises no SP053",
             "SP053" not in result.stdout,
+            result.stdout[-400:],
+        )
+
+        # ---- SP059: the framework in the mirror (F61, ACT-044) ----
+        #
+        # A gate whose precondition artefact is a file this framework installed is satisfied the
+        # moment the framework is installed; a control whose CI step is the installed workflow's
+        # is verified against a step that runs the checker, not the adopter's tests. Both passed
+        # SP032 and SP053, and a real adoption draft carried the second one.
+        import re as _re
+
+        installed_files = read_record(gates)["files"]
+        installed_doc = next(p for p in sorted(installed_files) if p.startswith(".standards/core/"))
+        installed_workflow = next(p for p in installed_files if p.startswith(".github/workflows/"))
+        installed_step = next(
+            step["name"]
+            for job in yaml.safe_load((gates / installed_workflow).read_text(encoding="utf-8"))["jobs"].values()
+            for step in job["steps"]
+            if isinstance(step, dict) and step.get("name") and (step.get("run") or step.get("uses"))
+        )
+        mirrored_artefact = _re.sub(
+            r"artefacts: \[[^\]]+\]", f"artefacts: [{installed_doc}]", full_b, count=1
+        )
+        result = gate_check(mirrored_artefact)
+        check(
+            "a required gate whose artefact is a file the framework installed is a finding (SP059)",
+            "SP059" in result.stdout,
+            result.stdout[-400:],
+        )
+        mirrored_step = full_b.replace(
+            "implementation_reference: Run the contract tests",
+            f"implementation_reference: {installed_step}",
+        )
+        result = gate_check(mirrored_step)
+        check(
+            "a control whose CI step is the installed workflow's is a finding (SP059)",
+            "SP059" in result.stdout,
+            result.stdout[-400:],
+        )
+        result = gate_check(full_b)
+        check(
+            "a profile naming its own artefacts and steps raises no SP059",
+            "SP059" not in result.stdout,
             result.stdout[-400:],
         )
 
