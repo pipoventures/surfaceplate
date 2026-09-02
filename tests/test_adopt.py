@@ -1115,9 +1115,10 @@ def test_quitting_at_the_resume_prompt_keeps_the_draft(tmp: Path) -> None:
     check("precondition: the interrupted run left a draft", draft.is_file())
 
     class QuitsAtThePrompt:
-        """An `Interview` whose resume answer is neither yes nor no: the human quit."""
+        """An `Interview` whose answer at the opening is neither yes nor no: the human quit.
+        (`DR-51` (2) folded the resume prompt into the opening screen; the seam is `open`.)"""
 
-        def confirm_resume(self, info):
+        def open(self, welcome):
             return None
 
         def collect(self, **kwargs):
@@ -1137,6 +1138,35 @@ def test_quitting_at_the_resume_prompt_keeps_the_draft(tmp: Path) -> None:
     wizard.run(repo, second)
     check("an explicit no still discards it and completes a fresh run",
           not draft.is_file() and len(second.resume_offers) == 1)
+
+
+def test_the_run_opens_with_the_tool_and_the_install_named(tmp: Path) -> None:
+    """`F81` / `DR-51` (2). Before the first question the interview is handed what the opening
+    screen shows: the tool's name, version, licence and publisher, the installed version and
+    anchor, where the profile and its record will be written, and the draft if there is one."""
+    from surfaceplate import about
+    from surfaceplate.adopt import provenance
+
+    repo = make_installed_repo(tmp, "welcome-repo")
+    seed_referenced_files(repo)
+    record = json.loads((repo / wizard.INSTALL_RECORD).read_text(encoding="utf-8"))
+    first = ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS), cancel_before="level")
+    try:
+        wizard.run(repo, first)
+    except Cancelled:
+        pass
+    check("the interview was opened once before the first stage", len(first.welcomes) == 1 and first.stages[:1] == ["decisions"])
+    w = first.welcomes[0]
+    check("the welcome names the tool", (w.tool_name, w.tool_version, w.licence, w.publisher) == (about.NAME, about.version(), about.LICENCE, about.PUBLISHER), str(w))
+    check("and the install", w.installed_version == record["standard_version"] and w.installed_anchor == record["framework_digest"] and w.installed_at == record["installed_at"])
+    check("and where it will write", w.profile_path == wizard.PROFILE_PATH and w.provenance_path == provenance.PROVENANCE_PATH and w.repo == str(repo))
+    check("a first run carries no draft", w.draft is None)
+
+    second = ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS))
+    wizard.run(repo, second)
+    w2 = second.welcomes[0]
+    check("a resumed run's welcome carries the draft", w2.draft is not None and "identity" in w2.draft.sections and w2.draft.matches, str(w2.draft))
+    check("and the resume offer is the same object", second.resume_offers == [w2.draft])
 
 
 def test_refuses_when_the_tool_and_the_install_differ(tmp: Path) -> None:
@@ -1747,6 +1777,7 @@ def main() -> int:
         test_the_draft_lives_under_standards_and_an_old_one_is_migrated(tmp)
 
         print("\nrefusals, and the guarantee itself")
+        test_the_run_opens_with_the_tool_and_the_install_named(tmp)
         test_refuses_when_the_tool_and_the_install_differ(tmp)
         test_package_metadata_agrees_with_pyproject()
         test_refuses_without_install(tmp)

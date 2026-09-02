@@ -1262,6 +1262,71 @@ class ReviewScreen(Screen):
         self.dismiss(None)
 
 
+class WelcomeScreen(Screen):
+    """The tool introduces itself before it asks anything (`F81`, `DR-51` (2)).
+
+    What a stranger needs on one screen: what this is, which release is running against which
+    installed release, where it will write, that nothing is written before the review, and the
+    keys. The version comparison has already passed (`wizard.InstallMismatch`); the line here
+    says so rather than leaving the two digests for the reader to compare.
+    """
+
+    BINDINGS = [
+        Binding("enter", "begin", "begin", show=True),
+        Binding("ctrl+q", "cancel", "quit", show=True),
+    ]
+
+    def __init__(self, welcome) -> None:
+        super().__init__()
+        self.welcome = welcome
+
+    def compose(self) -> ComposeResult:
+        w = self.welcome
+        with Frame(id="frame"):
+            yield Static(f"[{w.tool_name} {w.tool_version} · adopt]", classes="section-header", markup=False)
+            yield Static(
+                f"{w.tool_name} is {w.tagline}. adopt writes the one file that checker reads about "
+                "this repository: its application profile.",
+                classes="intro",
+                markup=False,
+            )
+            same = w.tool_anchor == w.installed_anchor
+            # Every row fits 76 columns, so nothing wraps at 80 and the whole screen fits 24 rows
+            # with the draft note; `tests/test_render.py` holds both.
+            rows = (
+                ("tool", f"{w.tool_name} {w.tool_version} · {w.tool_anchor[:10]}…"),
+                ("licence", f"{w.licence} · {w.publisher}"),
+                ("installed", f"{w.installed_version} · {w.installed_anchor[:10]}… on {w.installed_at}"
+                              + (" · the same release" if same else " · NOT the same release")),
+                ("repository", w.repo),
+                ("writes", f"{w.profile_path} + its provenance record"),
+            )
+            for label, value in rows:
+                yield Static(f"  {label:<11}{value}", classes="recap", markup=False)
+            yield Static("", classes="recap")
+            yield Static(
+                "Next: three screens ask what only you can answer, the conformance level, and the "
+                "gates. Everything else is proposed from this repository and this framework's own "
+                "examples, and every line is shown with where it came from on a review. Nothing is "
+                "written before you approve that review.",
+                classes="recap",
+                markup=False,
+            )
+            if w.draft is not None:
+                yield Static(
+                    "  A saved draft was found; the next screen asks whether to resume it.",
+                    classes="note",
+                    markup=False,
+                )
+        yield Static("[Enter] begin  [Ctrl+Q] quit, nothing is written", id="hint", markup=False)
+
+    def action_begin(self) -> None:
+        self.dismiss(True)
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
+
+
 class ResumeScreen(Screen):
     """Offered, never silent - `DR-35`'s rule, and a version mismatch is stated, not hidden."""
 

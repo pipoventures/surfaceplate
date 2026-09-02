@@ -132,6 +132,41 @@ def test_every_screen_renders_its_whole_plan() -> None:
     asyncio.run(_run())
 
 
+
+def test_the_opening_app_returns_the_three_answers() -> None:
+    """`DR-51` (2) and `F68`: Enter on the opening screen begins; with a draft the resume prompt
+    follows and `y`/`n` answer it; `Ctrl+Q` anywhere returns `None`, which the wizard reads as
+    "cancel, draft kept"."""
+    from surfaceplate.adopt.interview import DraftInfo, Welcome
+    from surfaceplate.adopt.tui.app import OpeningApp
+
+    def welcome(draft=None) -> Welcome:
+        return Welcome(
+            repo="/r", tool_name="Surfaceplate", tool_version="0.16.0", tool_anchor="a" * 64,
+            licence="Apache-2.0", publisher="Pipo Ventures Ltd", homepage="h", tagline="t",
+            installed_version="0.16.0", installed_anchor="a" * 64, installed_at="2026-09-02",
+            profile_path="governance/application-profile.yaml",
+            provenance_path="governance/application-profile.provenance.yaml", draft=draft,
+        )
+
+    draft = DraftInfo(sections=("decisions",), framework_version="0.16.0", framework_digest="a" * 64, matches=True)
+
+    async def drive(w: Welcome, keys: list[str]):
+        app = OpeningApp(w)
+        async with app.run_test(size=(80, 24)) as pilot:
+            await pilot.pause()
+            for key in keys:
+                await pilot.press(key)
+                await pilot.pause()
+                await pilot.pause()
+        return app.return_value
+
+    check("Enter with no draft begins (True)", asyncio.run(drive(welcome(), ["enter"])) is True)
+    check("Ctrl+Q on the opening screen quits (None)", asyncio.run(drive(welcome(), ["ctrl+q"])) is None)
+    check("with a draft, Enter then y resumes (True)", asyncio.run(drive(welcome(draft), ["enter", "y"])) is True)
+    check("with a draft, Enter then n starts fresh (False)", asyncio.run(drive(welcome(draft), ["enter", "n"])) is False)
+    check("with a draft, Enter then Ctrl+Q quits (None)", asyncio.run(drive(welcome(draft), ["enter", "ctrl+q"])) is None)
+
 # ---------------------------------------------------------------------------------------------
 # Highlight is not selection (mockup frame 02: "nothing is chosen yet")
 # ---------------------------------------------------------------------------------------------
@@ -1266,6 +1301,7 @@ def test_resuming_a_draft_keeps_its_proposals() -> None:
 def main() -> int:
     print("the join: screens render exactly what their plan declares")
     test_every_screen_renders_its_whole_plan()
+    test_the_opening_app_returns_the_three_answers()
 
     print("\nconformance level (mockup frame 02)")
     test_highlighting_a_level_does_not_choose_it()

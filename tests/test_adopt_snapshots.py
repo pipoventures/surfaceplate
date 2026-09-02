@@ -36,7 +36,7 @@ from textual.widgets import RadioSet  # noqa: E402
 
 from surfaceplate.adopt import flow as _flow  # noqa: E402
 from surfaceplate.adopt import plan, scaffold  # noqa: E402
-from surfaceplate.adopt.interview import DraftInfo  # noqa: E402
+from surfaceplate.adopt.interview import DraftInfo, Welcome  # noqa: E402
 from surfaceplate.adopt.tui.screens import (  # noqa: E402
     EditLineScreen,
     FormScreen,
@@ -45,6 +45,7 @@ from surfaceplate.adopt.tui.screens import (  # noqa: E402
     ResumeScreen,
     ReviewScreen,
     ScaffoldScreen,
+    WelcomeScreen,
 )
 
 SIZE = (80, 24)
@@ -86,6 +87,21 @@ def _empty_repo() -> Path:
 # ---------------------------------------------------------------------------------------------
 # the screens, in the order the flow shows them
 # ---------------------------------------------------------------------------------------------
+
+
+
+def test_welcome_screen(snap_compare) -> None:
+    """`DR-51` (2): the opening screen, before the first question."""
+    welcome = Welcome(
+        repo="/home/someone/github/plutos", tool_name="Surfaceplate", tool_version="0.16.0",
+        tool_anchor="01cb1b5892379eef" + "0" * 48, licence="Apache-2.0", publisher="Pipo Ventures Ltd",
+        homepage="https://github.com/pipoventures/surfaceplate",
+        tagline="a software delivery standard that installs into a repository and checks it against what it publishes",
+        installed_version="0.16.0", installed_anchor="01cb1b5892379eef" + "0" * 48, installed_at="2026-09-02",
+        profile_path="governance/application-profile.yaml", provenance_path="governance/application-profile.provenance.yaml",
+        draft=None,
+    )
+    assert snap_compare(Host(WelcomeScreen(welcome)), terminal_size=SIZE)
 
 
 def test_decisions_form(snap_compare) -> None:
