@@ -224,7 +224,11 @@ class AdoptApp(App):
                     mode=self.state["mode"]["mode"],
                     found=self.found,
                 )
-                screen = GatesScreen(specs, section, step=step)
+                # `F60`: seeded like every other section. Without `initial=` here the defaults
+                # route showed its gate proposals and then opened every gate blank.
+                screen = GatesScreen(
+                    specs, section, step=step, initial=self._seeded.get(name, {})
+                )
             else:
                 screen = FormScreen(
                     section, step=step, initial=self._seeded.get(name, {})

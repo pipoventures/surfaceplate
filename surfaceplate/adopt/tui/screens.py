@@ -715,8 +715,18 @@ class GatesScreen(_SectionScreenBase):
         Binding("up", "focus_previous", "previous field", show=False),
     ]
 
-    def __init__(self, specs: tuple[plan.GateSpec, ...], section: plan.SectionPlan, *, step: str = "") -> None:
-        super().__init__(section, step=step)
+    def __init__(
+        self,
+        specs: tuple[plan.GateSpec, ...],
+        section: plan.SectionPlan,
+        *,
+        step: str = "",
+        initial: dict | None = None,
+    ) -> None:
+        # `F60`: this screen took no `initial`, so the defaults route proposed thirty-odd gate
+        # values, showed them, and then opened every gate blank. `initial` is keyed
+        # `"<gate id>.<field id>"`, the same addresses `_answers` returns.
+        super().__init__(section, step=step, initial=initial)
         self.specs = specs
         self._chosen: dict[str, str] = {}
 
@@ -777,6 +787,7 @@ class GatesScreen(_SectionScreenBase):
                     validate=field_spec.validate,
                     suggestions=field_spec.suggestions,
                 )
+                seed = self.initial.get(key)
                 with HorizontalGroup(classes="followups", id=f"row-{key.replace('.', '--')}"):
                     if field_spec.kind == "choice":
                         # A radio set, not a row of buttons. The mockup drew chips and this
@@ -790,6 +801,7 @@ class GatesScreen(_SectionScreenBase):
                             *(
                                 VisibleRadioButton(
                                     label.split(" - ")[0],
+                                    value=(seed == value),
                                     id=f"chip-{spec.id}--{value}",
                                 )
                                 for value, label in field_spec.choices
@@ -802,7 +814,7 @@ class GatesScreen(_SectionScreenBase):
                     else:
                         if field_spec.kind != "bool":
                             yield Label(field_spec.label, classes="field-label")
-                        widget = _widget_for(prefixed)
+                        widget = _widget_for(prefixed, seed)
                         widget.add_class("field-widget")
                         yield widget
 

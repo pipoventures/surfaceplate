@@ -125,7 +125,7 @@ an unknown number of releases with nothing noticing.
 | F57 | The README, `INSTALL.md` and the tool itself instruct an adopter to `pip install surfaceplate`, which 404s — and the README repeats the binding-rule claim `F51` proved false | high | Closed — `ACT-040`; every live instruction names a command that was run before it was written down |
 
 | F59 | Every undecided gate's status radio is invisible at every terminal size: `.chip-row { height: 1 }` leaves no row for Textual's bordered `RadioSet` | high | Closed — `ACT-043`; `.chip-row` is `height: auto` with no border or padding, and `tests/test_render.py` reads the three options off the screen at 80×24 |
-| F60 | The defaults route discards its gate proposals: `GatesScreen` is built without `initial`, and the "N more" count excludes what it will re-ask | high | Open — `ACT-043` (`org/REMEDIATION_PLAN.md`) |
+| F60 | The defaults route discards its gate proposals: `GatesScreen` is built without `initial`, and the "N more" count excludes what it will re-ask | high | Closed — `ACT-043`; `GatesScreen` takes `initial` and the app passes the seeded proposals; the "N more" figure is asserted equal to what the remaining screens present unfilled at all three levels |
 | F61 | Discovery proposes the framework's own installed files and CI step as the adopter's preconditions, and the checker passes them | high | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
 | F62 | The profile header asserts every value was typed by a human above canned rationales, computed dates and derived text | high | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
 | F63 | A real profile whose prose mentions "replace-me" is mistaken for the template and overwritten without a prompt | critical | Open — `ACT-043` (`org/REMEDIATION_PLAN.md`) |
@@ -1337,11 +1337,28 @@ Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, 
 
 ## F60 — The defaults route discards its gate proposals: `GatesScreen` is built without `initial`, and the "N more" count excludes what it will re-ask
 
-**Severity: high. Open.**
+**Severity: high. Closed.**
 
 Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, the adversarial product review of 2026-09-02, authorised by the maintainer in the review session (https://claude.ai/code/session_01X1MZfNScrJjgD5e2AGBjvs). Closes by `ACT-043`; see `org/REMEDIATION_PLAN.md`.
 
 The proposals screen says "59 values proposed … 5 more can only be answered by you" and lists artefact, paths and effective date for every required gate; the gates screen that follows opens blank and refuses `Ctrl+S` with "Gated paths: This cannot be blank" (images `std-def-15`, `-35`, `-36`). `tui/app.py:228-231` passes `initial=` only to `FormScreen`; `GatesScreen(specs, section, step=step)` at `:227` takes none and `screens.py:712` has no parameter for one. `defaults.unanswered` counts fields with no proposal, so "5 more" is 5 at every level while the gates section re-asks 38 fields at standard and 53 at full with a UI. No test asserts that any screen is seeded.
+
+**Closed by `ACT-043`, item 0.2 (2026-09-02).** `GatesScreen.__init__` gains `initial`, keyed
+`"<gate>.<field>"`; `_compose_gate_fields` builds each widget from it and pre-presses the seeded
+status; `tui/app.py` passes `initial=self._seeded.get("gates", {})` as it already did for every
+`FormScreen`. `defaults.unanswered` is unchanged: once the gates screen is seeded, its figure is
+the number of fields the remaining screens present unfilled, which is what the test asserts.
+`tests/test_adopt_tui.py::test_the_defaults_route_seeds_the_gates_screen_and_counts_what_is_left`
+drives the real `AdoptApp` from the route screen through the proposals to the gates screen at
+essential, standard and full on a fixture repository holding `activity/register.md` and
+`src/main.py`, and asserts the first proposed artefact is what the dropdown holds, the gates
+hint counts the seeded gates, and "N more" equals the unfilled fields measured on the screens the
+app builds. Seen to fail with the seeding line alone reverted (`ADOPT_TUI=FAIL (6 failed, 55
+passed)`: the dropdown held `Select.NULL`; "6 more" against 8 unfilled, "11" against 27, "22"
+against 38) and to pass with it (`ADOPT_TUI=PASS (61 checks)`: 6 = 6, 11 = 11, 22 = 22; the
+gates hint 1 of 1, 16 of 19, 9 of 19). The review's "5 more" was measured on Plutos, where more
+gates matched; on this fixture the figure was never 5, and the defect was the seeding, not the
+arithmetic.
 
 ## F59 — Every undecided gate's status radio is invisible at every terminal size: `.chip-row { height: 1 }` leaves no row for Textual's bordered `RadioSet`
 
