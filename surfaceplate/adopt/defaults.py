@@ -154,11 +154,15 @@ def propose_controls(*, level: str, mode: str, found: discover.Discovered) -> li
             # `DR-54` (1): the first row may be the seed's "create it"; a proposal comes only from
             # something discovery found. With nothing found, the field is asked and the human
             # may choose the row - the tool never proposes to create a file.
-            found_only = [v for v, _label in spec.choices if v != spec.seed and v not in found.rejected]
+            found_only = [v for v, _label in spec.choices if v != spec.seed and v not in found.rejected and not discover.is_archived(v)]
             control_id = spec.id.rsplit(".", 1)[0]
             if control_id in catalogue.PATTERN_A_CONTROLS and control_id != "dependency_lock":
                 # `F40`, `F84`: the offer ranks every artefact, but a proposal needs a match.
                 found_only = [v for v in found_only if any(w in v.lower() for w in plan.FINDINGS_WORDS)]
+            elif control_id in catalogue.PATTERN_C_CONTROLS:
+                # `F93`: a record directory is proposed only where its name matches the control
+                # and its records pass the control's schema - never merely because it holds YAML.
+                found_only = [v for v in found_only if v in found.register_fit.get(control_id, ())]
             if found_only:
                 out.append(Proposal(key, found_only[0], provenance.DISCOVERED, f"found: {found_only[0]}"))
             continue
@@ -188,8 +192,9 @@ def propose_gates(
             continue
         # `F40`: MATCHED, not merely ranked - a proposal comes only from a candidate that matched
         # the gate. No match -> no proposal, and the field is asked.
-        # `F84` / `DR-51` (5): and never one the checker's content rules would reject.
-        matched = [c for c in discover.matched_for_gate(found.artefacts, spec.id) if c not in found.rejected]
+        # `F84` / `DR-51` (5): and never one the checker's content rules would reject; `F94`:
+        # nor an archived document, whatever its name matched.
+        matched = [c for c in discover.matched_for_gate(found.artefacts, spec.id) if c not in found.rejected and not discover.is_archived(c)]
         if matched:
             out.append(
                 Proposal(

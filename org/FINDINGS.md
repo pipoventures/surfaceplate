@@ -156,6 +156,10 @@ an unknown number of releases with nothing noticing.
 | F88 | A control's implementation reference offers only files whose names carry fixed words, from fixed directories; a repository with the file elsewhere gets a text box, and one without it has no path to create one | medium | Closed — `ACT-052` (`DR-54`); see the body |
 | F89 | The opening screen is text only; the maintainer asked for a mark | low | Closed — `ACT-051` (`DR-53`); see the body |
 | F90 | A render test read the screen before the deferred scroll had run, and turned `main` red on the runner while passing locally | low | Closed — `ACT-051`; see the body |
+| F91 | The conformance level barely changes the screens that follow: every gate is listed at standard and full alike, and the above-floor controls read the same, so the level tells the reader nothing | medium | Open — recorded at `ACT-054`; needs a decision |
+| F92 | `SP034` prints an instant as a bare date, so "moved forward" reads as the same date twice; whether a later instant on the same day is a forward move at all is undecided | low | Open — recorded at `ACT-054`; message fixed there, the rule needs a decision |
+| F93 | A record-directory control's reference is proposed from any directory holding YAML: four controls were proposed `config/accounts` and the checker rejected every record in it | high | Closed — `ACT-054`; see the body |
+| F94 | An archived document is proposed as a gate's artefact on a keyword match: two gates were proposed files under `docs/archive/` | medium | Closed — `ACT-054`; see the body |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1416,6 +1420,89 @@ widen the artefact directories or drop the restriction in favour of ranking; a s
 findings register (`assurance_findings`) and the same "create it" choice as `F87`.
 
 **Closed by `ACT-052` (`DR-54`), 2026-09-02.** discovery offers every tracked Markdown or YAML file of the adopter's own, ranked by directory, never a CI workflow; a control's implementation reference offers them all with the name matches first and proposes only from a match (`F40`'s rule); `assurance_findings` gains a seed at `docs/FINDINGS.md` (`seeds/findings-register.md`, no findings and saying so) offered through the same row and written by the same offer. The wider offer surfaced a workflow file being proposed as a findings register, fixed in the same change. `tests/test_discover.py::test_every_artefact_is_offered_and_free_seeds_are_known`, `tests/test_scaffold.py::test_a_control_can_be_seeded_and_the_seed_is_true_on_creation` and the flow test above, seen to fail first.
+
+## F91 — The conformance level barely changes the screens that follow: every gate is listed at standard and full alike, and the above-floor controls read the same, so the level tells the reader nothing
+
+**Severity: medium. Open.**
+
+Recorded under `ACT-054` from the maintainer's third run of `adopt`, at `full` on a fresh scratch copy of Plutos on 2026-09-02, reported in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z). Closes by an activity the maintainer authorises after a decision record.
+
+The maintainer's words: *"haven't seen much difference between standard and full. I'd say
+conformance levels should result in a very large difference in parameters in the next window.
+If we leave all the ones selected as optional the conformance level tells us nothing."* At
+`standard` and `full` the gate list shows all nineteen gates, the level's floor marked required
+and the rest undecided; the above-floor list on the remainder form shows the same nine controls
+with a different floor. The difference is in which rows are locked, which is not what a reader
+sees. Medium: the level is the profile's most consequential choice and the screens do not show
+its consequence.
+
+**Remedy hypothesis:** the gate list opens with the floor expanded and the rest collapsed under
+one heading ("beyond the {level} floor, not required: N gates"), so `standard` shows four gates
+and `full` eleven before anything is opened; the hint counts the floor; the above-floor list on
+the remainder form says how many the level already requires. Under `DR-47` a change to what is
+shown beside an asked value is a change to the interview: a decision record.
+
+## F92 — `SP034` prints an instant as a bare date, so "moved forward" reads as the same date twice; whether a later instant on the same day is a forward move at all is undecided
+
+**Severity: low. Open.**
+
+Recorded under `ACT-054` from the maintainer's third run of `adopt`, at `full` on a fresh scratch copy of Plutos on 2026-09-02, reported in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z). The message is fixed by `ACT-054`; the rule's question is the maintainer's.
+
+The blocking finding on the run read: *"effective_from is 2026-09-02, but this gate previously
+declared 2026-09-02 in the profile's own history."* The gate's value was the instant
+`2026-09-02T18:43:40+01:00`, set by the scaffold at the moment it created the artefact (`F47`);
+the copy's earlier profile, still in its git history, declared the date `2026-09-02`, which the
+checker reads as midnight. The instant is later, so the audit window narrowed by eighteen hours
+and `SP034` fired, blocking and never graced - and its message rendered both values through
+`isoformat()` of the parsed date, hiding the only difference. Low for the message, which is
+plainly wrong; the rule's question is real: a re-adoption on the same day as a previous
+declaration cannot avoid this without the wizard reading the profile's history.
+
+**Remedy:** the message prints each value as declared. The rule stays as it is until decided.
+
+**Message fixed by `ACT-054`, 2026-09-02; the rule's question stays open.** `SP034` prints each value as declared, so a later instant on the same day reads as what it is. `tests/test_install_and_check.py`, the `moved` fixture extended with a same-day instant, seen to fail on the old message. Whether a same-day instant should count as a forward move, and whether the wizard should read the profile's history when it scaffolds, is for the maintainer.
+
+## F93 — A record-directory control's reference is proposed from any directory holding YAML: four controls were proposed `config/accounts` and the checker rejected every record in it
+
+**Severity: high. Closed.**
+
+Recorded under `ACT-054` from the maintainer's third run of `adopt`, at `full` on a fresh scratch copy of Plutos on 2026-09-02, reported in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z). Closes by `ACT-054`.
+
+`method_registry`, `overrides`, `run_lineage` and `provenance` were all written as
+`config/accounts`, recorded as *discovered: found: config/accounts*. `propose_controls` takes the
+first candidate for any implementation reference, and for a pattern-C control the candidates are
+every directory of the adopter's holding a YAML file, ranked by directory but never matched
+against the control. `DR-51` (5) applied the checker's rules to artefacts and scanner workflows;
+`DR-54` (2) applied a name match to pattern-A references; pattern C was left with neither. The
+checker then rejected `config/accounts/wrappers.yaml` four times over. High: four controls
+declared on a directory of account configuration, shown as discovered, and the seed row that
+would have been right sat one row above.
+
+**Remedy hypothesis:** a pattern-C reference is proposed only from a directory whose name
+matches the control (registry, method, override, lineage, run, provenance); a directory whose
+records fail the control's schema is never proposed; otherwise nothing is proposed and the
+field is asked with its seed row first.
+
+**Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F94 — An archived document is proposed as a gate's artefact on a keyword match: two gates were proposed files under `docs/archive/`
+
+**Severity: medium. Closed.**
+
+Recorded under `ACT-054` from the maintainer's third run of `adopt`, at `full` on a fresh scratch copy of Plutos on 2026-09-02, reported in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z). Closes by `ACT-054`.
+
+`equivalence_evidence` was proposed `docs/archive/investingos_repo_review_protocol.md` and
+`dependency_output_delta` `docs/archive/investingos_codex_repo_review_prompt_pack.md`, both
+recorded as *discovered: the closest match*, both matched on the words `protocol` and `review`.
+Both are archived: the path says so. An archived document is not the precondition a live gate
+audits against, and the checker later followed each through a rename it had already had. Medium:
+the same shape as `F84`, the proposal made where the honest answer was no match, with archive
+paths as the tell.
+
+**Remedy hypothesis:** paths under an `archive` directory are never proposed and are ranked
+last; they stay offered.
+
+**Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a path with an archive component (`archive`, `archived`, `attic`, `deprecated`) is never proposed for a gate or a control reference and ranks last among the matches; it stays offered. The same test, seen to fail on the archived-only match.
 
 ## F90 — A render test read the screen before the deferred scroll had run, and turned `main` red on the runner while passing locally
 

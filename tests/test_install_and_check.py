@@ -2663,6 +2663,21 @@ def main() -> int:
                     result.returncode == 1 and "SP034" in result.stdout,
                     result.stdout[-400:],
                 )
+                # `F92`: an instant later on the same day as the earliest declared date is a
+                # forward move by the rule, and the message printed both as bare dates, so it
+                # read "2026-09-02 was previously 2026-09-02". Each value as declared.
+                instant = f"{(today - _dt.timedelta(days=60)).isoformat()}T18:00:00+00:00"
+                (moved / "governance" / "application-profile.yaml").write_text(
+                    essential_src.replace('effective_from: "2026-08-27"', f'effective_from: "{instant}"'),
+                    encoding="utf-8",
+                )
+                commit(moved, "the same day, later")
+                result = verify(moved)
+                check(
+                    "a later instant on the earliest day still fires SP034, and the message shows the instant as declared",
+                    result.returncode == 1 and "SP034" in result.stdout and f"effective_from is {instant}" in result.stdout,
+                    result.stdout[-500:],
+                )
 
         # --- F30: a renamed precondition artefact ---------------------------------------------
         # The audit resolved the artefact at its CURRENT path and asked whether that path existed

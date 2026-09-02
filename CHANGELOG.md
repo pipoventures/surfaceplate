@@ -1116,6 +1116,12 @@ the test conventions, a data-source register, an output-validation log, a depend
 release checklist) and the four record-directory controls, whose seed is a note in an otherwise empty
 directory. A `full` run choosing every row ends with the checker passing in full.
 
+`ACT-054`: from the maintainer's third run - a record directory is proposed only where its name and its
+records fit the control, an archived document is never proposed, a seeded directory stays offered, and
+`SP034`'s message prints each date as declared (`F92` message, `F93`, `F94`). Recorded for a decision:
+the conformance level barely changes the screens that follow (`F91`), and whether a same-day instant is
+a forward move (`F92`).
+
 ### `F58` closed: every agent now receives the skills, not only Copilot
 
 `AGENTS.md` tells every adopting repository that the skills' *"required inputs, gates and mandatory

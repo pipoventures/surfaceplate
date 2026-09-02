@@ -3104,7 +3104,9 @@ def check_prerequisites(
                 Finding(
                     "SP034",
                     f"Gate '{gate_id}' has had its effective date moved forward",
-                    f"effective_from is {effective_from.isoformat()}, but this gate previously "
+                    # `F92`: each value as declared - an instant later on the same day rendered
+                    # as the date read "2026-09-02 was previously 2026-09-02".
+                    f"effective_from is {str(raw_effective).strip()}, but this gate previously "
                     f"declared {earliest} in the profile's own history.",
                     "Restore the earlier date. Moving it forward silently discards every "
                     "violation in between, which is the one way this control can be gamed from "

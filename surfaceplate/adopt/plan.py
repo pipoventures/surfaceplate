@@ -654,7 +654,9 @@ def _implementation_reference_field(
         validate = "ci_step"
         context = "step"
     else:
-        candidates = found.register_dirs
+        # `F93`: the directories that fit this control first, then every other register directory.
+        fit = list(found.register_fit.get(control_id, ()))
+        candidates = tuple(fit + [d for d in found.register_dirs if d not in fit])
         validate = "tracked_path"
         context = "register"
     return _from_candidates(
