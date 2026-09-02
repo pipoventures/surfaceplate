@@ -152,6 +152,9 @@ an unknown number of releases with nothing noticing.
 | F84 | An artefact is proposed on a keyword match with no relevance floor and without the checker's content rules: a work inventory quoting `TODO` and `TBD` was proposed as the authority map | high | Closed — `ACT-048` (`DR-51` (5)); see the body |
 | F85 | The closing report says the checker "passes" on a graced WARN with findings | medium | Closed — `ACT-048` (`DR-51` (6)); see the body |
 | F86 | A hand edit to the profile after the write leaves the provenance record asserting the old origin; nothing records a post-write edit | low | Open — needs a decision; not in `DR-51` |
+| F87 | A seedable artefact is created only when the field is left blank, and nothing says so: the dropdown forces a choice among existing files | medium | Open — recorded at `ACT-050`; needs a decision |
+| F88 | A control's implementation reference offers only files whose names carry fixed words, from fixed directories; a repository with the file elsewhere gets a text box, and one without it has no path to create one | medium | Open — recorded at `ACT-050`; needs a decision |
+| F89 | The opening screen is text only; the maintainer asked for a mark | low | Open — recorded at `ACT-050`; needs a decision |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1370,6 +1373,59 @@ the count of graced findings and the date the grace ends — read from the repor
 inferred from the code.
 
 **Closed by `ACT-048` (`DR-51` (6)), 2026-09-02.** `cli._report_written` evaluates the checker and prints `cli.verdict_sentence`, read from the report: a pass with nothing outstanding, N findings under grace until the date the install record names, or the checker's own explanation of a failure. `tests/test_install_and_check.py::test_the_closing_report_states_the_checkers_verdict_as_given`, seen to fail first.
+
+## F87 — A seedable artefact is created only when the field is left blank, and nothing says so: the dropdown forces a choice among existing files
+
+**Severity: medium. Open.**
+
+Recorded under `ACT-050` from the maintainer's second run of `adopt`, against a scratch copy of Plutos on 2026-09-02, reported in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z). Closes by an activity the maintainer authorises; each changes what is asked, so a decision record precedes it (`DR-47`).
+
+The maintainer's words: *"for authority_map, it forces me to select one file in my repo. What if
+I have none and has to be created from scratch?"* The scaffold offer exists for four gates
+(`scaffold.SEEDABLE`) and follows the gate list when the artefact field is left blank and the
+seed's path is free; the screen never says that a blank is allowed, let alone that it leads to an
+offer, and the field is a dropdown of existing files whose prompt reads "Choose precondition
+artefact (N found)". A reader who has none picks the least wrong file, which is `F84`'s shape from
+the other side. Medium because it produces a wrong artefact on a mandatory gate at `standard`.
+
+**Remedy hypothesis:** an explicit first choice in the dropdown for a seedable gate - "create
+one from the framework's seed (path)" - recorded as scaffolded exactly as the offer is today, and
+the help saying so; the offer screen then confirms rather than surprises.
+
+## F88 — A control's implementation reference offers only files whose names carry fixed words, from fixed directories; a repository with the file elsewhere gets a text box, and one without it has no path to create one
+
+**Severity: medium. Open.**
+
+Recorded under `ACT-050` from the maintainer's second run of `adopt`, against a scratch copy of Plutos on 2026-09-02, reported in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z). Closes by an activity the maintainer authorises; each changes what is asked, so a decision record precedes it (`DR-47`).
+
+The maintainer's words: *"When selecting extra controls (like assurance) it asks for a file name.
+However what if I don't have any? Also, if I have one there is no dropdown list."*
+`plan._implementation_reference_field` offers, for `assurance_findings`, only artefacts whose path
+contains "finding" or "assurance" (`plan.py`), and artefacts come only from the directories in
+`discover._ARTEFACT_DIRS` and the root. A register at `org/FINDINGS.md` in this very repository
+would not be offered. With no match the field degrades to a text box that refuses anything not
+tracked, and there is no seed for a findings register, so a repository without one cannot
+declare the control at all. Medium because it blocks declaring a control the reader has just
+chosen to be held to.
+
+**Remedy hypothesis:** offer every artefact ranked with the matches first, as the gates do;
+widen the artefact directories or drop the restriction in favour of ranking; a seed for the
+findings register (`assurance_findings`) and the same "create it" choice as `F87`.
+
+## F89 — The opening screen is text only; the maintainer asked for a mark
+
+**Severity: low. Open.**
+
+Recorded under `ACT-050` from the maintainer's second run of `adopt`, against a scratch copy of Plutos on 2026-09-02, reported in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z). Closes by an activity the maintainer authorises; each changes what is asked, so a decision record precedes it (`DR-47`).
+
+The maintainer's words: *"Home page is not visual enough. Something resembling a logo or something
+more visual (like a geometry) would be nice there."* The opening screen (`F81`, `DR-51` (2)) is a
+title row and prose. A mark has to fit the same 24 rows at 80 columns, render in any monospace
+font, and take the title row's place rather than add to it. Low: nothing is wrong, and the choice
+of mark is the maintainer's.
+
+**Remedy hypothesis:** a four-row mark in box-drawing characters above the tool line, chosen by
+the maintainer from alternatives, held by the opening screen's snapshot.
 
 ## F86 — A hand edit to the profile after the write leaves the provenance record asserting the old origin; nothing records a post-write edit
 
