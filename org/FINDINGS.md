@@ -166,7 +166,7 @@ an unknown number of releases with nothing noticing.
 | F98 | A run cancelled after the scaffold stage and resumed never created the adoption decision record: the profile named `DR-0001` and the sidecar said "created" for a file that did not exist | high | Closed — `ACT-057`; see the body |
 | F99 | `--propose` marked every above-floor control's rationale and reference `needs-human`, so a human had to invent lines for controls they never declared before `--answers` would write | medium | Closed — `ACT-057`; see the body |
 | F100 | `--edit` applied no field validator, so an artefact edited to an untracked path was written and failed `SP032` on the next run | medium | Closed — `ACT-057`; see the body |
-| F101 | A run that fails after the scaffold has written its seeds leaves them on disk and reports them rather than removing them (pass-2 CRIT-01) | medium | Open — a decision (`H13`): report, as designed at code item 7, or roll back this run's own files |
+| F101 | A run that fails after the scaffold has written its seeds leaves them on disk and reports them rather than removing them (pass-2 CRIT-01) | medium | Closed — `ACT-059`, 2026-09-02, the maintainer having chosen the rollback (`H13`); see the body |
 | F102 | A seed satisfies `SP032` on the day it is written, so a repository can pass every seeded gate with no practice behind it (pass-2 CRIT-02; the risk `DR-43` states) | medium | Open — a decision (`H13`): the reviewer's remedy contradicts `DR-43`; an advisory for seed-identical artefacts is the alternative |
 | F103 | `--answers` writes every proposal the human left standing, so a record completed by filling only the needs-human lines carries the framework's example rationales under the adopter's name (pass-2 MAT-01) | medium | Open — a decision (`H13`): `DR-49` designed it so; an explicit acceptance line is the alternative |
 | F104 | The schema's `effective_from` pattern admits impossible dates and a fraction without seconds; the checker rejects them, so the pattern documents a form it does not enforce (pass-2 MAT-02) | low | Open — the pattern is a public contract; tightening it is a decision (`H13`). The same-day trap the reviewer describes is `F92`, kept by `DR-60` |
@@ -1681,7 +1681,7 @@ decides between that, the reviewer's remedy, and leaving `DR-43` as it stands.
 
 ## F101 — A run that fails after the scaffold has written its seeds leaves them on disk and reports them rather than removing them (pass-2 CRIT-01)
 
-**Severity: medium. Open.**
+**Severity: medium. Closed.**
 
 Recorded on 2026-09-02 from the second cross-provider adversarial review (`audit/CROSS_PROVIDER_REVIEW_2026-09-02_PASS2.md`, `H3`, run by the maintainer with the curated prompt and reproduced verbatim there; provider and model as the maintainer states), assessed in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z) against the code and this repository's profile.
 
@@ -1694,6 +1694,8 @@ first review, rather than deleting them. **Alternative (`H13`):** delete the fil
 - and only those, created with `open(..., "x")` seconds earlier - when the profile write fails,
 and say so; the draft still holds the answers. Reporting stays the fallback where a deletion
 itself fails.
+
+**Closed by `ACT-059`, 2026-09-02, the maintainer having chosen the rollback (`H13`).** A failure at the profile or sidecar write now removes the files this run created (`scaffold.rollback`: the files, then the directories they left empty), and `PartialWrite` names what was removed and anything it could not remove; the CLI prints both. The draft keeps the answers. Regression: `tests/test_adopt.py::test_a_failed_write_removes_the_seeds_this_run_created`, seen to fail first; the scaffold suite's assertion that the file "really is on disk" - the first review's code item 7 - is replaced by the removal, with the reason beside it.
 
 ## F100 — `--edit` applied no field validator, so an artefact edited to an untracked path was written and failed `SP032` on the next run
 

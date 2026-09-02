@@ -387,7 +387,7 @@ def test_a_failure_after_the_scaffold_wrote_still_reports_what_it_wrote(tmp: Pat
         wizard.run(repo, ScriptedInterview(answers))
         outcome = "returned"
     except wizard.PartialWrite as exc:
-        outcome = f"PartialWrite created={[p.name for p in exc.created]}"
+        outcome = f"PartialWrite created={[p.name for p in exc.created]} removed={[p.name for p in exc.removed]}"
     except Exception as exc:  # noqa: BLE001
         outcome = f"{type(exc).__name__}: {exc}"
     check(
@@ -395,7 +395,12 @@ def test_a_failure_after_the_scaffold_wrote_still_reports_what_it_wrote(tmp: Pat
         outcome.startswith("PartialWrite") and "register.md" in outcome,
         outcome,
     )
-    check("and the created file really is on disk", (repo / "activity" / "register.md").is_file())
+    # `F101` (the second review's CRIT-01, decided by the maintainer under `H13`): this asserted
+    # that the created file "really is on disk" - the first review's code item 7 wanted it named
+    # rather than denied. It is still named, as removed: the run's own files are taken back so a
+    # failed write leaves the tree as it found it, and the draft keeps the answers.
+    check("and the created file was removed again, and named as removed",
+          not (repo / "activity" / "register.md").exists() and not (repo / "activity").exists() and "removed=['register.md'" in outcome, outcome)
 
 
 def test_a_dangling_symlink_is_not_an_empty_slot(tmp: Path) -> None:

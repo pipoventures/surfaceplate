@@ -3,7 +3,8 @@
 `run()` is the one function anything outside this package should call. It is deliberately thin -
 an `Interview` collects the answers, `sections.py` turns them into a profile, and this module's own
 job is narrow: hold the pieces together, verify what they produced before it reaches disk, and
-guarantee that a cancelled run leaves the repository untouched.
+guarantee that a cancelled run leaves the repository untouched, and that a run which fails at the
+write removes the files it had created (`F101`) and says so.
 
 **Verification is never delegated to the interface (`DR-36`).** `_verify` runs twice: once through
 the `preview` closure, so the review screen can show a `WriteRefused` as a message instead of a
@@ -158,19 +159,23 @@ class Proposed:
 
 
 class PartialWrite(Exception):
-    """The profile could not be written after the scaffold had already created files. Carries
-    `created` and `problems`, so the failure names what is on disk rather than denying it
-    (the review's code item 7)."""
+    """The profile could not be written after the scaffold had already created files. `F101`:
+    those files are this run's own and are removed again (`scaffold.rollback`); the failure
+    names what was removed, and anything that could not be, rather than denying either (the
+    first review's code item 7 asked for the naming; the second review's CRIT-01 for the removal)."""
 
-    def __init__(self, cause: BaseException, created: list[Path], problems: list[str]) -> None:
-        names = ", ".join(str(p) for p in created) or "none"
-        super().__init__(
-            f"the profile could not be written ({type(cause).__name__}: {cause}); "
-            f"files already created by this run: {names}"
-        )
+    def __init__(self, cause: BaseException, created: list[Path], problems: list[str], removed: list[Path] | None = None) -> None:
+        removed = list(removed or [])
+        kept = [p for p in created if p not in removed]
+        parts = [f"the profile could not be written ({type(cause).__name__}: {cause})"]
+        parts.append("files this run had created and has removed: " + (", ".join(str(p) for p in removed) or "none"))
+        if kept:
+            parts.append("files this run created and could NOT remove: " + ", ".join(str(p) for p in kept))
+        super().__init__("; ".join(parts))
         self.cause = cause
         self.created = created
         self.problems = problems
+        self.removed = removed
 
 
 class WriteRefused(Exception):
@@ -556,8 +561,9 @@ def run(repo: Path, interview: Interview) -> Path:
         # `DR-47` (2): the machine-owned record beside the profile, every field's origin and the
         # one document-level approval.
         _write_atomically(repo / provenance.PROVENANCE_PATH, sidecar)
-    except Exception as exc:  # noqa: BLE001 - whatever failed, say what is already on disk
-        raise PartialWrite(exc, created, scaffold_problems) from exc
+    except Exception as exc:  # noqa: BLE001 - whatever failed, undo this run's own files and say so
+        removed, rollback_problems = scaffold.rollback(repo, created)
+        raise PartialWrite(exc, created, scaffold_problems + rollback_problems, removed=removed) from exc
     _clear_draft(repo)  # a completed run leaves no draft behind - it exists only to protect one
     return Written(profile=target, created=created, problems=scaffold_problems)
 

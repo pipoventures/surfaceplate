@@ -152,12 +152,16 @@ def _cmd_adopt(argv: list[str]) -> int:
         print("This is the wizard's own safety check, not the checker. Nothing was written.")
         return 1
     except wizard.PartialWrite as exc:
-        # Code item 7: a run that created files and then failed says so, file by file.
+        # Code item 7, and `F101`: a run that created files and then failed says so, file by
+        # file - what it removed again, and anything it could not.
         print(f"\nThe profile was not written: {type(exc.cause).__name__}: {exc.cause}", file=sys.stderr)
+        for path in exc.removed:
+            print(f"  Created before the failure, and removed again: {path}", file=sys.stderr)
         for path in exc.created:
-            print(f"  Created before the failure: {path}", file=sys.stderr)
+            if path not in exc.removed:
+                print(f"  Created before the failure and NOT removed: {path}", file=sys.stderr)
         for problem in exc.problems:
-            print(f"  NOT created: {problem}", file=sys.stderr)
+            print(f"  Problem: {problem}", file=sys.stderr)
         print("Your answers are kept in the draft, so re-running `adopt` offers to resume.", file=sys.stderr)
         return 4
     except Exception as exc:  # noqa: BLE001 - deliberate; an internal error is its own exit code
