@@ -1423,15 +1423,22 @@ Recorded under `ACT-051` on 2026-09-02, in this session (https://claude.ai/code/
 own run and three local runs passed.
 
 `ACT-049` made a focused field scroll to the top of its container after the next refresh
-(`screens.reveal`, deferred because the help slot's relayout undoes a scroll made at once). The
-test paused twice after focusing and read the screen; on a loaded runner the refresh had not
-happened, so the four classification rows were still below the fold. A test that assumes a number
-of frames is a test of the runner's speed. Low: a false red, no defect in the product.
+(`screens.reveal`). The test paused twice after focusing and read the screen. The first
+diagnosis was timing - the refresh had not happened on a loaded runner - and a bounded wait was
+added; the runner failed the same way with the wait, so that diagnosis was wrong. The runner's
+own rendered screen, read from the failing check's detail, showed what had happened: the scroll
+had gone past the radio set by exactly its height, leaving the field's help at the top of the
+frame and its four options above the fold. The scroll ran against a layout in which the field's
+rows were not yet measured; locally the layout had settled first. Low: a false red, no defect in
+what the wizard writes, but a real one in what it shows on a slow machine.
 
-**Closed by `ACT-051`, 2026-09-02.** The test waits, bounded to twenty pauses, until the last
-option is on screen, and reads the screen then. Making the scroll immediate instead was tried and
-rejected: the relayout that follows undid it and the options vanished. PR #52's failed job passed
-on re-run before the fix; the fix is what makes the next run not depend on that.
+**Closed by `ACT-051`, 2026-09-02.** `reveal` runs twice: once when the help is shown and once
+after the next refresh, through `Widget.scroll_visible` so every scrolling ancestor takes part;
+the second pass is a no-op when the first was right and the correction when it was not. The test
+also waits, bounded, until the layout has settled. Two earlier attempts are recorded in the
+branch's commits: an immediate single scroll (undone by the relayout that follows) and the wait
+alone (the runner failed identically). The runner passed on the third push.
+
 
 ## F89 — The opening screen is text only; the maintainer asked for a mark
 
