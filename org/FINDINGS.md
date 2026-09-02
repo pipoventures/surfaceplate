@@ -113,7 +113,7 @@ an unknown number of releases with nothing noticing.
 | F46 | The conformance-level screen span in an unbounded redraw loop whenever the caret did not start at index 0 | high | Closed — `ACT-034`; prompts are replaced in place instead of cleared and re-added |
 | F47 | A repository adopted on a day it already had commits reports a gate violation it cannot clear: the artefact is created today, `effective_from` binds by DATE, and `SP033` forbids a future date | medium | Closed — `ACT-035`; `effective_from` accepts an instant, so adoption binds from the moment |
 | F48 | The prerequisite history audit's window slid forward with the clock: `git log --since=<bare date>` means that date at the CURRENT TIME, so a violation visible in the morning was gone by evening | high | Closed — `ACT-035`; a date-only `effective_from` resolves to midnight explicitly |
-| F49 | `DR-23`'s standing policy on the former organisation has no automated check, and cannot have one that carries the token | low | Open — remedy sketched in the entry; `ACT-007` closed on judgement with this recorded |
+| F49 | `DR-23`'s standing policy on the former organisation has no automated check, and cannot have one that carries the token | low | Closed — 2026-09-02, by the maintainer's own search (`H5`); see the body |
 | F50 | The adversarial-review hand-off command referenced a file deleted three packets earlier, so item 9 could not have been run as documented | medium | Closed — `ACT-037`; the command is corrected, guarded, and reproduces the list the prompt declares |
 | F51 | The wizard set `effective_from` itself, contradicting the binding rule that names that field as a human decision — and silently chose the narrowest audit window the rules permit | high | Closed — `ACT-038`; asked again, and the rule made precise about what the tool may supply |
 | F52 | `CONFORMANCE_LEVELS.md` claimed both that two baseline controls are unchecked and that nothing is declared-only | medium | Closed — `ACT-038`; the absolute claim was the false one |
@@ -2352,7 +2352,7 @@ what closed the gap here was a person asking whether it was still true.
 
 ## F49 — The standing policy that decided publication has no automated guard
 
-**Severity: low. Open.**
+**Severity: low. Closed.**
 
 Recorded when `ACT-007` was closed, so that an activity marked `done` does not imply coverage that
 does not exist.
@@ -2388,6 +2388,15 @@ recovering a redaction marker out of the archive and reporting fifteen ordinary 
 hits. Neither found anything; both looked as though they had. **A policy whose subject cannot be
 named resists tooling**, and the failure mode is a confident false positive rather than a silent
 miss.
+
+**Closed by `H5`, 2026-09-02.** The maintainer ran `git grep -Iil -- '<the name>' | wc -l` in his own
+terminal against the working tree at `main`, with the former organisation's name in place, and
+reported **0**. A first attempt had searched the literal placeholder and returned the one file that
+quotes the command; the second, with the name, returned nothing. The look was capable of finding
+the thing: `git grep -I -i -l` reads every tracked text file, case-insensitively, and the same
+command finds the placeholder when the placeholder is what is searched for. Scope: the tracked tree
+at `main`, not history - the public repository has no prior history by `DR-23`'s construction. No
+instrument was built, per the register's own warning. Reported in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z).
 
 ---
 
