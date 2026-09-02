@@ -380,11 +380,20 @@ class _SectionScreenBase(Screen):
     ]
 
     def __init__(
-        self, section: plan.SectionPlan, *, step: str = "", initial: dict | None = None
+        self,
+        section: plan.SectionPlan,
+        *,
+        step: str = "",
+        initial: dict | None = None,
+        repo=None,
     ) -> None:
         super().__init__()
         self.section = section
         self.step = step
+        # `DR-48`: the validators that ask git whether a path is tracked need the repository.
+        # A screen hosted without one (a test) skips those two checks, and says so in the
+        # parity table beside the codes that read them.
+        self.repo = repo
         # Proposed values, when the adopter chose to start from defaults. A pre-filled field is
         # still answered by them: it is shown, and it is submitted, exactly as a shown default in
         # a text box always has been.
@@ -547,7 +556,7 @@ class FormScreen(_SectionScreenBase):
             if not spec.applies(answers):
                 answers.pop(spec.id, None)
                 continue
-            problem = validators.check(spec.validate, answers.get(spec.id, ""))
+            problem = validators.check(spec.validate, answers.get(spec.id, ""), repo=self.repo)
             # `F64`: a choice field carries no text validator, and an unpressed radio set reads
             # as `None`, so `mode: None` committed and the run died three screens later. A
             # choice is an answer only when it is one of the choices.
@@ -576,9 +585,14 @@ class LevelScreen(_SectionScreenBase):
     ]
 
     def __init__(
-        self, section: plan.SectionPlan, *, step: str = "", recommended: str | None = None
+        self,
+        section: plan.SectionPlan,
+        *,
+        step: str = "",
+        recommended: str | None = None,
+        repo=None,
     ) -> None:
-        super().__init__(section, step=step)
+        super().__init__(section, step=step, repo=repo)
         self.spec = section.fields[0]
         self._why_shown = False
         # `ACT-032`: start the CARET on the recommended level. The screen's note says which level
@@ -731,11 +745,12 @@ class GatesScreen(_SectionScreenBase):
         *,
         step: str = "",
         initial: dict | None = None,
+        repo=None,
     ) -> None:
         # `F60`: this screen took no `initial`, so the defaults route proposed thirty-odd gate
         # values, showed them, and then opened every gate blank. `initial` is keyed
         # `"<gate id>.<field id>"`, the same addresses `_answers` returns.
-        super().__init__(section, step=step, initial=initial)
+        super().__init__(section, step=step, initial=initial, repo=repo)
         self.specs = specs
         self._chosen: dict[str, str] = {}
 
@@ -878,7 +893,7 @@ class GatesScreen(_SectionScreenBase):
                 other, wanted = field_spec.depends_on
                 if answers.get(f"{spec.id}.{other}") not in wanted:
                     continue
-            if validators.check(field_spec.validate, answers.get(key, "")):
+            if validators.check(field_spec.validate, answers.get(key, ""), repo=self.repo):
                 return False
         return True
 
@@ -975,7 +990,9 @@ class GatesScreen(_SectionScreenBase):
                     if answers.get(f"{spec.id}.{other}") not in wanted:
                         answers.pop(key, None)
                         continue
-                problem = validators.check(field_spec.validate, answers.get(key, ""))
+                problem = validators.check(
+                    field_spec.validate, answers.get(key, ""), repo=self.repo
+                )
                 if problem:
                     self._set_hint(f"{spec.id} · {field_spec.label}: {problem}")
                     return

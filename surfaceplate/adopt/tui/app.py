@@ -212,7 +212,7 @@ class AdoptApp(App):
                 # plan computes has to be *handed to the screen* or the screen quietly does
                 # something else - so this is passed explicitly and joined in the TUI suite.
                 recommended, _ = plan.recommended_level(self.state.get("risk") or {})
-                screen = LevelScreen(section, step=step, recommended=recommended)
+                screen = LevelScreen(section, step=step, recommended=recommended, repo=self.repo)
             elif name == "gates":
                 # `found=` matters and its absence cost a real adoption: without it every
                 # precondition artefact fell back to a plain text box while the controls screen,
@@ -227,11 +227,11 @@ class AdoptApp(App):
                 # `F60`: seeded like every other section. Without `initial=` here the defaults
                 # route showed its gate proposals and then opened every gate blank.
                 screen = GatesScreen(
-                    specs, section, step=step, initial=self._seeded.get(name, {})
+                    specs, section, step=step, initial=self._seeded.get(name, {}), repo=self.repo
                 )
             else:
                 screen = FormScreen(
-                    section, step=step, initial=self._seeded.get(name, {})
+                    section, step=step, initial=self._seeded.get(name, {}), repo=self.repo
                 )
 
             result = await self.push_screen_wait(screen)

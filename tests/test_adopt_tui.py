@@ -882,6 +882,11 @@ def _git_repo_with_a_register(tmp: Path) -> Path:
     (repo / "activity" / "register.md").write_text("# register\n", encoding="utf-8")
     (repo / "src").mkdir()
     (repo / "src" / "main.py").write_text("print(1)\n", encoding="utf-8")
+    (repo / ".github" / "workflows").mkdir(parents=True)
+    (repo / ".github" / "workflows" / "ci.yml").write_text(
+        "jobs:\n  build:\n    steps:\n      - name: Run the unit tests\n        run: pytest\n",
+        encoding="utf-8",
+    )
     for args in (
         ["init", "-q"], ["config", "user.email", "h@e.i"],
         ["config", "user.name", "H"], ["config", "commit.gpgsign", "false"],
@@ -924,16 +929,21 @@ def _fill_blanks(screen, blank: list[str]) -> None:
     reach the next screen; the count was taken before this ran."""
     from textual.widgets import RadioSet, Select, TextArea
 
+    # `DR-48`: a path field is validated against git and a step field against the workflows,
+    # so the driver answers those with things the fixture repository really holds.
+    real = {"tracked_path": "activity/register.md", "ci_step": "Run the unit tests"}
+    specs = {spec.id: spec for spec in screen.section.fields}
     for field_id in blank:
         widget = screen.query_one(f"#f-{field_id.replace('.', '--')}")
+        answer = real.get(getattr(specs.get(field_id), "validate", ""), "answered by the driver")
         if isinstance(widget, Select):
             widget.value = widget._options[1][1] if len(widget._options) > 1 else widget._options[0][1]
         elif isinstance(widget, RadioSet):
             widget.query(RadioButton).first().value = True
         elif isinstance(widget, TextArea):
-            widget.text = "answered by the driver"
+            widget.text = answer
         else:
-            widget.value = "answered by the driver"
+            widget.value = answer
 
 
 def test_the_defaults_route_seeds_the_gates_screen_and_counts_what_is_left() -> None:

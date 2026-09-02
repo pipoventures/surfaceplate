@@ -28,6 +28,17 @@ import sys
 from pathlib import Path
 from typing import Any
 
+# `DR-48`: the date rules, the identifier pattern, the placeholder pattern and "a named path is
+# tracked by git" live once, in `rules.py` beside this file, and the wizard's validators import
+# the same module. Imported as a sibling in every context this checker runs in: as
+# `surfaceplate.check_conformance`, flat with this directory on `sys.path`, and vendored under
+# `.standards/` where it is run as a script.
+try:
+    from . import rules
+except ImportError:  # no parent package: run as a script, or imported flat
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import rules
+
 # --- Fixed contract with adopting repositories -------------------------------
 # These paths are part of the published standard. Changing one is a breaking
 # change for every adopting repository, not a refactor.
@@ -61,7 +72,7 @@ MAX_GRACE_DAYS = 30
 #
 # The horizon is capped for the same reason the grace window is: without a cap, an
 # adopter could set `review_by` to 2099 and the control would be decorative.
-MAX_REVIEW_HORIZON_DAYS = 400
+MAX_REVIEW_HORIZON_DAYS = rules.MAX_REVIEW_HORIZON_DAYS
 REVIEW_WARN_DAYS = 30
 DEFAULT_REVIEW_INTERVAL_DAYS = 180
 
@@ -88,10 +99,7 @@ DEFAULT_REVIEW_INTERVAL_DAYS = 180
 # tests/test_install_and_check.py pins both directions: a genuinely unfilled artefact is
 # still caught, and notation is not. Do not re-add a shape-based branch here without a
 # seen-to-fail case showing it separates the two.
-PLACEHOLDER_PATTERN = re.compile(
-    r"\breplace[-_ ]?me\b|\bTBD\b|\bTBC\b|\bTODO\b",
-    re.IGNORECASE,
-)
+PLACEHOLDER_PATTERN = rules.PLACEHOLDER_PATTERN
 
 # Controls this checker actually verifies against the repository, as opposed to verifying
 # that they were declared. DR-25 records the architecture by which the rest join them; each
@@ -750,9 +758,8 @@ def check_profile_review(
         )
         return
 
-    try:
-        review_by = _dt.date.fromisoformat(str(raw)[:10])
-    except ValueError:
+    state, review_by = rules.review_by_state(raw, today)
+    if state == "unreadable" or review_by is None:
         findings.append(
             Finding(
                 "SP024",
@@ -764,8 +771,7 @@ def check_profile_review(
         )
         return
 
-    horizon = today + _dt.timedelta(days=MAX_REVIEW_HORIZON_DAYS)
-    if review_by > horizon:
+    if state == "beyond_horizon":
         findings.append(
             Finding(
                 "SP026",
@@ -779,7 +785,7 @@ def check_profile_review(
         )
         return
 
-    if review_by < today:
+    if state == "overdue":
         overdue = (today - review_by).days
         findings.append(
             Finding(
@@ -1207,8 +1213,7 @@ def check_control_implementations(
         # Tracked by git, because an untracked file is not part of the repository an auditor
         # would receive - it exists on one machine and nowhere else.
         if git_available(repo):
-            code, _ = git(repo, "ls-files", "--error-unmatch", reference)
-            if code != 0:
+            if not rules.is_tracked(repo, reference):
                 findings.append(
                     Finding(
                         "SP051",
@@ -1672,9 +1677,8 @@ def check_deferral_expiry(
     contract change and deserves its own decision.
     """
     def assess(label: str, raw: object, remedy: str) -> None:
-        try:
-            due = _dt.date.fromisoformat(str(raw)[:10])
-        except ValueError:
+        state, due = rules.revisit_by_state(raw, today)
+        if state in ("absent", "unreadable") or due is None:
             findings.append(
                 Finding(
                     "SP054",
@@ -1688,7 +1692,7 @@ def check_deferral_expiry(
             return
 
         overdue = (today - due).days
-        if overdue > 0:
+        if state == "overdue":
             findings.append(
                 Finding(
                     "SP054",
@@ -2303,53 +2307,16 @@ def effective_instant(raw: object) -> _dt.datetime:
 
 
 def _effective_is_future(raw: object, day: _dt.date, today: _dt.date) -> bool:
-    """Whether this `effective_from` is still to come. `F47` widened the field; this keeps
-    `SP033` exactly as strict, by comparing an instant against now when one is supplied."""
-    text = str(raw).strip()
-    if len(text) <= 10:
-        return day > today
-    try:
-        moment = _dt.datetime.fromisoformat(text)
-    except ValueError:
-        return day > today
-    now = _dt.datetime.now(moment.tzinfo) if moment.tzinfo else _dt.datetime.now()
-    return moment > now
+    """Whether this `effective_from` is still to come - `rules.effective_is_future`, held once
+    (`DR-48`) so the wizard refuses exactly what `SP033` refuses."""
+    return rules.effective_is_future(raw, day, today)
 
 
 def parse_effective_from(raw: object) -> tuple[_dt.date, str]:
-    """`effective_from` as `(date, git --since argument)`.
-
-    **`F47`: this field may carry a time, and that is the whole point of accepting one.** A gate
-    binds from an instant, and a date can only say "midnight". A repository adopted at 16:37 on a
-    day it had already committed reported every one of that morning's commits as crossing a gate
-    whose precondition it had just created - accurately, by the letter of a date, and uselessly.
-    Binding from tomorrow instead is what the artefact's real history justifies, and `SP033`
-    refuses it, correctly.
-
-    Date-only values keep their exact previous meaning: midnight, so every existing profile reads
-    the same as it always has. The returned date is what `SP033`/`SP034` compare and what messages
-    print; the string is what `git log --since` receives, and it is the FULL value, which is where
-    the time actually does its work.
-    """
-    text = str(raw).strip()
-    # `date.fromisoformat` accepts a full ISO datetime in 3.11+, so the date half is parsed from
-    # the first ten characters deliberately rather than incidentally - the same slice this code has
-    # always used, now with the remainder kept instead of discarded.
-    day = _dt.date.fromisoformat(text[:10])
-    if len(text) <= 10:
-        # **`F48`: midnight, stated. Never the bare date.** `git log --since=2026-09-01` does NOT
-        # mean that date at 00:00 - approxidate fills the missing time from the CURRENT CLOCK, so
-        # the bare form means "that date, at whatever time you happen to run the check". The audit
-        # window therefore slid forward all day: a violation visible at 09:00 was gone by 23:00,
-        # for no reason but the hour. Measured against git 2.43.0 with four commits at 01:00,
-        # 10:00, 19:00 and 23:00 - `--since=<date>` returned one, `--since=<date>T00:00:00`
-        # returned four.
-        #
-        # Normalising to midnight makes the control deterministic and gives it the meaning the
-        # schema has always claimed. It widens the window, which is the safe direction: it can
-        # surface a violation that was being hidden, and cannot hide one that was being surfaced.
-        return day, f"{day.isoformat()}T00:00:00"
-    return day, text
+    """`effective_from` as `(date, git --since argument)` - `rules.parse_effective_from`, held once
+    (`DR-48`). `F47` (an instant may be given) and `F48` (a bare date means midnight, stated) are
+    recorded on the rule itself."""
+    return rules.parse_effective_from(raw)
 
 
 def blob_exists(repo: Path, sha: str, path: str) -> bool:

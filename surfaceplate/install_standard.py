@@ -102,7 +102,12 @@ def payload_text(src: "Path | str") -> str:
 
 def classify(rel: str) -> str:
     """Which review class an installed path belongs to."""
-    if rel in (f"{VENDOR_DIR}/check_conformance.py", HOOK_TARGET, WORKFLOW_TARGET):
+    if rel in (
+        f"{VENDOR_DIR}/check_conformance.py",
+        f"{VENDOR_DIR}/rules.py",  # `DR-48`: imported and executed by the checker
+        HOOK_TARGET,
+        WORKFLOW_TARGET,
+    ):
         return CLASS_ENFORCING
     if rel in (check_conformance.SCHEMA_PATH, check_conformance.EXCEPTION_SCHEMA_PATH):
         return CLASS_CONTRACT
@@ -220,6 +225,10 @@ def build_payload(source: Path) -> dict[str, Path]:
     # check_conformance.py sits beside this file now, not under a scripts/ subdirectory - the
     # ACT-019 move flattened that one level of indirection along with everything else.
     payload[f"{VENDOR_DIR}/check_conformance.py"] = source / "check_conformance.py"
+    # `DR-48`: the rules the checker and the wizard share, imported by the vendored checker as a
+    # sibling. A payload addition under `DR-20`'s membership principle: an adopter cannot run the
+    # checker they pinned without it.
+    payload[f"{VENDOR_DIR}/rules.py"] = source / "rules.py"
     payload[f"{VENDOR_DIR}/VERSION"] = source / "VERSION"
     payload[f"{VENDOR_DIR}/conformance-block.md"] = source / "standard" / "conformance-block.md"
 

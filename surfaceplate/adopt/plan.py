@@ -484,18 +484,24 @@ def _implementation_reference_field(
     # particular is why this packet exists: "no example for CI step name... not sure how to proceed
     # on that one" is unanswerable from a canned example and trivial from the adopter's own
     # workflow files.
+    # `DR-48`: what the checker will ask of the value is asked at the field - a tracked path for
+    # patterns A and C (`SP051`, `SP055`), a step name that exists for pattern B (`SP053`).
     if control_id in catalogue.PATTERN_A_CONTROLS:
         candidates = found.lock_files or found.artefacts
+        validate = "tracked_path"
     elif control_id in catalogue.PATTERN_B_CONTROLS:
         candidates = found.ci_steps
+        validate = "ci_step"
     else:
         candidates = found.register_dirs
+        validate = "tracked_path"
     return _from_candidates(
         id=f"{control_id}.implementation_reference",
         label=f"{prefix} {control_id}",
         help=help_text,
         candidates=candidates,
         depends_on=None if at_floor else ("above_floor", (control_id,)),
+        validate=validate,
     )
 
 
@@ -539,6 +545,7 @@ def controls_plan(
             label="Scanner workflow file",
             help="a step naming this scanner must be able to fail the build",
             candidates=tuple(a for a in found.artefacts if "workflow" in a),
+            validate="tracked_path",
         )
     )
 
@@ -677,6 +684,7 @@ def _gate_fields(
             ),
             candidates=tuple(discover.rank_for_gate(found.artefacts, gate_id)),
             depends_on=None if mandatory else ("status", required_when),
+            validate="tracked_path",
         ),
         # `F51`: **`effective_from` is asked, and this is the one of the four that came back.**
         # `org/RELEASE_PLAN.md` names it: *"what `effective_from` should read ... is a human
@@ -755,7 +763,7 @@ def _gate_fields(
             id="revisit_by",
             label="Revisit by",
             help="YYYY-MM-DD. The checker fails once this date passes",
-            validate="date",
+            validate="revisit_by",
             depends_on=("status", ("deferred",)),
         ),
         FieldSpec(
@@ -875,7 +883,7 @@ def adoption_plan(*, owner: str) -> SectionPlan:
                 label="Review by",
                 default=(_dt.date.today() + _dt.timedelta(days=180)).isoformat(),
                 help="180 days is the suggested interval; the checker fails once this date passes",
-                validate="date",
+                validate="review_by",
             ),
             FieldSpec(
                 id="framework_maintainer",

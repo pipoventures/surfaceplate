@@ -1124,6 +1124,154 @@ def test_write_refused_on_placeholder_content(repo: Path, valid_profile: dict) -
         )
 
 
+def test_validators_refuse_what_the_checker_rejects(tmp: Path) -> None:
+    """`F66` / `DR-48`. The wizard accepted a future `effective_from`, a 401-day and a past
+    `review_by`, a one-character `application_id`, basic-ISO dates the schema refuses, and an
+    untracked path - each of which the checker's first run rejects. One rules module now holds
+    the rules and both sides import it; this asserts the wizard's side refuses each input."""
+    import datetime as _dt
+
+    from surfaceplate.adopt import validators
+
+    repo = make_installed_repo(tmp, "parity-inputs-repo")
+    (repo / "tracked.md").write_text("# tracked\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "tracked.md"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "tracked"], check=True)
+    (repo / "untracked.md").write_text("# here, but not committed\n", encoding="utf-8")
+
+    today = _dt.date.today()
+    tomorrow = (today + _dt.timedelta(days=1)).isoformat()
+    yesterday = (today - _dt.timedelta(days=1)).isoformat()
+    far = (today + _dt.timedelta(days=401)).isoformat()
+    near = (today + _dt.timedelta(days=180)).isoformat()
+
+    refused = [
+        ("effective_from", tomorrow, "SP033: a future effective_from"),
+        ("effective_from", "20260101", "the schema's date form, not basic ISO"),
+        ("review_by", far, "SP026: review_by beyond 400 days"),
+        ("review_by", yesterday, "SP025: review_by in the past"),
+        ("review_by", "20270101", "SP024: review_by not YYYY-MM-DD"),
+        ("revisit_by", yesterday, "SP054: revisit_by in the past"),
+        ("date", "20270101", "basic ISO is not the schema's date"),
+        ("application_id", "a", "the schema's pattern needs two characters"),
+        ("nonempty", "TBD", "SP020: a placeholder is not an answer"),
+        ("nonempty", "please replace-me", "SP020: a placeholder inside prose"),
+        ("tracked_path", "untracked.md", "SP051: exists but not tracked by git"),
+        ("tracked_path", "missing.md", "SP032/SP051: does not exist"),
+    ]
+    for name, value, why in refused:
+        check(
+            f"validators refuse {name}={value!r} ({why})",
+            validators.check(name, value, repo=repo) is not None,
+        )
+    accepted = [
+        ("effective_from", today.isoformat()),
+        ("effective_from", f"{today.isoformat()}T00:00:00+00:00"),
+        ("review_by", near),
+        ("revisit_by", near),
+        ("date", today.isoformat()),
+        ("application_id", "ab"),
+        ("nonempty", "a real answer"),
+        ("tracked_path", "tracked.md"),
+    ]
+    for name, value in accepted:
+        problem = validators.check(name, value, repo=repo)
+        check(f"and accept {name}={value!r}", problem is None, str(problem))
+
+
+def test_every_checker_code_has_a_validator_or_an_exemption(tmp: Path) -> None:
+    """`DR-48` (4): for every `SP` code the checker emits, the wizard refuses the same input at
+    the field, or an exemption names the reason. The table is compared against the codes the
+    checker actually emits, both ways, so a new code cannot arrive without a row here."""
+    import datetime as _dt
+    import re
+
+    from surfaceplate.adopt import validators
+
+    repo = make_installed_repo(tmp, "parity-table-repo")
+    (repo / "untracked.md").write_text("x\n", encoding="utf-8")
+    yesterday = (_dt.date.today() - _dt.timedelta(days=1)).isoformat()
+    far = (_dt.date.today() + _dt.timedelta(days=401)).isoformat()
+    tomorrow = (_dt.date.today() + _dt.timedelta(days=1)).isoformat()
+
+    V = "validator"
+    X = "exempt"
+    PARITY: dict[str, tuple] = {
+        "SP001": (X, "reads the install record, not a profile field"),
+        "SP002": (X, "reads the install record, not a profile field"),
+        "SP003": (X, "reads the install record, not a profile field"),
+        "SP004": (X, "reads the vendored files, not a profile field"),
+        "SP005": (X, "reads the vendored files, not a profile field"),
+        "SP006": (X, "reads the agent instruction files, not a profile field"),
+        "SP007": (X, "reads the conformance block, not a profile field"),
+        "SP008": (X, "reads the conformance block, not a profile field"),
+        "SP009": (X, "reads the installed workflow, not a profile field"),
+        "SP010": (X, "the wizard writes the profile it is about to check"),
+        "SP011": (X, "wizard._verify re-parses the rendered profile before writing"),
+        "SP012": (X, "wizard._verify re-parses the rendered profile before writing"),
+        "SP013": (X, "wizard._verify refuses to write without the vendored schema"),
+        "SP014": (X, "wizard._verify refuses to write without a readable schema"),
+        "SP015": (X, "wizard._verify validates against the schema before writing"),
+        "SP016": (X, "wizard._verify validates against the schema before writing"),
+        "SP017": (X, "the level is a closed choice of three; an empty choice is refused (F64)"),
+        "SP018": (X, "sections.build_adoption writes the block unconditionally"),
+        "SP019": (V, "nonempty", ""),
+        "SP020": (V, "nonempty", "TBD"),
+        "SP021": (X, "control decisions are computed from the level by sections.build_controls"),
+        "SP022": (X, "control decisions are computed from the level by sections.build_controls"),
+        "SP023": (X, "no control decision can be deferred through the wizard (DR-32)"),
+        "SP024": (V, "review_by", "20270101"),
+        "SP025": (V, "review_by", yesterday),
+        "SP026": (V, "review_by", far),
+        "SP027": (X, "sections.build_gates writes every gate the plan declares"),
+        "SP028": (X, "sections.build_gates writes the schema's shape from the plan"),
+        "SP029": (X, "a level-mandatory gate is stated by the plan, never chosen"),
+        "SP030": (X, "a level-mandatory gate is stated by the plan, never chosen"),
+        "SP031": (V, "revisit_by", ""),
+        "SP032": (V, "tracked_path", "missing.md"),
+        "SP033": (V, "effective_from", tomorrow),
+        "SP034": (X, "history-only: compares against git history (DR-48)"),
+        "SP035": (X, "history-only: compares against git history (DR-48)"),
+        "SP037": (X, "builds_user_interface is a closed yes/no the form refuses empty; the design gates follow it"),
+        "SP038": (X, "enforcement is derived as history_audit + review; the wizard never writes local_hook"),
+        "SP039": (X, "reads the staged snapshot, not the profile the wizard writes"),
+        "SP040": (X, "reads the staged snapshot, not the profile the wizard writes"),
+        "SP041": (X, "reads the staged snapshot, not the profile the wizard writes"),
+        "SP042": (X, "a pathspec is validated by git at check time; the field offers discovered pathspecs"),
+        "SP043": (X, "reads gate exception records, which the wizard does not write"),
+        "SP046": (V, "tracked_path", "untracked.md"),
+        "SP047": (X, "reads the workflow step's shell semantics, not a profile field"),
+        "SP048": (X, "written from the install record, never asked"),
+        "SP049": (X, "written from the install record, never asked"),
+        "SP050": (X, "the wizard writes no placeholder-scan exemptions"),
+        "SP051": (V, "tracked_path", "untracked.md"),
+        "SP052": (X, "authority_map is mandatory at every level that requires documentation_authority"),
+        "SP053": (V, "ci_step", "No such step"),
+        "SP054": (V, "revisit_by", yesterday),
+        "SP055": (V, "tracked_path", "missing-register"),
+        "SP056": (X, "reads the records inside a register, which the wizard does not write"),
+        "SP057": (X, "reads the records inside a register, which the wizard does not write"),
+        "SP058": (X, "reads the records inside a register, which the wizard does not write"),
+    }
+    source = (PAYLOAD / "check_conformance.py").read_text(encoding="utf-8")
+    emitted = set(re.findall(r'Finding\(\s*"(SP\d{3})"', source))
+    check(
+        "every emitted SP code has a parity row, and every row is an emitted code",
+        emitted == set(PARITY),
+        f"unmapped: {sorted(emitted - set(PARITY))}; stale rows: {sorted(set(PARITY) - emitted)}",
+    )
+    for code, row in sorted(PARITY.items()):
+        if row[0] == V:
+            _, name, bad = row
+            check(
+                f"{code}: validators.check({name!r}, {bad!r}) refuses it",
+                validators.check(name, bad, repo=repo) is not None,
+            )
+    exemptions = sum(1 for row in PARITY.values() if row[0] == X)
+    check("every exemption names a reason", all(len(r) == 2 and r[1] for r in PARITY.values() if r[0] == X))
+    print(f"  ({len(PARITY) - exemptions} codes met by a validator, {exemptions} exempt by name)")
+
+
 def test_scripted_interview_objects_in_both_directions(tmp: Path) -> None:
     """The two-sided guarantee itself, checked rather than assumed."""
     repo = make_installed_repo(tmp, "two-sided-repo")
@@ -1201,6 +1349,10 @@ def main() -> int:
         test_the_untouched_template_is_still_fair_game(tmp)
         test_write_refused_on_placeholder_content(essential_repo, essential_profile)
         test_scripted_interview_objects_in_both_directions(tmp)
+
+        print("\nDR-48: one set of rules for the wizard and the checker")
+        test_validators_refuse_what_the_checker_rejects(tmp)
+        test_every_checker_code_has_a_validator_or_an_exemption(tmp)
 
     print()
     if FAILURES:

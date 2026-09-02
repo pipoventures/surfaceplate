@@ -131,7 +131,7 @@ an unknown number of releases with nothing noticing.
 | F63 | A real profile whose prose mentions "replace-me" is mistaken for the template and overwritten without a prompt | critical | Closed — `ACT-043`; the guard looks for the token in the template's identifying scalars, not the byte stream, and both directions are asserted in `tests/test_adopt.py` |
 | F64 | `validators.check` passes any non-string, so an unpressed radio set and a blank dropdown commit; one path ends in a black screen, the other in an unactionable `KeyError` | high | Closed — `ACT-043`; `None` is blank in `validators.check`, a choice must be one of its choices at commit, and both paths are refused at the field in `tests/test_adopt_tui.py` |
 | F65 | A placeholder is accepted at the field and refused at the review, where nothing but cancel works, and a resumed draft lands on the same refusal | medium | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
-| F66 | The wizard accepts dates and paths the checker rejects, so a profile can pass the wizard and fail its first check | medium | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
+| F66 | The wizard accepts dates and paths the checker rejects, so a profile can pass the wizard and fail its first check | medium | Closed — `ACT-044`; `surfaceplate/rules.py` holds the rules once, both sides import it, and `tests/test_adopt.py` refuses each input and maps every `SP` code to a validator or a named exemption |
 | F67 | The 80×24 pass looked at the wrong screens: the level options below the fold, help text unstyled and flush, off-state controls near-invisible, labels and text areas clipped | medium | Open — the help-text part closed by `ACT-043`; the level fold, off-state contrast and clipping remain for `ACT-044` (`org/REMEDIATION_PLAN.md`) |
 | F68 | Quitting at the resume prompt deletes the draft, and the prompt's heading is swallowed as markup | medium | Closed — `ACT-043`; a quit cancels the run with the draft kept, and the four bracketed headings are `markup=False`, both asserted in `tests/test_adopt.py` and `tests/test_render.py` |
 | F69 | The route screen says the rest is four gates while the next screen says all nineteen | low | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
@@ -1327,11 +1327,27 @@ image, where the focused but unpressed first option is highlighted), and the cli
 
 ## F66 — The wizard accepts dates and paths the checker rejects, so a profile can pass the wizard and fail its first check
 
-**Severity: medium. Open.**
+**Severity: medium. Closed.**
 
 Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, the adversarial product review of 2026-09-02, authorised by the maintainer in the review session (https://claude.ai/code/session_01X1MZfNScrJjgD5e2AGBjvs). Closes by `ACT-044`; see `org/REMEDIATION_PLAN.md`.
 
 `validators.check` accepts `effective_from` tomorrow and a year out (`SP033` rejects a future date), `review_by` 401 days out and yesterday (`SP026`, `SP024`), a one-character `application_id` and basic-ISO dates the schema refuses, and typed paths for the scanner workflow and lock file without checking they exist or are tracked (`SP046`, `SP051`). A 401-day review date went through the adoption screen and the review; `surfaceplate check` on the result: `[SP026] The profile review date is beyond the permitted horizon`, `FAIL`. Remedy per `DR-48`: one rules module for both.
+
+**Closed by `ACT-044`, item 1.6 (2026-09-02), implementing `DR-48`.** `surfaceplate/rules.py`
+holds the `effective_from`, `review_by` and `revisit_by` rules, the `application_id` and
+placeholder patterns, and "a named path is tracked by git"; `check_conformance.py` imports it as a
+sibling (so the vendored copy works from `.standards/`) and `adopt/validators.py` imports it as
+`surfaceplate.rules`. The module is install payload (`install_standard.build_payload`, classed
+enforcing), the vendored copy is held current by `check_vendored_current.py` (65 files compared),
+and this repository was reinstalled from the built release with the digest re-pinned.
+Validators gained `review_by`, `revisit_by`, `tracked_path` and `ci_step`; `date` refuses basic
+ISO; every string validator refuses a placeholder (`F65`'s field half); the plan names them on the
+fields the checker reads. `tests/test_adopt.py::test_validators_refuse_what_the_checker_rejects`
+refuses the twelve inputs the review listed and accepts their good forms;
+`::test_every_checker_code_has_a_validator_or_an_exemption` maps all 55 emitted `SP` codes -
+13 met by a validator, 42 exempt by a named reason (`SP034`, `SP035` history-only among them) -
+and fails if the checker gains a code without a row. Seen to fail before (the suite could not
+call `check(..., repo=)`) and to pass after (`ADOPT_CONFORMANCE=PASS (131 checks)`).
 
 ## F65 — A placeholder is accepted at the field and refused at the review, where nothing but cancel works, and a resumed draft lands on the same refusal
 
