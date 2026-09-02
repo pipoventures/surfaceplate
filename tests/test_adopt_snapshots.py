@@ -129,11 +129,13 @@ def test_gates_list_with_a_focused_status(snap_compare) -> None:
     first = next(s for s in specs if not s.mandatory and not s.auto_status)
 
     async def focus_the_status(pilot) -> None:
+        await pilot.press("ctrl+o")  # `DR-56`: the gates beyond the floor open on this key
+        await pilot.pause()
         pilot.app.screen.query_one(f"#f-{first.id}--status", RadioSet).focus()
         await pilot.pause()
 
     assert snap_compare(
-        Host(GatesScreen(specs, section, step="3 of 3 — ", initial={"work_registration.artefact": "activity/register.md", "work_registration.paths": "src/**", "work_registration.effective_from": "2026-09-01"})),
+        Host(GatesScreen(specs, section, step="3 of 3 — ", initial={"work_registration.artefact": "activity/register.md", "work_registration.paths": "src/**", "work_registration.effective_from": "2026-09-01"}, level="standard")),
         terminal_size=SIZE,
         run_before=focus_the_status,
     )

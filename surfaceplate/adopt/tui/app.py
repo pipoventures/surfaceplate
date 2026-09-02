@@ -109,7 +109,8 @@ class AdoptApp(App, inherit_bindings=False):
                 flow.answer_level(result)
             elif stage == "gates":
                 screen = GatesScreen(
-                    flow.gate_specs(), flow.gates_plan(), step=step, initial=flow.gate_seeds(), repo=self.repo
+                    flow.gate_specs(), flow.gates_plan(), step=step, initial=flow.gate_seeds(), repo=self.repo,
+                    level=flow.state["level"]["conformance_level"],
                 )
                 result = await self.push_screen_wait(screen)
                 if result == CANCELLED or result is None:

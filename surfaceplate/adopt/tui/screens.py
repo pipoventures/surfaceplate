@@ -855,6 +855,8 @@ class GatesScreen(_SectionScreenBase):
         # `DR-47` (4): the one explicit bulk command. A human making every remaining scope
         # decision in one act, recorded as such with its count - never the tool pre-marking.
         Binding("ctrl+n", "bulk_not_applicable", "declare every undecided gate not applicable", show=True),
+        # `DR-56`: the gates beyond the level's floor sit folded under one counted heading.
+        Binding("ctrl+o", "toggle_fold", "open or fold the gates beyond the floor", show=True),
         Binding("down", "focus_next", "next field", show=False),
         Binding("up", "focus_previous", "previous field", show=False),
     ]
@@ -872,6 +874,7 @@ class GatesScreen(_SectionScreenBase):
         step: str = "",
         initial: dict | None = None,
         repo=None,
+        level: str = "",
     ) -> None:
         # `F60`: this screen took no `initial`, so the defaults route proposed thirty-odd gate
         # values, showed them, and then opened every gate blank. `initial` is keyed
@@ -880,28 +883,55 @@ class GatesScreen(_SectionScreenBase):
         self.specs = specs
         self._chosen: dict[str, str] = {}
         self.bulk_gates: set[str] = set()  # gates whose status the bulk command set
+        # `F91` / `DR-56`: the level's floor is what the screen opens with; the rest is folded.
+        self.level = level
+        self.floor = [s for s in specs if s.mandatory]
+        self.beyond = [s for s in specs if not s.mandatory]
+        self.specs = tuple(self.floor + self.beyond)  # the order the screen shows and `gates_plan` lists
+        self._folded = bool(self.beyond)
+
+    def _level_word(self) -> str:
+        return f"{self.level} " if self.level else ""
 
     def compose(self) -> ComposeResult:
         with Frame(id="frame"):
             yield Static(f"[{self.step}{self.section.title}]", classes="section-header", markup=False)
             yield Static(self.section.intro, classes="intro")
             with VerticalScroll(id="gate-list"):
-                current_section = ""
-                for spec in self.specs:
-                    if spec.section != current_section:
-                        current_section = spec.section
-                        first = self.specs.index(spec) + 1
-                        last = first + sum(
-                            1 for g in self.specs if g.section == current_section
-                        ) - 1
-                        yield Static(
-                            f"{current_section} · gates {first}\u2013{last} of {len(self.specs)}",
-                            classes="section-subline",
-                            id=f"sec-{current_section.replace(' ', '-').lower()}",
-                            markup=False,
-                        )
-                    yield from self._compose_gate(spec)
+                # `DR-56`: the floor first, expanded, under a heading that names the level; then
+                # one counted heading for everything beyond it, folded until opened.
+                if self.floor:
+                    yield Static(
+                        f"The {self._level_word()}floor: {len(self.floor)} gate{'s' if len(self.floor) != 1 else ''}, required",
+                        classes="section-subline", id="sec-floor", markup=False,
+                    )
+                    for spec in self.floor:
+                        yield from self._compose_gate(spec)
+                if self.beyond:
+                    yield Static("", classes="section-subline", id="sec-beyond", markup=False)
+                    current_section = ""
+                    for spec in self.beyond:
+                        if spec.section != current_section:
+                            current_section = spec.section
+                            yield Static(
+                                f"  {current_section}",
+                                classes="section-subline beyond",
+                                id=f"sec-{current_section.replace(' ', '-').lower()}",
+                                markup=False,
+                            )
+                        yield from self._compose_gate(spec)
         yield Static("", id="hint", markup=False)
+
+    def _fold_heading(self) -> str:
+        n = len(self.beyond)
+        state = "[Ctrl+O] open" if self._folded else "[Ctrl+O] fold"
+        return f"Beyond the {self._level_word()}floor: {n} gate{'s' if n != 1 else ''}, not required · {state}"
+
+    def action_toggle_fold(self) -> None:
+        if not self.beyond:
+            return
+        self._folded = not self._folded
+        self._refresh_visibility()
 
     def _compose_gate(self, spec: plan.GateSpec) -> ComposeResult:
         with Vertical(classes="gate", id=f"gate-{spec.id}"):
@@ -914,10 +944,8 @@ class GatesScreen(_SectionScreenBase):
                 yield Static(spec.id, classes="gate-name")
                 yield Static(_first_sentence(spec.explanation), classes="gate-desc")
                 if spec.mandatory:
-                    yield Static(
-                        "  required — the level requires this gate; its precondition is yours to state",
-                        classes="gate-locked",
-                    )
+                    # One row at 80 columns (`DR-56`: the floor is what the screen opens with).
+                    yield Static("  required by the level; the precondition is yours to state", classes="gate-locked")
                 elif spec.auto_status:
                     yield Static(
                         f"  {spec.auto_status.replace('_', ' ')} — settled by an earlier answer",
@@ -1087,6 +1115,7 @@ class GatesScreen(_SectionScreenBase):
     def _refresh_visibility(self) -> None:
         answers = self._answers()
         focused_gate = self._focused_gate_id()
+        beyond_ids = {s.id for s in self.beyond}
         for spec in self.specs:
             for field_spec in spec.fields:
                 key = f"{spec.id}.{field_spec.id}"
@@ -1097,13 +1126,18 @@ class GatesScreen(_SectionScreenBase):
                 other, wanted = field_spec.depends_on
                 row.display = answers.get(f"{spec.id}.{other}") in wanted
 
+            folded = self._folded and spec.id in beyond_ids
             collapsed = self._gate_is_complete(spec, answers) and spec.id != focused_gate
             status = self._status_of(spec, answers)
-            self.query_one(f"#body-{spec.id}").display = not collapsed
+            self.query_one(f"#body-{spec.id}").display = not collapsed and not folded
             summary = self.query_one(f"#summary-{spec.id}", Static)
-            summary.display = collapsed
+            summary.display = collapsed and not folded
             if collapsed:
                 summary.update(f"  {spec.id}  ·  {str(status).replace('_', ' ')}")
+        if self.beyond:
+            self.query_one("#sec-beyond", Static).update(self._fold_heading())
+            for heading in self.query(".section-subline.beyond"):
+                heading.display = not self._folded
         self._set_hint()
 
     @on(RadioSet.Changed)
@@ -1147,12 +1181,15 @@ class GatesScreen(_SectionScreenBase):
         total = len(self.specs)
         answers = self._answers()
         statuses = [self._status_of(spec, answers) for spec in self.specs]
-        audited = sum(1 for s in statuses if s == "required")
         undecided = sum(1 for s in statuses if s is None)
         done = self._answered_count(answers)
+        # `DR-56` (3): the counter names the floor.
+        beyond = f"{len(self.beyond)} beyond it" + (" (folded)" if self._folded and self.beyond else "")
+        # Three rows at 80 columns, none wrapping: every row here is a row of gate the list
+        # cannot show.
         keys = (
-            f"{audited} will be audited · {undecided} undecided · {done} of {total} complete\n"
-            "[r/d/n] status  [Ctrl+N] all undecided → not applicable  [Ctrl+G] jump to section\n"
+            f"{len(self.floor)} in the floor · {beyond} · {undecided} undecided · {done} of {total} complete\n"
+            "[r/d/n] status  [Ctrl+N] undecided→not applicable  [Ctrl+O] fold  [Ctrl+G] next\n"
             "[\u2191\u2193] move  [Ctrl+S] continue  [Ctrl+Q] cancel"
         )
         self.query_one("#hint", Static).update(hint_line(keys=keys, error=error))
@@ -1197,7 +1234,7 @@ class GatesScreen(_SectionScreenBase):
         )
 
     def action_jump_section(self) -> None:
-        headings = list(self.query(".section-subline"))
+        headings = [h for h in self.query(".section-subline") if h.display]
         if not headings:
             return
         scroll = self.query_one("#gate-list", VerticalScroll)

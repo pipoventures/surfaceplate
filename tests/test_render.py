@@ -318,6 +318,45 @@ def test_an_above_floor_row_explains_itself_when_highlighted() -> None:
     check("the help beside the list explains the highlighted control in full",
           highlighted in help_text and explanations.explain(highlighted, "simple")[:40] in help_text, help_text[:300])
 
+
+def test_the_gate_list_opens_with_the_floor_and_folds_the_rest() -> None:
+    """`F91` / `DR-56`. At `standard` and 80x24 the list shows the floor's four gates and one
+    heading that names the level and counts the rest; no folded gate's body is on screen; the
+    key opens the fold; the counter names the floor; the same fields render folded or open."""
+    from textual.widgets import Static
+
+    from surfaceplate.adopt.tui.screens import GatesScreen
+
+    found = plan.discover.Discovered(artefacts=("activity/register.md", "docs/decisions/DR-1.md", "CHANGELOG.md"), paths=("src/**",))
+    specs = plan.gate_plan(level="standard", builds_ui=False, mode="simple", found=found)
+    section = plan.gates_plan(level="standard", builds_ui=False, mode="simple", found=found)
+    floor = [s.id for s in specs if s.mandatory]
+    beyond = [s.id for s in specs if not s.mandatory]
+
+    async def _run():
+        app = Host(GatesScreen(specs, section, step="3 of 3 — ", level="standard"))
+        async with app.run_test(size=(80, 40)) as pilot:
+            await pilot.pause(); await pilot.pause()
+            closed = screen_text(rendered(app))
+            heading = str(app.screen.query_one("#sec-beyond", Static).content)
+            bodies_closed = {s.id: app.screen.query_one(f"#body-{s.id}").display or app.screen.query_one(f"#summary-{s.id}").display for s in specs}
+            shape_closed = app.screen.field_shape()
+            await pilot.press("ctrl+o")
+            await pilot.pause(); await pilot.pause()
+            opened = str(app.screen.query_one("#sec-beyond", Static).content)
+            bodies_open = {s.id: app.screen.query_one(f"#body-{s.id}").display or app.screen.query_one(f"#summary-{s.id}").display for s in specs}
+            shape_open = app.screen.field_shape()
+            return closed, bodies_closed, shape_closed, opened, bodies_open, shape_open, heading
+
+    closed, bodies_closed, shape_closed, opened, bodies_open, shape_open, heading = asyncio.run(_run())
+    check("the floor heading names the level and its count", "standard floor" in closed and f"{len(floor)} gate" in closed, closed[:500])
+    check("the fold heading names the level and counts the rest", f"Beyond the standard floor: {len(beyond)} gates" in heading and "[Ctrl+O] open" in heading, heading)
+    check("every floor gate is shown", all(bodies_closed[g] for g in floor), str({g: bodies_closed[g] for g in floor}))
+    check("no folded gate is shown, body or summary", not any(bodies_closed[g] for g in beyond), str({g: bodies_closed[g] for g in beyond if bodies_closed[g]}))
+    check("the counter names the floor", f"{len(floor)} in the floor" in closed and f"{len(beyond)} beyond it" in closed, closed[-400:])
+    check("Ctrl+O opens the fold", all(bodies_open[g] for g in beyond) and "[Ctrl+O] fold" in opened, str([g for g in beyond if not bodies_open[g]])[:200])
+    check("the same fields are rendered folded or open (the join holds)", shape_closed == shape_open == [(f.id, f.kind) for f in section.fields], f"{len(shape_closed)} vs {len(section.fields)}")
+
 # ---------------------------------------------------------------------------------------------
 # 1 & 2 — the legends render the keys they name
 # ---------------------------------------------------------------------------------------------
@@ -465,7 +504,17 @@ def test_several_gates_are_visible_at_a_standard_terminal() -> None:
     async def _run() -> None:
         specs = plan.gate_plan(level="standard", builds_ui=False, mode="simple")
         section = plan.gates_plan(level="standard", builds_ui=False, mode="simple")
-        app = Host(GatesScreen(specs, section))
+        # `DR-56`: the list opens with the floor, and a floor gate with its three fields answered
+        # collapses to one row - which is how a seeded run shows them. Seeded here so the
+        # property (several gates on 24 rows, no vertical slack) is asserted on the screen a
+        # first-time reader meets rather than on the old catalogue order.
+        floor = {}
+        for spec in specs:
+            if spec.mandatory:
+                floor[f"{spec.id}.artefact"] = "docs/register.md"
+                floor[f"{spec.id}.paths"] = "src/**"
+                floor[f"{spec.id}.effective_from"] = "2026-09-01"
+        app = Host(GatesScreen(specs, section, initial=floor, level="standard"))
         async with app.run_test(size=(80, 24)) as pilot:
             await pilot.pause()
             text = screen_text(rendered(app))
@@ -498,6 +547,8 @@ def test_a_gate_status_radio_set_renders_its_options() -> None:
         first = next(s for s in specs if not s.mandatory and not s.auto_status)
         app = Host(GatesScreen(specs, section))
         async with app.run_test(size=(80, 24)) as pilot:
+            await pilot.pause()
+            await pilot.press("ctrl+o")  # `DR-56`: a gate beyond the floor is folded until opened
             await pilot.pause()
             app.screen.query_one(f"#f-{first.id}--status", RadioSet).focus()
             await pilot.pause()
@@ -994,6 +1045,7 @@ def main() -> int:
     test_off_state_and_focus_are_told_apart_from_chosen()
     test_every_classification_option_is_on_screen_and_a_text_area_shows_three_lines()
     test_an_above_floor_row_explains_itself_when_highlighted()
+    test_the_gate_list_opens_with_the_floor_and_folds_the_rest()
 
     print("\nnothing is printed twice (F37 #3)")
     test_no_field_label_is_rendered_twice()
