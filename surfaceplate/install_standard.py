@@ -9,9 +9,10 @@ Design rules, in priority order:
    files. It writes those, and nothing else. It appends to the repository's own Copilot
    instructions between markers; it never rewrites the surrounding content. It creates
    the application profile only if one does not already exist, and never overwrites it.
-2. **Additive layering.** The standard owns ``.github/instructions/*.instructions.md``
-   and ``.github/skills/``, which GitHub Copilot reads *in addition to* the repository's
-   own ``.github/copilot-instructions.md``. That file stays the adopter's.
+2. **Additive layering, per agent.** The standard owns ``.github/instructions/*.instructions.md``
+   and ``.github/skills/`` for Copilot, and ``.claude/rules/`` and ``.claude/skills/`` for
+   Claude Code. Each is read *in addition to* the repository's own instructions —
+   ``.github/copilot-instructions.md`` and ``CLAUDE.md`` stay the adopter's, untouched.
 3. **Idempotent.** Running it twice changes nothing the second time.
 4. **Honest about upgrades.** Files that the previous version installed and this version
    no longer ships are removed, so a stale control cannot linger.
@@ -193,9 +194,21 @@ def build_payload(source: Path) -> dict[str, Path]:
             f"---\n{paths_block}description: {description}\n---\n{body}"
         )
 
+    # The skills get the same treatment as the instructions above, and `F58` is why they did not
+    # until now. `DR-30`'s remedy for `F29` was applied to the six instruction documents and stopped
+    # there - so the seven skills installed to `.github/skills/` only, while `AGENTS.md` told every
+    # adopter that "`.github/skills/` defines the workflow for each kind of task ... its required
+    # inputs, gates and mandatory stops are not optional". An adopter running Claude Code was handed
+    # binding gates in a directory their agent does not read. That is `F29` exactly: instructions
+    # sitting where nothing loads them, discovered the same way, one layer along.
+    #
+    # No transformation is needed, unlike the instructions - a SKILL.md already carries the `name`
+    # and `description` front matter both agents want, so this is a second destination and nothing
+    # more. The body is written once and stays one file.
     for skill in sorted((source / "standard" / ".github" / "skills").iterdir()):
         if skill.is_dir() and (skill / "SKILL.md").is_file():
             payload[f".github/skills/{skill.name}/SKILL.md"] = skill / "SKILL.md"
+            payload[f".claude/skills/{skill.name}/SKILL.md"] = skill / "SKILL.md"
 
     payload[WORKFLOW_TARGET] = source / "standard" / ".github" / "workflows" / "standards-conformance.yml"
 

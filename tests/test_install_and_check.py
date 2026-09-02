@@ -418,6 +418,56 @@ def test_the_framework_digest_is_recomputable_from_the_installed_tree(tmp: Path)
     )
 
 
+def test_every_agent_receives_the_skills(tmp: Path) -> None:
+    """`F58`. `F29` again, in the half `DR-30` did not finish.
+
+    `F29` recorded 501 lines of agent instruction sitting where no agent read them. `DR-30`'s remedy
+    was one body with several emitters, and it was applied to the six INSTRUCTION documents:
+    `.github/instructions/` for Copilot, `.claude/rules/` for Claude Code. **The seven SKILL
+    documents were never emitted that way** — they install only to `.github/skills/`, and Claude
+    Code loads `.claude/skills/`.
+
+    That matters because `AGENTS.md`, installed into every adopting repository, says: *".github/skills/
+    defines the workflow for each kind of task. Use the matching skill. Its required inputs, gates and
+    mandatory stops are not optional."* An adopter using Claude Code was told those gates were
+    binding and handed them in a directory their agent does not load.
+
+    The skills already carry `name` and `description` front matter, which is exactly what Claude
+    Code's format needs, so this is a second destination and not a transformation.
+    """
+    payload = _installer.build_payload(PAYLOAD)
+    copilot = {k for k in payload if k.startswith(".github/skills/")}
+    claude = {k for k in payload if k.startswith(".claude/skills/")}
+
+    check(
+        "the skills are emitted for Copilot",
+        len(copilot) == 7,
+        f"{len(copilot)} under .github/skills/",
+    )
+    check(
+        "and for Claude Code, which loads a different path",
+        len(claude) == len(copilot),
+        f"{len(claude)} under .claude/skills/ against {len(copilot)} under .github/skills/",
+    )
+    check(
+        "the same seven skills, by name, in both",
+        {k.split("/")[2] for k in copilot} == {k.split("/")[2] for k in claude},
+        f"copilot={sorted(k.split('/')[2] for k in copilot)} claude={sorted(k.split('/')[2] for k in claude)}",
+    )
+
+    # Installed for real, because a payload map is not a file on disk - the distinction `F39`
+    # turned on when a plan and the screen built from it disagreed.
+    repo = make_git_repo(tmp, "skills")
+    result = install(repo)
+    check("installer succeeds", result.returncode == 0, result.stderr[-200:])
+    on_disk = sorted(p.parent.name for p in (repo / ".claude" / "skills").glob("*/SKILL.md"))
+    check(
+        "and an adopter really has them where their agent looks",
+        len(on_disk) == 7,
+        f"on disk: {on_disk}",
+    )
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory() as raw:
         tmp = Path(raw)
@@ -430,6 +480,9 @@ def main() -> int:
         )
         check("uninstalled repository fails", result.returncode == 1, result.stdout[-200:])
         check("and says why", "SP001" in result.stdout)
+
+        print("\nevery agent receives the skills (F58)")
+        test_every_agent_receives_the_skills(tmp)
 
         print("\nthe framework digest recomputes from what was installed (F6, narrowed)")
         test_the_framework_digest_is_recomputable_from_the_installed_tree(tmp)

@@ -8,8 +8,8 @@ Repository-specific guidance goes outside the markers below. The block between t
 This repository operates under **Surfaceplate**, the Pipo Ventures Ltd software delivery
 standard. The standard is installed, not copied: it lives in `.standards/`, and its files are
 integrity-checked in CI. Do not edit anything under `.standards/`, `.claude/rules/`,
-`.github/instructions/`, or `.github/skills/` — raise changes against the `surfaceplate`
-repository so every repository gets them.
+`.claude/skills/`, `.github/instructions/`, or `.github/skills/` — raise changes against the
+`surfaceplate` repository so every repository gets them.
 
 **Binding rules, in force for every task in this repository:**
 
@@ -18,8 +18,10 @@ repository so every repository gets them.
   in the location that agent actually loads: `.claude/rules/surfaceplate-*.md` for Claude Code,
   `.github/instructions/*.instructions.md` for Copilot. If your agent reads neither, the canonical
   copies are in `.standards/agent-instructions/` and you are responsible for loading them.
-- `.github/skills/` defines the workflow for each kind of task. Use the matching skill. Its required
-  inputs, gates and mandatory stops are not optional.
+- **The skills define the workflow for each kind of task. Use the matching skill.** Its required
+  inputs, gates and mandatory stops are not optional. The same seven skills are installed once per
+  agent, in the location that agent actually loads: `.claude/skills/*/SKILL.md` for Claude Code,
+  `.github/skills/*/SKILL.md` for Copilot. Same body, same gates, two paths.
 - **Stop and ask** before anything touching methodology, a material output, a public contract or
   schema, provenance, a security boundary, an irreversible migration, or a release.
 - **Never weaken a gate.** Do not skip, disable, suppress or loosen a test, hook, threshold or

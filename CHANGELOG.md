@@ -1065,6 +1065,30 @@ scheduled sweep, so previously there was no way to scan history at all.
 
 ## Unreleased
 
+### `F58` closed: every agent now receives the skills, not only Copilot
+
+`AGENTS.md` tells every adopting repository that the skills' *"required inputs, gates and mandatory
+stops are not optional"*. It named `.github/skills/`, and that was the only place they installed.
+Claude Code loads `.claude/skills/`, which no adopter ever received — including this repository,
+where `ls .claude/` returned `rules` and nothing else.
+
+This is `F29` a second time. `DR-30` answered *"instructions sitting where no agent loads them"*
+with one body and several emitters, applied it to the six instruction documents, and stopped. The
+seven skills kept a single emitter for four months and nothing caught it, because every test asked
+whether the skills installed correctly rather than whether the agent reading `AGENTS.md` could
+reach them.
+
+`build_payload` now emits each `SKILL.md` to both paths. Unlike the instructions there is no
+transformation to make — a `SKILL.md` already carries the `name` and `description` front matter both
+agents want — so the body remains one file and gains a destination. The conformance block's prose
+named one directory and now names the pattern, matching how it already described the
+instructions.
+
+**It also narrowed a human decision it was not looking for.** Forge neutrality had been measured as
+*"`.github/skills/` and the conformance workflow, 8 of 57 installed files"*. Seven of those eight
+were never a forge question. What is left is **one file of 64** — the conformance workflow, which
+genuinely assumes GitHub Actions.
+
 ### `F8` closed: the check can no longer be deleted to make it stop
 
 Surfaceplate is published at `github.com/pipoventures/surfaceplate`, and a branch ruleset named
