@@ -131,6 +131,14 @@ Checkbox:focus {
     background: #171c1f;
 }
 
+/* `F67`: the help line beside the focused field had no rule at all, so it rendered in the
+   screen's full ink - louder than the label it explains - flush against the frame, and touching
+   the next field. Muted, indented under its field, and one row clear of whatever follows. */
+.field-help {
+    color: #7a827e;
+    margin: 0 0 1 2;
+}
+
 /* --- level screen (mockup frame 02): highlight is not selection --- */
 OptionList {
     background: #0e1316;
@@ -182,23 +190,15 @@ OptionList > .option-list--option-highlighted {
     height: auto;
 }
 
+/* `F59`: `height: 1` left Textual's `RadioSet` - which draws a two-row `tall` border plus padding
+   by default - with no row for its buttons, so every undecided gate's status rendered as an empty
+   bordered box at every terminal size. The border and padding go too: one row per option, nothing
+   else. (The `.chip`/`.chip-selected` rules that stood here styled nothing since the radio rewrite.) */
 .chip-row {
-    height: 1;
-    margin: 0;
-}
-
-.chip {
+    height: auto;
     border: none;
-    min-width: 18;
-    height: 1;
-    background: #0e1316;
-    color: #7a827e;
-}
-
-.chip-selected {
-    background: #d79a3c;
-    color: #0e1316;
-    text-style: bold;
+    padding: 0;
+    margin: 0;
 }
 
 .followups {

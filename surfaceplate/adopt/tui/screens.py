@@ -429,7 +429,7 @@ class FormScreen(_SectionScreenBase):
 
     def compose(self) -> ComposeResult:
         with Frame(id="frame"):
-            yield Static(f"[{self.step}{self.section.title}]", classes="section-header")
+            yield Static(f"[{self.step}{self.section.title}]", classes="section-header", markup=False)
             if self.section.intro:
                 yield Static(self.section.intro, classes="intro")
             for line in self.section.recap:
@@ -458,6 +458,11 @@ class FormScreen(_SectionScreenBase):
         yield Static("", id="hint", markup=False)
 
     def on_mount(self) -> None:
+        # `F74`: an error reported by `action_commit` is held here until the next commit, because
+        # the focus move that reports it arrives as a later `DescendantFocus` event whose handler
+        # rewrites the hint - and rewrote it without the error, so the error was on screen for
+        # one frame. Held on the screen, it survives every focus move until the human tries again.
+        self._pending_error = ""
         self._refresh_visibility()
         self._focus_first_field()
         self._show_help_for_focused()
@@ -481,7 +486,7 @@ class FormScreen(_SectionScreenBase):
 
     def on_descendant_focus(self, event: events.DescendantFocus) -> None:
         self._show_help_for_focused()
-        self._set_hint()
+        self._set_hint(getattr(self, "_pending_error", ""))
 
     def _show_help_for_focused(self) -> None:
         focused = self._focused_spec()
@@ -536,18 +541,28 @@ class FormScreen(_SectionScreenBase):
         )
 
     def action_commit(self) -> None:
+        self._pending_error = ""
         answers = self._answers()
         for spec in self.section.fields:
             if not spec.applies(answers):
                 answers.pop(spec.id, None)
                 continue
             problem = validators.check(spec.validate, answers.get(spec.id, ""))
+            # `F64`: a choice field carries no text validator, and an unpressed radio set reads
+            # as `None`, so `mode: None` committed and the run died three screens later. A
+            # choice is an answer only when it is one of the choices.
+            if not problem and spec.kind == "choice":
+                if answers.get(spec.id) not in {value for value, _ in spec.choices}:
+                    problem = "Choose one of the options."
             if problem:
-                self._set_hint(f"{spec.label}: {problem}")
+                # Focus first, then report - and keep the report, because the focus event that
+                # follows redraws the hint (`F74`).
                 try:
                     self.query_one(f"#f-{spec.id.replace('.', '--')}").focus()
                 except Exception:
                     pass
+                self._pending_error = f"{spec.label}: {problem}"
+                self._set_hint(self._pending_error)
                 return
         self.dismiss(answers)
 
@@ -577,7 +592,7 @@ class LevelScreen(_SectionScreenBase):
 
     def compose(self) -> ComposeResult:
         with Frame(id="frame"):
-            yield Static(f"[{self.step}{self.section.title}]", classes="section-header")
+            yield Static(f"[{self.step}{self.section.title}]", classes="section-header", markup=False)
             if self.section.recap:
                 yield Static("You told us:", classes="recap")
                 for line in self.section.recap:
@@ -709,14 +724,24 @@ class GatesScreen(_SectionScreenBase):
         Binding("up", "focus_previous", "previous field", show=False),
     ]
 
-    def __init__(self, specs: tuple[plan.GateSpec, ...], section: plan.SectionPlan, *, step: str = "") -> None:
-        super().__init__(section, step=step)
+    def __init__(
+        self,
+        specs: tuple[plan.GateSpec, ...],
+        section: plan.SectionPlan,
+        *,
+        step: str = "",
+        initial: dict | None = None,
+    ) -> None:
+        # `F60`: this screen took no `initial`, so the defaults route proposed thirty-odd gate
+        # values, showed them, and then opened every gate blank. `initial` is keyed
+        # `"<gate id>.<field id>"`, the same addresses `_answers` returns.
+        super().__init__(section, step=step, initial=initial)
         self.specs = specs
         self._chosen: dict[str, str] = {}
 
     def compose(self) -> ComposeResult:
         with Frame(id="frame"):
-            yield Static(f"[{self.step}{self.section.title}]", classes="section-header")
+            yield Static(f"[{self.step}{self.section.title}]", classes="section-header", markup=False)
             yield Static(self.section.intro, classes="intro")
             with VerticalScroll(id="gate-list"):
                 current_section = ""
@@ -771,6 +796,7 @@ class GatesScreen(_SectionScreenBase):
                     validate=field_spec.validate,
                     suggestions=field_spec.suggestions,
                 )
+                seed = self.initial.get(key)
                 with HorizontalGroup(classes="followups", id=f"row-{key.replace('.', '--')}"):
                     if field_spec.kind == "choice":
                         # A radio set, not a row of buttons. The mockup drew chips and this
@@ -784,6 +810,7 @@ class GatesScreen(_SectionScreenBase):
                             *(
                                 VisibleRadioButton(
                                     label.split(" - ")[0],
+                                    value=(seed == value),
                                     id=f"chip-{spec.id}--{value}",
                                 )
                                 for value, label in field_spec.choices
@@ -796,7 +823,7 @@ class GatesScreen(_SectionScreenBase):
                     else:
                         if field_spec.kind != "bool":
                             yield Label(field_spec.label, classes="field-label")
-                        widget = _widget_for(prefixed)
+                        widget = _widget_for(prefixed, seed)
                         widget.add_class("field-widget")
                         yield widget
 
@@ -1022,7 +1049,7 @@ class ResumeScreen(Screen):
 
     def compose(self) -> ComposeResult:
         with Frame(id="frame"):
-            yield Static("[A saved draft was found]", classes="section-header")
+            yield Static("[A saved draft was found]", classes="section-header", markup=False)
             yield Static(
                 f"It has answers for: {', '.join(self.info.sections)}.", classes="intro"
             )

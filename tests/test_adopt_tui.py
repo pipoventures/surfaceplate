@@ -219,6 +219,125 @@ def test_gate_catalogue_behaviour() -> None:
     asyncio.run(_run())
 
 
+def test_an_empty_choice_is_refused_at_the_field() -> None:
+    """`F64`. `validators.check` returned `None` for any non-string, and an unpressed `RadioSet`
+    reads as `None` - so `Ctrl+S` on the first screen with nothing chosen advanced with
+    `mode: None`, and three screens later `plan.py` looked up `LEVEL_CHOICE[None]` inside the
+    worker: a black terminal with no message. The module's own docstring says an empty string is
+    never a decision; `None` was."""
+
+    async def _run() -> None:
+        section = plan.mode_plan()
+        app = Host(FormScreen(section))
+        async with app.run_test(size=(100, 34)) as pilot:
+            await pilot.pause()
+            await pilot.press("ctrl+s")
+            for _ in range(3):
+                await pilot.pause()
+            still_there = isinstance(app.screen, FormScreen) and app.result is None
+            hint = str(app.screen.query_one("#hint").content) if still_there else ""
+            check(
+                "mode: Ctrl+S with no option chosen does not leave the screen",
+                still_there,
+                f"the screen committed {app.result!r}",
+            )
+            check(
+                "and the hint says which field refused",
+                section.fields[0].label in hint,
+                f"hint: {hint!r}",
+            )
+            if still_there:
+                app.exit(None)
+                await pilot.pause()
+
+    asyncio.run(_run())
+
+
+def test_a_validation_error_survives_the_focus_move_that_reports_it() -> None:
+    """`F74`. On the identity screen with `application_id` blank and focus on `owner`, `Ctrl+S`
+    moved focus to the blank field, did not dismiss the screen, and left the hint showing only the
+    key legend: `action_commit` wrote the error into the hint and then focused the field, and
+    `on_descendant_focus` called `_set_hint()` with no error and erased it. The review's earlier
+    image of that error was taken with focus already on the failing field, the one case where it
+    survived."""
+
+    async def _run() -> None:
+        section = plan.identity_plan()
+        app = Host(FormScreen(section))
+        async with app.run_test(size=(80, 24)) as pilot:
+            await pilot.pause()
+            app.screen.query_one("#f-owner").focus()
+            await pilot.pause()
+            await pilot.press("ctrl+s")
+            for _ in range(6):
+                await pilot.pause()
+            still_there = isinstance(app.screen, FormScreen) and app.result is None
+            hint = str(app.screen.query_one("#hint").content) if still_there else ""
+            focused = app.screen.focused.id if still_there and app.screen.focused else None
+            check("identity: Ctrl+S with application_id blank does not leave the screen", still_there)
+            check(
+                "and focus has moved to the blank field",
+                focused == "f-application_id",
+                f"focused: {focused!r}",
+            )
+            check(
+                "and after six pauses the hint still carries the error",
+                "This cannot be blank." in hint,
+                f"hint: {hint!r}",
+            )
+            if still_there:
+                app.exit(None)
+                await pilot.pause()
+
+    asyncio.run(_run())
+
+
+def test_a_blank_dropdown_is_refused_at_the_field() -> None:
+    """`F64`, the other path. A blank `Select` reads as `None`, so a required gate whose artefact
+    was never chosen counted as answered, committed, and the review then showed
+    `This cannot be written yet: 'artefact'` - a `KeyError` with no way back."""
+
+    async def _run() -> None:
+        found = plan.discover.Discovered(artefacts=("activity/register.md",), paths=("src/**",))
+        specs = plan.gate_plan(level="essential", builds_ui=False, mode="simple", found=found)
+        section = plan.gates_plan(level="essential", builds_ui=False, mode="simple", found=found)
+        app = Host(GatesScreen(specs, section))
+        async with app.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            screen = app.screen
+            screen.query_one("#f-work_registration--paths").value = "src/**"
+            screen.query_one("#f-work_registration--effective_from").value = "2026-01-01"
+            await pilot.pause()
+            screen._set_hint()
+            await pilot.pause()
+            hint_before = str(screen.query_one("#hint").content)
+            await pilot.press("ctrl+s")
+            for _ in range(3):
+                await pilot.pause()
+            still_there = isinstance(app.screen, GatesScreen) and app.result is None
+            hint_after = str(app.screen.query_one("#hint").content) if still_there else ""
+            check(
+                "a gate whose artefact dropdown is blank is not counted as answered",
+                "0 of 1 answered" in hint_before,
+                hint_before.splitlines()[-2:],
+            )
+            check(
+                "and Ctrl+S with it blank does not leave the screen",
+                still_there,
+                f"the screen committed {app.result!r}",
+            )
+            check(
+                "and the hint names the artefact field",
+                "artefact" in hint_after.lower() and "blank" in hint_after.lower(),
+                f"hint: {hint_after!r}",
+            )
+            if still_there:
+                app.exit(None)
+                await pilot.pause()
+
+    asyncio.run(_run())
+
+
 def test_mandatory_and_masked_gates_are_stated_not_asked() -> None:
     async def _run() -> None:
         specs = plan.gate_plan(level="standard", builds_ui=False, mode="simple")
@@ -755,6 +874,209 @@ def test_the_app_hands_the_level_recommendation_to_the_screen() -> None:
     asyncio.run(_run())
 
 
+def _git_repo_with_a_register(tmp: Path) -> Path:
+    import subprocess
+
+    repo = tmp / "repo"
+    (repo / "activity").mkdir(parents=True)
+    (repo / "activity" / "register.md").write_text("# register\n", encoding="utf-8")
+    (repo / "src").mkdir()
+    (repo / "src" / "main.py").write_text("print(1)\n", encoding="utf-8")
+    for args in (
+        ["init", "-q"], ["config", "user.email", "h@e.i"],
+        ["config", "user.name", "H"], ["config", "commit.gpgsign", "false"],
+        ["add", "-A"], ["commit", "-qm", "seed"],
+    ):
+        subprocess.run(["git", "-C", str(repo), *args], check=True)
+    return repo
+
+
+_PRESENTED_KINDS = ("text", "textarea", "select", "choice")
+
+
+def _unfilled_on(screen) -> list[str]:
+    """Fields a screen presents with nothing in them: a visible text box, text area, dropdown or
+    radio set holding no value. A tick box and a tick list always show a state, so they are never
+    "unfilled" - what they show may be wrong, but it is not blank."""
+    from surfaceplate.adopt.tui.screens import _read_widget
+
+    if isinstance(screen, GatesScreen):
+        pairs = [
+            (f"{spec.id}.{f.id}", f.kind) for spec in screen.specs for f in spec.fields
+        ]
+    else:
+        pairs = [(spec.id, spec.kind) for spec in screen.section.fields]
+    blank: list[str] = []
+    for field_id, kind in pairs:
+        if kind not in _PRESENTED_KINDS:
+            continue
+        row = screen.query_one(f"#row-{field_id.replace('.', '--')}")
+        if not row.display:
+            continue
+        value = _read_widget(screen.query_one(f"#f-{field_id.replace('.', '--')}"))
+        if value is None or value == "":
+            blank.append(field_id)
+    return blank
+
+
+def _fill_blanks(screen, blank: list[str]) -> None:
+    """What a human does with a field nothing could propose: answers it. Only so the driver can
+    reach the next screen; the count was taken before this ran."""
+    from textual.widgets import RadioSet, Select, TextArea
+
+    for field_id in blank:
+        widget = screen.query_one(f"#f-{field_id.replace('.', '--')}")
+        if isinstance(widget, Select):
+            widget.value = widget._options[1][1] if len(widget._options) > 1 else widget._options[0][1]
+        elif isinstance(widget, RadioSet):
+            widget.query(RadioButton).first().value = True
+        elif isinstance(widget, TextArea):
+            widget.text = "answered by the driver"
+        else:
+            widget.value = "answered by the driver"
+
+
+def test_the_defaults_route_seeds_the_gates_screen_and_counts_what_is_left() -> None:
+    """`F60`. The defaults route proposed thirty-odd gate values, said "5 more can only be answered
+    by you", and then opened a gates screen with nothing in it.
+
+    `tui/app.py` passed `initial=` to `FormScreen` only; `GatesScreen` took none. And the "N more"
+    figure counted fields with no proposal, which was 5 at every level while the gates screen
+    re-asked 38 fields at standard. Neither was asserted anywhere: no test drove the route, and
+    a search of `tests/` for `seeded` or `initial=` found nothing.
+
+    This drives the REAL `AdoptApp` from the route screen through the proposals to the gates
+    screen at every level, and asserts three things: the first required gate's artefact dropdown
+    holds the proposal; the gates hint counts the seeded gates as answered; and the "N more"
+    figure equals what the remaining screens actually present unfilled - measured on the screens
+    the app builds, not recomputed from the proposals.
+    """
+
+    async def _run() -> None:
+        import tempfile
+
+        from textual.widgets import RadioButton, Select
+
+        from surfaceplate.adopt import defaults
+        from surfaceplate.adopt.tui.app import AdoptApp
+        from surfaceplate.adopt.tui.screens import DefaultsScreen
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = _git_repo_with_a_register(Path(tmp))
+            for level in ("essential", "standard", "full"):
+                resumed = {
+                    "mode": {"mode": "simple"},
+                    "identity": {"application_id": "x", "display_name": "X", "owner": "O"},
+                    "stack": {"language": "Python", "builds_user_interface": False},
+                    "risk": {"risk_profile": "r", "materiality_definition": "m",
+                             "data_classification": "internal"},
+                    "level": {"conformance_level": level},
+                }
+                app = AdoptApp(
+                    repo=repo, resumed=dict(resumed),
+                    on_section_complete=lambda *_: None,
+                    preview=lambda _state: "",
+                )
+                async with app.run_test(size=(120, 60)) as pilot:
+                    still_asked = None
+                    unfilled: dict[str, list[str]] = {}
+                    last = None
+                    waited = 0
+                    for _ in range(80):
+                        await pilot.pause()
+                        screen = app.screen
+                        if isinstance(screen, GatesScreen):
+                            break
+                        if screen is last:
+                            # The app pushes the next screen from a worker; give it a few
+                            # pauses before concluding this one refused to commit.
+                            waited += 1
+                            if waited > 8:
+                                hint = str(screen.query_one("#hint").content)
+                                where = getattr(getattr(screen, "section", None), "name", "")
+                                blank = _unfilled_on(screen) if isinstance(screen, FormScreen) else []
+                                raise AssertionError(
+                                    f"{level}: stuck on {type(screen).__name__} {where!r}; "
+                                    f"blank fields {blank}; hint {hint!r}"
+                                )
+                            continue
+                        last = screen
+                        waited = 0
+                        if isinstance(screen, DefaultsScreen):
+                            still_asked = screen.still_asked
+                            await pilot.press("ctrl+s")
+                        elif isinstance(screen, FormScreen):
+                            if screen.section.name == "route":
+                                screen.query_one("#r-route--defaults", RadioButton).value = True
+                                await pilot.pause()
+                            else:
+                                unfilled[screen.section.name] = _unfilled_on(screen)
+                                _fill_blanks(screen, unfilled[screen.section.name])
+                                await pilot.pause()
+                            await pilot.press("ctrl+s")
+                        else:
+                            raise AssertionError(type(screen).__name__)
+                    gates = app.screen
+                    check(
+                        f"{level}: the defaults route reaches the gates screen",
+                        isinstance(gates, GatesScreen),
+                        type(gates).__name__,
+                    )
+                    if not isinstance(gates, GatesScreen):
+                        app.exit(None)
+                        continue
+                    unfilled["gates"] = _unfilled_on(gates)
+                    proposals = defaults.propose(app.state, found=app.found)
+                    proposed = {p.field: p.value for p in proposals}
+                    artefact_keys = [k for k in proposed if k.startswith("gates.") and k.endswith(".artefact")]
+                    if artefact_keys:
+                        key = artefact_keys[0]
+                        widget = gates.query_one(f"#f-{key[len('gates.'):].replace('.', '--')}")
+                        check(
+                            f"{level}: the first proposed gate artefact ({key}) is what the dropdown holds",
+                            isinstance(widget, Select) and widget.value == proposed[key],
+                            f"proposed {proposed[key]!r}, widget holds {getattr(widget, 'value', None)!r}",
+                        )
+                    # A gate is answered on this screen when every field it presents is filled.
+                    # Seeding is what fills them, so the counter must reflect it.
+                    total = len(gates.specs)
+                    blank_gates = {f.split(".")[0] for f in unfilled["gates"]}
+                    expected_done = sum(1 for spec in gates.specs if spec.id not in blank_gates)
+                    hint = str(gates.query_one("#hint").content)
+                    check(
+                        f"{level}: the gates hint counts the seeded gates as answered "
+                        f"({expected_done} of {total})",
+                        f"{expected_done} of {total} answered" in hint,
+                        hint.splitlines()[-2:] if hint else "no hint",
+                    )
+                    # The adoption and wrap screens are built exactly as the app builds them, from
+                    # the same seeded proposals, so what they present can be measured without
+                    # driving a complete gates screen first.
+                    seeded = dict(app._seeded)
+                    state = dict(app.state)
+                    state["gates"] = dict(seeded.get("gates", {}))
+                    for name in ("adoption", "wrap"):
+                        section = plan.section_plan(name, repo=repo, state=state, found=app.found)
+                        host = Host(FormScreen(section, initial=seeded.get(name, {})))
+                        async with host.run_test(size=(120, 60)) as inner:
+                            await inner.pause()
+                            unfilled[name] = _unfilled_on(host.screen)
+                            host.exit(None)
+                    presented_unfilled = sorted(
+                        f"{section}.{field}" for section, fields in unfilled.items() for field in fields
+                    )
+                    check(
+                        f"{level}: '{still_asked} more can only be answered by you' is the number "
+                        f"the remaining screens present unfilled ({len(presented_unfilled)})",
+                        still_asked == len(presented_unfilled),
+                        f"unfilled on screen: {presented_unfilled}",
+                    )
+                    app.exit(None)
+                    await pilot.pause()
+
+    asyncio.run(_run())
+
+
 def main() -> int:
     print("the join: screens render exactly what their plan declares")
     test_every_screen_renders_its_whole_plan()
@@ -765,6 +1087,13 @@ def main() -> int:
     print("\ngate catalogue (mockup frame 03)")
     test_gate_catalogue_behaviour()
     test_mandatory_and_masked_gates_are_stated_not_asked()
+
+    print("\nF64: an empty choice or dropdown is refused where it is made")
+    test_an_empty_choice_is_refused_at_the_field()
+    test_a_blank_dropdown_is_refused_at_the_field()
+
+    print("\nF74: the error survives the focus move that reports it")
+    test_a_validation_error_survives_the_focus_move_that_reports_it()
 
     print("\ndiscovery (DR-38)")
     test_discovered_candidates_are_offered_as_choices()
@@ -778,6 +1107,9 @@ def main() -> int:
     print("\ndefaults and pre-selection")
     test_example_defaults_survive_being_typed_into()
     test_a_choice_field_starts_genuinely_empty()
+
+    print("\nF60: the defaults route seeds every screen it says it will")
+    test_the_defaults_route_seeds_the_gates_screen_and_counts_what_is_left()
 
     print()
     if FAILURES:

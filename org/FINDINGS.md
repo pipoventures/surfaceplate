@@ -124,22 +124,22 @@ an unknown number of releases with nothing noticing.
 | F58 | Seven skill documents install only to `.github/skills/`. `AGENTS.md` calls their gates "not optional" — and Claude Code loads `.claude/skills/`, which no adopter received | high | Closed — `ACT-041`; `DR-30`'s emitter pattern applied to the half it had missed |
 | F57 | The README, `INSTALL.md` and the tool itself instruct an adopter to `pip install surfaceplate`, which 404s — and the README repeats the binding-rule claim `F51` proved false | high | Closed — `ACT-040`; every live instruction names a command that was run before it was written down |
 
-| F59 | Every undecided gate's status radio is invisible at every terminal size: `.chip-row { height: 1 }` leaves no row for Textual's bordered `RadioSet` | high | Open — `ACT-043` (`org/REMEDIATION_PLAN.md`) |
-| F60 | The defaults route discards its gate proposals: `GatesScreen` is built without `initial`, and the "N more" count excludes what it will re-ask | high | Open — `ACT-043` (`org/REMEDIATION_PLAN.md`) |
+| F59 | Every undecided gate's status radio is invisible at every terminal size: `.chip-row { height: 1 }` leaves no row for Textual's bordered `RadioSet` | high | Closed — `ACT-043`; `.chip-row` is `height: auto` with no border or padding, and `tests/test_render.py` reads the three options off the screen at 80×24 |
+| F60 | The defaults route discards its gate proposals: `GatesScreen` is built without `initial`, and the "N more" count excludes what it will re-ask | high | Closed — `ACT-043`; `GatesScreen` takes `initial` and the app passes the seeded proposals; the "N more" figure is asserted equal to what the remaining screens present unfilled at all three levels |
 | F61 | Discovery proposes the framework's own installed files and CI step as the adopter's preconditions, and the checker passes them | high | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
 | F62 | The profile header asserts every value was typed by a human above canned rationales, computed dates and derived text | high | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
-| F63 | A real profile whose prose mentions "replace-me" is mistaken for the template and overwritten without a prompt | critical | Open — `ACT-043` (`org/REMEDIATION_PLAN.md`) |
-| F64 | `validators.check` passes any non-string, so an unpressed radio set and a blank dropdown commit; one path ends in a black screen, the other in an unactionable `KeyError` | high | Open — `ACT-043` (`org/REMEDIATION_PLAN.md`) |
+| F63 | A real profile whose prose mentions "replace-me" is mistaken for the template and overwritten without a prompt | critical | Closed — `ACT-043`; the guard looks for the token in the template's identifying scalars, not the byte stream, and both directions are asserted in `tests/test_adopt.py` |
+| F64 | `validators.check` passes any non-string, so an unpressed radio set and a blank dropdown commit; one path ends in a black screen, the other in an unactionable `KeyError` | high | Closed — `ACT-043`; `None` is blank in `validators.check`, a choice must be one of its choices at commit, and both paths are refused at the field in `tests/test_adopt_tui.py` |
 | F65 | A placeholder is accepted at the field and refused at the review, where nothing but cancel works, and a resumed draft lands on the same refusal | medium | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
 | F66 | The wizard accepts dates and paths the checker rejects, so a profile can pass the wizard and fail its first check | medium | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
-| F67 | The 80×24 pass looked at the wrong screens: the level options below the fold, help text unstyled and flush, off-state controls near-invisible, labels and text areas clipped | medium | Open — `ACT-043`, `ACT-044` (`org/REMEDIATION_PLAN.md`) |
-| F68 | Quitting at the resume prompt deletes the draft, and the prompt's heading is swallowed as markup | medium | Open — `ACT-043` (`org/REMEDIATION_PLAN.md`) |
+| F67 | The 80×24 pass looked at the wrong screens: the level options below the fold, help text unstyled and flush, off-state controls near-invisible, labels and text areas clipped | medium | Open — the help-text part closed by `ACT-043`; the level fold, off-state contrast and clipping remain for `ACT-044` (`org/REMEDIATION_PLAN.md`) |
+| F68 | Quitting at the resume prompt deletes the draft, and the prompt's heading is swallowed as markup | medium | Closed — `ACT-043`; a quit cancels the run with the draft kept, and the four bracketed headings are `markup=False`, both asserted in `tests/test_adopt.py` and `tests/test_render.py` |
 | F69 | The route screen says the rest is four gates while the next screen says all nineteen | low | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
 | F70 | The front door: two incompatible install paths, a stale version line, two dead links, a pointer to an uninstalled file, and a global hooks path that stops the first command undocumented | medium | Open — `ACT-045` (`org/REMEDIATION_PLAN.md`) |
 | F71 | The standard's documents contradict themselves on what is checked, which principle limits a tool, whether Actions is enabled, how many gates are asked, and which evidence labels to use | medium | Open — `ACT-045` (`org/REMEDIATION_PLAN.md`) |
 | F72 | Ten findings say Open in the body and Closed in the index, and `check_code_registers.py` never compares status | low | Open — `ACT-046` (`org/REMEDIATION_PLAN.md`) |
-| F73 | Every `action_cancel` is unreachable: Textual's priority quit binding fires first | low | Open — `ACT-043` (`org/REMEDIATION_PLAN.md`) |
-| F74 | A validation error is erased by the focus move that reports it | medium | Open — `ACT-043` (`org/REMEDIATION_PLAN.md`) |
+| F73 | Every `action_cancel` is unreachable: Textual's priority quit binding fires first | low | Open — recorded against `ACT-043`, but phase 0 carries no item for it; the maintainer decides which activity closes it (`org/REMEDIATION_PLAN.md`) |
+| F74 | A validation error is erased by the focus move that reports it | medium | Closed — `ACT-043`; the error is held on the screen until the next commit and re-shown on every focus move, asserted after six pauses in `tests/test_adopt_tui.py` |
 | F75 | Candidates are capped at 200 before any gate ranking, so a large `docs/` pushes the register out; the comment says the opposite | high | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
 | F76 | Resuming a draft that chose the defaults route never offers defaults again | medium | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
 | F77 | Hygiene: non-atomic profile write; a draft with the wrong shape or stale ids kills the run; non-UTF-8 paths quoted; `is_empty` never true; `human_roles: null` as `['None']`; unescaped enums; `KeyboardInterrupt` uncaught; `adopt` exits 0 on findings; the two reliance answers discarded | medium | Open — `ACT-044`, `ACT-045`, `ACT-046` (`org/REMEDIATION_PLAN.md`) |
@@ -1212,11 +1212,23 @@ Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, 
 
 ## F74 — A validation error is erased by the focus move that reports it
 
-**Severity: medium. Open.**
+**Severity: medium. Closed.**
 
 Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, the adversarial product review of 2026-09-02, authorised by the maintainer in the review session (https://claude.ai/code/session_01X1MZfNScrJjgD5e2AGBjvs). Closes by `ACT-043`; see `org/REMEDIATION_PLAN.md`.
 
 On the real identity screen, with `application_id` blank and focus on `owner`, `Ctrl+S` moves focus to the blank field, does not dismiss the screen, and leaves the hint showing only the key legend at every pause afterwards (`vanish/identity-after-ctrl-s-from-owner-80x24`). `FormScreen.action_commit` writes the error into the hint and then focuses the field; `on_descendant_focus` calls `_set_hint()` with no error and overwrites it. The review's earlier image of that error was taken with focus already on the failing field, the one case where it survives. Found while driving the review's prototype.
+
+**Closed by `ACT-043`, item 0.5 (2026-09-02).** `FormScreen.action_commit` now focuses the
+failing field first, then records the error in `self._pending_error` and shows it;
+`on_descendant_focus` re-shows the pending error rather than an empty hint, and the next
+`action_commit` clears it. Focusing first alone would not have been enough: the `DescendantFocus`
+event arrives after `action_commit` returns, so whatever the hint held at that moment was
+overwritten. `tests/test_adopt_tui.py::test_a_validation_error_survives_the_focus_move_that_reports_it`
+re-drives the review's sequence at 80×24 - `application_id` blank, focus on `owner`, `Ctrl+S`,
+six pauses - and asserts the screen stays, focus is on the blank field, and the hint still
+carries "This cannot be blank.". Seen to fail before (`ADOPT_TUI=FAIL (1 failed, 63 passed)`, the
+hint reduced to the key legend) and to pass after (`ADOPT_TUI=PASS (64 checks)`). The vanish
+image re-taken: before, the legend alone; after, the error above it.
 
 ## F73 — Every `action_cancel` is unreachable: Textual's priority quit binding fires first
 
@@ -1225,6 +1237,12 @@ On the real identity screen, with `application_id` blank and focus on `owner`, `
 Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, the adversarial product review of 2026-09-02, authorised by the maintainer in the review session (https://claude.ai/code/session_01X1MZfNScrJjgD5e2AGBjvs). Closes by `ACT-043`; see `org/REMEDIATION_PLAN.md`.
 
 `App.BINDINGS` in Textual 8.2.8 carries `Binding('ctrl+q', 'quit', priority=True)`, so after `Ctrl+Q` on any screen `push_screen_wait` never resolves and `_SectionScreenBase.action_cancel`, `ReviewScreen.action_cancel`, `ScaffoldScreen.action_cancel` and `DefaultsScreen.action_cancel` are dead code. The net effect is still a cancel (`run()` returns `None`), so it costs nothing today except that "keeping your draft" on the review hint is true by accident of the CLI's exception handling.
+
+**Not closed by `ACT-043` (2026-09-02).** This finding is recorded as closing by `ACT-043`, but
+`org/REMEDIATION_PLAN.md` §4 phase 0 has no item for it: its eight items do not touch
+`action_cancel` reachability. Item 0.6 handled one consequence of the same binding - a quit at
+the resume prompt no longer deletes the draft - and nothing else. Left open rather than fixed
+unplanned; the maintainer decides which activity closes it.
 
 ## F72 — Ten findings say Open in the body and Closed in the index, and `check_code_registers.py` never compares status
 
@@ -1260,11 +1278,33 @@ Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, 
 
 ## F68 — Quitting at the resume prompt deletes the draft, and the prompt's heading is swallowed as markup
 
-**Severity: medium. Open.**
+**Severity: medium. Closed.**
 
 Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, the adversarial product review of 2026-09-02, authorised by the maintainer in the review session (https://claude.ai/code/session_01X1MZfNScrJjgD5e2AGBjvs). Closes by `ACT-043`; see `org/REMEDIATION_PLAN.md`.
 
 `ConfirmResumeApp.run()` returns `None` on `Ctrl+Q` or a closed terminal; `TextualInterview.confirm_resume` returns `bool(None)`; `_resume_or_start` treats `False` as "start fresh" and calls `_clear_draft` (`surfaceplate/adopt/wizard.py:244-246`). Verified against the real function: the draft existed before and not after. The screen's own heading `Static("[A saved draft was found]")` lacks `markup=False` and renders as an empty string in Textual 8.2.8 (image `resume-open-80x24`; the spike confirmed the other headers survive only because their step prefix defeats the parser) — `F37 #1` on a screen it did not reach.
+
+**First half closed by `ACT-043`, item 0.6 (2026-09-02).** `TextualInterview.confirm_resume`
+returns what `ConfirmResumeApp.run()` returns - `True` on `y`, `False` on `n`, `None` when the
+app ended without either - and `_resume_or_start` raises `Cancelled` on `None`, deleting the
+draft only on an explicit `False`. The `Interview` protocol's annotation and docstring in
+`interview.py` say so; that is the one edit outside the phase's owning files.
+`tests/test_adopt.py::test_quitting_at_the_resume_prompt_keeps_the_draft` drives all three
+answers: seen to fail before (`ADOPT_CONFORMANCE=FAIL (3 failed, 93 passed)`: the quit ran on
+and the draft was gone) and to pass after (`ADOPT_CONFORMANCE=PASS (96 checks)`). The real prompt
+driven under `run_test` with `y`, `n` and `ctrl+q` returned `True`, `False`, `None`; the draft
+existed before and after `y` and `ctrl+q`, and before but not after `n`.
+
+**Second half closed by `ACT-043`, item 0.7 (2026-09-02).** The resume heading and the three
+step-prefixed section headers (`FormScreen`, `LevelScreen`, `GatesScreen`) are `markup=False`.
+`tests/test_render.py::test_a_bracketed_heading_is_rendered_not_parsed` hosts each at 80×24 with
+no step prefix and asserts the first content line is the bracketed heading: seen to fail before
+(`RENDER=FAIL (3 failed, 22 passed)` - the resume, level and gates headings absent; the mode title
+survived only because its question mark defeats the parser) and to pass after (`RENDER=PASS (25
+checks)`). Image at 80×24: before, the prompt opens on "It has answers for"; after, on
+"[A saved draft was found]". Observed and left alone, being outside the plan's item: the
+`ReviewScreen`, `ScaffoldScreen` and `DefaultsScreen` headings are bracketed without
+`markup=False` too, and survive today only by their wording.
 
 ## F67 — The 80×24 pass looked at the wrong screens: the level options below the fold, help text unstyled and flush, off-state controls near-invisible, labels and text areas clipped
 
@@ -1273,6 +1313,17 @@ Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, 
 Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, the adversarial product review of 2026-09-02, authorised by the maintainer in the review session (https://claude.ai/code/session_01X1MZfNScrJjgD5e2AGBjvs). Closes by `ACT-043`, `ACT-044`; see `org/REMEDIATION_PLAN.md`.
 
 At 80×24 (the size `F41`, `F46` and `F56` appeared at, and `run_test`'s own default, which no suite uses): the level screen's recap and recommendation fill the frame and the three options sit below the fold, so the recommended option is not on screen and `?` appears to do nothing (`std-def-11`, `-12`); `.field-help` has no stylesheet rule, so help renders full-white, brighter than its label, flush against the next field, and a rationale's help runs off the frame (`std-def-03`, `-21`, same at 120×40); unticked boxes and unselected radios are dark brackets on a black ground, and an unpressed first radio is highlighted as if chosen (`std-def-01`, `-07`); mode and `above_floor` options end in "…", data classification shows two of four options, text areas show one line of a value, and the review shows nine lines of a 130-line profile per page. The maintainer's complaints 2 and 3 are these.
+
+**Help-text part closed by `ACT-043`, item 0.8 (2026-09-02); the rest stays open for `ACT-044`.**
+`app.tcss` gains `.field-help { color: #7a827e; margin: 0 0 1 2; }`.
+`tests/test_render.py::test_help_text_is_muted_and_kept_off_the_next_field` hosts the identity
+screen at 80×24 and 120×40 and reads the colour of every segment on the help rows: seen to fail
+before (`RENDER=FAIL (4 failed, 27 passed)`: the help in `#dce0dd`, the screen's full ink, and
+`display_name` on the very next row) and to pass after (`RENDER=PASS (31 checks)`). Images at both
+sizes: before, the help full-white from the frame's edge with the next label touching it; after,
+muted, indented under its field, one clear row before the next. The level options below the fold,
+the off-state contrast of unticked boxes and unpressed radios (visible again in `F59`'s after
+image, where the focused but unpressed first option is highlighted), and the clipping remain.
 
 ## F66 — The wizard accepts dates and paths the checker rejects, so a profile can pass the wizard and fail its first check
 
@@ -1292,19 +1343,44 @@ Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, 
 
 ## F64 — `validators.check` passes any non-string, so an unpressed radio set and a blank dropdown commit; one path ends in a black screen, the other in an unactionable `KeyError`
 
-**Severity: high. Open.**
+**Severity: high. Closed.**
 
 Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, the adversarial product review of 2026-09-02, authorised by the maintainer in the review session (https://claude.ai/code/session_01X1MZfNScrJjgD5e2AGBjvs). Closes by `ACT-043`; see `org/REMEDIATION_PLAN.md`.
 
 `validators.check` returns `None` for any non-`str` (`surfaceplate/adopt/validators.py:111-113`). `_read_widget` returns `None` for an unpressed `RadioSet` and for an untouched `Select`. So `Ctrl+S` on the first screen with nothing chosen advances with `mode: None`, and three screens later `plan.py:998` looks up `LEVEL_CHOICE[None]` inside the `@work` worker: the terminal goes black with no message (image `nochoice-11`). On the gates screen the artefact dropdown left blank counts as answered ("1 of 1 answered"), commits, and the review shows `This cannot be written yet: 'artefact'` with no way back. Same hole for `scanner.wired_in` and every `implementation_reference`. The module's docstring says "an empty string is never a decision"; `None` is.
 
+**Closed by `ACT-043`, item 0.3 (2026-09-02).** `validators.check` now treats `None` as `""`
+before applying a named validator, so a blank dropdown fails `nonempty` where it is made and
+`GatesScreen._gate_is_complete` no longer counts it; and `FormScreen.action_commit` refuses a
+`choice` field whose answer is not one of its choices ("Choose one of the options."). Booleans
+and lists still pass, as before. `tests/test_adopt_tui.py::test_an_empty_choice_is_refused_at_the_field`
+and `::test_a_blank_dropdown_is_refused_at_the_field` drive both paths: seen to fail before
+(`ADOPT_TUI=FAIL (5 failed, 44 passed)`, the mode screen committing `{'mode': None}` and the
+gate committing without its artefact) and to pass after (`ADOPT_TUI=PASS (49 checks)`). The
+review's sequence re-driven on the real `AdoptApp`: `Ctrl+S` on the mode screen with nothing
+chosen now stays on that screen with the refusal in the hint line, where before it advanced to
+Identity. Taken out of the plan's order, before item 0.2, because 0.2's test of the gates hint
+could not pass while a blank dropdown still counted as answered.
+
 ## F63 — A real profile whose prose mentions "replace-me" is mistaken for the template and overwritten without a prompt
 
-**Severity: critical. Open.**
+**Severity: critical. Closed.**
 
 Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, the adversarial product review of 2026-09-02, authorised by the maintainer in the review session (https://claude.ai/code/session_01X1MZfNScrJjgD5e2AGBjvs). Closes by `ACT-043`; see `org/REMEDIATION_PLAN.md`.
 
 `wizard._refuse_if_already_adopted` (`surfaceplate/adopt/wizard.py:119-128`) tests `"replace-me" in text` over the whole file. A completed profile whose `risk_profile` reads "Never type replace-me into a rationale." makes the guard return, and `wizard.run` reaches `target.write_text(rendered, …)` at `:323` and destroys the adopter's profile with no prompt. Probed in the review session against a throwaway directory: the guard returned. Unrecoverable data loss; the only finding in the review that destroys work rather than blocking it. Remedy: check the required scalars for the token, not the byte stream.
+
+**Closed by `ACT-043`, item 0.4 (2026-09-02).** `wizard._refuse_if_already_adopted` parses the
+file and treats it as the template only when one of five identifying scalars - `application_id`,
+`owner`, `adoption.framework_version`, `adoption.framework_digest`, `adoption.adoption_date`, the
+ones the shipped template leaves as `replace-me` - is still literally that token; anything else,
+including a file that does not parse as a mapping, is refused and left alone. Prose fields are
+not consulted. `tests/test_adopt.py::test_a_real_profile_that_mentions_the_token_is_not_the_template`
+writes the shipped essential example with `risk_profile: Never type replace-me into a rationale.`
+into a scratch installed repository and asserts `wizard.run` raises `AlreadyAdopted` and the
+file is byte-identical; `::test_the_untouched_template_is_still_fair_game` asserts the installer's
+own template is not refused. Seen to fail before (`ADOPT_CONFORMANCE=FAIL (1 failed, 91 passed)`:
+the run got past the guard) and to pass after (`ADOPT_CONFORMANCE=PASS (92 checks)`).
 
 ## F62 — The profile header asserts every value was typed by a human above canned rationales, computed dates and derived text
 
@@ -1324,19 +1400,45 @@ Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, 
 
 ## F60 — The defaults route discards its gate proposals: `GatesScreen` is built without `initial`, and the "N more" count excludes what it will re-ask
 
-**Severity: high. Open.**
+**Severity: high. Closed.**
 
 Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, the adversarial product review of 2026-09-02, authorised by the maintainer in the review session (https://claude.ai/code/session_01X1MZfNScrJjgD5e2AGBjvs). Closes by `ACT-043`; see `org/REMEDIATION_PLAN.md`.
 
 The proposals screen says "59 values proposed … 5 more can only be answered by you" and lists artefact, paths and effective date for every required gate; the gates screen that follows opens blank and refuses `Ctrl+S` with "Gated paths: This cannot be blank" (images `std-def-15`, `-35`, `-36`). `tui/app.py:228-231` passes `initial=` only to `FormScreen`; `GatesScreen(specs, section, step=step)` at `:227` takes none and `screens.py:712` has no parameter for one. `defaults.unanswered` counts fields with no proposal, so "5 more" is 5 at every level while the gates section re-asks 38 fields at standard and 53 at full with a UI. No test asserts that any screen is seeded.
 
+**Closed by `ACT-043`, item 0.2 (2026-09-02).** `GatesScreen.__init__` gains `initial`, keyed
+`"<gate>.<field>"`; `_compose_gate_fields` builds each widget from it and pre-presses the seeded
+status; `tui/app.py` passes `initial=self._seeded.get("gates", {})` as it already did for every
+`FormScreen`. `defaults.unanswered` is unchanged: once the gates screen is seeded, its figure is
+the number of fields the remaining screens present unfilled, which is what the test asserts.
+`tests/test_adopt_tui.py::test_the_defaults_route_seeds_the_gates_screen_and_counts_what_is_left`
+drives the real `AdoptApp` from the route screen through the proposals to the gates screen at
+essential, standard and full on a fixture repository holding `activity/register.md` and
+`src/main.py`, and asserts the first proposed artefact is what the dropdown holds, the gates
+hint counts the seeded gates, and "N more" equals the unfilled fields measured on the screens the
+app builds. Seen to fail with the seeding line alone reverted (`ADOPT_TUI=FAIL (6 failed, 55
+passed)`: the dropdown held `Select.NULL`; "6 more" against 8 unfilled, "11" against 27, "22"
+against 38) and to pass with it (`ADOPT_TUI=PASS (61 checks)`: 6 = 6, 11 = 11, 22 = 22; the
+gates hint 1 of 1, 16 of 19, 9 of 19). The review's "5 more" was measured on Plutos, where more
+gates matched; on this fixture the figure was never 5, and the defect was the seeding, not the
+arithmetic.
+
 ## F59 — Every undecided gate's status radio is invisible at every terminal size: `.chip-row { height: 1 }` leaves no row for Textual's bordered `RadioSet`
 
-**Severity: high. Open.**
+**Severity: high. Closed.**
 
 Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, the adversarial product review of 2026-09-02, authorised by the maintainer in the review session (https://claude.ai/code/session_01X1MZfNScrJjgD5e2AGBjvs). Closes by `ACT-043`; see `org/REMEDIATION_PLAN.md`.
 
 Driving standard/defaults on a copy of Plutos at 80×24, 100×30 and 120×40, the status row of every non-mandatory gate rendered as an empty blue-bordered box; choosing a status with the keyboard worked, but nothing showed the options or the choice (images `std-def-38-*` in the review's scratchpad, read). `surfaceplate/adopt/tui/app.tcss:185-188` forces `.chip-row { height: 1 }`; Textual 8.2.8's `RadioSet` default stylesheet draws a two-row `tall` border plus padding, so a one-row widget has no row left for its buttons. `tests/test_adopt_tui.py:188-201` sets `.value` on the buttons and reads it back; nothing renders the row — `F37`'s class again. The maintainer's first-attempt profile predates the radio rewrite (`96a2efe`) by 24 minutes and today's draft stops before the gates section; he has not got past that screen since. The spike proved `.chip-row { height: auto; border: none; padding: 0 }` renders the three radios in three rows.
+
+**Closed by `ACT-043`, item 0.1 (2026-09-02).** `surfaceplate/adopt/tui/app.tcss` now carries
+`.chip-row { height: auto; border: none; padding: 0; margin: 0 }`, and the dead `.chip` and
+`.chip-selected` rules are gone. `tests/test_render.py::test_a_gate_status_radio_set_renders_its_options`
+hosts a standard `GatesScreen` at 80×24, focuses the first undecided gate's status and asserts
+`( ) required`, `( ) deferred` and `( ) not applicable` are in the rendered text. Seen to fail
+before the change (`RENDER=FAIL (1 failed, 20 passed)`, all three options missing) and to pass
+after (`RENDER=PASS (21 checks)`). The image re-taken at 80×24 shows the three options in three
+rows under `work_contract`, matching the spike's `height_auto_compact.png`.
 
 ## F58 — `F29` again, in the half `DR-30` did not finish
 

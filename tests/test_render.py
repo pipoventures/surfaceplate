@@ -248,6 +248,154 @@ def test_several_gates_are_visible_at_a_standard_terminal() -> None:
     asyncio.run(_run())
 
 
+def test_a_gate_status_radio_set_renders_its_options() -> None:
+    """`F59`. Every undecided gate's status radio was invisible at every terminal size.
+
+    `.chip-row { height: 1 }` left Textual's `RadioSet`, which draws a two-row `tall` border plus
+    padding, with no row for its buttons: the status row rendered as an empty bordered box, the
+    keyboard still changed a value nobody could see, and the maintainer did not get past the
+    gates screen again after the radio rewrite. `tests/test_adopt_tui.py` set `.value` on the
+    buttons and read it back, which is the class `F37` records - structurally verified, never
+    looked at. This reads the row as the terminal shows it, at the size the review used.
+    """
+
+    async def _run() -> None:
+        from textual.widgets import RadioSet
+
+        specs = plan.gate_plan(level="standard", builds_ui=False, mode="simple")
+        section = plan.gates_plan(level="standard", builds_ui=False, mode="simple")
+        first = next(s for s in specs if not s.mandatory and not s.auto_status)
+        app = Host(GatesScreen(specs, section))
+        async with app.run_test(size=(80, 24)) as pilot:
+            await pilot.pause()
+            app.screen.query_one(f"#f-{first.id}--status", RadioSet).focus()
+            await pilot.pause()
+            await pilot.pause()
+            text = screen_text(rendered(app))
+        expected = ["( ) required", "( ) deferred", "( ) not applicable"]
+        missing = [option for option in expected if option not in text]
+        check(
+            f"gates: the focused {first.id} status radio renders its three options at 80x24",
+            not missing,
+            f"not on screen: {missing}",
+        )
+
+    asyncio.run(_run())
+
+
+def test_a_bracketed_heading_is_rendered_not_parsed() -> None:
+    """`F68`, second half. `"[A saved draft was found]"` was consumed as markup because that
+    `Static` lacked `markup=False`, so the resume prompt opened with no heading at all. The
+    section headers survive only where their step prefix happens to defeat the parser - a
+    screen shown with no step (`mode`, and every screen hosted without one) loses its title too.
+    `F37 #1` on the screens it did not reach."""
+
+    async def _run() -> None:
+        cases = [
+            (
+                "resume offer",
+                ResumeScreen(DraftInfo(sections=("mode",), framework_version="0.16.0",
+                                       framework_digest="abc", matches=True)),
+                "A saved draft was found",
+            ),
+            ("mode form, no step prefix", FormScreen(plan.mode_plan()), plan.mode_plan().title),
+            (
+                "conformance level, no step prefix",
+                LevelScreen(plan.level_plan(ROOT, builds_ui=False, mode="simple")),
+                plan.level_plan(ROOT, builds_ui=False, mode="simple").title,
+            ),
+            (
+                "gate catalogue, no step prefix",
+                GatesScreen(
+                    plan.gate_plan(level="standard", builds_ui=False, mode="simple"),
+                    plan.gates_plan(level="standard", builds_ui=False, mode="simple"),
+                ),
+                plan.gates_plan(level="standard", builds_ui=False, mode="simple").title,
+            ),
+        ]
+        for label, screen, heading in cases:
+            app = Host(screen)
+            async with app.run_test(size=(80, 24)) as pilot:
+                await pilot.pause()
+                # The frame's own box-drawing rows are not content.
+                lines = [line for line in rendered(app) if line.strip("│╭╮╰╯─ ")]
+            first = lines[0] if lines else ""
+            check(
+                f"{label}: the first rendered line is the heading [{heading}]",
+                f"[{heading}]" in first,
+                f"first line: {first.strip()!r}",
+            )
+
+    asyncio.run(_run())
+
+
+MUTED = "#7a827e"
+
+
+def _rows_with_styles(app: App) -> list[list[tuple[str, str]]]:
+    """Each terminal row as `(text, colour hex)` per segment - the colour a viewer would see."""
+    rows = []
+    for strip in app.screen._compositor.render_strips():
+        row = []
+        for segment in strip:
+            colour = ""
+            if segment.style is not None and segment.style.color is not None:
+                colour = segment.style.color.get_truecolor().hex.lower()
+            row.append((segment.text, colour))
+        rows.append(row)
+    return rows
+
+
+def test_help_text_is_muted_and_kept_off_the_next_field() -> None:
+    """`F67`, the help-text part (the maintainer's complaint 2). `.field-help` had no rule in
+    `app.tcss`, so the help line under `application_id` rendered full-white - brighter than the
+    label it explains - flush against the frame, with `display_name` starting on the very next
+    row. Identical at 120×40, so it was styling, not width. This reads the colour of every
+    segment on the help rows and the row that follows them."""
+
+    async def _run() -> None:
+        section = plan.identity_plan()
+        first, second = section.fields[0], section.fields[1]
+        for size in ((80, 24), (120, 40)):
+            app = Host(FormScreen(section))
+            async with app.run_test(size=size) as pilot:
+                await pilot.pause()
+                await pilot.pause()
+                rows = _rows_with_styles(app)
+            texts = ["".join(text for text, _ in row) for row in rows]
+            opening = " ".join(first.help.split()[:3])
+            help_rows = [i for i, text in enumerate(texts) if opening in text]
+            next_label = next((i for i, text in enumerate(texts) if second.label in text), None)
+            check(
+                f"{size[0]}x{size[1]}: the focused field's help is on screen",
+                bool(help_rows) and next_label is not None,
+                f"help rows {help_rows}, next label row {next_label}",
+            )
+            if not help_rows or next_label is None:
+                continue
+            start = help_rows[0]
+            loud = [
+                (text, colour)
+                for row in rows[start:next_label]
+                for text, colour in row
+                if text.strip() and text.strip() not in "│" and colour != MUTED
+                and any(word in text for word in first.help.split())
+            ]
+            check(
+                f"{size[0]}x{size[1]}: every word of the help renders in the muted colour {MUTED}",
+                not loud,
+                f"louder segments: {loud[:3]}",
+            )
+            gap = texts[next_label - 1].strip("│ ")
+            check(
+                f"{size[0]}x{size[1]}: one blank row separates the help from the next field",
+                next_label - 1 > start and gap == "",
+                f"row before {second.label!r}: {texts[next_label - 1].strip()!r}",
+            )
+
+    asyncio.run(_run())
+
+
 # ---------------------------------------------------------------------------------------------
 # The level screen's own structure
 # ---------------------------------------------------------------------------------------------
@@ -565,6 +713,15 @@ def main() -> int:
 
     print("\nseveral gates are visible (F37 #6)")
     test_several_gates_are_visible_at_a_standard_terminal()
+
+    print("\nF59: the status radios are visible")
+    test_a_gate_status_radio_set_renders_its_options()
+
+    print("\nF68: a bracketed heading is rendered, not parsed")
+    test_a_bracketed_heading_is_rendered_not_parsed()
+
+    print("\nF67: help text is muted and kept off the next field")
+    test_help_text_is_muted_and_kept_off_the_next_field()
 
     print("\nthe level screen reads as a choice")
     test_level_screen_numbers_its_options_and_marks_the_highlight()

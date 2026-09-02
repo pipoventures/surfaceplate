@@ -997,6 +997,45 @@ def test_declining_a_resume_starts_fresh(tmp: Path) -> None:
     check("declining the draft still produces a profile", written.is_file())
 
 
+def test_quitting_at_the_resume_prompt_keeps_the_draft(tmp: Path) -> None:
+    """`F68`, first half. `ConfirmResumeApp.run()` returns `None` on `Ctrl+Q` or a closed
+    terminal; `confirm_resume` returned `bool(None)`; `_resume_or_start` read `False` as "start
+    fresh" and deleted the draft. Three answers, three outcomes: `True` resumes, `False` deletes,
+    `None` - the human quit - cancels the run and leaves the draft where it was."""
+    repo = make_installed_repo(tmp, "quit-at-resume-repo")
+    seed_referenced_files(repo)
+    try:
+        wizard.run(repo, ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS), cancel_before="risk"))
+    except Cancelled:
+        pass
+    draft = repo / wizard.DRAFT_FILENAME
+    check("precondition: the interrupted run left a draft", draft.is_file())
+
+    class QuitsAtThePrompt:
+        """An `Interview` whose resume answer is neither yes nor no: the human quit."""
+
+        def confirm_resume(self, info):
+            return None
+
+        def collect(self, **kwargs):
+            raise AssertionError("collect must not run after the human quit at the prompt")
+
+    try:
+        wizard.run(repo, QuitsAtThePrompt())
+        outcome = "ran on"
+    except Cancelled:
+        outcome = "cancelled"
+    except AssertionError as exc:
+        outcome = str(exc)
+    check("quitting at the resume prompt cancels the run", outcome == "cancelled", outcome)
+    check("and the draft is still on disk", draft.is_file())
+
+    second = ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS), resume=False)
+    wizard.run(repo, second)
+    check("an explicit no still discards it and completes a fresh run",
+          not draft.is_file() and len(second.resume_offers) == 1)
+
+
 def test_refuses_without_install(tmp: Path) -> None:
     repo = tmp / "no-install-repo"
     repo.mkdir()
@@ -1020,6 +1059,49 @@ def test_refuses_to_overwrite_a_real_profile(tmp: Path) -> None:
         "the existing profile was left untouched",
         real_profile.read_text(encoding="utf-8") == "application_id: already-here\nowner: Someone\n",
     )
+
+
+def test_a_real_profile_that_mentions_the_token_is_not_the_template(tmp: Path) -> None:
+    """`F63`. The guard tested `"replace-me" in text` over the whole file, so a completed profile
+    whose `risk_profile` said "Never type replace-me into a rationale." was taken for the untouched
+    template and overwritten with no prompt - the one finding in the review that destroys work
+    rather than blocking it. The token has to be looked for where the template puts it, in the
+    identifying scalars, not in the byte stream."""
+    import yaml
+
+    repo = make_installed_repo(tmp, "prose-mentions-token-repo")
+    profile = yaml.safe_load(
+        (PAYLOAD / "examples" / "application-profile.essential.example.yaml").read_text(encoding="utf-8")
+    )
+    profile["risk_profile"] = "Never type replace-me into a rationale."
+    target = repo / "governance" / "application-profile.yaml"
+    before = yaml.safe_dump(profile, sort_keys=False, allow_unicode=True)
+    target.write_text(before, encoding="utf-8")
+    try:
+        wizard.run(repo, ScriptedInterview(answers={}))
+        outcome = "no exception"
+    except wizard.AlreadyAdopted:
+        outcome = "refused"
+    except Exception as exc:  # noqa: BLE001 - past the guard, the empty script fails in its own way
+        outcome = f"got past the guard: {type(exc).__name__}"
+    check("a completed profile whose prose mentions replace-me is refused as already adopted",
+          outcome == "refused", outcome)
+    check("and it is byte-identical afterwards",
+          target.read_text(encoding="utf-8") == before)
+
+
+def test_the_untouched_template_is_still_fair_game(tmp: Path) -> None:
+    """The other direction, so the guard cannot pass by refusing everything: the installer's own
+    template, every identifying scalar still `replace-me`, is what `adopt` exists to fill in."""
+    repo = make_installed_repo(tmp, "untouched-template-repo")
+    template = (repo / "governance" / "application-profile.yaml").read_text(encoding="utf-8")
+    check("precondition: the installed profile is the untouched template",
+          "application_id: replace-me" in template)
+    try:
+        wizard._refuse_if_already_adopted(repo)
+        check("the untouched template is not refused", True)
+    except wizard.AlreadyAdopted as exc:
+        check("the untouched template is not refused", False, str(exc))
 
 
 def test_write_refused_on_placeholder_content(repo: Path, valid_profile: dict) -> None:
@@ -1110,10 +1192,13 @@ def main() -> int:
         test_interrupt_leaves_repo_untouched(tmp)
         test_resume_from_draft(tmp)
         test_declining_a_resume_starts_fresh(tmp)
+        test_quitting_at_the_resume_prompt_keeps_the_draft(tmp)
 
         print("\nrefusals, and the guarantee itself")
         test_refuses_without_install(tmp)
         test_refuses_to_overwrite_a_real_profile(tmp)
+        test_a_real_profile_that_mentions_the_token_is_not_the_template(tmp)
+        test_the_untouched_template_is_still_fair_game(tmp)
         test_write_refused_on_placeholder_content(essential_repo, essential_profile)
         test_scripted_interview_objects_in_both_directions(tmp)
 

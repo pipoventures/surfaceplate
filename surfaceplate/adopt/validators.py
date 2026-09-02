@@ -30,7 +30,8 @@ ENFORCEMENT_VALUES = ("history_audit", "local_hook", "review", "ci", "unenforced
 
 
 def nonempty(value: str) -> str | None:
-    """The one rule applied uniformly, everywhere: an empty string is never a decision."""
+    """The one rule applied uniformly, everywhere: an empty string is never a decision, and
+    `check` turns an absent value into one before it reaches here."""
     return None if value.strip() else "This cannot be blank."
 
 
@@ -102,12 +103,21 @@ _VALIDATORS = {
 
 def check(name: str, value: object) -> str | None:
     """Apply the validator `name` to `value`. An empty name means anything is acceptable,
-    including blank - used for booleans and for genuinely optional fields such as `human_roles`."""
+    including blank - used for booleans and for genuinely optional fields such as `human_roles`.
+
+    `None` is blank. `F64`: this returned `None` for any non-string, and a blank dropdown or an
+    unpressed radio set reads as `None`, so "an empty string is never a decision" held while an
+    absent one was - a gate committed without its artefact and the review then failed on a
+    `KeyError`. Booleans and lists still pass: a tick box always shows a state, and the only
+    list-valued fields carry no validator.
+    """
     if not name:
         return None
     validator = _VALIDATORS.get(name)
     if validator is None:
         raise KeyError(f"unknown validator: {name!r}")
+    if value is None:
+        value = ""
     if not isinstance(value, str):
-        return None  # booleans and choices are constrained by their widget, not by a text rule
+        return None  # booleans and lists are constrained by their widget, not by a text rule
     return validator(value)
