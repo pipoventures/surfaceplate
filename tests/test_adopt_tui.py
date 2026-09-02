@@ -60,6 +60,7 @@ class Host(App):
 
     def __init__(self, screen) -> None:
         super().__init__()
+        self.animation_level = "none"  # `F95`: as the wizard's own apps; scrolls land exactly
         self._screen_under_test = screen
         self.result = None
 

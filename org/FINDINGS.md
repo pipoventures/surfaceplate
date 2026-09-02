@@ -160,6 +160,7 @@ an unknown number of releases with nothing noticing.
 | F92 | `SP034` prints an instant as a bare date, so "moved forward" reads as the same date twice; whether a later instant on the same day is a forward move at all is undecided | low | Open — recorded at `ACT-054`; message fixed there, the rule needs a decision |
 | F93 | A record-directory control's reference is proposed from any directory holding YAML: four controls were proposed `config/accounts` and the checker rejected every record in it | high | Closed — `ACT-054`; see the body |
 | F94 | An archived document is proposed as a gate's artefact on a keyword match: two gates were proposed files under `docs/archive/` | medium | Closed — `ACT-054`; see the body |
+| F95 | A focus-driven scroll is animated, and the scrollbar keeps a fractional thumb position from the animation's last frame, so a golden of a scrolled screen differed one run in four | low | Closed — `ACT-055`; see the body |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1486,6 +1487,27 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F95 — A focus-driven scroll is animated, and the scrollbar keeps a fractional thumb position from the animation's last frame, so a golden of a scrolled screen differed one run in four
+
+**Severity: low. Closed.**
+
+Recorded under `ACT-055` on 2026-09-02, in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z), from the gate-list golden
+failing one local run in four after `DR-56`'s fold, with CI green on the same commit.
+
+The two end states differed in two cells: the scrollbar's thumb glyph. The list's measured size
+and scroll offset were identical; the scrollbar's own `position` was `56.125`, `55.5`, `55.875`
+across runs. Textual animates the scroll that follows a focus, and the scrollbar widget keeps
+whichever intermediate value its last frame saw, so the thumb's eighth-block glyph varied with
+timing. `F90`'s two-pass reveal did not touch it: that scroll is immediate, the focus's own is
+not. Low: two cells of a scrollbar; but a golden that differs one run in four is a red build
+waiting to happen, and the cause would have been invisible from the runner.
+
+**Closed by `ACT-055`, 2026-09-02.** Both apps set `animation_level = "none"`, as do the three
+test hosts, so every scroll lands exactly; on a 24-row form the animation bought nothing. The
+gate-list golden regenerated from the converged state and the suite run six times unchanged.
+Found by capturing the frame sequence across runs and diffing the two end states, then reading
+the scrollbar's own position.
 
 ## F94 — An archived document is proposed as a gate's artefact on a keyword match: two gates were proposed files under `docs/archive/`
 
