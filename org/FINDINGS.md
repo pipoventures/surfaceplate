@@ -157,7 +157,7 @@ an unknown number of releases with nothing noticing.
 | F89 | The opening screen is text only; the maintainer asked for a mark | low | Closed — `ACT-051` (`DR-53`); see the body |
 | F90 | A render test read the screen before the deferred scroll had run, and turned `main` red on the runner while passing locally | low | Closed — `ACT-051`; see the body |
 | F91 | The conformance level barely changes the screens that follow: every gate is listed at standard and full alike, and the above-floor controls read the same, so the level tells the reader nothing | medium | Closed — `ACT-055` (`DR-56`); see the body |
-| F92 | `SP034` prints an instant as a bare date, so "moved forward" reads as the same date twice; whether a later instant on the same day is a forward move at all is undecided | low | Open — recorded at `ACT-054`; message fixed there, the rule needs a decision |
+| F92 | `SP034` prints an instant as a bare date, so "moved forward" reads as the same date twice; whether a later instant on the same day is a forward move at all is undecided | low | Closed — message fixed at `ACT-054`; the rule kept as it is by `DR-60`, 2026-09-02 |
 | F93 | A record-directory control's reference is proposed from any directory holding YAML: four controls were proposed `config/accounts` and the checker rejected every record in it | high | Closed — `ACT-054`; see the body |
 | F94 | An archived document is proposed as a gate's artefact on a keyword match: two gates were proposed files under `docs/archive/` | medium | Closed — `ACT-054`; see the body |
 | F95 | A focus-driven scroll is animated, and the scrollbar keeps a fractional thumb position from the animation's last frame, so a golden of a scrolled screen differed one run in four | low | Closed — `ACT-055`; see the body |
@@ -166,6 +166,18 @@ an unknown number of releases with nothing noticing.
 | F98 | A run cancelled after the scaffold stage and resumed never created the adoption decision record: the profile named `DR-0001` and the sidecar said "created" for a file that did not exist | high | Closed — `ACT-057`; see the body |
 | F99 | `--propose` marked every above-floor control's rationale and reference `needs-human`, so a human had to invent lines for controls they never declared before `--answers` would write | medium | Closed — `ACT-057`; see the body |
 | F100 | `--edit` applied no field validator, so an artefact edited to an untracked path was written and failed `SP032` on the next run | medium | Closed — `ACT-057`; see the body |
+| F101 | A run that fails after the scaffold has written its seeds leaves them on disk and reports them rather than removing them (pass-2 CRIT-01) | medium | Open — a decision (`H13`): report, as designed at code item 7, or roll back this run's own files |
+| F102 | A seed satisfies `SP032` on the day it is written, so a repository can pass every seeded gate with no practice behind it (pass-2 CRIT-02; the risk `DR-43` states) | medium | Open — a decision (`H13`): the reviewer's remedy contradicts `DR-43`; an advisory for seed-identical artefacts is the alternative |
+| F103 | `--answers` writes every proposal the human left standing, so a record completed by filling only the needs-human lines carries the framework's example rationales under the adopter's name (pass-2 MAT-01) | medium | Open — a decision (`H13`): `DR-49` designed it so; an explicit acceptance line is the alternative |
+| F104 | The schema's `effective_from` pattern admits impossible dates and a fraction without seconds; the checker rejects them, so the pattern documents a form it does not enforce (pass-2 MAT-02) | low | Open — the pattern is a public contract; tightening it is a decision (`H13`). The same-day trap the reviewer describes is `F92`, kept by `DR-60` |
+| F105 | `adoption_status: complete` needs no rationale and no evidence reference to validate (pass-2 MAT-03) | low | Open — a schema decision (`H13`) |
+| F106 | This repository's own profile declares `agent_work_packets` required as a practice while deferring `work_contract` because the packets are not committed: two rationales that contradict each other (pass-2 MAT-04) | medium | Closed — `ACT-059`, 2026-09-02, approved by the maintainer (`H13`); see the body |
+| F107 | The template test treats a profile as the untouched template when any one identifying scalar is still `replace-me`, so a half-completed profile can be overwritten (pass-2 MIN-01) | medium | Closed — `ACT-059`, 2026-09-02, authorised by the maintainer (`H13`); see the body |
+| F108 | The wizard writes `notes: Blocking.` under the adopter's scanner without asking or verifying it (pass-2 MIN-02) | low | Closed — `ACT-059`, 2026-09-02, the maintainer having chosen to omit the note (`H13`); see the body |
+| F109 | This repository's own profile mirrors two gate deferrals as `x-…-gate` control deferrals under `adoption.deferrals`, duplicating what `prerequisites` already records (pass-2 MIN-03) | low | Closed — `ACT-059`, 2026-09-02, approved by the maintainer (`H13`); see the body |
+| F110 | This repository's own hand-written profile carries none of the checked/declared labels the wizard writes since `F53`, so its reader cannot tell a verified control from a declared one (pass-2 §7) | low | Closed — `ACT-059`, 2026-09-02, approved by the maintainer (`H13`); see the body |
+| F111 | The reviewer holds the narrative docstrings and the size of the governance apparatus to be a maintenance risk and disproportionate for a CLI tool (pass-2 §9) | low | Open — a judgement for the maintainer (`H13`); the practice is `S1`'s, stated |
+| F112 | The matrix's `advanced` case compared two profiles assembled seconds apart without normalising the scaffolded instant, and failed on the runner once | low | Closed — `ACT-057` follow-up, 2026-09-02; see the body |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1452,7 +1464,7 @@ shown beside an asked value is a change to the interview: a decision record.
 
 ## F92 — `SP034` prints an instant as a bare date, so "moved forward" reads as the same date twice; whether a later instant on the same day is a forward move at all is undecided
 
-**Severity: low. Open.**
+**Severity: low. Closed.**
 
 Recorded under `ACT-054` from the maintainer's third run of `adopt`, at `full` on a fresh scratch copy of Plutos on 2026-09-02, reported in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z). The message is fixed by `ACT-054`; the rule's question is the maintainer's.
 
@@ -1469,6 +1481,10 @@ declaration cannot avoid this without the wizard reading the profile's history.
 **Remedy:** the message prints each value as declared. The rule stays as it is until decided.
 
 **Message fixed by `ACT-054`, 2026-09-02; the rule's question stays open.** `SP034` prints each value as declared, so a later instant on the same day reads as what it is. `tests/test_install_and_check.py`, the `moved` fixture extended with a same-day instant, seen to fail on the old message. Whether a same-day instant should count as a forward move, and whether the wizard should read the profile's history when it scaffolds, is for the maintainer.
+
+**Closed by `DR-60`, 2026-09-02.** The maintainer kept the rule as it is: a later instant on the
+same day is a forward move and stays blocked; the two alternatives and their costs are in the
+record. Decided in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z).
 
 ## F93 — A record-directory control's reference is proposed from any directory holding YAML: four controls were proposed `config/accounts` and the checker rejected every record in it
 
@@ -1492,6 +1508,192 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F112 — The matrix's `advanced` case compared two profiles assembled seconds apart without normalising the scaffolded instant, and failed on the runner once
+
+**Severity: low. Closed.**
+
+Recorded on 2026-09-02 in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z) from PR #65's self-check: `T5-150` failed "advanced and
+simple registers assemble the same profile" on the runner after passing locally and on three earlier
+runner runs. The case assembles the profile twice, once per explanation register, and a scaffolded
+gate binds from the instant of its creation (`F47`); when the second flow crosses a second boundary
+the two instants differ. Every other route equality in the suite normalises instants; this one did
+not. Low: a false red on a harness comparison, found on its fourth run.
+
+**Closed 2026-09-02.** The comparison normalises instants as the others do, and prints the differing
+lines. `T5-150` re-run green; the report is unchanged (the case has one check either way).
+
+## F111 — The reviewer holds the narrative docstrings and the size of the governance apparatus to be a maintenance risk and disproportionate for a CLI tool (pass-2 §9)
+
+**Severity: low. Open.**
+
+Recorded on 2026-09-02 from the second cross-provider adversarial review (`audit/CROSS_PROVIDER_REVIEW_2026-09-02_PASS2.md`, `H3`, run by the maintainer with the curated prompt and reproduced verbatim there; provider and model as the maintainer states), assessed in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z) against the code and this repository's profile.
+
+The reviewer's two points: module docstrings in `sections.py`, `defaults.py`, `scaffold.py` and
+`wizard.py` carry the history of past defects and decisions, which will drift from the code (as
+`F52` and `S1` already record); and nineteen gates, twelve controls, fifty-six codes, two adoption
+routes and sixteen seeds are a heavy apparatus for a local tool. **Assessment:** the first is a
+real cost this repository chose knowingly - `S1` names the drift and the habit that meets it, and
+the docstrings are where a reader of the code meets the reason a line exists - and the second is
+a judgement about the product's purpose rather than a defect in it. Both are the maintainer's to
+weigh (`H13`); the recommendation is to keep the practice and record the choice.
+
+## F110 — This repository's own hand-written profile carries none of the checked/declared labels the wizard writes since `F53`, so its reader cannot tell a verified control from a declared one (pass-2 §7)
+
+**Severity: low. Closed.**
+
+Recorded on 2026-09-02 from the second cross-provider adversarial review (`audit/CROSS_PROVIDER_REVIEW_2026-09-02_PASS2.md`, `H3`, run by the maintainer with the curated prompt and reproduced verbatim there; provider and model as the maintainer states), assessed in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z) against the code and this repository's profile.
+
+`F53` gave the wizard a label per control - "checked against this repository" or "DECLARED ONLY" -
+derived from the checker's own `VERIFIED_CONTROLS`, written as a comment beside each control. This
+repository's profile predates that and was written by hand; it carries no such label, so the
+reviewer's point holds for the one profile in the bundle. **Remedy proposed (`H13`):** add the same
+labels, from the same table, as comments beside each control in `governance/application-profile.yaml`.
+
+**Closed by `ACT-059`, 2026-09-02, approved by the maintainer (`H13`).** Every control in this repository's profile carries the label the wizard writes, produced by the same `render._assurance_note` from the checker's own `VERIFIED_CONTROLS`: six checked against this repository, two declared only.
+
+## F109 — This repository's own profile mirrors two gate deferrals as `x-…-gate` control deferrals under `adoption.deferrals`, duplicating what `prerequisites` already records (pass-2 MIN-03)
+
+**Severity: low. Closed.**
+
+Recorded on 2026-09-02 from the second cross-provider adversarial review (`audit/CROSS_PROVIDER_REVIEW_2026-09-02_PASS2.md`, `H3`, run by the maintainer with the curated prompt and reproduced verbatim there; provider and model as the maintainer states), assessed in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z) against the code and this repository's profile.
+
+`adoption.deferrals` holds `x-surfaceplate-work-contract-gate` and `x-surfaceplate-risk-classification-gate`,
+each restating a gate that `prerequisites` already records as `deferred` with an owner and a date.
+The schema's `deferral` is for a *control*; the `x-` prefix is the extension escape, used here to
+name a gate. Two records of one deferral is two places for them to disagree. **Remedy proposed
+(`H13`):** remove the two entries, leaving the gates' own deferrals as the record.
+
+**Closed by `ACT-059`, 2026-09-02, approved by the maintainer (`H13`).** The two `x-…-gate` entries are removed and `adoption.deferrals` is empty; each gate's deferral is recorded once, under `prerequisites`, with its owner and date. A comment at the field says why.
+
+## F108 — The wizard writes `notes: Blocking.` under the adopter's scanner without asking or verifying it (pass-2 MIN-02)
+
+**Severity: low. Closed.**
+
+Recorded on 2026-09-02 from the second cross-provider adversarial review (`audit/CROSS_PROVIDER_REVIEW_2026-09-02_PASS2.md`, `H3`, run by the maintainer with the curated prompt and reproduced verbatim there; provider and model as the maintainer states), assessed in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z) against the code and this repository's profile.
+
+`sections.SCANNER_NOTES = "Blocking."` is written under every profile's scanner; the provenance
+allow-list admits it as the one sentence the tool contributes, and the sidecar records it as
+computed, "the framework's own note". The reviewer is right that it is a statement about the
+adopter's scanner, not about the framework: `SP047` checks that the step can fail the build, but
+the note is written before that check runs. **Remedy proposed (`H13`):** omit the note (the schema
+does not require it) and let `SP047` say what it verified.
+
+**Closed by `ACT-059`, 2026-09-02, the maintainer having chosen to omit the note (`H13`).** The builders write a scanner with a name and where it runs, and nothing else; the renderer prints a note only where a profile already carries one; the provenance allow-list admits no framework prose beyond the gate definitions. Regression: `tests/test_adopt.py::test_the_tool_writes_no_note_about_the_adopters_scanner`, seen to fail first. The matrix report regenerated: one `computed` origin fewer per case, nothing else.
+
+## F107 — The template test treats a profile as the untouched template when any one identifying scalar is still `replace-me`, so a half-completed profile can be overwritten (pass-2 MIN-01)
+
+**Severity: medium. Closed.**
+
+Recorded on 2026-09-02 from the second cross-provider adversarial review (`audit/CROSS_PROVIDER_REVIEW_2026-09-02_PASS2.md`, `H3`, run by the maintainer with the curated prompt and reproduced verbatim there; provider and model as the maintainer states), assessed in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z) against the code and this repository's profile.
+
+`F63` moved the test from the whole file to five identifying scalars, and made *any one* of them
+still reading `replace-me` mean "the template". A profile a human has filled by hand but for one
+of those scalars is then overwritten without a prompt - the class of loss `F63` was closing.
+**Remedy proposed (`H13`):** the template is the file in which *every* identifying scalar still
+reads `replace-me`; anything else is refused as already adopted, and the message says which scalar
+still carries the token so the human can finish or move it aside.
+
+**Closed by `ACT-059`, 2026-09-02, the maintainer having authorised the fix (`H13`).** The template
+is the file in which every identifying scalar still reads `replace-me`; anything else is refused,
+and the message names the scalars that still carry the token. Regression:
+`tests/test_adopt.py::test_a_half_completed_profile_is_not_the_template`, seen to fail first on both
+checks; the matrix's refusal cases unchanged.
+
+## F106 — This repository's own profile declares `agent_work_packets` required as a practice while deferring `work_contract` because the packets are not committed: two rationales that contradict each other (pass-2 MAT-04)
+
+**Severity: medium. Closed.**
+
+Recorded on 2026-09-02 from the second cross-provider adversarial review (`audit/CROSS_PROVIDER_REVIEW_2026-09-02_PASS2.md`, `H3`, run by the maintainer with the curated prompt and reproduced verbatim there; provider and model as the maintainer states), assessed in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z) against the code and this repository's profile.
+
+The baseline rationale says every packet "arrives as a bounded packet with stated done-criteria
+... the register now records it"; the gate's rationale says the packets "are not committed here,
+so there is no artefact for the gate to check". Both are true and the first over-reads the second:
+the packets exist in operator conversations and their *outcomes* are registered; the packets
+themselves are not in git, which is exactly why the gate is deferred and why `CONFORMANCE_LEVELS.md`
+lists the control as declared, not checked. **Proposed wording for the baseline rationale (`H13`):**
+*"Every change arrives as a bounded packet with stated done-criteria, given in the operator
+conversation that authorises it; the packets are not committed, so this control is declared and
+not checked, and the `work_contract` gate is deferred until they are. The activity register records
+each packet's outcome."*
+
+**Closed by `ACT-059`, 2026-09-02, the wording approved by the maintainer (`H13`).** The baseline rationale now says the packets are given in the operator conversation and not committed, that the control is declared and not checked, and that the gate is deferred until they are; the gate's rationale is unchanged and the two agree.
+
+## F105 — `adoption_status: complete` needs no rationale and no evidence reference to validate (pass-2 MAT-03)
+
+**Severity: low. Open.**
+
+Recorded on 2026-09-02 from the second cross-provider adversarial review (`audit/CROSS_PROVIDER_REVIEW_2026-09-02_PASS2.md`, `H3`, run by the maintainer with the curated prompt and reproduced verbatim there; provider and model as the maintainer states), assessed in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z) against the code and this repository's profile.
+
+True as stated: the schema requires `status_rationale` for `blocked` and `deferred` only, and
+`independent_validator` may be null. **Assessment:** `adoption_status` is the profile's lifecycle
+field - is the adoption catalogued and current - and the standard keeps lifecycle, validation and
+approval distinct on purpose (principle 7, `REVIEW_AND_EVIDENCE.md`); the evidence the reviewer
+asks for lives in assurance-evidence records, which this repository now keeps under
+`governance/assurance/`. Requiring a rationale for `complete` is cheap and would make the claim
+explain itself; requiring an evidence reference would fold two states into one field. A schema
+change is a public contract: the maintainer decides (`H13`).
+
+## F104 — The schema's `effective_from` pattern admits impossible dates and a fraction without seconds; the checker rejects them, so the pattern documents a form it does not enforce (pass-2 MAT-02)
+
+**Severity: low. Open.**
+
+Recorded on 2026-09-02 from the second cross-provider adversarial review (`audit/CROSS_PROVIDER_REVIEW_2026-09-02_PASS2.md`, `H3`, run by the maintainer with the curated prompt and reproduced verbatim there; provider and model as the maintainer states), assessed in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z) against the code and this repository's profile.
+
+Verified: the pattern matches `2026-02-31`; `rules.effective_from_state` reports it unreadable, so
+the checker refuses it and the wizard's validator refuses it at the field. The pattern is a shape
+check, as every date pattern in the schema is; calendar validity is the checker's. The fraction
+without seconds (`14:30.500`) is admitted by the pattern and parsed by the rules; tightening the
+pattern so the fraction follows seconds only is one character and a public-contract change
+(`H13`). The second half of the finding - a same-day date, gated commits earlier that day, and an
+instant that then cannot be moved forward - is `F92`, decided by `DR-60` yesterday: the rule stays,
+and the wizard proposes the adoption date so that a human can only widen the window from it.
+
+## F103 — `--answers` writes every proposal the human left standing, so a record completed by filling only the needs-human lines carries the framework's example rationales under the adopter's name (pass-2 MAT-01)
+
+**Severity: medium. Open.**
+
+Recorded on 2026-09-02 from the second cross-provider adversarial review (`audit/CROSS_PROVIDER_REVIEW_2026-09-02_PASS2.md`, `H3`, run by the maintainer with the curated prompt and reproduced verbatim there; provider and model as the maintainer states), assessed in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z) against the code and this repository's profile.
+
+`DR-49` designed the non-terminal route so: the record shows every proposal with its origin, the
+human changes what is wrong, and the interactive route is the same act - proposals presented on
+the review and approved once (`DR-47` (3)). The sidecar then records each such value as `example`
+or `computed`, never as typed, so the profile does not claim the adopter wrote them. The reviewer's
+point is that a record needs no acknowledgement that the proposals were read. **Alternative
+(`H13`):** one line in the record, `accept_proposals: needs-human`, that must be set to `yes` before
+replay writes - one human act for the document, as the review's approval is.
+
+## F102 — A seed satisfies `SP032` on the day it is written, so a repository can pass every seeded gate with no practice behind it (pass-2 CRIT-02; the risk `DR-43` states)
+
+**Severity: medium. Open.**
+
+Recorded on 2026-09-02 from the second cross-provider adversarial review (`audit/CROSS_PROVIDER_REVIEW_2026-09-02_PASS2.md`, `H3`, run by the maintainer with the curated prompt and reproduced verbatim there; provider and model as the maintainer states), assessed in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z) against the code and this repository's profile.
+
+This is the risk `DR-43` names in its own text and `scaffold.py` carries in its docstring: a
+register that exists satisfies the gate's structural check while the practice it stands for may
+not happen, and the three mitigations are prose. The reviewer's remedy - a placeholder in the
+seeds so `SP032` fails until the adopter writes - is the design `DR-43` rejected: it makes the
+wizard create a file that fails the checker on the next run, which is what `F15` made the
+templates do. **Alternative (`H13`):** the checker can tell a seed from a kept register, because it
+ships the seeds: an artefact byte-identical to a shipped seed earns an advisory, "seeded, holds no
+entries yet", on every run until it changes. Verifiable, honest, and not a failure; the maintainer
+decides between that, the reviewer's remedy, and leaving `DR-43` as it stands.
+
+## F101 — A run that fails after the scaffold has written its seeds leaves them on disk and reports them rather than removing them (pass-2 CRIT-01)
+
+**Severity: medium. Open.**
+
+Recorded on 2026-09-02 from the second cross-provider adversarial review (`audit/CROSS_PROVIDER_REVIEW_2026-09-02_PASS2.md`, `H3`, run by the maintainer with the curated prompt and reproduced verbatim there; provider and model as the maintainer states), assessed in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z) against the code and this repository's profile.
+
+The reviewer reads the module docstring's "a cancelled run leaves the repository untouched" as a
+claim about failure; it is about cancellation, which holds - nothing is written before the review
+is approved. What the reviewer describes is real all the same: the seeds are written before the
+profile (so the profile never names a file that does not exist), and a failure at the profile
+write raises `PartialWrite` naming every created file, by the decision at code item 7 of the
+first review, rather than deleting them. **Alternative (`H13`):** delete the files this run created
+- and only those, created with `open(..., "x")` seconds earlier - when the profile write fails,
+and say so; the draft still holds the answers. Reporting stays the fallback where a deletion
+itself fails.
 
 ## F100 — `--edit` applied no field validator, so an artefact edited to an untracked path was written and failed `SP032` on the next run
 

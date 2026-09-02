@@ -967,8 +967,12 @@ def _run_advanced(o: Outcome, s: Script, repo: Path) -> None:
         flow = _flow.Flow(repo, record, state={"mode": {"mode": mode}})
         interview = make_interview(s, repo)
         interview.collect(flow, on_progress=lambda: None)
-        flows[mode] = flow.assemble()
-    o.check("advanced and simple registers assemble the same profile", flows["simple"] == flows["advanced"])
+        # `F112`: a scaffolded gate binds from the instant of its creation, and the two flows run
+        # seconds apart, so the instants are normalised before the profiles are compared - as every
+        # other route equality in this suite does.
+        flows[mode] = normalised(yaml.safe_dump(flow.assemble(), sort_keys=True))
+    o.check("advanced and simple registers assemble the same profile", flows["simple"] == flows["advanced"],
+            "\n".join(l for l in flows["simple"].splitlines() if l not in flows["advanced"].splitlines())[:300])
     o.note = "flow-level, nothing written"
 
 

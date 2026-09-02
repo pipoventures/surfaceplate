@@ -29,7 +29,8 @@ from surfaceplate.adopt import catalogue, plan
 # `tests/test_provenance.py`'s allow-list, and that test fails if this module writes a string that
 # is neither one of these nor traceable to an answer.
 SCHEMA_VERSION = "1.0"
-SCANNER_NOTES = "Blocking."
+# `F108`: this once carried `SCANNER_NOTES = "Blocking."`, written under every adopter's scanner
+# unasked. Whether the step can fail the build is `SP047`'s to establish; the tool no longer says so.
 DECISION_REQUIRED = "required"
 
 # `ACT-032`. The two enforcement mechanisms that need no tooling an adopter may not have: the
@@ -103,7 +104,6 @@ def build_controls(answers: dict, *, level: str) -> dict:
     baseline_controls["secret_hygiene"]["scanner"] = {
         "name": answers["scanner.name"],
         "wired_in": [answers["scanner.wired_in"]],
-        "notes": SCANNER_NOTES,
     }
 
     floor = catalogue.CONFORMANCE_LEVELS[level]

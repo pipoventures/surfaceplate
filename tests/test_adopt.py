@@ -1502,6 +1502,62 @@ def test_adopt_edit_applies_the_fields_own_validator(tmp: Path) -> None:
           yaml.safe_load((repo / wizard.PROFILE_PATH).read_text(encoding="utf-8"))["adoption"]["review_by"] == (_dt.date.today() + _dt.timedelta(days=90)).isoformat())
 
 
+def test_a_half_completed_profile_is_not_the_template(tmp: Path) -> None:
+    """`F107` (pass-2 MIN-01). The template test treated a profile as untouched when ANY one of its
+    five identifying scalars still read `replace-me`, so a profile filled by hand bar one of them
+    was overwritten without a prompt - the loss `F63` was closing. The template is the file in
+    which every one of the five still carries the token; anything else is refused, naming the
+    scalar that does."""
+    import yaml as _yaml
+
+    repo = make_installed_repo(tmp, "half-completed-repo")
+    target = repo / "governance" / "application-profile.yaml"
+    template = _yaml.safe_load(target.read_text(encoding="utf-8"))
+    check("precondition: the installed template carries the token in all five scalars",
+          template["application_id"] == "replace-me" and template["owner"] == "replace-me"
+          and all(template["adoption"][k] == "replace-me" for k in ("framework_version", "framework_digest", "adoption_date")))
+    try:
+        wizard._refuse_if_already_adopted(repo)
+        check("the untouched template is still fair game", True)
+    except wizard.AlreadyAdopted as exc:
+        check("the untouched template is still fair game", False, str(exc))
+    filled = dict(template)
+    filled["owner"] = "Someone Real"
+    filled["application_id"] = "real-app"
+    filled["adoption"] = dict(template["adoption"], framework_version="0.16.0", framework_digest="abc")
+    # adoption_date still reads replace-me: one scalar of five
+    target.write_text(_yaml.safe_dump(filled, sort_keys=False), encoding="utf-8")
+    before = target.read_text(encoding="utf-8")
+    try:
+        wizard._refuse_if_already_adopted(repo)
+        outcome = "fair game"
+    except wizard.AlreadyAdopted as exc:
+        outcome = str(exc)
+    check("a profile with one scalar still carrying the token is refused as already adopted", outcome != "fair game", outcome[:160])
+    check("and the refusal names the scalar that still carries it", "adoption_date" in outcome, outcome[:200])
+    try:
+        wizard.run(repo, ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS)))
+        ran = "ran"
+    except wizard.AlreadyAdopted:
+        ran = "refused"
+    check("so the wizard refuses rather than overwriting it", ran == "refused" and target.read_text(encoding="utf-8") == before)
+
+
+def test_the_tool_writes_no_note_about_the_adopters_scanner(tmp: Path) -> None:
+    """`F108` (pass-2 MIN-02). The wizard wrote `notes: Blocking.` under every profile's scanner
+    without asking or checking; whether the step can fail the build is `SP047`'s to establish. The
+    line is gone, and with it the one sentence of framework prose the provenance allow-list admitted
+    beyond the gate definitions."""
+    from surfaceplate.adopt import sections
+
+    repo = make_installed_repo(tmp, "no-scanner-note-repo")
+    seed_referenced_files(repo)
+    written = wizard.run(repo, ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS)))
+    scanner = yaml.safe_load(written.read_text(encoding="utf-8"))["baseline_controls"]["secret_hygiene"]["scanner"]
+    check("the written scanner carries a name and where it runs, and no note the tool made up", set(scanner) == {"name", "wired_in"}, str(sorted(scanner)))
+    check("sections.py no longer defines a scanner note", not hasattr(sections, "SCANNER_NOTES"))
+
+
 def test_a_full_run_choosing_every_create_it_row_passes_the_checker(tmp: Path) -> None:
     """`DR-55`. On a bare repository at `full`, every seedable gate's artefact and every
     record-directory control's reference open with "create it"; a run choosing every one writes
@@ -2275,6 +2331,8 @@ def main() -> int:
         test_resuming_after_the_scaffold_stage_still_creates_the_decision_record(tmp)
         test_propose_does_not_demand_rationales_for_controls_nobody_declared(tmp)
         test_adopt_edit_applies_the_fields_own_validator(tmp)
+        test_a_half_completed_profile_is_not_the_template(tmp)
+        test_the_tool_writes_no_note_about_the_adopters_scanner(tmp)
 
         print("\nDR-47: proposing writes what typing writes; the budget, measured")
         test_proposing_writes_the_same_profile_as_typing_the_same_values(tmp)
