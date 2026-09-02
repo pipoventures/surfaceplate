@@ -54,7 +54,7 @@ jobs:
       # against every workflow's install line, but does NOT sweep optional-dependencies, so a
       # change to the `adopt` extra has to be mirrored here deliberately.
       - name: Install validation dependencies
-        run: python -m pip install --disable-pip-version-check PyYAML==6.0.3 jsonschema==4.26.0 textual==8.2.8
+        run: python -m pip install --disable-pip-version-check PyYAML==6.0.3 jsonschema==4.26.0 textual==8.2.8 pytest==8.4.2 pytest-textual-snapshot==1.1.0 syrupy==4.8.0
 
       - name: Validate the control contracts
         id: contracts
@@ -88,6 +88,14 @@ jobs:
         id: render
         if: ${{ !cancelled() }}
         run: python tests/test_render.py
+
+      # DR-50 / R6: what every screen looks like at 80x24, as golden SVGs under tests/__snapshots__/.
+      # Snapshots are golden files under the tests rule: a difference is an audit trigger, and
+      # `--snapshot-update` is never used here or anywhere to absorb one nobody has explained.
+      - name: Compare every screen against its 80x24 snapshot
+        id: snapshots
+        if: ${{ !cancelled() }}
+        run: python tests/test_adopt_snapshots.py
 
       # DR-38: candidates offered to an adopter must be things that really exist in their
       # repository. The negative half of this suite is the load-bearing half.
@@ -173,6 +181,7 @@ jobs:
             provenance=${{ steps.provenance.outcome }}
             adopt_tui=${{ steps.adopt_tui.outcome }}
             render=${{ steps.render.outcome }}
+            snapshots=${{ steps.snapshots.outcome }}
             discover=${{ steps.discover.outcome }}
             scaffold=${{ steps.scaffold.outcome }}
             audit_packet=${{ steps.audit_packet.outcome }}

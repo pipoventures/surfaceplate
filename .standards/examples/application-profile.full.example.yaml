@@ -21,6 +21,11 @@ materiality_definition: >-
   Any output that reaches a published plan, or that changes an approved forecast baseline,
   is material. Unexpected deterministic output changes are an audit trigger.
 data_classification: confidential
+
+# Why the level below was chosen (DR-50): recorded, not checked.
+risk:
+  relied_on_outside_team: true
+  material_quantitative_output: true
 conformance_level: full
 
 adoption:

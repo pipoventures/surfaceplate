@@ -12,14 +12,18 @@ here was done by an agent that had never read them. The import above is what clo
 
 ## Working here
 
-- **Twelve suites**, and each reports a count on success so "everything passed" is distinguishable
+- **Thirteen suites**, and each reports a count on success so "everything passed" is distinguishable
   from "nothing ran". `.github/workflows/standard-self-check.yml` is the authority for the full set
   and the order — it runs every one and then asserts that every one actually ran. Six need no
   optional dependency: `validate_contracts.py`, `test_install_and_check.py`, `check_identifiers.py`,
   `check_code_registers.py`, `check_vendored_current.py`, and `check_audit_packet.py` — which exists
   because `F50` let the item 9 hand-off name a file deleted three packets earlier. Four more cover
-  `adopt`: `test_adopt.py`, `test_provenance.py`, `test_discover.py`, `test_scaffold.py`. Two need `textual` and so must be run
-  from the virtualenv (`.venv/bin/python`): `test_render.py`, `test_adopt_tui.py`.
+  `adopt`: `test_adopt.py`, `test_provenance.py`, `test_discover.py`, `test_scaffold.py`. Three need `textual` and so must be run
+  from the virtualenv (`.venv/bin/python`): `test_render.py`, `test_adopt_tui.py`, and
+  `test_adopt_snapshots.py`, which also needs the `test` extra (`pytest`, `pytest-textual-snapshot`,
+  `syrupy`) and holds golden SVGs under `tests/__snapshots__/` — never regenerated to absorb a
+  difference nobody has explained. `scripts/front_door.sh` is not a suite: it is every documented
+  command run on a clean machine, by `.github/workflows/front-door.yml`.
   *(This line said "the five suites" until `ACT-033`, six suites after that stopped being true; it is
   corrected in the same change that adds one, which is the habit that keeps it true.)*
 - After changing anything the standard ships: `scripts/build_release.py`, reinstall from a clean

@@ -21,6 +21,11 @@ materiality_definition: >-
   change introducing live data or an externally-facing quantitative output raises the
   conformance level and requires a new adoption decision.
 data_classification: internal
+
+# Why the level below was chosen (DR-50): recorded, not checked.
+risk:
+  relied_on_outside_team: false
+  material_quantitative_output: false
 conformance_level: essential
 
 adoption:

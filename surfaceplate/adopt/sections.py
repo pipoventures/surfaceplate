@@ -61,11 +61,19 @@ def build_stack(answers: dict) -> dict:
 
 
 def build_risk(answers: dict) -> dict:
-    return {
+    """`DR-50` (2): the two reliance answers are written under `risk`, so the reason a level was
+    chosen is recorded rather than asked and discarded (the review's code item 18)."""
+    out = {
         "risk_profile": answers["risk_profile"],
         "materiality_definition": answers["materiality_definition"],
         "data_classification": answers["data_classification"],
     }
+    if "relied_on_outside_team" in answers or "material_quantitative_output" in answers:
+        out["risk"] = {
+            "relied_on_outside_team": bool(answers.get("relied_on_outside_team")),
+            "material_quantitative_output": bool(answers.get("material_quantitative_output")),
+        }
+    return out
 
 
 def build_level(answers: dict) -> dict:
@@ -237,7 +245,9 @@ def build_adoption(answers: dict, *, framework_version: str, framework_digest: s
 
 
 def build_wrap(answers: dict) -> dict:
-    roles = [line.strip() for line in str(answers.get("human_roles", "")).splitlines() if line.strip()]
+    # `None` is no roles, not the word "None" (the review's code item 16).
+    raw = answers.get("human_roles")
+    roles = [line.strip() for line in str(raw if raw is not None else "").splitlines() if line.strip()]
     return {
         "human_roles": roles,
         "release_route": answers["release_route"],

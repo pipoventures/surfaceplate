@@ -3,3 +3,5 @@ __pycache__/
 .venv/
 .scratch/
 dist/
+# written by pytest-textual-snapshot on a failing run; a report, never a fixture
+snapshot_report.html

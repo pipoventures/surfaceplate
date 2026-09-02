@@ -26,6 +26,11 @@ risk_profile: describe intended use, uncertainty, and materiality
 materiality_definition: define which outputs or decisions are material
 data_classification: internal         # public | internal | confidential | restricted
 
+# Optional (DR-50): why the level below was chosen. Recorded so the reason survives; checked by nothing.
+risk:
+  relied_on_outside_team: replace-me           # true | false - does anyone outside the team rely on the output?
+  material_quantitative_output: replace-me     # true | false - numbers or AI output others treat as fact?
+
 # See core/CONFORMANCE_LEVELS.md. The level determines which controls below must be
 # decided `required`. This is a human decision, not derived from the stack.
 conformance_level: essential          # essential | standard | full

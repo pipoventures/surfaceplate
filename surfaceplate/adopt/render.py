@@ -112,7 +112,7 @@ def _render_list_block(values: list[str], indent: int) -> str:
 
 
 def _render_gate(gate: dict) -> str:
-    lines = [f"  - id: {gate['id']}", f"    status: {gate['status']}"]
+    lines = [f"  - id: {_scalar(gate['id'])}", f"    status: {_scalar(gate['status'])}"]
     if gate["status"] == "required":
         lines.append(f"    effective_from: {_scalar(gate['effective_from'])}")
         lines.append("    precondition:")
@@ -157,8 +157,8 @@ def _assurance_note(control_id: str) -> str:
 
 def _render_control(control_id: str, entry: dict) -> str:
     lines = [
-        f"  {control_id}:{_assurance_note(control_id)}",
-        f"    decision: {entry['decision']}",
+        f"  {_scalar(control_id)}:{_assurance_note(control_id)}",
+        f"    decision: {_scalar(entry['decision'])}",
         f"    rationale: {_block(entry['rationale'], 4)}",
     ]
     if "implementation_reference" in entry:
@@ -203,7 +203,17 @@ def render_profile(profile: dict, *, written_on: str = "") -> str:
     status_rationale_line = (
         f"\n  status_rationale: {_block(a['status_rationale'], 2)}" if a.get("status_rationale") else ""
     )
-    independent_validator = _scalar(a["independent_validator"])
+    independent_validator = _scalar(a.get("independent_validator"))
+    # `DR-50` (2): the two reliance answers, when the run recorded them.
+    risk_block = ""
+    if isinstance(p.get("risk"), dict):
+        risk_block = (
+            "\n# Why the level below was chosen (DR-50): recorded, not checked.\nrisk:\n"
+            f"  relied_on_outside_team: {str(bool(p['risk'].get('relied_on_outside_team'))).lower()}\n"
+            f"  material_quantitative_output: {str(bool(p['risk'].get('material_quantitative_output'))).lower()}\n"
+        )
+    # `DR-50` (1): read by no finding code, and stamped so a reader knows it.
+    not_checked = "  # not checked"
 
     return f"""\
 # Application Profile — {p['display_name']}
@@ -216,17 +226,17 @@ def render_profile(profile: dict, *, written_on: str = "") -> str:
 
 schema_version: "1.0"
 application_id: {_scalar(p['application_id'])}
-display_name: {_scalar(p['display_name'])}
+display_name: {_scalar(p.get('display_name', ''))}{not_checked}
 owner: {_scalar(p['owner'])}
 
 stack: {_scalar(p['stack'])}
 
 risk_profile: {_block(p['risk_profile'], 0)}
 materiality_definition: {_block(p['materiality_definition'], 0)}
-data_classification: {p['data_classification']}         # public | internal | confidential | restricted
-
+data_classification: {_scalar(p['data_classification'])}         # public | internal | confidential | restricted
+{risk_block}
 # See core/CONFORMANCE_LEVELS.md. A level is a floor, not a ceiling.
-conformance_level: {p['conformance_level']}
+conformance_level: {_scalar(p['conformance_level'])}
 
 adoption:
   framework_version: {_scalar(a['framework_version'])}
@@ -234,10 +244,10 @@ adoption:
   adoption_date: {_scalar(a['adoption_date'])}
   review_by: {_scalar(a['review_by'])}
   framework_maintainer: {_scalar(a['framework_maintainer'])}
-  repository_classification: {_scalar(a['repository_classification'])}
+  repository_classification: {_scalar(a.get('repository_classification', ''))}{not_checked}
   decision_record_id: {_scalar(a['decision_record_id'])}
-  adoption_status: {a['adoption_status']}{status_rationale_line}
-  independent_validator: {independent_validator}
+  adoption_status: {_scalar(a['adoption_status'])}{status_rationale_line}
+  independent_validator: {independent_validator}{not_checked if p['conformance_level'] == 'essential' else ''}
   deferrals:{deferrals_text}
 
 # These three cannot be excluded, deferred, or omitted at any conformance level.
@@ -265,7 +275,7 @@ builds_user_interface: {str(p['builds_user_interface']).lower()}
 prerequisites:
 {gates_text}
 
-human_roles:{roles_text}
+human_roles:{roles_text if p['human_roles'] else ' []'}{not_checked}
 release_route: {_block(p['release_route'], 0)}
-exclusions:{exclusions_text}
+exclusions:{exclusions_text}{not_checked}
 """

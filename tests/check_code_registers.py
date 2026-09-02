@@ -284,6 +284,37 @@ def main() -> int:
         set(bodies) <= set(rows),
         ", ".join(f"F{n}" for n in sorted(set(bodies) - set(rows))),
     )
+    # `F72`: ten findings said Open in the body and Closed in the index, and nothing compared
+    # them. The index row's status column and the body's `**Severity: ... <status>.**` line
+    # must agree on Open versus Closed; a partial closure ("Closed for deferrals; open for
+    # gate exceptions") counts as whichever word it leads with.
+    index_status = {
+        int(m.group(1)): m.group(2).strip().strip("*").strip()
+        for m in re.finditer(r"^\| F(\d+) \|[^|]*\|[^|]*\| ([^|]*)\|", findings_text, re.MULTILINE)
+    }
+    body_status = {
+        int(m.group(1)): m.group(2).strip()
+        for m in re.finditer(r"^## F(\d+) [^\n]*\n\n\*\*Severity: [^.]*\. ([^*]*)\*\*", findings_text, re.MULTILINE)
+    }
+
+    def word(status: str) -> str:
+        head = status.lower()
+        return "closed" if head.startswith("closed") else "open" if head.startswith("open") else "?"
+
+    disagree = sorted(
+        n for n in body_status if n in index_status and word(index_status[n]) != word(body_status[n])
+    )
+    check(
+        "every finding's body status agrees with its index status (F72)",
+        not disagree,
+        ", ".join(f"F{n} (index {word(index_status[n])}, body {word(body_status[n])})" for n in disagree),
+    )
+    unparsed = sorted(n for n in body_status if word(body_status[n]) == "?")
+    check(
+        "every body status line leads with Open or Closed",
+        not unparsed,
+        ", ".join(f"F{n}: {body_status[n][:40]!r}" for n in unparsed),
+    )
 
     if FAILURES:
         print("CODE_REGISTERS=FAIL")
