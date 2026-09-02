@@ -1013,6 +1013,45 @@ def find_workflow_step(repo: Path, step_name: str) -> tuple[str | None, dict | N
     return None, None
 
 
+_SHIPPED_SEEDS: dict[str, str] | None = None
+
+
+def shipped_seeds() -> dict[str, str]:
+    """The seeds `surfaceplate adopt` creates, by normalised text, keyed to the seed's file name.
+
+    `F102` (`DR-43`'s stated risk, raised again by the second cross-provider review): a seed is
+    complete and true on the day it is written and satisfies `SP032`, so nothing distinguished a
+    register someone keeps from one nobody has touched. The checker ships the seeds - beside it
+    under `seeds/` in the source tree and in the vendored copy - so it can say when an artefact is
+    still exactly one of them. Read once; an absent directory means an older install and no note.
+    """
+    global _SHIPPED_SEEDS
+    if _SHIPPED_SEEDS is None:
+        found: dict[str, str] = {}
+        seeds_dir = Path(__file__).resolve().parent / "seeds"
+        if seeds_dir.is_dir():
+            for seed in sorted(seeds_dir.iterdir()):
+                if seed.is_file():
+                    try:
+                        found[seed.read_text(encoding="utf-8").replace("\r\n", "\n").strip()] = seed.name
+                    except OSError:
+                        continue
+        _SHIPPED_SEEDS = found
+    return _SHIPPED_SEEDS
+
+
+def seed_note(what: str, path: str, text: str, notes: list[str]) -> None:
+    """An advisory, never a finding, when `path`'s content is byte-identical to a shipped seed:
+    the artefact exists and passes, and holds no entry of this repository's own yet. It goes
+    the day the file changes."""
+    seed = shipped_seeds().get(text.replace("\r\n", "\n").strip())
+    if seed:
+        notes.append(
+            f"{what}: {path} is seeded - byte-identical to the seed `surfaceplate adopt` creates "
+            f"({seed}); it holds no entries of this repository's own yet"
+        )
+
+
 def framework_owned(path: str, install_record: dict | None) -> bool:
     """Whether `path` is a file this framework installed, read from the install record: its file
     list, plus the profile the installer created. `F61`: a gate whose precondition is one of these
@@ -1259,6 +1298,11 @@ def check_control_implementations(
                 continue
 
         notes.append(f"{control_id}: verified against {reference}")
+        if target.is_file():
+            try:
+                seed_note(control_id, reference, target.read_text(encoding="utf-8", errors="replace"), notes)
+            except OSError:
+                pass
 
     # Pattern D. `documentation_authority` is verified by the `authority_map` gate checking the
     # artefact it names - but only when that gate is required. A level is a floor, not a ceiling,
@@ -3026,7 +3070,7 @@ def check_prerequisites(
                     )
                 elif artefact in exempt_from_placeholder:
                     pass  # declared exempt; existence and non-emptiness were still checked
-                elif PLACEHOLDER_PATTERN.search(text):
+                elif seed_note(f"gate '{gate_id}'", artefact, text, notes) is None and PLACEHOLDER_PATTERN.search(text):
                     findings.append(
                         Finding(
                             "SP032",

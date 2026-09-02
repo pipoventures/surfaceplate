@@ -167,7 +167,7 @@ an unknown number of releases with nothing noticing.
 | F99 | `--propose` marked every above-floor control's rationale and reference `needs-human`, so a human had to invent lines for controls they never declared before `--answers` would write | medium | Closed — `ACT-057`; see the body |
 | F100 | `--edit` applied no field validator, so an artefact edited to an untracked path was written and failed `SP032` on the next run | medium | Closed — `ACT-057`; see the body |
 | F101 | A run that fails after the scaffold has written its seeds leaves them on disk and reports them rather than removing them (pass-2 CRIT-01) | medium | Closed — `ACT-059`, 2026-09-02, the maintainer having chosen the rollback (`H13`); see the body |
-| F102 | A seed satisfies `SP032` on the day it is written, so a repository can pass every seeded gate with no practice behind it (pass-2 CRIT-02; the risk `DR-43` states) | medium | Open — a decision (`H13`): the reviewer's remedy contradicts `DR-43`; an advisory for seed-identical artefacts is the alternative |
+| F102 | A seed satisfies `SP032` on the day it is written, so a repository can pass every seeded gate with no practice behind it (pass-2 CRIT-02; the risk `DR-43` states) | medium | Closed — `ACT-059`, 2026-09-03, the maintainer having chosen the seed advisory (`H13`); see the body |
 | F103 | `--answers` writes every proposal the human left standing, so a record completed by filling only the needs-human lines carries the framework's example rationales under the adopter's name (pass-2 MAT-01) | medium | Closed — `ACT-059`, 2026-09-03, the maintainer having chosen the acceptance line (`H13`); see the body |
 | F104 | The schema's `effective_from` pattern admits impossible dates and a fraction without seconds; the checker rejects them, so the pattern documents a form it does not enforce (pass-2 MAT-02) | low | Open — the pattern is a public contract; tightening it is a decision (`H13`). The same-day trap the reviewer describes is `F92`, kept by `DR-60` |
 | F105 | `adoption_status: complete` needs no rationale and no evidence reference to validate (pass-2 MAT-03) | low | Open — a schema decision (`H13`) |
@@ -1683,7 +1683,7 @@ replay writes - one human act for the document, as the review's approval is.
 
 ## F102 — A seed satisfies `SP032` on the day it is written, so a repository can pass every seeded gate with no practice behind it (pass-2 CRIT-02; the risk `DR-43` states)
 
-**Severity: medium. Open.**
+**Severity: medium. Closed.**
 
 Recorded on 2026-09-02 from the second cross-provider adversarial review (`audit/CROSS_PROVIDER_REVIEW_2026-09-02_PASS2.md`, `H3`, run by the maintainer with the curated prompt and reproduced verbatim there; provider and model as the maintainer states), assessed in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z) against the code and this repository's profile.
 
@@ -1696,6 +1696,8 @@ templates do. **Alternative (`H13`):** the checker can tell a seed from a kept r
 ships the seeds: an artefact byte-identical to a shipped seed earns an advisory, "seeded, holds no
 entries yet", on every run until it changes. Verifiable, honest, and not a failure; the maintainer
 decides between that, the reviewer's remedy, and leaving `DR-43` as it stands.
+
+**Closed by `ACT-059`, 2026-09-03, the maintainer having chosen the seed advisory (`H13`); `DR-43` stands.** The seeds now travel with the checker (`.standards/seeds/`), and a gate artefact or a pattern-A reference byte-identical to one earns an advisory on every run - "seeded, holds no entries of this repository's own yet" - until the file changes; never a finding. `core/PREREQUISITE_GATES.md` states it beside the rule it qualifies. Regression: `tests/test_install_and_check.py`, the seeded-register case, seen to fail first; the advisory goes when a line is added.
 
 ## F101 — A run that fails after the scaffold has written its seeds leaves them on disk and reports them rather than removing them (pass-2 CRIT-01)
 

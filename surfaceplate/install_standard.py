@@ -255,6 +255,12 @@ def build_payload(source: Path) -> dict[str, Path]:
     for adapter in sorted((source / "adapters").glob("*.md")):
         payload[f"{VENDOR_DIR}/adapters/{adapter.name}"] = adapter
 
+    # `F102`: the seeds `adopt` creates travel with the checker, so the vendored checker can say
+    # when a gate's artefact is still exactly one of them (an advisory, never a finding).
+    for seed in sorted((source / "seeds").iterdir()):
+        if seed.is_file():
+            payload[f"{VENDOR_DIR}/seeds/{seed.name}"] = seed
+
     # `DR-45`: the manifest itself, so an adopter can RECOMPUTE the framework digest rather than
     # only compare two values this installer wrote. `DR-20`'s membership principle admits a file an
     # adopter "cannot correctly apply, VERIFY, or understand the version it pinned without", and
