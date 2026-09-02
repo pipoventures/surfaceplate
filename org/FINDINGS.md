@@ -169,14 +169,14 @@ an unknown number of releases with nothing noticing.
 | F101 | A run that fails after the scaffold has written its seeds leaves them on disk and reports them rather than removing them (pass-2 CRIT-01) | medium | Closed — `ACT-059`, 2026-09-02, the maintainer having chosen the rollback (`H13`); see the body |
 | F102 | A seed satisfies `SP032` on the day it is written, so a repository can pass every seeded gate with no practice behind it (pass-2 CRIT-02; the risk `DR-43` states) | medium | Closed — `ACT-059`, 2026-09-03, the maintainer having chosen the seed advisory (`H13`); see the body |
 | F103 | `--answers` writes every proposal the human left standing, so a record completed by filling only the needs-human lines carries the framework's example rationales under the adopter's name (pass-2 MAT-01) | medium | Closed — `ACT-059`, 2026-09-03, the maintainer having chosen the acceptance line (`H13`); see the body |
-| F104 | The schema's `effective_from` pattern admits impossible dates and a fraction without seconds; the checker rejects them, so the pattern documents a form it does not enforce (pass-2 MAT-02) | low | Open — the pattern is a public contract; tightening it is a decision (`H13`). The same-day trap the reviewer describes is `F92`, kept by `DR-60` |
-| F105 | `adoption_status: complete` needs no rationale and no evidence reference to validate (pass-2 MAT-03) | low | Open — a schema decision (`H13`) |
+| F104 | The schema's `effective_from` pattern admits impossible dates and a fraction without seconds; the checker rejects them, so the pattern documents a form it does not enforce (pass-2 MAT-02) | low | Closed — `ACT-059` (`DR-63`), 2026-09-03; see the body |
+| F105 | `adoption_status: complete` needs no rationale and no evidence reference to validate (pass-2 MAT-03) | low | Closed — `ACT-059` (`DR-63`), 2026-09-03; see the body |
 | F106 | This repository's own profile declares `agent_work_packets` required as a practice while deferring `work_contract` because the packets are not committed: two rationales that contradict each other (pass-2 MAT-04) | medium | Closed — `ACT-059`, 2026-09-02, approved by the maintainer (`H13`); see the body |
 | F107 | The template test treats a profile as the untouched template when any one identifying scalar is still `replace-me`, so a half-completed profile can be overwritten (pass-2 MIN-01) | medium | Closed — `ACT-059`, 2026-09-02, authorised by the maintainer (`H13`); see the body |
 | F108 | The wizard writes `notes: Blocking.` under the adopter's scanner without asking or verifying it (pass-2 MIN-02) | low | Closed — `ACT-059`, 2026-09-02, the maintainer having chosen to omit the note (`H13`); see the body |
 | F109 | This repository's own profile mirrors two gate deferrals as `x-…-gate` control deferrals under `adoption.deferrals`, duplicating what `prerequisites` already records (pass-2 MIN-03) | low | Closed — `ACT-059`, 2026-09-02, approved by the maintainer (`H13`); see the body |
 | F110 | This repository's own hand-written profile carries none of the checked/declared labels the wizard writes since `F53`, so its reader cannot tell a verified control from a declared one (pass-2 §7) | low | Closed — `ACT-059`, 2026-09-02, approved by the maintainer (`H13`); see the body |
-| F111 | The reviewer holds the narrative docstrings and the size of the governance apparatus to be a maintenance risk and disproportionate for a CLI tool (pass-2 §9) | low | Open — a judgement for the maintainer (`H13`); the practice is `S1`'s, stated |
+| F111 | The reviewer holds the narrative docstrings and the size of the governance apparatus to be a maintenance risk and disproportionate for a CLI tool (pass-2 §9) | low | Closed — 2026-09-03, the maintainer keeping the practice (`H13`); see the body |
 | F112 | The matrix's `advanced` case compared two profiles assembled seconds apart without normalising the scaffolded instant, and failed on the runner once | low | Closed — `ACT-057` follow-up, 2026-09-02; see the body |
 | F113 | A validator check built "today at midnight UTC" and expected it to be in the past, which is false for the first hour of the day on a UTC+1 machine (the `F48` shape) | low | Closed — `ACT-059`, 2026-09-03; see the body |
 Closed entries are indexed here and left in their original records; they are not restated.
@@ -1541,7 +1541,7 @@ lines. `T5-150` re-run green; the report is unchanged (the case has one check ei
 
 ## F111 — The reviewer holds the narrative docstrings and the size of the governance apparatus to be a maintenance risk and disproportionate for a CLI tool (pass-2 §9)
 
-**Severity: low. Open.**
+**Severity: low. Closed.**
 
 Recorded on 2026-09-02 from the second cross-provider adversarial review (`audit/CROSS_PROVIDER_REVIEW_2026-09-02_PASS2.md`, `H3`, run by the maintainer with the curated prompt and reproduced verbatim there; provider and model as the maintainer states), assessed in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z) against the code and this repository's profile.
 
@@ -1553,6 +1553,8 @@ real cost this repository chose knowingly - `S1` names the drift and the habit t
 the docstrings are where a reader of the code meets the reason a line exists - and the second is
 a judgement about the product's purpose rather than a defect in it. Both are the maintainer's to
 weigh (`H13`); the recommendation is to keep the practice and record the choice.
+
+**Closed 2026-09-03, the maintainer having decided to keep the practice (`H13`).** The docstrings stay: they are where a reader of the code meets the reason a line exists, and `S1` names the drift they risk and the habit that meets it - a docstring's claim is checked when the code beneath it is touched, which `F55` and `F52` record happening. The size of the apparatus is the product's purpose, not a defect in it; each gate, control and code is there because a reviewed defect put it there, and the registers say which. Recorded as considered and declined, with the reviewer's text kept verbatim in the review.
 
 ## F110 — This repository's own hand-written profile carries none of the checked/declared labels the wizard writes since `F53`, so its reader cannot tell a verified control from a declared one (pass-2 §7)
 
@@ -1637,7 +1639,7 @@ each packet's outcome."*
 
 ## F105 — `adoption_status: complete` needs no rationale and no evidence reference to validate (pass-2 MAT-03)
 
-**Severity: low. Open.**
+**Severity: low. Closed.**
 
 Recorded on 2026-09-02 from the second cross-provider adversarial review (`audit/CROSS_PROVIDER_REVIEW_2026-09-02_PASS2.md`, `H3`, run by the maintainer with the curated prompt and reproduced verbatim there; provider and model as the maintainer states), assessed in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z) against the code and this repository's profile.
 
@@ -1650,9 +1652,11 @@ asks for lives in assurance-evidence records, which this repository now keeps un
 explain itself; requiring an evidence reference would fold two states into one field. A schema
 change is a public contract: the maintainer decides (`H13`).
 
+**Closed by `ACT-059` under `DR-63`, 2026-09-03.** `complete` requires `status_rationale` as `blocked` and `deferred` do; the wizard asks it for `complete`; no evidence reference is required, since evidence lives in the assurance-evidence records. Seen to fail first in the contracts suite.
+
 ## F104 — The schema's `effective_from` pattern admits impossible dates and a fraction without seconds; the checker rejects them, so the pattern documents a form it does not enforce (pass-2 MAT-02)
 
-**Severity: low. Open.**
+**Severity: low. Closed.**
 
 Recorded on 2026-09-02 from the second cross-provider adversarial review (`audit/CROSS_PROVIDER_REVIEW_2026-09-02_PASS2.md`, `H3`, run by the maintainer with the curated prompt and reproduced verbatim there; provider and model as the maintainer states), assessed in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z) against the code and this repository's profile.
 
@@ -1664,6 +1668,8 @@ pattern so the fraction follows seconds only is one character and a public-contr
 (`H13`). The second half of the finding - a same-day date, gated commits earlier that day, and an
 instant that then cannot be moved forward - is `F92`, decided by `DR-60` yesterday: the rule stays,
 and the wizard proposes the adoption date so that a human can only widen the window from it.
+
+**Closed by `ACT-059` under `DR-63`, 2026-09-03.** The pattern admits a fraction only after seconds, in the schema and in `rules._ISO_INSTANT` alike; calendar validity stays the checker's, which already refused an impossible date. Eleven contract cases, seen to fail first.
 
 ## F103 — `--answers` writes every proposal the human left standing, so a record completed by filling only the needs-human lines carries the framework's example rationales under the adopter's name (pass-2 MAT-01)
 

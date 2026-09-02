@@ -49,7 +49,7 @@ adoption:
   repository_classification: replace-me
   decision_record_id: replace-me      # ID of the adoption decision record
   adoption_status: in_progress        # in_progress | complete | blocked | deferred
-  # status_rationale is REQUIRED when adoption_status is blocked or deferred
+  # status_rationale is REQUIRED when adoption_status is complete, blocked or deferred
   independent_validator: null         # name, or null where Level 3 review does not apply
   deferrals: []                       # every control decided `deferred` should appear here
 

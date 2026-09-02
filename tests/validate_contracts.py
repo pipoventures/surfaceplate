@@ -474,6 +474,45 @@ bad_review_date = deepcopy(profile)
 bad_review_date["adoption"]["review_by"] = "23-02-2027"
 assert_invalid("application-profile.schema.yaml", bad_review_date)
 
+# --- F104 / F105 (DR-63): the two tightenings the second cross-provider review asked for ---
+
+# F105: `complete` explains itself. `blocked` and `deferred` already required a rationale; a
+# profile could declare the adoption complete with nothing said. Evidence stays where it lives
+# (assurance-evidence records), so no evidence reference is required here.
+complete_unexplained = deepcopy(profile)
+complete_unexplained["adoption"]["adoption_status"] = "complete"
+complete_unexplained["adoption"].pop("status_rationale", None)
+assert_invalid("application-profile.schema.yaml", complete_unexplained)
+complete_explained = deepcopy(complete_unexplained)
+complete_explained["adoption"]["status_rationale"] = "The checker passes and the register is current."
+assert_valid("application-profile.schema.yaml", complete_explained)
+in_progress_unexplained = deepcopy(profile)
+in_progress_unexplained["adoption"]["adoption_status"] = "in_progress"
+in_progress_unexplained["adoption"].pop("status_rationale", None)
+assert_valid("application-profile.schema.yaml", in_progress_unexplained)
+
+# F104: an instant's fraction follows seconds, or is not there. `14:30.500` was admitted by the
+# pattern and parsed by nothing sensible; calendar validity stays the checker's (SP033), because a
+# pattern cannot know February's length.
+gate = {
+    "id": "work_registration", "status": "required", "effective_from": "2026-09-02T14:30:00.5+00:00",
+    "precondition": {"artefacts": ["docs/REGISTER.md"], "description": "A register."},
+    "gated_activity": {"paths": ["src/**"], "description": "Changes under src."},
+    "enforcement": ["history_audit", "review"],
+}
+with_gate = deepcopy(profile)
+with_gate["prerequisites"] = [gate]
+assert_valid("application-profile.schema.yaml", with_gate)
+for bad in ("2026-09-02T14:30.500", "2026-09-02T14:30.5+00:00"):
+    fraction_without_seconds = deepcopy(with_gate)
+    fraction_without_seconds["prerequisites"][0]["effective_from"] = bad
+    assert_invalid("application-profile.schema.yaml", fraction_without_seconds)
+for good in ("2026-09-02", "2026-09-02T14:30", "2026-09-02T14:30:00", "2026-09-02T14:30:00Z", "2026-09-02 14:30:00+01:00"):
+    still_admitted = deepcopy(with_gate)
+    still_admitted["prerequisites"][0]["effective_from"] = good
+    assert_valid("application-profile.schema.yaml", still_admitted)
+CHECKS += 11
+
 unknown_adoption_field = deepcopy(profile)
 unknown_adoption_field["adoption"]["approved"] = True
 assert_invalid("application-profile.schema.yaml", unknown_adoption_field)

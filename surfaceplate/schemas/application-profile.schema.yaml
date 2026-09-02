@@ -104,9 +104,11 @@ properties:
         type: array
         items: {$ref: '#/$defs/deferral'}
     allOf:
+      # F105 (DR-63): `complete` explains itself too. Evidence is not required here: lifecycle,
+      # validation and approval are kept apart, and evidence lives in assurance-evidence records.
       - if:
           properties:
-            adoption_status: {enum: [blocked, deferred]}
+            adoption_status: {enum: [blocked, deferred, complete]}
           required: [adoption_status]
         then:
           required: [status_rationale]
@@ -273,7 +275,8 @@ $defs:
         # It checks SHAPE, not calendar validity - `2026-13-45T25:99` matches. The checker parses
         # the value with `datetime.fromisoformat` and reports SP033 if it will not parse, so the
         # two together are the guarantee; the pattern alone is not, and does not claim to be.
-        pattern: '^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:\d{2})?)?$'
+        # F104 (DR-63): a fraction follows seconds or is absent. Calendar validity is the checker's.
+        pattern: '^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})?)?$'
         description: >-
           The point from which this gate binds. Mandatory when status is `required`.
           History before it is out of scope, which is what makes adoption possible

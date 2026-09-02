@@ -1179,11 +1179,12 @@ def adoption_plan(*, owner: str) -> SectionPlan:
             ),
             FieldSpec(
                 id="status_rationale",
-                label="Why is adoption blocked/deferred?",
+                label="Why this adoption status?",
                 kind="textarea",
-                depends_on=("adoption_status", ("blocked", "deferred")),
-                help="what stands in the way, in your own words",
-                decides="why the profile says adoption is blocked or deferred; read by reviewers",
+                # `F105` / `DR-63`: `complete` explains itself as `blocked` and `deferred` do.
+                depends_on=("adoption_status", ("blocked", "deferred", "complete")),
+                help="what stands in the way, or what makes it complete, in your own words",
+                decides="why the profile says adoption is complete, blocked or deferred; read by reviewers",
                 wrong="a state with no stated reason",
             ),
             FieldSpec(

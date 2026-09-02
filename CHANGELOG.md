@@ -1065,6 +1065,18 @@ scheduled sweep, so previously there was no way to scan history at all.
 
 ## Unreleased
 
+### The second cross-provider review, and what it changed (`ACT-059`, `DR-63`)
+
+The maintainer ran the second cross-provider adversarial review (`audit/CROSS_PROVIDER_REVIEW_2026-09-02_PASS2.md`,
+verbatim) and decided each of its eleven points (`F101` to `F111`). A run that fails at the write now
+removes the seeds it created and says so; a half-completed profile is refused rather than overwritten;
+the answers record's proposals are accepted as one act before `--answers` writes; the tool no longer
+writes a note about the adopter's scanner; an artefact still byte-identical to a shipped seed is named
+as seeded on every run, the seeds travelling with the checker; `effective_from`'s fraction follows
+seconds and `complete` explains itself (`DR-63`); this repository's own profile lost a contradiction
+and two duplicate deferrals and gained the checked/declared labels. The reviewer's view of the
+narrative docstrings was recorded and the practice kept.
+
 ### Every reachable decision of `adopt`, run and recorded (`ACT-057`, `DR-58`, `DR-59`)
 
 Before launch the maintainer asked for every combination of the wizard's parameters and choices to
