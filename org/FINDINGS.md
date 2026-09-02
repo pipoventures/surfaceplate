@@ -173,7 +173,7 @@ an unknown number of releases with nothing noticing.
 | F105 | `adoption_status: complete` needs no rationale and no evidence reference to validate (pass-2 MAT-03) | low | Open — a schema decision (`H13`) |
 | F106 | This repository's own profile declares `agent_work_packets` required as a practice while deferring `work_contract` because the packets are not committed: two rationales that contradict each other (pass-2 MAT-04) | medium | Closed — `ACT-059`, 2026-09-02, approved by the maintainer (`H13`); see the body |
 | F107 | The template test treats a profile as the untouched template when any one identifying scalar is still `replace-me`, so a half-completed profile can be overwritten (pass-2 MIN-01) | medium | Closed — `ACT-059`, 2026-09-02, authorised by the maintainer (`H13`); see the body |
-| F108 | The wizard writes `notes: Blocking.` under the adopter's scanner without asking or verifying it (pass-2 MIN-02) | low | Open — a decision (`H13`): omit the note, or ask |
+| F108 | The wizard writes `notes: Blocking.` under the adopter's scanner without asking or verifying it (pass-2 MIN-02) | low | Closed — `ACT-059`, 2026-09-02, the maintainer having chosen to omit the note (`H13`); see the body |
 | F109 | This repository's own profile mirrors two gate deferrals as `x-…-gate` control deferrals under `adoption.deferrals`, duplicating what `prerequisites` already records (pass-2 MIN-03) | low | Closed — `ACT-059`, 2026-09-02, approved by the maintainer (`H13`); see the body |
 | F110 | This repository's own hand-written profile carries none of the checked/declared labels the wizard writes since `F53`, so its reader cannot tell a verified control from a declared one (pass-2 §7) | low | Closed — `ACT-059`, 2026-09-02, approved by the maintainer (`H13`); see the body |
 | F111 | The reviewer holds the narrative docstrings and the size of the governance apparatus to be a maintenance risk and disproportionate for a CLI tool (pass-2 §9) | low | Open — a judgement for the maintainer (`H13`); the practice is `S1`'s, stated |
@@ -1568,7 +1568,7 @@ name a gate. Two records of one deferral is two places for them to disagree. **R
 
 ## F108 — The wizard writes `notes: Blocking.` under the adopter's scanner without asking or verifying it (pass-2 MIN-02)
 
-**Severity: low. Open.**
+**Severity: low. Closed.**
 
 Recorded on 2026-09-02 from the second cross-provider adversarial review (`audit/CROSS_PROVIDER_REVIEW_2026-09-02_PASS2.md`, `H3`, run by the maintainer with the curated prompt and reproduced verbatim there; provider and model as the maintainer states), assessed in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z) against the code and this repository's profile.
 
@@ -1578,6 +1578,8 @@ computed, "the framework's own note". The reviewer is right that it is a stateme
 adopter's scanner, not about the framework: `SP047` checks that the step can fail the build, but
 the note is written before that check runs. **Remedy proposed (`H13`):** omit the note (the schema
 does not require it) and let `SP047` say what it verified.
+
+**Closed by `ACT-059`, 2026-09-02, the maintainer having chosen to omit the note (`H13`).** The builders write a scanner with a name and where it runs, and nothing else; the renderer prints a note only where a profile already carries one; the provenance allow-list admits no framework prose beyond the gate definitions. Regression: `tests/test_adopt.py::test_the_tool_writes_no_note_about_the_adopters_scanner`, seen to fail first. The matrix report regenerated: one `computed` origin fewer per case, nothing else.
 
 ## F107 — The template test treats a profile as the untouched template when any one identifying scalar is still `replace-me`, so a half-completed profile can be overwritten (pass-2 MIN-01)
 

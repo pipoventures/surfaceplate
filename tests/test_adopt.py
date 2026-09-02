@@ -1543,6 +1543,21 @@ def test_a_half_completed_profile_is_not_the_template(tmp: Path) -> None:
     check("so the wizard refuses rather than overwriting it", ran == "refused" and target.read_text(encoding="utf-8") == before)
 
 
+def test_the_tool_writes_no_note_about_the_adopters_scanner(tmp: Path) -> None:
+    """`F108` (pass-2 MIN-02). The wizard wrote `notes: Blocking.` under every profile's scanner
+    without asking or checking; whether the step can fail the build is `SP047`'s to establish. The
+    line is gone, and with it the one sentence of framework prose the provenance allow-list admitted
+    beyond the gate definitions."""
+    from surfaceplate.adopt import sections
+
+    repo = make_installed_repo(tmp, "no-scanner-note-repo")
+    seed_referenced_files(repo)
+    written = wizard.run(repo, ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS)))
+    scanner = yaml.safe_load(written.read_text(encoding="utf-8"))["baseline_controls"]["secret_hygiene"]["scanner"]
+    check("the written scanner carries a name and where it runs, and no note the tool made up", set(scanner) == {"name", "wired_in"}, str(sorted(scanner)))
+    check("sections.py no longer defines a scanner note", not hasattr(sections, "SCANNER_NOTES"))
+
+
 def test_a_full_run_choosing_every_create_it_row_passes_the_checker(tmp: Path) -> None:
     """`DR-55`. On a bare repository at `full`, every seedable gate's artefact and every
     record-directory control's reference open with "create it"; a run choosing every one writes
@@ -2317,6 +2332,7 @@ def main() -> int:
         test_propose_does_not_demand_rationales_for_controls_nobody_declared(tmp)
         test_adopt_edit_applies_the_fields_own_validator(tmp)
         test_a_half_completed_profile_is_not_the_template(tmp)
+        test_the_tool_writes_no_note_about_the_adopters_scanner(tmp)
 
         print("\nDR-47: proposing writes what typing writes; the budget, measured")
         test_proposing_writes_the_same_profile_as_typing_the_same_values(tmp)

@@ -73,7 +73,6 @@ _CONSTANT = {
     "adoption.framework_digest": Origin(FACT, "read from .standards/INSTALL.json"),
     "adoption.adoption_date": Origin(FACT, "the date adopt wrote this profile"),
     "adoption.deferrals": Origin(COMPUTED, "nothing can be deferred through the wizard"),
-    "baseline_controls.secret_hygiene.scanner.notes": Origin(COMPUTED, "the framework's own note"),
     "exclusions": Origin(COMPUTED, "nothing is excluded through the wizard"),
 }
 

@@ -140,7 +140,6 @@ def allow_list() -> set[str]:
     """
     allowed = {
         sections.SCHEMA_VERSION,  # "1.0"
-        sections.SCANNER_NOTES,  # "Blocking."
         sections.DECISION_REQUIRED,  # "required"
         FRAMEWORK_VERSION,  # both read from .standards/INSTALL.json, never from an answer
         FRAMEWORK_DIGEST,
@@ -150,7 +149,7 @@ def allow_list() -> set[str]:
     allowed |= set(catalogue.CONFORMANCE_LEVELS["full"])  # a control's own id
     allowed |= {"required", "deferred", "not_applicable"}  # gate statuses
     allowed |= _all_choice_values()  # every value a dropdown can take
-    # `ACT-032`. The ONLY prose this list has ever admitted beyond `SCANNER_NOTES`, and the entries
+    # `ACT-032`. The ONLY prose this list admits (`F108` removed the scanner note it once carried), and the entries
     # are taken from the catalogue rather than restated, so nothing can be added here by editing
     # this file. Each is the framework's own one-line definition of a gate, published in
     # `core/PREREQUISITE_GATES.md` and read out of the checker by `catalogue.py` - a fact about the
@@ -200,7 +199,7 @@ def test_allow_list_is_small_and_declared() -> None:
     # The two admitted sources of prose, named exactly. `GATE_CATALOGUE.values()` is compared
     # against the catalogue itself, so this exemption cannot be widened by adding a string here -
     # a new sentence must first be a gate definition in `core/PREREQUISITE_GATES.md`.
-    admitted = {sections.SCANNER_NOTES} | set(catalogue.GATE_CATALOGUE.values())
+    admitted = set(catalogue.GATE_CATALOGUE.values())
     prose = [value for value in allow_list() if " " in value and value not in admitted]
     check(
         "no free prose entered the allow-list unnoticed",
