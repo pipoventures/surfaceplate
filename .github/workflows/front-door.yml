@@ -1,0 +1,30 @@
+name: Front door
+
+# `F70` / `DR-49` (6): every command the README and INSTALL.md document, run as a stranger would -
+# a clean container, the package installed from this checkout, and a GLOBAL core.hooksPath, the
+# case that stopped the review's stranger install at its first command. The script is
+# scripts/front_door.sh so the same file can be run by hand; this job only supplies the clean
+# machine. It is not one of the standard-self-check suites: it exercises the documented front
+# door, not the contracts.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stranger:
+    name: Documented commands on a clean machine
+    runs-on: ubuntu-latest
+    container:
+      image: python:3.12-slim
+    steps:
+      - name: Install git
+        run: apt-get update -qq && apt-get install -y -qq git >/dev/null
+      - uses: actions/checkout@v4
+      - name: Run every documented command with a global core.hooksPath
+        run: sh scripts/front_door.sh .
