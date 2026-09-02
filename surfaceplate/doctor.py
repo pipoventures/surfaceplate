@@ -130,6 +130,35 @@ def check_vendored_digest(repo: Path) -> Line:
     return Line(FAIL, "vendored digest", f"the vendored manifest hashes to {actual[:12]}… but the record says {expected[:12]}…; re-run the installer")
 
 
+def check_tool_matches_install(repo: Path) -> Line:
+    """`F78` / `DR-51` (1): the vendored-digest line above compares the install with its own
+    record and passes on an install older than this tool. This compares the install with the
+    tool, which is the state that stopped the maintainer's first run at the review."""
+    from surfaceplate import about, install_standard
+
+    record_path = repo / ".standards" / "INSTALL.json"
+    if not record_path.is_file():
+        return Line(SKIP, "tool vs installed", f"{repo} has no .standards/INSTALL.json; not installed here")
+    try:
+        import json
+
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return Line(FAIL, "tool vs installed", f"the install record is unreadable: {exc}")
+    installed = str(record.get("framework_digest", ""))
+    installed_version = str(record.get("standard_version", "") or "unknown")
+    if installed == about.anchor():
+        return Line(OK, "tool vs installed", f"both {about.version()} ({about.short(installed)}); adopt and check agree on the schema")
+    hooks_declined = install_standard.HOOK_TARGET not in (record.get("files") or {})
+    return Line(
+        FAIL,
+        "tool vs installed",
+        f"installed {installed_version} ({about.short(installed)}) but this tool is {about.version()} "
+        f"({about.short(about.anchor())}); adopt will refuse until the install is upgraded: "
+        f"{about.upgrade_command(repo, no_hooks=hooks_declined)}",
+    )
+
+
 def check_actions_enabled(repo: Path, online: bool) -> Line:
     if not online:
         return Line(SKIP, "GitHub Actions enabled", "skipped (offline); run with --online and GITHUB_TOKEN set")
@@ -178,6 +207,7 @@ def diagnose(repo: Path, *, online: bool) -> list[Line]:
     lines.append(check_terminal())
     lines.append(check_venv_on_path())
     lines.append(check_vendored_digest(repo))
+    lines.append(check_tool_matches_install(repo))
     lines.append(check_actions_enabled(repo, online))
     return lines
 

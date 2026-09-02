@@ -1139,6 +1139,58 @@ def test_quitting_at_the_resume_prompt_keeps_the_draft(tmp: Path) -> None:
           not draft.is_file() and len(second.resume_offers) == 1)
 
 
+def test_refuses_when_the_tool_and_the_install_differ(tmp: Path) -> None:
+    """`F78` / `DR-51` (1). The maintainer's run validated against the schema installed in
+    Plutos, which predated the tool, and refused at the review in the validator's words. The
+    comparison belongs before the first question: the tool's framework anchor against the
+    install record's, both named, the upgrade command given, and nothing asked."""
+    from surfaceplate import about
+
+    repo = make_installed_repo(tmp, "mismatch-repo")
+    seed_referenced_files(repo)
+    record_path = repo / wizard.INSTALL_RECORD
+    record = json.loads(record_path.read_text(encoding="utf-8"))
+    check("precondition: a fresh install matches the tool", record["framework_digest"] == about.anchor())
+    record["framework_digest"] = "0" * 64
+    record_path.write_text(json.dumps(record, indent=2), encoding="utf-8")
+
+    interview = ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS))
+    try:
+        wizard.run(repo, interview)
+        outcome = "ran"
+    except wizard.InstallMismatch as exc:
+        outcome = str(exc)
+    check("adopt refuses before asking anything", outcome != "ran" and not interview.stages, outcome[:120])
+    check("the refusal names both digests", "000000000000" in outcome and about.anchor()[:12] in outcome, outcome[:200])
+    check("and the upgrade command", "surfaceplate install" in outcome and "--target" in outcome and "--no-hooks" in outcome, outcome)
+    try:
+        wizard.propose(repo, level="essential")
+        proposed = "wrote"
+    except wizard.InstallMismatch:
+        proposed = "refused"
+    check("--propose refuses the same way", proposed == "refused" and not (repo / wizard.ANSWERS_PATH).exists())
+
+    record["framework_digest"] = about.anchor()
+    record_path.write_text(json.dumps(record, indent=2), encoding="utf-8")
+    wizard.run(repo, ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS)))
+    check("restored, the same run completes", (repo / wizard.PROFILE_PATH).is_file())
+
+
+def test_package_metadata_agrees_with_pyproject() -> None:
+    """`DR-51` (2): the opening screen shows the tool's name, version, licence and publisher
+    from one module, and that module is held to `pyproject.toml` here so it cannot drift."""
+    import tomllib
+
+    from surfaceplate import about
+
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+    check("about.version() is pyproject's version", about.version() == project["version"], about.version())
+    check("about.LICENCE is pyproject's license", about.LICENCE == project["license"], about.LICENCE)
+    check("about.PUBLISHER is pyproject's author", about.PUBLISHER in [a.get("name") for a in project.get("authors", [])], about.PUBLISHER)
+    check("about.NAME is the package name, capitalised", about.NAME.lower() == project["name"], about.NAME)
+    check("about.anchor() is the anchor the installer records", about.anchor() == wizard.install_standard.framework_anchor(about.PACKAGE_DIR))
+
+
 def test_refuses_without_install(tmp: Path) -> None:
     repo = tmp / "no-install-repo"
     repo.mkdir()
@@ -1695,6 +1747,8 @@ def main() -> int:
         test_the_draft_lives_under_standards_and_an_old_one_is_migrated(tmp)
 
         print("\nrefusals, and the guarantee itself")
+        test_refuses_when_the_tool_and_the_install_differ(tmp)
+        test_package_metadata_agrees_with_pyproject()
         test_refuses_without_install(tmp)
         test_refuses_to_overwrite_a_real_profile(tmp)
         test_a_real_profile_that_mentions_the_token_is_not_the_template(tmp)

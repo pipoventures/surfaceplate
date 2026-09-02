@@ -132,7 +132,7 @@ def _cmd_adopt(argv: list[str]) -> int:
     except wizard.NotInstalled as exc:
         print(f"\n{exc}")
         return 2
-    except (wizard.AlreadyAdopted, wizard.NeedsHuman) as exc:
+    except (wizard.AlreadyAdopted, wizard.NeedsHuman, wizard.InstallMismatch) as exc:
         print(f"\n{exc}")
         return 1
     except wizard.WriteRefused as exc:

@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from surfaceplate import about, install_standard
 from surfaceplate.adopt import flow as _flow
 from surfaceplate.adopt import provenance, render, scaffold, sections
 from surfaceplate.adopt.interview import DRAFT_FORMAT, Cancelled, DraftInfo, Interview
@@ -101,6 +102,34 @@ class NotInstalled(Exception):
 
 class AlreadyAdopted(Exception):
     """A real (non-template) profile already exists - `adopt` will not overwrite it silently."""
+
+
+class InstallMismatch(Exception):
+    """The installed copy of the standard is not the one this tool ships (`F78`, `DR-51` (1)).
+
+    The wizard validates against the schema installed in the repository, because that is the copy
+    the repository's own checker reads; a profile written by a newer tool against an older install
+    fails at the review in the validator's words. So the comparison is made before the first
+    question, and the message carries the command that resolves it.
+    """
+
+    def __init__(self, repo: Path, record: dict) -> None:
+        installed_version = str(record.get("standard_version", "") or "unknown")
+        installed_anchor = str(record.get("framework_digest", "") or "")
+        hooks_declined = install_standard.HOOK_TARGET not in (record.get("files") or {})
+        self.command = about.upgrade_command(repo, no_hooks=hooks_declined)
+        super().__init__(
+            f"{repo.name} has {about.NAME} {installed_version} ({about.short(installed_anchor)}) "
+            f"installed; this tool is {about.version()} ({about.short(about.anchor())}). "
+            "Upgrade the installation first, so the profile this tool writes matches the checker "
+            f"that will read it:\n\n    {self.command}\n\n"
+            "Nothing was asked and nothing was written."
+        )
+
+
+def _refuse_if_mismatched(repo: Path, record: dict) -> None:
+    if str(record.get("framework_digest", "")) != about.anchor():
+        raise InstallMismatch(repo, record)
 
 
 class NeedsHuman(Exception):
@@ -375,11 +404,12 @@ def assemble(state: dict, record: dict) -> dict:
 
 def run(repo: Path, interview: Interview) -> Path:
     """Runs the whole wizard. Returns the path written. Raises `Cancelled`, `NotInstalled`,
-    `AlreadyAdopted`, or `WriteRefused` - every one of them leaves the repository untouched, except
+    `AlreadyAdopted`, `InstallMismatch` or `WriteRefused` - every one of them leaves the repository untouched, except
     that `Cancelled` (and any other failure) may leave a resumable draft behind - see
     `_save_draft`. A completed write clears it (below)."""
     _refuse_if_already_adopted(repo)
     record = _read_install_record(repo)
+    _refuse_if_mismatched(repo, record)
 
     draft = _resume_or_start(repo, record, interview)
     flow = _flow.Flow(
@@ -462,6 +492,7 @@ def propose(repo: Path, *, level: str | None = None) -> Proposed:
     from surfaceplate.adopt import provenance, scaffold
 
     record = _read_install_record(repo)
+    _refuse_if_mismatched(repo, record)
     flow = _flow.Flow(repo, record)
     answers: dict[str, object] = {}
     notes: dict[str, str] = {}

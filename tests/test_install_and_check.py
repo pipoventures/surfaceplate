@@ -576,6 +576,30 @@ def test_exit_codes_and_formats(tmp: Path) -> None:
     check("adopt without a terminal exits 3 and names --propose", piped.returncode == 3 and "--propose" in piped.stderr, f"rc={piped.returncode} {piped.stderr[-200:]}")
 
 
+def test_doctor_reports_a_tool_that_differs_from_the_install(tmp: Path) -> None:
+    """`F78` / `DR-51` (1): `doctor` compared the vendored copy with its own record and passed
+    on exactly the state that stopped the maintainer's run. It now compares the tool with the
+    install as well, and names the upgrade command."""
+    import json
+
+    from surfaceplate import about, doctor
+
+    repo = make_repo(tmp, "doctor-mismatch")
+    install(repo, "--no-hooks")
+    line = doctor.check_tool_matches_install(repo)
+    check("doctor: a fresh install matches the tool", line.status == doctor.OK, line.render())
+    record_path = repo / ".standards" / "INSTALL.json"
+    record = json.loads(record_path.read_text(encoding="utf-8"))
+    record["framework_digest"] = "1" * 64
+    record_path.write_text(json.dumps(record, indent=2), encoding="utf-8")
+    line = doctor.check_tool_matches_install(repo)
+    check("doctor: a differing install is a FAIL line", line.status == doctor.FAIL, line.render())
+    check("that names both digests and the upgrade command",
+          "111111111111" in line.detail and about.anchor()[:12] in line.detail and "surfaceplate install" in line.detail, line.detail)
+    lines = doctor.diagnose(repo, online=False)
+    check("and the line is part of diagnose()", any(l.name == "tool vs installed" for l in lines))
+
+
 def test_doctor_reports_the_facts_that_stopped_the_stranger_install(tmp: Path) -> None:
     """`DR-49` (4). `surfaceplate doctor`, offline by default: Python and pip, `core.hooksPath` at
     every scope, whether a terminal is attached, whether the virtualenv is on PATH, the vendored
@@ -639,6 +663,7 @@ def main() -> int:
         print("\nDR-49: exit codes and output formats")
         test_exit_codes_and_formats(tmp)
         test_doctor_reports_the_facts_that_stopped_the_stranger_install(tmp)
+        test_doctor_reports_a_tool_that_differs_from_the_install(tmp)
 
         print("\nevery agent receives the skills (F58)")
         test_every_agent_receives_the_skills(tmp)
