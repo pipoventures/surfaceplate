@@ -30,7 +30,10 @@ def version() -> str:
 def anchor() -> str:
     """The framework anchor of this tool's own payload: what `install` records as
     `framework_digest`, computed the same way (`install_standard.framework_anchor`)."""
-    from surfaceplate import install_standard
+    try:
+        from surfaceplate import install_standard
+    except ImportError:  # imported flat, with the payload directory itself on the path (CI)
+        import install_standard  # type: ignore[no-redef]
 
     return install_standard.framework_anchor(PACKAGE_DIR) or ""
 

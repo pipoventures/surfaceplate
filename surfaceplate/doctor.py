@@ -134,7 +134,11 @@ def check_tool_matches_install(repo: Path) -> Line:
     """`F78` / `DR-51` (1): the vendored-digest line above compares the install with its own
     record and passes on an install older than this tool. This compares the install with the
     tool, which is the state that stopped the maintainer's first run at the review."""
-    from surfaceplate import about, install_standard
+    try:
+        from surfaceplate import about, install_standard
+    except ImportError:  # imported flat, with the payload directory itself on the path (CI)
+        import about  # type: ignore[no-redef]
+        import install_standard  # type: ignore[no-redef]
 
     record_path = repo / ".standards" / "INSTALL.json"
     if not record_path.is_file():

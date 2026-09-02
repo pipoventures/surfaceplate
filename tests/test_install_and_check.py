@@ -581,10 +581,9 @@ def test_the_closing_report_states_the_checkers_verdict_as_given(tmp: Path) -> N
     under a WARN with two findings, because exit code 0 covers both a pass and a graced WARN.
     The sentence is now read from the report: a pass, or the count of graced findings and the
     date the grace ends."""
-    import datetime as _dt
+    import cli  # flat, like every payload module this suite imports (PAYLOAD is on sys.path)
 
-    from surfaceplate import check_conformance, cli
-
+    check_conformance = _checker
     repo = make_repo(tmp, "verdict-repo")
     install(repo, "--no-hooks")
     report = check_conformance.evaluate(repo, _dt.date.today(), False, False)
@@ -603,9 +602,8 @@ def test_doctor_reports_a_tool_that_differs_from_the_install(tmp: Path) -> None:
     """`F78` / `DR-51` (1): `doctor` compared the vendored copy with its own record and passed
     on exactly the state that stopped the maintainer's run. It now compares the tool with the
     install as well, and names the upgrade command."""
-    import json
-
-    from surfaceplate import about, doctor
+    import about  # flat, like every payload module this suite imports
+    import doctor
 
     repo = make_repo(tmp, "doctor-mismatch")
     install(repo, "--no-hooks")
