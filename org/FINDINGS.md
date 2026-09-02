@@ -168,7 +168,7 @@ an unknown number of releases with nothing noticing.
 | F100 | `--edit` applied no field validator, so an artefact edited to an untracked path was written and failed `SP032` on the next run | medium | Closed — `ACT-057`; see the body |
 | F101 | A run that fails after the scaffold has written its seeds leaves them on disk and reports them rather than removing them (pass-2 CRIT-01) | medium | Closed — `ACT-059`, 2026-09-02, the maintainer having chosen the rollback (`H13`); see the body |
 | F102 | A seed satisfies `SP032` on the day it is written, so a repository can pass every seeded gate with no practice behind it (pass-2 CRIT-02; the risk `DR-43` states) | medium | Open — a decision (`H13`): the reviewer's remedy contradicts `DR-43`; an advisory for seed-identical artefacts is the alternative |
-| F103 | `--answers` writes every proposal the human left standing, so a record completed by filling only the needs-human lines carries the framework's example rationales under the adopter's name (pass-2 MAT-01) | medium | Open — a decision (`H13`): `DR-49` designed it so; an explicit acceptance line is the alternative |
+| F103 | `--answers` writes every proposal the human left standing, so a record completed by filling only the needs-human lines carries the framework's example rationales under the adopter's name (pass-2 MAT-01) | medium | Closed — `ACT-059`, 2026-09-03, the maintainer having chosen the acceptance line (`H13`); see the body |
 | F104 | The schema's `effective_from` pattern admits impossible dates and a fraction without seconds; the checker rejects them, so the pattern documents a form it does not enforce (pass-2 MAT-02) | low | Open — the pattern is a public contract; tightening it is a decision (`H13`). The same-day trap the reviewer describes is `F92`, kept by `DR-60` |
 | F105 | `adoption_status: complete` needs no rationale and no evidence reference to validate (pass-2 MAT-03) | low | Open — a schema decision (`H13`) |
 | F106 | This repository's own profile declares `agent_work_packets` required as a practice while deferring `work_contract` because the packets are not committed: two rationales that contradict each other (pass-2 MAT-04) | medium | Closed — `ACT-059`, 2026-09-02, approved by the maintainer (`H13`); see the body |
@@ -178,6 +178,7 @@ an unknown number of releases with nothing noticing.
 | F110 | This repository's own hand-written profile carries none of the checked/declared labels the wizard writes since `F53`, so its reader cannot tell a verified control from a declared one (pass-2 §7) | low | Closed — `ACT-059`, 2026-09-02, approved by the maintainer (`H13`); see the body |
 | F111 | The reviewer holds the narrative docstrings and the size of the governance apparatus to be a maintenance risk and disproportionate for a CLI tool (pass-2 §9) | low | Open — a judgement for the maintainer (`H13`); the practice is `S1`'s, stated |
 | F112 | The matrix's `advanced` case compared two profiles assembled seconds apart without normalising the scaffolded instant, and failed on the runner once | low | Closed — `ACT-057` follow-up, 2026-09-02; see the body |
+| F113 | A validator check built "today at midnight UTC" and expected it to be in the past, which is false for the first hour of the day on a UTC+1 machine (the `F48` shape) | low | Closed — `ACT-059`, 2026-09-03; see the body |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1509,6 +1510,21 @@ field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
 
+## F113 — A validator check built "today at midnight UTC" and expected it to be in the past, which is false for the first hour of the day on a UTC+1 machine (the `F48` shape)
+
+**Severity: low. Closed.**
+
+Recorded on 2026-09-03 in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z), found when the clock crossed midnight during
+`ACT-059`: `tests/test_adopt.py::test_validators_refuse_what_the_checker_rejects` accepted
+`effective_from` as `<today>T00:00:00+00:00` and expected the validator to accept it; at 00:20 BST
+that instant is forty minutes in the future, and the validator was right to refuse it. `F48` found
+the same shape in the checker; this is the same shape in a test, which is where `S1`'s habit of
+checking a claim about time against the clock it runs on applies. Low: one check, one hour a day,
+one timezone.
+
+**Closed 2026-09-03.** The check uses an instant one minute in the past, in the local offset,
+which is in the past wherever and whenever it runs. Seen to fail first, by the clock.
+
 ## F112 — The matrix's `advanced` case compared two profiles assembled seconds apart without normalising the scaffolded instant, and failed on the runner once
 
 **Severity: low. Closed.**
@@ -1651,7 +1667,7 @@ and the wizard proposes the adoption date so that a human can only widen the win
 
 ## F103 — `--answers` writes every proposal the human left standing, so a record completed by filling only the needs-human lines carries the framework's example rationales under the adopter's name (pass-2 MAT-01)
 
-**Severity: medium. Open.**
+**Severity: medium. Closed.**
 
 Recorded on 2026-09-02 from the second cross-provider adversarial review (`audit/CROSS_PROVIDER_REVIEW_2026-09-02_PASS2.md`, `H3`, run by the maintainer with the curated prompt and reproduced verbatim there; provider and model as the maintainer states), assessed in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z) against the code and this repository's profile.
 
@@ -1662,6 +1678,8 @@ or `computed`, never as typed, so the profile does not claim the adopter wrote t
 point is that a record needs no acknowledgement that the proposals were read. **Alternative
 (`H13`):** one line in the record, `accept_proposals: needs-human`, that must be set to `yes` before
 replay writes - one human act for the document, as the review's approval is.
+
+**Closed by `ACT-059`, 2026-09-03, the maintainer having chosen the acceptance line (`H13`).** The answers record carries `accept_proposals: needs-human`, the header says what setting it to yes means, and `replay` refuses until it is set - one act for the document, as the review's approval is. Regression: `tests/test_adopt.py::test_replay_writes_nothing_until_the_proposals_are_accepted_as_one_act`, seen to fail first; the matrix's nine propose-and-replay cases each assert the refusal before acceptance.
 
 ## F102 — A seed satisfies `SP032` on the day it is written, so a repository can pass every seeded gate with no practice behind it (pass-2 CRIT-02; the risk `DR-43` states)
 

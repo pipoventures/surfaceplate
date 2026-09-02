@@ -1003,6 +1003,15 @@ def _run_propose_replay(case: Case, o: Outcome, repo: Path, built: dict, work: P
             record["answers"][key] = value
     completed = repo / "governance" / "answers-completed.yaml"
     completed.write_text(yaml.safe_dump(record, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    # `F103`: every line filled, the proposals not yet accepted as one act: refused by name.
+    try:
+        wizard.replay(repo, completed)
+        refused = "wrote"
+    except wizard.NeedsHuman as exc:
+        refused = str(exc)
+    o.check("a completed record is refused until the proposals are accepted as one act", refused != "wrote" and "accept_proposals" in refused, refused[:160])
+    record["accept_proposals"] = "yes"
+    completed.write_text(yaml.safe_dump(record, sort_keys=False, allow_unicode=True), encoding="utf-8")
     written = wizard.replay(repo, completed)
     completed.unlink()
     (repo / wizard.PROPOSED_PATH).unlink()
@@ -1050,6 +1059,7 @@ def _run_propose_ui_refused(case: Case, o: Outcome, repo: Path) -> None:
         if value == wizard.NEEDS_HUMAN:
             record["answers"][key] = s.answers.get(key, "not_applicable" if key.endswith(".status") else "yes" if key == "create_missing_artefacts" else "x")
     record["answers"]["stack.builds_user_interface"] = "yes"
+    record["accept_proposals"] = "yes"  # `F103`
     completed = repo / "governance" / "answers-completed.yaml"
     completed.write_text(yaml.safe_dump(record, sort_keys=False), encoding="utf-8")
     expect_refusal = case.level != "essential" and case.shape == "bare"
