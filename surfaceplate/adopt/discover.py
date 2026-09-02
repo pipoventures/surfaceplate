@@ -266,16 +266,28 @@ def matched_for_gate(
 
 
 def candidate_artefacts(repo: Path) -> list[str]:
-    """Files that could serve as a gate's precondition artefact - the adopter's own, all of them,
-    ranked; the field at hand cuts the list after ranking it for its gate."""
-    out = []
-    for path in _adopters_own(repo):
-        if not path.endswith(_ARTEFACT_SUFFIXES):
-            continue
-        head = path.split("/")[0]
-        if head in _ARTEFACT_DIRS or "/" not in path:
-            out.append(path)
+    """Files that could serve as an artefact - every tracked Markdown or YAML file of the adopter's
+    own, ranked; the field at hand cuts the list after ranking it for its gate or control.
+
+    `F88` / `DR-54` (2): this offered only files under a fixed list of directories, so a findings
+    register at `org/FINDINGS.md` was never offered. Ranking, not the list, now does the work:
+    `_adopter_first` puts the governance directories first, root documents next, the rest after.
+    """
+    out = [
+        p for p in _adopters_own(repo)
+        if p.endswith(_ARTEFACT_SUFFIXES) and not any(p.startswith(d + "/") for d in _CI_DIRS)
+    ]  # a workflow is CI, offered as such elsewhere, never as a governance artefact
     return _dedupe(_adopter_first(out))
+
+
+def free_seeds(repo: Path) -> tuple[dict[str, str], dict[str, str]]:
+    """`(by gate, by control)`: the seeds whose path is free in this repository, so a field can open
+    with "create it" (`DR-54` (1)). Read here, once, so `plan.py` needs no repository."""
+    from surfaceplate.adopt import scaffold
+
+    gates = {g: path for g, (path, _s, _w) in scaffold.SEEDABLE.items() if not scaffold._occupied(repo / path)}
+    controls = {c: path for c, (path, _s, _w) in scaffold.SEEDABLE_CONTROLS.items() if not scaffold._occupied(repo / path)}
+    return gates, controls
 
 
 def candidate_register_dirs(repo: Path) -> list[str]:
@@ -494,10 +506,14 @@ class Discovered:
     # (the adopter chooses from everything found) and are never proposed.
     scanner_workflows: tuple[str, ...] = ()
     rejected: dict[str, str] = None  # type: ignore[assignment]
+    # `DR-54` (1): seeds whose path is free here, by gate id and by control id.
+    free_seeds: dict[str, str] = None  # type: ignore[assignment]
+    free_control_seeds: dict[str, str] = None  # type: ignore[assignment]
 
     def __post_init__(self) -> None:
-        if self.rejected is None:
-            object.__setattr__(self, "rejected", {})
+        for name in ("rejected", "free_seeds", "free_control_seeds"):
+            if getattr(self, name) is None:
+                object.__setattr__(self, name, {})
 
     def is_empty(self) -> bool:
         """True when nothing of the adopter's could be read - a tree git cannot answer for, or one
@@ -516,6 +532,7 @@ DEFAULT_SCANNER = "gitleaks"
 def scan(repo: Path, scanner: str = DEFAULT_SCANNER) -> Discovered:
     """Read the repository once. Cheap enough to do at startup; nothing here writes."""
     artefacts = tuple(candidate_artefacts(repo))
+    seeds_by_gate, seeds_by_control = free_seeds(repo)
     rejected = {}
     for rel in artefacts:
         problem = content_problem(repo / rel)
@@ -529,4 +546,6 @@ def scan(repo: Path, scanner: str = DEFAULT_SCANNER) -> Discovered:
         ci_steps=tuple(candidate_ci_steps(repo)),
         scanner_workflows=tuple(scanner_workflows(repo, scanner)),
         rejected=rejected,
+        free_seeds=seeds_by_gate,
+        free_control_seeds=seeds_by_control,
     )

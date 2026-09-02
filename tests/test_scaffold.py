@@ -493,6 +493,31 @@ def test_only_honestly_seedable_gates_are_offered(tmp: Path) -> None:
     )
 
 
+def test_a_control_can_be_seeded_and_the_seed_is_true_on_creation(tmp: Path) -> None:
+    """`F88` / `DR-54` (3). `assurance_findings` has a seed: a findings register that holds no
+    findings and says so. Offered only where its path is free, written like any seed, and free
+    of the placeholder tokens the checker rejects."""
+    import subprocess
+
+    from surfaceplate import rules
+
+    repo = tmp / "control-seed-repo"
+    repo.mkdir()
+    for args in (["init", "-q"], ["config", "user.email", "h@example.invalid"], ["config", "user.name", "H"], ["config", "commit.gpgsign", "false"]):
+        subprocess.run(["git", "-C", str(repo), *args], check=True)
+    path, seed, why = scaffold.SEEDABLE_CONTROLS["assurance_findings"]
+    check("the seed's path is docs/FINDINGS.md", path == "docs/FINDINGS.md", path)
+    offers = scaffold.offers_for_controls(repo, ["assurance_findings", "dependency_lock"])
+    check("only the control with a seed is offered", [o.control_id for o in offers] == ["assurance_findings"], str(offers))
+    written, problems = scaffold.write(repo, offers)
+    check("the seed is written", written == [repo / path] and not problems, f"{written} {problems}")
+    text = (repo / path).read_text(encoding="utf-8")
+    check("it carries no placeholder token", not rules.PLACEHOLDER_PATTERN.search(text))
+    check("and says that it holds no findings yet", "no findings" in text.lower() or "none" in text.lower(), text[:200])
+    (repo / path).write_text("# mine\n", encoding="utf-8")
+    check("an occupied path is not offered", scaffold.offers_for_controls(repo, ["assurance_findings"]) == [])
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory() as tmp_str:
         tmp = Path(tmp_str)
@@ -504,6 +529,7 @@ def main() -> int:
         print("\nand only where something true can be created")
         test_only_honestly_seedable_gates_are_offered(tmp / "d")
         test_only_gates_the_profile_will_require_are_offered()
+        test_a_control_can_be_seeded_and_the_seed_is_true_on_creation(tmp)
 
         print("\nand the ways an offer could go wrong (adversarial review)")
         test_a_dangling_symlink_is_not_an_empty_slot(tmp / "f")

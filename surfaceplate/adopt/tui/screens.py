@@ -334,7 +334,10 @@ def help_text_for(spec: plan.FieldSpec, value: object, repo, highlighted: str | 
         full = dict(spec.choice_help).get(highlighted)
         if full:
             parts.append(f"{highlighted}: {full}")
-    if spec.context and repo is not None and isinstance(value, str) and value.strip():
+    if spec.seed and isinstance(value, str) and value.strip() == spec.seed:
+        # `DR-54` (1): the "create it" row, described by what the seed contains.
+        parts.append(f"Chosen: create {spec.seed} from the framework's seed. It begins: {scaffold.seed_preview(spec.seed)}")
+    elif spec.context and repo is not None and isinstance(value, str) and value.strip():
         kind, _, detail = spec.context.partition(":")
         if kind == "gate":
             parts.append("Chosen: " + discover.describe(repo, value.strip(), gate_id=detail))
@@ -671,6 +674,8 @@ class FormScreen(_SectionScreenBase):
             if not spec.applies(answers):
                 answers.pop(spec.id, None)
                 continue
+            if spec.seed and str(answers.get(spec.id) or "").strip() == spec.seed and self.repo is not None and not (self.repo / spec.seed).exists():
+                continue  # `DR-54` (1): the "create it" row; the offer follows this form
             problem = validators.check(spec.validate, answers.get(spec.id, ""), repo=self.repo)
             # `F64`: a choice field carries no text validator, and an unpressed radio set reads
             # as `None`, so `mode: None` committed and the run died three screens later. A
@@ -1037,14 +1042,17 @@ class GatesScreen(_SectionScreenBase):
         return answers.get(f"{spec.id}.status")  # type: ignore[return-value]
 
     def _may_be_scaffolded(self, spec: plan.GateSpec, field_spec: plan.FieldSpec, value: object) -> bool:
-        """A blank artefact on a gate this wizard can create one for is not a refusal: the
-        scaffold offer follows this screen, and the review refuses to write if it is declined.
-        `ACT-033` offered the artefact; the screen it followed never let the field be blank."""
-        if field_spec.id != "artefact" or (value is not None and str(value).strip()):
+        """The "create it" row chosen, or a blank, on a gate this wizard can create the artefact
+        for, is not a refusal: the scaffold offer follows this screen, and the review refuses to
+        write if it is declined. `ACT-033` offered the artefact; the screen it followed never let
+        the field be blank; `DR-54` (1) made the row explicit."""
+        if field_spec.id != "artefact" or spec.id not in scaffold.SEEDABLE or self.repo is None:
             return False
-        if spec.id not in scaffold.SEEDABLE or self.repo is None:
+        seed_path = scaffold.SEEDABLE[spec.id][0]
+        chosen = str(value).strip() if value is not None else ""
+        if chosen and chosen != seed_path:
             return False
-        return not (self.repo / scaffold.SEEDABLE[spec.id][0]).exists()
+        return not (self.repo / seed_path).exists()
 
     def _gate_is_complete(self, spec: plan.GateSpec, answers: dict) -> bool:
         """A gate is finished when it has a status AND every field that status calls for validates.

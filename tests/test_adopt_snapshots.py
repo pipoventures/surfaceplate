@@ -57,6 +57,8 @@ FOUND = plan.discover.Discovered(
     lock_files=("requirements.txt",),
     paths=("src/**", "**"),
     ci_steps=("Run the tests",),
+    # `DR-54` (1): a gate whose seed's path is free opens its dropdown with "create it".
+    free_seeds={"decision_before_implementation": "docs/decisions/decision-log.md"},
 )
 
 

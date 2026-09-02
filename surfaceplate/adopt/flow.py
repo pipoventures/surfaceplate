@@ -324,6 +324,14 @@ class Flow:
                 continue
             needs.append(spec.id)
         offers = scaffold.offers(self.repo, needs)
+        # `DR-54` (3): a control whose reference is its seed's path, chosen on the remainder form.
+        controls = self.state.get("controls") or {}
+        wanted = [
+            control_id for control_id, (path, _s, _w) in scaffold.SEEDABLE_CONTROLS.items()
+            if str(controls.get(f"{control_id}.implementation_reference") or "").strip() == path
+            and not (self.repo / path).exists()
+        ]
+        offers += scaffold.offers_for_controls(self.repo, wanted)
         if "decisions" in self.done and not self._answered("adoption.decision_record_id"):
             if detect.detect_decisions_folder(self.repo) is None:
                 offer = scaffold.decision_record_offer(self.repo)
@@ -334,6 +342,13 @@ class Flow:
     def accept_scaffold(self, accepted: list[scaffold.Offer]) -> None:
         moment = provenance.now_iso()
         for offer in accepted:
+            if offer.control_id:
+                self._set(
+                    f"controls.{offer.control_id}.implementation_reference",
+                    offer.path,
+                    Origin(provenance.SCAFFOLDED, f"created: {offer.path}"),
+                )
+                continue
             if offer.gate_id == scaffold.DECISION_RECORD_GATE:
                 self._set(
                     "adoption.decision_record_id",
@@ -512,6 +527,7 @@ def _dotted(section_name: str, spec: plan.FieldSpec, default: object | None = No
         wrong=spec.wrong,
         context=spec.context,
         choice_help=spec.choice_help,
+        seed=spec.seed,
     )
 
 

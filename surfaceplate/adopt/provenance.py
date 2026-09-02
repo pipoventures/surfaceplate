@@ -266,6 +266,15 @@ def record(
     return out
 
 
+def record_edit(data: dict, path: str, *, reason: str, at: str) -> dict:
+    """The sidecar after a post-write edit (`F86`, `DR-54` (4)): the field's entry becomes typed
+    with the timestamp and the reason, and the edit joins a history the header describes."""
+    fields = data.setdefault("fields", {})
+    fields[path] = {"origin": TYPED, "detail": reason, "typed_at": at}
+    data.setdefault("edits", []).append({"path": path, "at": at, "reason": reason})
+    return data
+
+
 def render_record(data: dict) -> str:
     header = (
         "# Machine-owned. Written by `surfaceplate adopt`; do not edit by hand.\n"
@@ -277,7 +286,9 @@ def render_record(data: dict) -> str:
         "#   computed         derived from an answer already given, or from a fixed rule\n"
         "#   fact of record   a date, a version, a digest\n"
         "#   scaffolded       a file this tool created and therefore knows\n"
-        "# Approval is recorded once, for the whole document, at the review.\n"
+        "# Approval is recorded once, for the whole document, at the review. A line changed after\n"
+        "# the write with `surfaceplate adopt --edit` is typed, with typed_at and the reason given,\n"
+        "# and listed under edits.\n"
         "\n"
     )
     return header + yaml.safe_dump(data, sort_keys=False, allow_unicode=True, width=1000)

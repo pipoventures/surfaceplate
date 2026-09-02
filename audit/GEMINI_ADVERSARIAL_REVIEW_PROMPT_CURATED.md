@@ -27,7 +27,7 @@ file you were not given.
   `sections.py` assembles every value that reaches the profile, `defaults.py` **proposes** values,
   `scaffold.py` **creates files inside the adopting repository**, and `wizard.py` verifies the result
   before anything is written.
-- `surfaceplate/seeds/*` — **the five documents `scaffold.py` actually writes** (the fifth, the adoption decision record, since `ACT-044`). These are included
+- `surfaceplate/seeds/*` — **the six documents `scaffold.py` actually writes** (the fifth, the adoption decision record, since `ACT-044`; the sixth, the findings register, since `ACT-052`). These are included
   because the previous pass of this review asked whether creating an artefact makes a gate pass
   while the practice does not exist, and did **not** attach the artefacts. The reviewer reasonably
   inferred they were empty files. They are not, and the question cannot be answered without reading

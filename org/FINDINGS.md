@@ -151,9 +151,9 @@ an unknown number of releases with nothing noticing.
 | F83 | The scanner workflow is proposed without the checker's own test: discovery offered `ci.yml`, which never mentions gitleaks, while two workflows that run it were not proposed | high | Closed — `ACT-048` (`DR-51` (5)); see the body |
 | F84 | An artefact is proposed on a keyword match with no relevance floor and without the checker's content rules: a work inventory quoting `TODO` and `TBD` was proposed as the authority map | high | Closed — `ACT-048` (`DR-51` (5)); see the body |
 | F85 | The closing report says the checker "passes" on a graced WARN with findings | medium | Closed — `ACT-048` (`DR-51` (6)); see the body |
-| F86 | A hand edit to the profile after the write leaves the provenance record asserting the old origin; nothing records a post-write edit | low | Open — needs a decision; not in `DR-51` |
-| F87 | A seedable artefact is created only when the field is left blank, and nothing says so: the dropdown forces a choice among existing files | medium | Open — recorded at `ACT-050`; needs a decision |
-| F88 | A control's implementation reference offers only files whose names carry fixed words, from fixed directories; a repository with the file elsewhere gets a text box, and one without it has no path to create one | medium | Open — recorded at `ACT-050`; needs a decision |
+| F86 | A hand edit to the profile after the write leaves the provenance record asserting the old origin; nothing records a post-write edit | low | Closed — `ACT-052` (`DR-54`); see the body |
+| F87 | A seedable artefact is created only when the field is left blank, and nothing says so: the dropdown forces a choice among existing files | medium | Closed — `ACT-052` (`DR-54`); see the body |
+| F88 | A control's implementation reference offers only files whose names carry fixed words, from fixed directories; a repository with the file elsewhere gets a text box, and one without it has no path to create one | medium | Closed — `ACT-052` (`DR-54`); see the body |
 | F89 | The opening screen is text only; the maintainer asked for a mark | low | Closed — `ACT-051` (`DR-53`); see the body |
 | F90 | A render test read the screen before the deferred scroll had run, and turned `main` red on the runner while passing locally | low | Closed — `ACT-051`; see the body |
 Closed entries are indexed here and left in their original records; they are not restated.
@@ -1377,7 +1377,7 @@ inferred from the code.
 
 ## F87 — A seedable artefact is created only when the field is left blank, and nothing says so: the dropdown forces a choice among existing files
 
-**Severity: medium. Open.**
+**Severity: medium. Closed.**
 
 Recorded under `ACT-050` from the maintainer's second run of `adopt`, against a scratch copy of Plutos on 2026-09-02, reported in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z). Closes by an activity the maintainer authorises; each changes what is asked, so a decision record precedes it (`DR-47`).
 
@@ -1393,9 +1393,11 @@ the other side. Medium because it produces a wrong artefact on a mandatory gate 
 one from the framework's seed (path)" - recorded as scaffolded exactly as the offer is today, and
 the help saying so; the offer screen then confirms rather than surprises.
 
+**Closed by `ACT-052` (`DR-54`), 2026-09-02.** a field whose artefact has a free seed opens its dropdown with "create it: <path>"; choosing it is recorded as scaffolded exactly as the blank was, the offer screen confirms before the write, and the help says what the seed begins with. The field is a dropdown even with nothing else to pick from. `tests/test_adopt.py::test_the_create_it_row_leads_to_a_scaffold_for_gates_and_controls` and `tests/test_adopt_tui.py::test_choosing_the_create_it_row_commits_without_a_refusal`, seen to fail first; the gate list with the row chosen rendered at 80×24 and read.
+
 ## F88 — A control's implementation reference offers only files whose names carry fixed words, from fixed directories; a repository with the file elsewhere gets a text box, and one without it has no path to create one
 
-**Severity: medium. Open.**
+**Severity: medium. Closed.**
 
 Recorded under `ACT-050` from the maintainer's second run of `adopt`, against a scratch copy of Plutos on 2026-09-02, reported in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z). Closes by an activity the maintainer authorises; each changes what is asked, so a decision record precedes it (`DR-47`).
 
@@ -1412,6 +1414,8 @@ chosen to be held to.
 **Remedy hypothesis:** offer every artefact ranked with the matches first, as the gates do;
 widen the artefact directories or drop the restriction in favour of ranking; a seed for the
 findings register (`assurance_findings`) and the same "create it" choice as `F87`.
+
+**Closed by `ACT-052` (`DR-54`), 2026-09-02.** discovery offers every tracked Markdown or YAML file of the adopter's own, ranked by directory, never a CI workflow; a control's implementation reference offers them all with the name matches first and proposes only from a match (`F40`'s rule); `assurance_findings` gains a seed at `docs/FINDINGS.md` (`seeds/findings-register.md`, no findings and saying so) offered through the same row and written by the same offer. The wider offer surfaced a workflow file being proposed as a findings register, fixed in the same change. `tests/test_discover.py::test_every_artefact_is_offered_and_free_seeds_are_known`, `tests/test_scaffold.py::test_a_control_can_be_seeded_and_the_seed_is_true_on_creation` and the flow test above, seen to fail first.
 
 ## F90 — A render test read the screen before the deferred scroll had run, and turned `main` red on the runner while passing locally
 
@@ -1459,7 +1463,7 @@ the maintainer from alternatives, held by the opening screen's snapshot.
 
 ## F86 — A hand edit to the profile after the write leaves the provenance record asserting the old origin; nothing records a post-write edit
 
-**Severity: low. Open.**
+**Severity: low. Closed.**
 
 Recorded under `ACT-048` from the maintainer's completed `H1` run of `adopt` against Plutos on 2026-09-02, reported in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z). No closing activity yet; it needs a decision of its own.
 
@@ -1473,6 +1477,8 @@ to know what was asked and what was typed, which is the record's only purpose.
 **Remedy hypothesis:** an `adopt --edit <path> <value>` that records the edit as typed with a
 timestamp, or a checker note when the profile is newer than its record. A decision, not
 `DR-51`'s.
+
+**Closed by `ACT-052` (`DR-54`), 2026-09-02.** `surfaceplate adopt --edit <path> <value> [--because <reason>]` changes one line of the written profile through the same renderer and verification as the wizard and records it in the sidecar as typed with a timestamp and the reason, under a history of edits the header now describes; a path the profile lacks is refused with the nearest named, and a line the review marks as not editable is refused. `tests/test_adopt.py::test_adopt_edit_rewrites_one_line_and_records_it` (a scalar, a list element by index, three refusals, the CLI flag, the checker still passing), seen to fail first.
 
 ## F82 — The wizard explains its fields, not the framework: a reader who does not know Surfaceplate cannot adopt it from the wizard alone
 

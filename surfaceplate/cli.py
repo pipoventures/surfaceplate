@@ -75,10 +75,22 @@ def _cmd_adopt(argv: list[str]) -> int:
         metavar="FILE",
         help="Replay a human-completed answers record through the same code as the interface, and write the profile.",
     )
+    parser.add_argument(
+        "--edit",
+        nargs=2,
+        metavar=("PATH", "VALUE"),
+        help="Change one line of the written profile (e.g. owner, or prerequisites[2].owner) and record the edit beside it. Needs no terminal.",
+    )
+    parser.add_argument("--because", metavar="REASON", default="", help="With --edit: why, recorded with the edit.")
     args = parser.parse_args(argv)
     repo = Path(args.target).resolve()
 
     try:
+        if args.edit:
+            path, value = args.edit
+            written = wizard.edit(repo, path, value, because=args.because)
+            print(f"Edited {path} in {written}; the change is recorded beside it as typed, with the reason.")
+            return 0
         if args.propose:
             written = wizard.propose(repo, level=args.level)
             print(f"Proposed: {written.answers}")

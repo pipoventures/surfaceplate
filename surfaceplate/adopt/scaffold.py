@@ -57,6 +57,18 @@ SEEDABLE: dict[str, tuple[str, str, str]] = {
 }
 
 
+# `DR-54` (3): the one control whose implementation reference can be created as a true statement.
+# A findings register holding no findings is complete and honest on the day it is written; a lock
+# file or a CI step cannot be invented the same way.
+SEEDABLE_CONTROLS: dict[str, tuple[str, str, str]] = {
+    "assurance_findings": (
+        "docs/FINDINGS.md",
+        "findings-register.md",
+        "a register of known limitations and findings, holding none yet",
+    ),
+}
+
+
 # `DR-47` (2): a scaffolded artefact is a file the tool creates and therefore knows. The adoption
 # decision record is the one non-gate artefact this module creates: `adoption.decision_record_id`
 # has no honest source unless a decisions directory already exists to name a record in, and
@@ -79,6 +91,7 @@ class Offer:
     path: str  # repository-relative
     seed: str  # file name under `seeds/`
     why: str
+    control_id: str = ""  # set for a control's implementation reference (`DR-54` (3))
 
     def content(self) -> str:
         return (SEEDS / self.seed).read_text(encoding="utf-8")
@@ -132,6 +145,30 @@ def offers(repo: Path, gate_ids) -> list[Offer]:
             continue
         out.append(Offer(gate_id=gate_id, path=path, seed=seed, why=why))
     return out
+
+
+def offers_for_controls(repo: Path, control_ids) -> list[Offer]:
+    """What could be created for these controls' implementation references (`DR-54` (3)); the same
+    one hard rule as `offers`: an occupied path is never offered."""
+    out: list[Offer] = []
+    for control_id in control_ids:
+        if control_id not in SEEDABLE_CONTROLS:
+            continue
+        path, seed, why = SEEDABLE_CONTROLS[control_id]
+        if _occupied(repo / path):
+            continue
+        out.append(Offer(gate_id=f"control:{control_id}", path=path, seed=seed, why=why, control_id=control_id))
+    return out
+
+
+def seed_preview(path: str, lines: int = 2) -> str:
+    """The first lines of whichever seed creates `path`, for the help beside a "create it" row."""
+    for table in (SEEDABLE, SEEDABLE_CONTROLS):
+        for seed_path, seed, _why in table.values():
+            if seed_path == path:
+                body = [ln for ln in (SEEDS / seed).read_text(encoding="utf-8").splitlines() if ln.strip()]
+                return " / ".join(body[:lines])
+    return ""
 
 
 def decision_record_offer(repo: Path) -> Offer | None:
