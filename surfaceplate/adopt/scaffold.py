@@ -165,8 +165,20 @@ def write(repo: Path, accepted: list[Offer]) -> tuple[list[Path], list[str]]:
         if _occupied(target):
             problems.append(f"{offer.path}: left alone - something is already there")
             continue
+        # Two separate tries, because they fail for different reasons and used to share one
+        # `FileExistsError` handler: a parent that exists as a regular FILE raises it from
+        # `mkdir`, and was reported as a race on the target that never happened (code item 12).
         try:
             target.parent.mkdir(parents=True, exist_ok=True)
+        except (FileExistsError, NotADirectoryError):
+            problems.append(
+                f"{offer.path}: could not be created - a parent of it is a file, not a directory"
+            )
+            continue
+        except OSError as exc:
+            problems.append(f"{offer.path}: could not be created - {exc.strerror or exc}")
+            continue
+        try:
             with open(target, "x", encoding="utf-8", newline="\n") as handle:
                 handle.write(offer.content())
         except FileExistsError:

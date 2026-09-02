@@ -331,6 +331,73 @@ def test_a_bare_repository_can_reach_a_passing_check(tmp: Path) -> None:
     )
 
 
+def test_a_parent_that_is_a_file_is_named_as_such(tmp: Path) -> None:
+    """Code item 12. `scaffold.write` caught `FileExistsError` around `mkdir` and `open` together,
+    so a parent that exists as a regular FILE was reported as "it appeared while this run was
+    deciding" - a race that never happened. The parent is named as what it is."""
+    repo = bare_repo(tmp)
+    (repo / "docs").mkdir(exist_ok=True)
+    (repo / "docs" / "decisions").write_text("not a directory\n", encoding="utf-8")
+    offer = scaffold.Offer(
+        gate_id="decision_before_implementation",
+        path="docs/decisions/decision-log.md",
+        seed="decision-log.md",
+        why="a log",
+    )
+    written, problems = scaffold.write(repo, [offer])
+    check("nothing is written under a parent that is a file", written == [], str(written))
+    check(
+        "and the problem names the parent as a file, not as a race",
+        bool(problems) and "is a file" in problems[0] and "appeared" not in problems[0],
+        str(problems),
+    )
+
+
+def test_a_failure_after_the_scaffold_wrote_still_reports_what_it_wrote(tmp: Path) -> None:
+    """Code item 7. `scaffold.write` runs before the profile write, so a failure between them
+    left created files on disk while the CLI said "Nothing was written". The run carries what it
+    created out with the failure, and the CLI prints it."""
+    from surfaceplate.adopt import wizard
+    from surfaceplate.adopt.interview import ScriptedInterview
+
+    sys.path.insert(0, str(ROOT / "surfaceplate"))
+    import install_standard  # noqa: E402
+
+    repo = bare_repo(tmp)
+    assert install_standard.main(
+        ["--source", str(ROOT / "surfaceplate"), "--target", str(repo), "--no-hooks"]
+    ) == 0
+    (repo / "requirements.txt").write_text("PyYAML==6.0.3\n", encoding="utf-8")
+    scan = repo / ".github" / "workflows" / "secret-scan.yml"
+    scan.parent.mkdir(parents=True, exist_ok=True)
+    scan.write_text("jobs:\n  scan:\n    steps:\n      - name: gitleaks\n        run: gitleaks detect\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "seed"], check=True)
+    # The profile's path becomes a directory AFTER the guard has looked: the write itself fails.
+    profile = repo / "governance" / "application-profile.yaml"
+    profile.unlink()
+    profile.mkdir()
+    answers = {
+        "identity.owner": "Sole maintainer", "stack.builds_user_interface": "no",
+        "risk.relied_on_outside_team": "no", "risk.material_quantitative_output": "no",
+        "risk.data_classification": "internal", "wrap.release_route": "R",
+        "level.conformance_level": "essential",
+    }
+    try:
+        wizard.run(repo, ScriptedInterview(answers))
+        outcome = "returned"
+    except wizard.PartialWrite as exc:
+        outcome = f"PartialWrite created={[p.name for p in exc.created]}"
+    except Exception as exc:  # noqa: BLE001
+        outcome = f"{type(exc).__name__}: {exc}"
+    check(
+        "a failure after the scaffold wrote raises with the created files named",
+        outcome.startswith("PartialWrite") and "register.md" in outcome,
+        outcome,
+    )
+    check("and the created file really is on disk", (repo / "activity" / "register.md").is_file())
+
+
 def test_a_dangling_symlink_is_not_an_empty_slot(tmp: Path) -> None:
     """Found by adversarial review, and it breached the module's one hard rule.
 
@@ -441,6 +508,9 @@ def main() -> int:
         print("\nand the ways an offer could go wrong (adversarial review)")
         test_a_dangling_symlink_is_not_an_empty_slot(tmp / "f")
         test_a_parent_that_is_a_file_does_not_abort_the_run(tmp / "g")
+        print("\ncode items 7 and 12: what a failed run says about what it wrote")
+        test_a_parent_that_is_a_file_is_named_as_such(tmp / "h")
+        test_a_failure_after_the_scaffold_wrote_still_reports_what_it_wrote(tmp / "i")
         print("\nand a bare repository can now finish")
         test_a_bare_repository_can_reach_a_passing_check(tmp / "e")
 

@@ -1318,6 +1318,124 @@ def test_fields_presented_before_the_review_are_measured(tmp: Path) -> None:
     check("essential on a bare repository: at most twelve fields before the review", n_ess <= 12, str(n_ess))
 
 
+def test_propose_writes_a_proposal_and_never_the_profile(tmp: Path) -> None:
+    """`DR-49` (3) / R4. `adopt --propose` runs discovery and writes the proposed profile and the
+    answers record with every undecided decision marked `needs-human`; it never writes the
+    profile, so the checker never reads a tool-authored declaration."""
+    from surfaceplate.adopt import provenance
+
+    repo = make_installed_repo(tmp, "propose-repo")
+    seed_referenced_files(repo, ci=True)
+    template = (repo / "governance" / "application-profile.yaml").read_text(encoding="utf-8")
+    written = wizard.propose(repo, level="standard")
+    check(
+        "--propose writes the proposed profile and the answers record",
+        written.proposed.is_file() and written.answers.is_file(),
+        str(written),
+    )
+    check(
+        "and never the profile itself",
+        (repo / "governance" / "application-profile.yaml").read_text(encoding="utf-8") == template
+        and not (repo / provenance.PROVENANCE_PATH).exists(),
+    )
+    record = yaml.safe_load(written.answers.read_text(encoding="utf-8"))
+    answers = record["answers"]
+    needs = [k for k, v in answers.items() if v == wizard.NEEDS_HUMAN]
+    check(
+        "every decision only a human can make is marked needs-human",
+        {"identity.owner", "stack.builds_user_interface", "risk.data_classification", "wrap.release_route"} <= set(needs)
+        and all(k.endswith(".status") for k in needs if k.startswith("gates.") and k.endswith(".status")),
+        str(sorted(needs)[:8]),
+    )
+    check(
+        "no gate status is proposed - each undecided gate is a needs-human line",
+        any(k.startswith("gates.") and k.endswith(".status") for k in needs)
+        and not any(k.endswith(".status") and v != wizard.NEEDS_HUMAN for k, v in answers.items()),
+    )
+    proposed = {k: v for k, v in answers.items() if isinstance(v, dict)}
+    check(
+        "every proposal carries its value and origin",
+        proposed and all({"value", "origin"} <= set(v) for v in proposed.values())
+        and all(v["origin"] != "typed" for v in proposed.values()),
+        str(list(proposed.items())[:2]),
+    )
+    check("the level given on the command line is the human's and is recorded as the level", record["level"] == "standard", str(record.get("level")))
+    text = written.proposed.read_text(encoding="utf-8")
+    check("the proposed profile says what it is at the top", "PROPOSED" in text.splitlines()[0].upper(), text.splitlines()[0])
+
+
+def test_answers_replays_a_completed_record_through_the_same_code(tmp: Path) -> None:
+    """`DR-49` (3): `adopt --answers <file>` replays a human-completed record through the same
+    `plan`, `sections` and `_verify` code as the interface and writes the profile; a record with
+    a `needs-human` line left in it refuses to write anything."""
+    from surfaceplate.adopt import provenance
+
+    repo = make_installed_repo(tmp, "answers-repo")
+    seed_referenced_files(repo, ci=True)
+    proposal = wizard.propose(repo, level="standard")
+    record = yaml.safe_load(proposal.answers.read_text(encoding="utf-8"))
+    try:
+        wizard.replay(repo, proposal.answers)
+        outcome = "wrote"
+    except wizard.NeedsHuman as exc:
+        outcome = f"refused: {exc}"
+    check("a record with needs-human lines is refused", outcome.startswith("refused"), outcome)
+    check("and nothing was written", not (repo / provenance.PROVENANCE_PATH).exists())
+
+    # A human completes the record.
+    human = {
+        "identity.owner": "Owner Person",
+        "stack.builds_user_interface": "no",
+        "risk.relied_on_outside_team": "yes",
+        "risk.material_quantitative_output": "no",
+        "risk.data_classification": "internal",
+        "wrap.release_route": "Merged to main by the maintainer.",
+        "adoption.decision_record_id": "DR-1",
+        "create_missing_artefacts": "yes",
+    }
+    for key, value in record["answers"].items():
+        if value == wizard.NEEDS_HUMAN:
+            if key in human:
+                record["answers"][key] = human[key]
+            elif key.endswith(".status"):
+                record["answers"][key] = "not_applicable"
+            else:
+                record["answers"][key] = f"answer for {key}"
+    record["level"] = "standard"
+    completed = repo / "answers-completed.yaml"
+    completed.write_text(yaml.safe_dump(record, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    written = wizard.replay(repo, completed)
+    check("a completed record writes the profile", written.is_file())
+    data = yaml.safe_load(written.read_text(encoding="utf-8"))
+    check(
+        "with the human's answers and the proposals both in it",
+        data["owner"] == "Owner Person" and data["conformance_level"] == "standard"
+        and data["adoption"]["decision_record_id"] == "DR-1",
+        str({k: data.get(k) for k in ("owner", "conformance_level")}),
+    )
+    sidecar = yaml.safe_load((repo / provenance.PROVENANCE_PATH).read_text(encoding="utf-8"))
+    check(
+        "and the provenance record says which values were typed by the human and which were proposed",
+        sidecar["fields"]["owner"]["origin"] == "typed"
+        and sidecar["fields"]["adoption.framework_maintainer"]["origin"] == "computed",
+        str({k: sidecar["fields"][k] for k in ("owner", "adoption.framework_maintainer")}),
+    )
+    # The same values through the scripted interview write the same profile: one code path.
+    repo_b = make_installed_repo(tmp / "b", "answers-repo")
+    seed_referenced_files(repo_b, ci=True)
+    scripted = {k: v for k, v in record["answers"].items() if not isinstance(v, dict)}
+    scripted = {k: v for k, v in scripted.items() if not k.endswith(".status") and k != "create_missing_artefacts"}
+    scripted["level.conformance_level"] = record["level"]
+    interview = ScriptedInterview(answers=scripted, bulk_not_applicable=True)
+    written_b = wizard.run(repo_b, interview)
+    instant = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}")
+    check(
+        "replay and the interface write the same profile from the same answers",
+        instant.sub("I", written.read_text(encoding="utf-8")) == instant.sub("I", written_b.read_text(encoding="utf-8")),
+        "\n".join(l for l in written.read_text(encoding="utf-8").splitlines() if l not in written_b.read_text(encoding="utf-8").splitlines())[:300],
+    )
+
+
 def test_validators_refuse_what_the_checker_rejects(tmp: Path) -> None:
     """`F66` / `DR-48`. The wizard accepted a future `effective_from`, a 401-day and a past
     `review_by`, a one-character `application_id`, basic-ISO dates the schema refuses, and an
@@ -1550,6 +1668,10 @@ def main() -> int:
         print("\nDR-47: proposing writes what typing writes; the budget, measured")
         test_proposing_writes_the_same_profile_as_typing_the_same_values(tmp)
         test_fields_presented_before_the_review_are_measured(tmp)
+
+        print("\nDR-49: adoption without a terminal - propose, then replay the human's answers")
+        test_propose_writes_a_proposal_and_never_the_profile(tmp)
+        test_answers_replays_a_completed_record_through_the_same_code(tmp)
 
         print("\nDR-48: one set of rules for the wizard and the checker")
         test_validators_refuse_what_the_checker_rejects(tmp)

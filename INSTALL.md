@@ -39,34 +39,32 @@ hook does not satisfy the claim.
 ## Install
 
 ```bash
-# once, anywhere on your machine
-git clone https://github.com/pipoventures/surfaceplate.git
+# once, into a virtual environment on your machine
+python3 -m venv .venv && . .venv/bin/activate
+pip install 'git+https://github.com/pipoventures/surfaceplate@main'
 
-# then, for each repository — surfaceplate/surfaceplate/ is not a typo: the outer directory
-# is the clone, the inner one is the installable package inside it
-python surfaceplate/surfaceplate/install_standard.py --target /path/to/your-repo --dry-run
-python surfaceplate/surfaceplate/install_standard.py --target /path/to/your-repo
+# then, for each repository
+surfaceplate doctor
+surfaceplate install --target /path/to/your-repo --dry-run
+surfaceplate install --target /path/to/your-repo
+surfaceplate check --repo /path/to/your-repo
 ```
 
 Always run `--dry-run` first. It writes nothing and shows you exactly what would change.
+`surfaceplate doctor` says, one line each, what on this machine would stop the next commands: a
+global `core.hooksPath`, a Python without pip, a virtual environment the hook cannot find.
+
+Working from a clone instead? From inside the clone, `python surfaceplate/install_standard.py
+--target ...` does the same thing without installing anything: the installable package is the
+`surfaceplate/` directory inside the clone.
 
 Requirements: Python 3.9 or later, plus `PyYAML` and `jsonschema` in an interpreter available to
-the hook:
+the hook. The virtual environment above provides them; `pip install` into the system interpreter
+does not work on most current Linux distributions, whose Python is a PEP 668 interpreter that
+refuses it ("externally-managed-environment") or ships without pip ("No module named pip"). The
+distribution's own packages are the other route:
 
 ```bash
-python -m pip install pyyaml jsonschema
-```
-
-**If that fails with "externally-managed-environment" or "No module named pip",** you are on a
-PEP 668 interpreter — the default on Debian, Ubuntu 24.04 and most current Linux distributions,
-including the `ubuntu-latest` CI runners. The system Python there is managed by the OS package
-manager and refuses `pip install`. Use either:
-
-```bash
-# a virtual environment, and use its interpreter for the hook and the checker
-python3 -m venv .venv && .venv/bin/python -m pip install pyyaml jsonschema
-
-# or the distribution's own packages
 sudo apt install python3-yaml python3-jsonschema
 ```
 
@@ -117,15 +115,18 @@ you have decided the standard supersedes what is there.
 `governance/application-profile.yaml` is the only file you have to write. It records what controls
 apply to this repository and why.
 
-**Recommended: run `surfaceplate adopt`.** It walks the same decisions this section describes —
-conformance level, controls, and every prerequisite gate — as a terminal wizard, and writes a
-complete, schema-valid profile only once you confirm a final review screen. It never selects a
-level, invents a rationale, or sets a date on your behalf: it asks, you answer, it writes. Needs
-the `adopt` extra (`pip install 'git+https://github.com/pipoventures/surfaceplate@main#egg=surfaceplate[adopt]'`, or `python -m pip install textual==8.2.8`
-alongside a git-clone install) and a real terminal — it is a full-screen interface and refuses,
-with a route you can take, when output is piped or running in CI. `surfaceplate install`/`check`
-need nothing beyond `PyYAML` and `jsonschema`. Once it has written the profile, hand the repository to
-`prompts/copilot-implementation-assistant.prompt.md` to implement what it declared.
+**Recommended: run `surfaceplate adopt`.** It asks what only you can tell it, proposes the rest
+from your repository and this framework's own worked examples, shows every value with where it
+came from, and writes a complete, schema-valid profile only once you approve the review — with the
+origin of every value recorded beside it in `governance/application-profile.provenance.yaml`. It
+never selects a level or makes a scope decision on your behalf: every gate is decided by you, one
+key each. Needs the `adopt` extra (`pip install 'surfaceplate[adopt] @ git+https://github.com/pipoventures/surfaceplate@main'`,
+or `python -m pip install textual==8.2.8` alongside a git-clone install) and a real terminal.
+Without one, `surfaceplate adopt --propose --target <repo>` writes the proposal and an answers
+record in which every decision only a human can make says `needs-human`; complete those lines and
+`surfaceplate adopt --answers <file>` replays the record through the same code. `surfaceplate
+install`/`check` need nothing beyond `PyYAML` and `jsonschema`. Once it has written the profile,
+the checker runs against it and says what is still missing.
 
 The steps below are what `surfaceplate adopt` does on your behalf — read them if you are filling
 the profile in by hand instead, or want to understand what a generated profile actually contains.
@@ -175,10 +176,13 @@ scoped wrongly, and should be treated as one.
 ## Verify
 
 ```bash
-python .standards/check_conformance.py
+surfaceplate check --repo .          # or: python .standards/check_conformance.py
 ```
 
-Run it locally before you push. **If GitHub Actions is not enabled for your repository, this is
+Run it locally before you push. `--format json` and `--format sarif` give the same report as data;
+exit codes are `0` pass or graced, `1` findings that fail, `2` not installed, `3` usage error, `4`
+internal error. Every code the checker can report is listed in
+`.standards/core/CONFORMANCE_LEVELS.md`. **If GitHub Actions is not enabled for your repository, this is
 also what the installed pre-commit hook runs automatically** — see "Where this check actually
 runs" below.
 

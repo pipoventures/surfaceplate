@@ -29,8 +29,11 @@ The receiving application must define its own materiality thresholds. These leve
 
 Use these labels in reports:
 
-- `FACT FROM PACKAGE`: directly verified in this kit's files, schemas, templates, or package checks.
-- `FACT FROM RECEIVING REPOSITORY`: directly verified in an adopting application's code, configuration, tests, or current runtime output.
+The four labels are the ones the installed agent instructions (`ai-workflow`) use; one vocabulary,
+so a report reads the same whoever wrote it:
+
+- `FACT`: directly verified — and say where: in this kit's files, schemas, templates or package
+  checks, or in the adopting application's code, configuration, tests or current runtime output.
 - `INFERENCE`: reasoned conclusion that is not directly enforced or fully observed.
 - `RECOMMENDATION`: proposed treatment for the receiving application.
 - `EVIDENCE GAP`: requested fact not established by available evidence.
