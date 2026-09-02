@@ -434,6 +434,14 @@ class Flow:
                 self.verify(profile, rendered)
             except Exception as exc:  # WriteRefused, or anything the renderer did not expect
                 error = f"This cannot be written yet: {getattr(exc, 'detail', exc)}"
+                # `F79`: a refusal that names a profile path points Ctrl+E at its first line -
+                # the block's own line where the path is a block (`risk`), not a leaf.
+                named = getattr(exc, "path", None)
+                if named:
+                    error_path = next(
+                        (p for p in traced if p == named or p.startswith(named + ".") or p.startswith(named + "[")),
+                        None,
+                    )
         return Review(rendered=rendered, lines=lines, error=error, error_path=error_path)
 
     def edit(self, path: str, value: object) -> None:

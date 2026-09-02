@@ -173,11 +173,13 @@ class PartialWrite(Exception):
 
 
 class WriteRefused(Exception):
-    """The assembled profile failed its own verification. Nothing was written. Carries `detail`."""
+    """The assembled profile failed its own verification. Nothing was written. Carries `detail`
+    and, where the problem is one line of the profile, its `path` (`F79`, `DR-51` (6))."""
 
-    def __init__(self, detail: str) -> None:
+    def __init__(self, detail: str, path: str | None = None) -> None:
         super().__init__(detail)
         self.detail = detail
+        self.path = path
 
 
 def _read_install_record(repo: Path) -> dict:
@@ -268,10 +270,14 @@ def _verify(profile: dict, rendered: str, repo: Path) -> None:
     validator = jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker())
     errors = sorted(validator.iter_errors(reparsed), key=lambda e: list(e.path))
     if errors:
-        detail = "; ".join(
-            f"{'/'.join(str(p) for p in e.path) or '(root)'}: {e.message}" for e in errors[:8]
+        # `F79`: reported in the review's words, naming the profile line, not the validator's.
+        # The maintainer read "(root): Additional properties are not allowed ('risk' was
+        # unexpected)" as being about his free-text risk answer.
+        described = [_describe_schema_error(e) for e in errors[:8]]
+        raise WriteRefused(
+            "the schema installed here does not accept " + "; ".join(d for d, _p in described),
+            path=described[0][1],
         )
-        raise WriteRefused(f"the assembled profile does not satisfy its own schema: {detail}")
 
     from surfaceplate import check_conformance
 
@@ -285,6 +291,30 @@ def _verify(profile: dict, rendered: str, repo: Path) -> None:
             "an answer still contains a template placeholder token (TBD/TODO/replace-me/…) at: "
             + ", ".join(hits)
         )
+
+
+def _describe_schema_error(error) -> tuple[str, str | None]:
+    """`(sentence, profile path)` for one schema error. An unexpected property is named by the
+    property, since that is the line the review can go to; the reason says what an adopter can
+    do about it - an installed schema older than the tool is the case `F78` guards, and this
+    is the message for anything that gets past that guard."""
+    import re
+
+    parent = ".".join(str(p) for p in error.path)
+    unexpected = re.search(r"'([^']+)' was unexpected", error.message)
+    if error.validator == "additionalProperties" and unexpected:
+        path = f"{parent}.{unexpected.group(1)}" if parent else unexpected.group(1)
+        return (
+            f"the line `{path}`: it is not a field the installed schema knows, so the copy "
+            "installed here is probably older than this tool",
+            path,
+        )
+    if error.validator == "required":
+        missing = re.search(r"'([^']+)' is a required property", error.message)
+        path = f"{parent}.{missing.group(1)}" if parent and missing else (missing.group(1) if missing else parent)
+        return f"the line `{path or '(root)'}`: it is required and is missing", path or None
+    where = parent or "(root)"
+    return f"the line `{where}`: {error.message}", (parent or None)
 
 
 def _draft_path(repo: Path) -> Path:

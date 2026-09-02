@@ -131,6 +131,26 @@ def test_the_opening_screen_names_the_tool_the_install_and_what_will_be_written(
     text = asyncio.run(_with_draft())
     check("with a draft, the screen says the next screen asks about it", "saved draft" in text and "next screen" in text, text[:600])
 
+
+def test_the_review_hint_names_the_way_forward_while_an_error_stands() -> None:
+    """`F79` / `DR-51` (6): with an error on the review, the hint names Ctrl+E to reach the line
+    and says Ctrl+S writes once it is fixed, so a reader whose footer is off screen still has a
+    way forward (the maintainer: "I don't see a command to implement the configuration")."""
+    from surfaceplate.adopt.tui.screens import ReviewScreen
+
+    review = _flow.Review(rendered="a: 1\nb: 2\n", lines=[_flow.ReviewLine(line=0, path="a", origin="typed", editable=True)],
+                          error="This cannot be written yet: a: the installed schema does not accept this line.", error_path="a")
+
+    async def _run() -> str:
+        app = Host(ReviewScreen(review))
+        async with app.run_test(size=(80, 24)) as pilot:
+            await pilot.pause()
+            return screen_text(rendered(app))
+
+    text = asyncio.run(_run())
+    check("the hint names Ctrl+E while an error stands", "[Ctrl+E]" in text, text[-300:])
+    check("and says Ctrl+S writes once it is fixed", "Ctrl+S writes" in text.replace("\n", " ") and "fix it" in text, text[-300:])
+
 # ---------------------------------------------------------------------------------------------
 # 1 & 2 — the legends render the keys they name
 # ---------------------------------------------------------------------------------------------
@@ -801,6 +821,7 @@ def main() -> int:
     print("legends render the keys they name (F37 #1, #2)")
     test_every_legend_renders_the_keys_it_names()
     test_the_opening_screen_names_the_tool_the_install_and_what_will_be_written()
+    test_the_review_hint_names_the_way_forward_while_an_error_stands()
 
     print("\nnothing is printed twice (F37 #3)")
     test_no_field_label_is_rendered_twice()

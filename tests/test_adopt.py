@@ -1209,6 +1209,35 @@ def test_every_presented_field_states_what_it_decides_and_what_a_wrong_answer_co
           not gaps, "; ".join(gaps[:8]) + (f" (and {len(gaps) - 8} more)" if len(gaps) > 8 else ""))
 
 
+def test_a_schema_refusal_names_the_profile_line(tmp: Path) -> None:
+    """`F79` / `DR-51` (6). The maintainer's review read "(root): Additional properties are not
+    allowed ('risk' was unexpected)" and took `risk` for his own free-text answer. A refusal
+    is reported with the profile path it concerns, in the review's words, and the review can
+    point Ctrl+E at it."""
+    from surfaceplate.adopt import flow as _flow
+
+    repo = make_installed_repo(tmp, "schema-refusal-repo")
+    seed_referenced_files(repo)
+    # The state that stopped the run: an installed schema older than the tool, with no `risk`.
+    schema_path = repo / ".standards" / "schemas" / "application-profile.schema.yaml"
+    schema = yaml.safe_load(schema_path.read_text(encoding="utf-8"))
+    schema["properties"].pop("risk")
+    schema_path.write_text(yaml.safe_dump(schema, sort_keys=False), encoding="utf-8")
+
+    interview = ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS), confirm_write=False)
+    try:
+        wizard.run(repo, interview)
+    except Cancelled:
+        pass
+    review = interview.review
+    check("the review refuses", review is not None and review.error, getattr(review, "error", None))
+    check("in the review's words, naming the line", "risk" in review.error and "installed" in review.error and "Additional properties" not in review.error, review.error)
+    check("and the error path resolves to a line Ctrl+E can reach",
+          review.error_path is not None and review.error_path.startswith("risk") and review.error_line is not None, f"{review.error_path} -> {review.error_line}")
+    line = review.rendered.splitlines()[review.error_line] if review.error_line is not None else ""
+    check("which is the risk block's first line", line.strip().startswith("risk:") or "relied_on_outside_team" in line, line)
+
+
 def test_the_run_opens_with_the_tool_and_the_install_named(tmp: Path) -> None:
     """`F81` / `DR-51` (2). Before the first question the interview is handed what the opening
     screen shows: the tool's name, version, licence and publisher, the installed version and
@@ -1876,6 +1905,7 @@ def main() -> int:
 
         print("\nrefusals, and the guarantee itself")
         test_every_presented_field_states_what_it_decides_and_what_a_wrong_answer_costs(tmp)
+        test_a_schema_refusal_names_the_profile_line(tmp)
         test_the_run_opens_with_the_tool_and_the_install_named(tmp)
         test_refuses_when_the_tool_and_the_install_differ(tmp)
         test_package_metadata_agrees_with_pyproject()

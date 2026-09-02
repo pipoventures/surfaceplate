@@ -576,6 +576,29 @@ def test_exit_codes_and_formats(tmp: Path) -> None:
     check("adopt without a terminal exits 3 and names --propose", piped.returncode == 3 and "--propose" in piped.stderr, f"rc={piped.returncode} {piped.stderr[-200:]}")
 
 
+def test_the_closing_report_states_the_checkers_verdict_as_given(tmp: Path) -> None:
+    """`F85` / `DR-51` (6). `adopt` printed "The checker passes against what you just wrote"
+    under a WARN with two findings, because exit code 0 covers both a pass and a graced WARN.
+    The sentence is now read from the report: a pass, or the count of graced findings and the
+    date the grace ends."""
+    import datetime as _dt
+
+    from surfaceplate import check_conformance, cli
+
+    repo = make_repo(tmp, "verdict-repo")
+    install(repo, "--no-hooks")
+    report = check_conformance.evaluate(repo, _dt.date.today(), False, False)
+    check("precondition: a fresh install is a graced WARN with findings", report.verdict == "WARN" and report.graceable, report.verdict)
+    sentence = cli.verdict_sentence(report)
+    check("a graced WARN is reported as findings under grace, with the date",
+          "passes" not in sentence and str(len(report.graceable)) in sentence and "grace" in sentence and str(report.record.get("grace_expires", "")) in sentence, sentence)
+    passing = check_conformance.Report(repo)
+    check("a clean pass is reported as a pass with nothing outstanding", "passes" in cli.verdict_sentence(passing) and "nothing outstanding" in cli.verdict_sentence(passing), cli.verdict_sentence(passing))
+    failing = check_conformance.Report(repo)
+    failing.verdict, failing.exit_code, failing.explanation = "FAIL", 1, "adoption is incomplete and the grace window has ended."
+    check("a failure is reported as the checker's own explanation", "does not pass" in cli.verdict_sentence(failing) and "grace window has ended" in cli.verdict_sentence(failing), cli.verdict_sentence(failing))
+
+
 def test_doctor_reports_a_tool_that_differs_from_the_install(tmp: Path) -> None:
     """`F78` / `DR-51` (1): `doctor` compared the vendored copy with its own record and passed
     on exactly the state that stopped the maintainer's run. It now compares the tool with the
@@ -664,6 +687,7 @@ def main() -> int:
         test_exit_codes_and_formats(tmp)
         test_doctor_reports_the_facts_that_stopped_the_stranger_install(tmp)
         test_doctor_reports_a_tool_that_differs_from_the_install(tmp)
+        test_the_closing_report_states_the_checkers_verdict_as_given(tmp)
 
         print("\nevery agent receives the skills (F58)")
         test_every_agent_receives_the_skills(tmp)

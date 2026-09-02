@@ -1329,8 +1329,13 @@ class ReviewScreen(Screen):
         self._set_hint()
 
     def _set_hint(self, note: str = "") -> None:
-        write = "" if self.review.error else "[Ctrl+S] write it  "
-        keys = f"[↑↓] move  [Enter] change this line  {write}[Ctrl+Q] cancel, keeping your draft"
+        # `F79`: while an error stands the hint names the way forward - the key that reaches the
+        # line and the key that writes once it is fixed - rather than only dropping "write it".
+        if self.review.error:
+            reach = "[Ctrl+E] go to the error  " if self.review.error_line is not None else ""
+            keys = f"[↑↓] move  [Enter] change this line  {reach}fix it, then Ctrl+S writes  [Ctrl+Q] cancel, keeping your draft"
+        else:
+            keys = "[↑↓] move  [Enter] change this line  [Ctrl+S] write it  [Ctrl+Q] cancel, keeping your draft"
         self.query_one("#hint", Static).update(hint_line(keys=keys, help_text=note))
 
     @on(OptionList.OptionSelected)

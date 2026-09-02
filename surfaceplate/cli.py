@@ -177,21 +177,37 @@ def _report_written(repo: Path, written) -> int:
         )
     print(rule)
 
+    import datetime as _dt
+
     from surfaceplate import check_conformance
 
     print("  Checking what you just wrote:\n")
-    code = check_conformance.main(["--repo", str(repo)])
-    if code == 0:
-        print("\n  The checker passes against what you just wrote.")
-    else:
-        print(
-            "\n  The profile is written, but the checker does not pass against it yet.\n"
-            "  That is normal for a first adoption - the output above says which artefacts it\n"
-            "  could not find. Re-run at any time:\n"
-            f"\n      surfaceplate check --repo {repo}\n"
-        )
+    report = check_conformance.evaluate(repo, _dt.date.today(), False, False)
+    print(check_conformance.render_text(report))
+    # `F85`: the sentence is read from the report, not inferred from the exit code, which
+    # covers a pass and a graced WARN alike (`DR-49` (2)).
+    print("\n  " + verdict_sentence(report).replace("\n", "\n  "))
+    if report.exit_code != 0:
+        print(f"\n      surfaceplate check --repo {repo}\n")
     print(f"  Re-running `adopt` will not overwrite it; edit {written.name} directly from here.\n")
-    return code
+    return report.exit_code
+
+
+def verdict_sentence(report) -> str:
+    """What the checker's report says, in one sentence a human can act on (`F85`, `DR-51` (6))."""
+    if report.verdict == "PASS" and not report.findings:
+        return "The checker passes against what you just wrote: nothing outstanding."
+    if report.verdict == "WARN":
+        until = str((report.record or {}).get("grace_expires", "") or "the grace window ends")
+        n = len(report.graceable)
+        return (
+            f"The checker reports {n} finding(s) under grace until {until}; it will fail after that date.\n"
+            "The output above says which artefacts it could not find. That is normal for a first adoption."
+        )
+    return (
+        f"The profile is written, but the checker does not pass against it: {report.explanation or report.verdict}\n"
+        "The output above says why. Re-run at any time:"
+    )
 
 
 _COMMANDS = {
