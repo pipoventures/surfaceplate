@@ -57,6 +57,20 @@ SEEDABLE: dict[str, tuple[str, str, str]] = {
 }
 
 
+# `DR-47` (2): a scaffolded artefact is a file the tool creates and therefore knows. The adoption
+# decision record is the one non-gate artefact this module creates: `adoption.decision_record_id`
+# has no honest source unless a decisions directory already exists to name a record in, and
+# inventing an identifier for a record nobody wrote was the thing `defaults.py` refused to do.
+# Where a decisions directory exists the id is asked instead (report Part II §II.4).
+DECISION_RECORD_ID = "DR-0001"
+DECISION_RECORD = (
+    "docs/decisions/DR-0001-adopt-surfaceplate.md",
+    "adoption-decision-record.md",
+    "the record of this adoption decision, which the profile's decision_record_id names",
+)
+DECISION_RECORD_GATE = "adoption_decision_record"  # the `gate_id` an `Offer` for it carries
+
+
 @dataclass(frozen=True)
 class Offer:
     """One file the wizard could create, and the gate it would answer."""
@@ -118,6 +132,14 @@ def offers(repo: Path, gate_ids) -> list[Offer]:
             continue
         out.append(Offer(gate_id=gate_id, path=path, seed=seed, why=why))
     return out
+
+
+def decision_record_offer(repo: Path) -> Offer | None:
+    """The adoption decision record, offered only where nothing is at its path."""
+    path, seed, why = DECISION_RECORD
+    if _occupied(repo / path):
+        return None
+    return Offer(gate_id=DECISION_RECORD_GATE, path=path, seed=seed, why=why)
 
 
 def write(repo: Path, accepted: list[Offer]) -> tuple[list[Path], list[str]]:

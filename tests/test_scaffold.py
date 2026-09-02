@@ -209,7 +209,6 @@ def test_a_bare_repository_can_reach_a_passing_check(tmp: Path) -> None:
     ) == 0
 
     answers = {
-        "mode.mode": "simple",
         "identity.application_id": "small-tool",
         "identity.display_name": "Small Tool",
         "identity.owner": "Sole maintainer",
@@ -221,7 +220,6 @@ def test_a_bare_repository_can_reach_a_passing_check(tmp: Path) -> None:
         "risk.material_quantitative_output": False,
         "risk.data_classification": "internal",
         "level.conformance_level": "essential",
-        "route.route": "customise",
         "controls.agent_work_packets.rationale": "Agent work is briefed before it starts.",
         "controls.actual_diff_review.rationale": "Changes are read as diffs before merging.",
         "controls.secret_hygiene.rationale": "No secrets belong in this repository.",
@@ -257,6 +255,13 @@ def test_a_bare_repository_can_reach_a_passing_check(tmp: Path) -> None:
         encoding="utf-8",
     )
 
+    # Committed BEFORE the adoption instant by a clear margin, as `bare_repo` does: a commit in
+    # the same second as `effective_from` sits inside the audit window, and the fixture would
+    # then be testing a coincidence rather than the scenario.
+    earlier = (_dt.datetime.now().astimezone() - _dt.timedelta(hours=1)).replace(microsecond=0).isoformat()
+    backdated = {**os.environ, "GIT_AUTHOR_DATE": earlier, "GIT_COMMITTER_DATE": earlier}
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "seed"], check=True, env=backdated)
     interview = ScriptedInterview(answers)
     offered = scaffold.offers(repo, ["work_registration"])
     check("the bare repository is offered a register", len(offered) == 1, str(offered))
@@ -268,8 +273,9 @@ def test_a_bare_repository_can_reach_a_passing_check(tmp: Path) -> None:
     # Exactly what `app._offer_missing_artefacts` records on acceptance (`F47`): the gate binds
     # from the INSTANT the artefact was created, so this morning's commits are not inside a window
     # where the precondition was absent.
-    state_extra = {wizard.SCAFFOLD_KEY: offered}
-    written = wizard.run(repo, _WithScaffold(interview, state_extra))
+    # `DR-47`: the scripted interview accepts the flow's own offer, exactly as the interface does
+    # when the human ticks it.
+    written = wizard.run(repo, interview)
 
     check(
         "the register was created where the gate now names it",
@@ -323,28 +329,6 @@ def test_a_bare_repository_can_reach_a_passing_check(tmp: Path) -> None:
         and not check_conformance.PLACEHOLDER_PATTERN.search(body),
         "the artefact the gate now names would itself be rejected",
     )
-
-
-class _WithScaffold:
-    """Wraps a `ScriptedInterview` so the collected state carries the accepted offers, the way the
-    real interface does. Kept here rather than in `interview.py`: the scripted interview exists to
-    answer *fields*, and teaching it about scaffolding would blur what it proves."""
-
-    def __init__(self, inner, extra: dict) -> None:
-        self._inner = inner
-        self._extra = extra
-
-    def confirm_resume(self, info) -> bool:
-        return self._inner.confirm_resume(info)
-
-    def collect(self, **kwargs) -> dict:
-        state = self._inner.collect(**kwargs)
-        for key, value in self._extra.items():
-            if isinstance(value, dict) and isinstance(state.get(key), dict):
-                state[key].update(value)
-            else:
-                state[key] = value
-        return state
 
 
 def test_a_dangling_symlink_is_not_an_empty_slot(tmp: Path) -> None:

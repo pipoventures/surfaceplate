@@ -1,36 +1,32 @@
-"""How a whole section gets asked, kept separate from what is asked and from what it becomes.
+"""How a whole run gets asked, kept separate from what is asked and from what it becomes.
 
-This replaces `prompting.py`'s three-method `Prompt`. `DR-36` records why: a protocol shaped
-`text(message) -> str` is one call, one answer, and the approved mockup's gate catalogue shows
-three gates at once, each with a chip row and follow-ups that appear only once a status is chosen.
-That screen has no signature in the old vocabulary. So the collaborator gets coarser - a section at
-a time instead of a question at a time - while keeping the shape that made the old one useful: one
-Protocol, one real implementation (`tui/`), one scripted implementation (here), and `Cancelled`
-raised at the seam so an abandoned run has exactly one exit path.
+`DR-36` split asking from the shape of the answers; `DR-47` fixes the sequence of asking as the
+stages `flow.Flow` holds: decisions, level, the gate list, whatever the proposal could not fill,
+the scaffold offer, and an annotated review. An `Interview` drives a `Flow` through those stages.
+There is one real implementation (`tui/`) and one scripted one (here), and `Cancelled` is raised
+at the seam so an abandoned run has exactly one exit path.
 
-**What the scripted implementation now proves, and what it does not.** `ScriptedInterview` walks
-the same `plan.SectionPlan` the screens walk, raises on any planned field it has no answer for, and
-`assert_no_unused_keys()` raises on any answer no field asked for. That is the same two-sided
-guarantee `ScriptedPrompt` gave, keyed rather than positional. What it still cannot prove on its own
-is that the *screens* ask the plan - it proves the plan was answered. `tests/test_adopt_tui.py`
-closes that with a field-id join per screen, and `tests/test_provenance.py` closes the other side by
-proving no value reaches the profile that no answer supplied. All three are needed; any one alone
-is the kind of partial guarantee `F32` walked through.
+**What the scripted implementation proves, and what it does not.** `ScriptedInterview` answers
+every field a stage presents, raises on a presented field it has no answer for, and
+`assert_no_unused_keys()` raises on an answer nothing asked for and nothing proposed. It cannot
+prove the *screens* present what the flow presents - `tests/test_adopt_tui.py` closes that with a
+field-id join per screen - and `tests/test_provenance.py` closes the other side: every value in
+the written profile traces to an answer, a proposal or the allow-list, with its origin recorded.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Callable, Protocol
 
-from surfaceplate.adopt import plan
+from surfaceplate.adopt import flow as _flow
+from surfaceplate.adopt import plan, scaffold
 
-# Bumped when the shape of a draft's `sections` changes incompatibly. Phase 1 drafts stored built
-# profile fragments; Phase 2 stores raw answers keyed by `FieldSpec.id`, which are not
-# interchangeable - resuming one as the other would produce a confidently wrong profile rather than
-# an error, so the format is stated and checked rather than inferred from the framework version.
-DRAFT_FORMAT = 2
+# Bumped when the shape of a draft changes incompatibly. Format 2 held raw answers by section;
+# format 3 adds the origin of every answer and which stages are done (`DR-47`). A format-2 draft
+# is offered a fresh start rather than resumed into a flow that would record its values with no
+# origin.
+DRAFT_FORMAT = 3
 
 
 class Cancelled(Exception):
@@ -63,23 +59,11 @@ class Interview(Protocol):
         cancelled and the draft is kept (`F68`)."""
         ...
 
-    def collect(
-        self,
-        *,
-        repo: Path,
-        resumed: dict,
-        on_section_complete: Callable[[str, dict], None],
-        preview: Callable[[dict], str],
-    ) -> dict:
-        """Ask every section not already in `resumed`, and return the accumulated raw answers.
-
-        - `on_section_complete(name, answers)` is called as each section commits, so a draft is
-          saved and a late failure loses at most the section in progress.
-        - `preview(state)` assembles, renders and verifies without writing anything; the review
-          screen shows what it returns, and a `WriteRefused` from it is shown rather than raised
-          through the interface.
-        - Raises `Cancelled` if the human abandons the run or declines the final write.
-        """
+    def collect(self, flow: _flow.Flow, *, on_progress: Callable[[], None]) -> str:
+        """Drive `flow` from wherever it stands to an approved review, and return the approval
+        timestamp. `on_progress()` is called as each stage completes, so a draft is saved and a
+        late failure loses at most the stage in progress. Raises `Cancelled` if the human
+        abandons the run or declines the final write."""
         ...
 
 
@@ -87,64 +71,129 @@ class Interview(Protocol):
 class ScriptedInterview:
     """An `Interview` driven by a keyed script, for tests and for nothing else.
 
-    `answers` is keyed `"<section>.<field id>"` - for example `"identity.application_id"` or
-    `"gates.work_registration.artefact"`. Order is deliberately not significant: a screen shows a
-    whole section at once, so there is no order for a script to depend on, and keying by field makes
-    a failure say which field rather than which position.
+    `answers` is keyed `"<section>.<field id>"` - `"identity.owner"`, `"gates.work_registration.artefact"`.
+    A key for a field a stage presents is used as the answer; a key for a field the flow proposed
+    but did not present overrides the proposal (and is recorded as typed, as a review edit would
+    be). Gate statuses are presented as decisions and must be scripted, one per undecided gate,
+    unless `bulk_not_applicable` is set - the scripted form of the one explicit bulk command.
     """
 
     answers: dict[str, object]
-    cancel_before: str = ""  # section name to abandon at, for interrupt tests
+    cancel_before: str = ""  # stage name to abandon at, for interrupt tests
     confirm_write: bool = True
-    resume: bool = True  # what to answer if a draft is offered
+    resume: bool | None = True  # what to answer if a draft is offered
+    bulk_not_applicable: bool = False
+    accept_scaffold: bool = True
+    edits: dict[str, object] = field(default_factory=dict)  # review edits, by profile path
     asked: list[str] = field(default_factory=list)
     resume_offers: list[DraftInfo] = field(default_factory=list)
-    previewed: str = ""
+    review: _flow.Review | None = None
+    stages: list[str] = field(default_factory=list)
+    flow: _flow.Flow | None = None
 
-    def confirm_resume(self, info: DraftInfo) -> bool:
+    def confirm_resume(self, info: DraftInfo) -> bool | None:
         self.resume_offers.append(info)
         return self.resume
 
-    def collect(
-        self,
-        *,
-        repo: Path,
-        resumed: dict,
-        on_section_complete: Callable[[str, dict], None],
-        preview: Callable[[dict], str],
-    ) -> dict:
-        state = dict(resumed)
-        for name in plan.SECTION_ORDER:
-            if name in state:
-                continue
-            if name == self.cancel_before:
+    def collect(self, flow: _flow.Flow, *, on_progress: Callable[[], None]) -> str:
+        self.flow = flow  # kept so a test can read what the run proposed and recorded
+        while True:
+            stage = flow.next_stage()
+            if stage == self.cancel_before:
                 raise Cancelled()
-            section = plan.section_plan(name, repo=repo, state=state)
-            state[name] = self._answer_section(section)
-            on_section_complete(name, state[name])
-
-        self.previewed = preview(state)
+            self.stages.append(stage)
+            if stage == "decisions":
+                flow.answer_decisions(self._answer(flow.decisions_plan()))
+            elif stage == "level":
+                flow.answer_level(self._answer(flow.level_plan(), prefix="level."))
+            elif stage == "gates":
+                gate_answers, bulk = self._answer_gates(flow)
+                flow.answer_gates(gate_answers, bulk=bulk)
+            elif stage == "remainder":
+                flow.answer_remainder(self._answer(flow.remainder_plan()))
+            elif stage == "scaffold":
+                offers = flow.scaffold_offers()
+                flow.accept_scaffold(offers if self.accept_scaffold else [])
+            else:
+                break
+            on_progress()
+        # Overrides for proposed values nothing presented: recorded as typed, like a review edit.
+        for key, value in self.answers.items():
+            if key not in self.asked and key in flow.proposals:
+                flow._record_answer(key, value)
+                self.asked.append(key)
+        for path, value in self.edits.items():
+            flow.edit(path, value)
+        self.review = flow.review()
         if not self.confirm_write:
             raise Cancelled()
-        return state
+        if self.review.error:
+            raise AssertionError(f"ScriptedInterview: the review refuses to write: {self.review.error}")
+        return flow.approve()
 
-    def _answer_section(self, section: plan.SectionPlan) -> dict:
+    def _answer(self, section: plan.SectionPlan, prefix: str = "") -> dict:
         answers: dict = {}
         for spec in section.fields:
             if not spec.applies(answers):
                 continue
-            key = f"{section.name}.{spec.id}"
+            key = f"{prefix}{spec.id}"
             self.asked.append(key)
-            if key not in self.answers:
+            if key in self.answers:
+                answers[spec.id] = self.answers[key]
+            elif spec.kind == "multiselect":
+                answers[spec.id] = [c.strip() for c in str(spec.default).split(",") if c.strip()]
+            elif spec.default and spec.kind not in ("choice",):
+                answers[spec.id] = spec.default
+            elif not spec.validate and spec.kind in ("text", "textarea"):
+                answers[spec.id] = ""
+            else:
                 raise AssertionError(
-                    f"ScriptedInterview: the plan asks for {key!r} and the script has no answer "
+                    f"ScriptedInterview: the flow asks for {key!r} and the script has no answer "
                     f"for it. Fields asked so far in this section: {sorted(answers)}"
                 )
-            answers[spec.id] = self.answers[key]
         return answers
 
+    def _answer_gates(self, flow: _flow.Flow) -> tuple[dict, tuple[str, set[str]] | None]:
+        seeds = flow.gate_seeds()
+        answers: dict = {}
+        bulk: set[str] = set()
+        for spec in flow.gate_specs():
+            local: dict = {}
+            for gate_field in spec.fields:
+                key = f"gates.{spec.id}.{gate_field.id}"
+                short = f"{spec.id}.{gate_field.id}"
+                if not gate_field.applies(local):
+                    continue
+                self.asked.append(key)
+                if key in self.answers:
+                    local[gate_field.id] = self.answers[key]
+                elif short in seeds:
+                    local[gate_field.id] = seeds[short]
+                elif gate_field.id == "status" and self.bulk_not_applicable:
+                    local[gate_field.id] = "not_applicable"
+                    bulk.add(spec.id)
+                elif gate_field.default and gate_field.kind != "choice":
+                    local[gate_field.id] = gate_field.default
+                elif (
+                    gate_field.id == "artefact"
+                    and spec.id in scaffold.SEEDABLE
+                    and not (flow.repo / scaffold.SEEDABLE[spec.id][0]).exists()
+                ):
+                    # As on the screen: a seedable gate's artefact may stay blank, and the
+                    # scaffold offer that follows this stage supplies it or the review refuses.
+                    continue
+                else:
+                    raise AssertionError(
+                        f"ScriptedInterview: the gate list asks for {key!r} and the script has no "
+                        f"answer for it (and nothing was proposed)."
+                    )
+            for field_id, value in local.items():
+                answers[f"{spec.id}.{field_id}"] = value
+        return answers, (("not_applicable", bulk) if bulk else None)
+
     def assert_no_unused_keys(self) -> None:
-        """The other half of the guarantee: an answer nothing asked for is a test failure too,
-        because it usually means a field was renamed or dropped and the script kept feeding it."""
+        """The other half of the guarantee: an answer nothing asked for and nothing proposed is a
+        test failure too, because it usually means a field was renamed or dropped and the script
+        kept feeding it."""
         unused = sorted(set(self.answers) - set(self.asked))
         assert not unused, f"{len(unused)} scripted answer(s) were never asked for: {unused}"

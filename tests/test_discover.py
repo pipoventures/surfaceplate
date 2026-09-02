@@ -202,7 +202,7 @@ def test_a_proposal_needs_evidence_not_merely_a_candidate(tmp: Path) -> None:
     )
 
     proposals = defaults.propose_gates(
-        level="essential", builds_ui=False, mode="simple", found=found
+        level="essential", builds_ui=False, mode="simple", found=found, adoption_date="2026-09-02"
     )
     artefact_proposals = [p for p in proposals if p.field.endswith(".artefact")]
     check(
@@ -218,7 +218,7 @@ def test_a_proposal_needs_evidence_not_merely_a_candidate(tmp: Path) -> None:
     subprocess.run(["git", "-C", str(bare), "commit", "-qm", "register"], check=True)
     found = discover.scan(bare)
     proposals = defaults.propose_gates(
-        level="essential", builds_ui=False, mode="simple", found=found
+        level="essential", builds_ui=False, mode="simple", found=found, adoption_date="2026-09-02"
     )
     proposed = {p.field: p.value for p in proposals}
     check(
@@ -278,8 +278,12 @@ def test_discovery_cannot_find_the_framework_in_the_mirror(tmp: Path) -> None:
         str(found.ci_steps),
     )
     state = {"mode": {"mode": "simple"}, "identity": {"owner": "O"},
-             "stack": {"builds_user_interface": False}, "level": {"conformance_level": "standard"}}
-    proposals = [p for p in defaults.propose(state, found=found) if p.origin == "discovered"]
+             "stack": {"builds_user_interface": False}, "risk": {"data_classification": "internal"},
+             "level": {"conformance_level": "standard"}}
+    proposals = [
+        p for p in defaults.propose_after_level(state, found=found, adoption_date="2026-09-02")
+        if p.origin == "discovered"
+    ]
     check(
         "and nothing is proposed as discovered",
         not proposals,
@@ -310,7 +314,7 @@ def test_ranking_happens_before_the_cap(tmp: Path) -> None:
     found = discover.scan(repo)
     proposed = {
         p.field: p.value
-        for p in defaults.propose_gates(level="essential", builds_ui=False, mode="simple", found=found)
+        for p in defaults.propose_gates(level="essential", builds_ui=False, mode="simple", found=found, adoption_date="2026-09-02")
     }
     check(
         "a real register is proposed even with 300 documents ahead of it",

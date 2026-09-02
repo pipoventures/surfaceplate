@@ -127,21 +127,21 @@ an unknown number of releases with nothing noticing.
 | F59 | Every undecided gate's status radio is invisible at every terminal size: `.chip-row { height: 1 }` leaves no row for Textual's bordered `RadioSet` | high | Closed — `ACT-043`; `.chip-row` is `height: auto` with no border or padding, and `tests/test_render.py` reads the three options off the screen at 80×24 |
 | F60 | The defaults route discards its gate proposals: `GatesScreen` is built without `initial`, and the "N more" count excludes what it will re-ask | high | Closed — `ACT-043`; `GatesScreen` takes `initial` and the app passes the seeded proposals; the "N more" figure is asserted equal to what the remaining screens present unfilled at all three levels |
 | F61 | Discovery proposes the framework's own installed files and CI step as the adopter's preconditions, and the checker passes them | high | Closed — `ACT-044`; discovery excludes the install record's files, the profile and the installed workflow's steps, the field refuses them, and `SP059` reports them on any profile |
-| F62 | The profile header asserts every value was typed by a human above canned rationales, computed dates and derived text | high | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
+| F62 | The profile header asserts every value was typed by a human above canned rationales, computed dates and derived text | high | Closed — `ACT-044`; the header states what the provenance record contains, and the record beside the profile carries every value's origin, read by `tests/test_provenance.py` |
 | F63 | A real profile whose prose mentions "replace-me" is mistaken for the template and overwritten without a prompt | critical | Closed — `ACT-043`; the guard looks for the token in the template's identifying scalars, not the byte stream, and both directions are asserted in `tests/test_adopt.py` |
 | F64 | `validators.check` passes any non-string, so an unpressed radio set and a blank dropdown commit; one path ends in a black screen, the other in an unactionable `KeyError` | high | Closed — `ACT-043`; `None` is blank in `validators.check`, a choice must be one of its choices at commit, and both paths are refused at the field in `tests/test_adopt_tui.py` |
-| F65 | A placeholder is accepted at the field and refused at the review, where nothing but cancel works, and a resumed draft lands on the same refusal | medium | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
+| F65 | A placeholder is accepted at the field and refused at the review, where nothing but cancel works, and a resumed draft lands on the same refusal | medium | Closed — `ACT-044`; every string validator refuses a placeholder at the field, the review's error names the line and `Ctrl+E` goes to it, and "write it" is hidden while an error stands |
 | F66 | The wizard accepts dates and paths the checker rejects, so a profile can pass the wizard and fail its first check | medium | Closed — `ACT-044`; `surfaceplate/rules.py` holds the rules once, both sides import it, and `tests/test_adopt.py` refuses each input and maps every `SP` code to a validator or a named exemption |
 | F67 | The 80×24 pass looked at the wrong screens: the level options below the fold, help text unstyled and flush, off-state controls near-invisible, labels and text areas clipped | medium | Open — the help-text part closed by `ACT-043`; the level fold, off-state contrast and clipping remain for `ACT-044` (`org/REMEDIATION_PLAN.md`) |
 | F68 | Quitting at the resume prompt deletes the draft, and the prompt's heading is swallowed as markup | medium | Closed — `ACT-043`; a quit cancels the run with the draft kept, and the four bracketed headings are `markup=False`, both asserted in `tests/test_adopt.py` and `tests/test_render.py` |
-| F69 | The route screen says the rest is four gates while the next screen says all nineteen | low | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
+| F69 | The route screen says the rest is four gates while the next screen says all nineteen | low | Closed — `ACT-044`; there is no route screen |
 | F70 | The front door: two incompatible install paths, a stale version line, two dead links, a pointer to an uninstalled file, and a global hooks path that stops the first command undocumented | medium | Open — `ACT-045` (`org/REMEDIATION_PLAN.md`) |
 | F71 | The standard's documents contradict themselves on what is checked, which principle limits a tool, whether Actions is enabled, how many gates are asked, and which evidence labels to use | medium | Open — `ACT-045` (`org/REMEDIATION_PLAN.md`) |
 | F72 | Ten findings say Open in the body and Closed in the index, and `check_code_registers.py` never compares status | low | Open — `ACT-046` (`org/REMEDIATION_PLAN.md`) |
 | F73 | Every `action_cancel` is unreachable: Textual's priority quit binding fires first | low | Open — recorded against `ACT-043`, but phase 0 carries no item for it; the maintainer decides which activity closes it (`org/REMEDIATION_PLAN.md`) |
 | F74 | A validation error is erased by the focus move that reports it | medium | Closed — `ACT-043`; the error is held on the screen until the next commit and re-shown on every focus move, asserted after six pauses in `tests/test_adopt_tui.py` |
 | F75 | Candidates are capped at 200 before any gate ranking, so a large `docs/` pushes the register out; the comment says the opposite | high | Closed — `ACT-044`; the scan keeps everything and each field cuts to `SHOWN` after ranking, asserted with 300 documents ahead of the register in `tests/test_discover.py` |
-| F76 | Resuming a draft that chose the defaults route never offers defaults again | medium | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
+| F76 | Resuming a draft that chose the defaults route never offers defaults again | medium | Closed — `ACT-044`; the draft carries every answer with its origin and which stages are done, and a resumed run lands on the review with its proposals, asserted in `tests/test_adopt_tui.py` |
 | F77 | Hygiene: non-atomic profile write; a draft with the wrong shape or stale ids kills the run; non-UTF-8 paths quoted; `is_empty` never true; `human_roles: null` as `['None']`; unescaped enums; `KeyboardInterrupt` uncaught; `adopt` exits 0 on findings; the two reliance answers discarded | medium | Open — `ACT-044`, `ACT-045`, `ACT-046` (`org/REMEDIATION_PLAN.md`) |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -1203,11 +1203,18 @@ and `candidate_paths` returns nothing when git can read nothing of the adopter's
 
 ## F76 — Resuming a draft that chose the defaults route never offers defaults again
 
-**Severity: medium. Open.**
+**Severity: medium. Closed.**
 
 Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, the adversarial product review of 2026-09-02, authorised by the maintainer in the review session (https://claude.ai/code/session_01X1MZfNScrJjgD5e2AGBjvs). Closes by `ACT-044`; see `org/REMEDIATION_PLAN.md`.
 
 `_drive` skips any section already in `self.state` (`tui/app.py:203-204`) and runs `_take_the_defaults_route()` only in the tail of the `route` iteration (`:241-244`). Cancel at the proposals screen or anywhere after `route` commits, and the next run resumes into the full manual flow with every proposal gone. Probed headlessly: `resumed={…, "route": {"route": "defaults"}}` opens on `FormScreen`, no `DefaultsScreen`. Closed by `DR-47`'s flow, which has no route.
+
+**Closed by `ACT-044`, items 1.1 and 1.7 (2026-09-02).** The draft (`DRAFT_FORMAT` 3) carries every
+answer with its origin and which stages are done; `flow.Flow` re-proposes after the level on
+resume and keeps whatever the draft holds. `tests/test_adopt_tui.py::test_resuming_a_draft_keeps_its_proposals`
+resumes a draft cancelled before the scaffold offer and asserts the review still shows the
+discovered artefact under its origin. A format-2 draft is not offered; it is left in place and
+overwritten by the first completed stage.
 
 ## F75 — Candidates are capped at 200 before any gate ranking, so a large `docs/` pushes the register out; the comment says the opposite
 
@@ -1288,11 +1295,16 @@ Run as a stranger in a fresh venv: `surfaceplate install --dry-run` exited 4 wit
 
 ## F69 — The route screen says the rest is four gates while the next screen says all nineteen
 
-**Severity: low. Open.**
+**Severity: low. Closed.**
 
 Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, the adversarial product review of 2026-09-02, authorised by the maintainer in the review session (https://claude.ai/code/session_01X1MZfNScrJjgD5e2AGBjvs). Closes by `ACT-044`; see `org/REMEDIATION_PLAN.md`.
 
 `plan.route_plan` (`plan.py:162-199`) writes "At standard the rest of this profile is 4 gate(s) and 4 control(s)" from the level's mandatory count; two screens later the gates intro reads "All 19 gates must be decided one way or the other at standard" (`std-def-14`, `-35`). Closed by `DR-47`'s flow, which has no route screen.
+
+**Closed by `ACT-044`, item 1.1 (2026-09-02).** `plan.route_plan` and the route section are gone;
+the flow is decisions, level, the gate list, whatever the proposal could not fill, and the review
+(`flow.STAGES`), asserted on the real `AdoptApp` in
+`tests/test_adopt_tui.py::test_the_flow_is_decisions_level_gates_review`.
 
 ## F68 — Quitting at the resume prompt deletes the draft, and the prompt's heading is swallowed as markup
 
@@ -1369,11 +1381,19 @@ call `check(..., repo=)`) and to pass after (`ADOPT_CONFORMANCE=PASS (131 checks
 
 ## F65 — A placeholder is accepted at the field and refused at the review, where nothing but cancel works, and a resumed draft lands on the same refusal
 
-**Severity: medium. Open.**
+**Severity: medium. Closed.**
 
 Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, the adversarial product review of 2026-09-02, authorised by the maintainer in the review session (https://claude.ai/code/session_01X1MZfNScrJjgD5e2AGBjvs). Closes by `ACT-044`; see `org/REMEDIATION_PLAN.md`.
 
 `TBD` typed into a rationale passes the controls screen (`validators.check("nonempty", "TBD")` is `None`). The review then shows the placeholder refusal, an empty profile pane and a hint still reading "[Ctrl+S] write it"; `Ctrl+S`, `Tab`, `Escape`, `Backspace` do nothing; `Ctrl+Q` cancels and keeps the draft. On the next run, resuming skips every completed section (`tui/app.py:203-204`) and lands on the same review with the same error (`shots-bad2/deadlock-01`). The exits are discarding the whole draft or hand-editing the JSON. Remedy: refuse the placeholder where it is typed, and give the review a way to the offending line.
+
+**Closed by `ACT-044`, items 1.6 and 1.8 (2026-09-02).** `validators.check` refuses a template
+placeholder for every string validator, so `TBD` stops at the field; `flow.Flow.review` validates
+every answered field before rendering and names the first refusal with its profile path; the
+review screen shows the error, `Ctrl+E` moves the highlight to that line, Enter opens it for
+editing, and "write it" is not in the legend while an error stands.
+`tests/test_adopt_tui.py::test_a_placeholder_is_refused_at_the_field_and_the_review_names_the_line`
+drives both halves. A resumed draft lands on the same review, now with a way out.
 
 ## F64 — `validators.check` passes any non-string, so an unpressed radio set and a blank dropdown commit; one path ends in a black screen, the other in an unactionable `KeyError`
 
@@ -1418,11 +1438,26 @@ the run got past the guard) and to pass after (`ADOPT_CONFORMANCE=PASS (92 check
 
 ## F62 — The profile header asserts every value was typed by a human above canned rationales, computed dates and derived text
 
-**Severity: high. Open.**
+**Severity: high. Closed.**
 
 Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, the adversarial product review of 2026-09-02, authorised by the maintainer in the review session (https://claude.ai/code/session_01X1MZfNScrJjgD5e2AGBjvs). Closes by `ACT-044`; see `org/REMEDIATION_PLAN.md`.
 
 `surfaceplate/adopt/render.py:205-206` writes *"Every value below was typed by a human answering a question; nothing here was inferred, defaulted silently, or chosen by the wizard"* on every profile. On the defaults route the profile beneath it carries five rationales that are the framework's worked examples verbatim ("The API is consumed by a separate frontend and would break silently." — Plutos has no separate frontend), a computed `review_by`, a pre-filled `effective_from`, `framework_maintainer` copied from `owner`, and every gate's descriptions and enforcement derived. The maintainer's real first attempt carries the same header above seven gates whose artefacts, paths and descriptions read `asdf`. The `DefaultsScreen` knows each value's origin and the profile throws it away. Remedy per `DR-47`: a true header and a provenance record beside the profile.
+
+**Closed by `ACT-044`, items 1.1 and 1.2 (2026-09-02), implementing `DR-47`.** `render.render_profile`
+writes a header that states what the provenance record contains and no more; the sentence quoted
+above is withdrawn. `surfaceplate/adopt/provenance.py` traces every leaf of the assembled profile
+to an origin by a rule table from profile path to answer, and `wizard.run` writes
+`governance/application-profile.provenance.yaml` beside the profile: origin per field, the
+framework version, one document-level approval with its timestamp, and any bulk gate decision as
+one human act with its count. `flow.Flow` records the origin of every answer as it is given - a
+value submitted unchanged keeps its proposal's origin, a review edit is typed with a timestamp -
+and `tests/test_provenance.py` drives the flow at essential, standard and full and asserts every
+leaf has an origin, nothing is typed that the human did not type, a typed value reappears under
+another origin only as a recorded copy, and the approval carries a timestamp; two negative
+controls show the walk objecting to a promoted proposal and to an unreached profile path.
+`tests/test_adopt.py::test_proposing_writes_the_same_profile_as_typing_the_same_values`
+reproduces the prototype's equality on the real code.
 
 ## F61 — Discovery proposes the framework's own installed files and CI step as the adopter's preconditions, and the checker passes them
 

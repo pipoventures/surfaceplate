@@ -104,6 +104,20 @@ item, not a scheduling fact:
 `deferred` rather than `required`, what `effective_from` should read — is a human decision the wizard
 elicits and records verbatim, never one it makes on the human's behalf.
 
+**What "asked" means (`DR-47`, implemented by `ACT-044`).** A value is *asked* when it is presented
+to the human with its origin and the human can change it before the profile is written. A form
+field is one way to present it; the annotated review of the whole profile is another. The tool may
+propose a value from six sources — typed, discovered, example, computed, a fact of record, a
+scaffolded artefact — and records the origin of every value it wrote in
+`governance/application-profile.provenance.yaml`, a machine-owned file beside the profile. It never
+records a proposed value as typed: a value submitted unchanged keeps its proposal's origin, an edit
+made on the review is typed with a timestamp, and approval is recorded once, for the document. The
+tool never supplies a scope decision, `not_applicable` included: a human presses a key per gate, or
+invokes one explicit bulk command that the record writes as one human act with its count.
+`effective_from` is proposed as the adoption date, shown on the review, and recorded as computed
+unless changed — the value can only be widened from there (`SP033`, `SP034`). The profile header
+states what the record contains and no more.
+
 **What the tool may supply, stated exactly, because "never sets a date" was not true when it was
 written.** `adoption_date` has been a tool-supplied date since the first version of this wizard,
 disclosed in `sections.build_adoption`'s docstring and named in `tests/test_provenance.py`'s
@@ -128,8 +142,10 @@ chose the narrowest value the rules permit.
 
 **`tests/test_provenance.py` is the enforcement, not this paragraph.** Its sentinel walk drives the
 profile builders directly and fails on any string that no answer supplied and the allow-list does not
-name. A change that needs the allow-list to grow is a change to this rule, and belongs in a decision
-record before it belongs in code.
+name; since `ACT-044` it also drives the flow and reads the provenance record, failing on any leaf of
+the profile without an origin, on any origin that says typed for a value the human did not type,
+and on an approval without a timestamp. A change that needs the allow-list to grow is a change to
+this rule, and belongs in a decision record before it belongs in code.
 
 **A naming collision this item had to resolve, not duplicate — resolved.**
 `prompts/github-copilot-adoption-wizard.prompt.md` existed, called itself "the wizard," and was

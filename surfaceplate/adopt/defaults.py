@@ -1,35 +1,43 @@
-"""Proposed answers for the sections an adopter chose not to walk through one at a time.
+"""Proposed answers, each with the origin it will be recorded under.
 
-`DR-40` records the shape and its one hard constraint. This module **proposes**; it never decides.
-Every value it produces is shown on a review screen, with where it came from, and none of it
-reaches disk until a human approves that screen. That is what keeps `org/RELEASE_PLAN.md`'s binding
-rule intact - *it asks, the human answers, the tool writes* - and what keeps
-`tests/test_provenance.py`'s allow-list from having to grow: an approved proposal is an answer,
-submitted the same way a shown default in a text box has always been.
+`DR-40` created this module to propose what the adopter chose not to type; `DR-47` makes it the
+rule for every value the wizard writes. This module **proposes**; it never decides. Every value it
+produces is shown on the review with where it came from, the human can change any of them, and
+the origin is recorded in `governance/application-profile.provenance.yaml` exactly as proposed -
+never as typed (`provenance.py`).
 
-The maintainer asked for this after finishing a real adoption and finding the volume, not the
-wording, was the problem: *"we should have a first set of windows asking for the absolutely minimum
-information and then offer: Set defaults and Customise adoption."*
+**A proposal is only made where there is something honest to propose.** The sources `DR-47` (2)
+names, and nothing else:
 
-**A proposal is only made where there is something honest to propose.** Three sources, and nothing
-else:
-
-- **discovered** - a real path, directory or CI step read out of this repository (`discover.py`);
+- **discovered** - a real path, directory or CI step read out of this repository (`discover.py`),
+  never one this framework installed (`F61`);
 - **example** - the worked prose this framework already ships for that control or gate
-  (`example_answers.py`), which is what a blank rationale box already offers today;
-- **computed** - a value derived from a fact, not invented: today's date, the review horizon, a
-  maintainer taken from the owner already given.
+  (`example_answers.py`);
+- **computed** - a value derived from a fact or from an answer already given: today's date, the
+  review horizon, a maintainer taken from the owner already given, a classification copied from
+  the one already chosen;
+- **fact of record** and **scaffolded** are recorded by `provenance.py` and `flow.py` rather
+  than proposed here.
 
-A field with no honest source is **left unanswered and still asked**. Filling it would mean the
-tool authoring a judgement, which is the one thing this package exists not to do.
+**What is never proposed.** A scope decision: a gate's status - `not_applicable` included - is a
+key a human presses, singly or in one recorded bulk act (`DR-47` (4)). `F62` is what proposing
+those cost: fifteen example rationales made true by assertion under a header claiming human
+authorship. A field with no honest source is **left unanswered and still asked**.
 """
 
 from __future__ import annotations
 
 import datetime as _dt
+import re
 from dataclasses import dataclass
+from pathlib import Path
 
-from surfaceplate.adopt import catalogue, discover, example_answers, plan
+from surfaceplate.adopt import catalogue, detect, discover, example_answers, plan, provenance
+
+# The framework's own sentence for a prose field the human left blank on the decisions form. It
+# is written as computed - from the fact that nothing was stated - and is one edit on the review.
+# `DR-47` accepted the prototype that wrote exactly this (report Part II §II.1).
+NOT_STATED = "Not stated at adoption."
 
 
 @dataclass(frozen=True)
@@ -38,15 +46,84 @@ class Proposal:
 
     field: str  # "<section>.<field id>"
     value: object
-    origin: str  # "discovered" | "example" | "computed"
-    detail: str  # the human-readable reason, shown on the review screen
+    origin: str  # one of provenance.KINDS other than "typed"
+    detail: str  # the human-readable reason, shown on the review
 
     def describe(self) -> str:
         return f"{self.field} = {self.value!r}  ({self.detail})"
 
+    def as_origin(self) -> provenance.Origin:
+        return provenance.Origin(self.origin, self.detail)
 
-def _first(candidates, fallback: str = "") -> str:
-    return candidates[0] if candidates else fallback
+
+def slug(name: str) -> str:
+    """A directory name as an `application_id` the schema accepts, or `""` if nothing survives."""
+    text = re.sub(r"[^a-z0-9_-]+", "-", name.strip().lower()).strip("-")
+    text = re.sub(r"-{2,}", "-", text)
+    if len(text) < 2 or not re.match(r"^[a-z0-9]", text):
+        return ""
+    return text
+
+
+# ---------------------------------------------------------------------------------------------
+# Before the decisions form: what the form can show pre-filled
+# ---------------------------------------------------------------------------------------------
+
+
+def propose_identity(repo: Path) -> list[Proposal]:
+    """The directory's own name, as the id and the display name. Both are one edit."""
+    out: list[Proposal] = []
+    name = repo.resolve().name
+    ident = slug(name)
+    if ident:
+        out.append(
+            Proposal("identity.application_id", ident, provenance.COMPUTED, "= the directory name")
+        )
+    if name.strip():
+        out.append(
+            Proposal("identity.display_name", name, provenance.COMPUTED, "= the directory name")
+        )
+    return out
+
+
+def propose_stack(repo: Path) -> list[Proposal]:
+    languages = detect.detect_languages(repo)
+    if not languages:
+        return []
+    return [
+        Proposal(
+            "stack.language",
+            ", ".join(languages),
+            provenance.DISCOVERED,
+            "language markers found in this repository",
+        )
+    ]
+
+
+# ---------------------------------------------------------------------------------------------
+# After the decisions form and the level: everything else
+# ---------------------------------------------------------------------------------------------
+
+
+def propose_risk(risk_answers: dict) -> list[Proposal]:
+    """The two prose fields the decisions form leaves optional. `NOT_STATED` where blank."""
+    out: list[Proposal] = []
+    if not str(risk_answers.get("risk_profile") or "").strip():
+        out.append(
+            Proposal(
+                "risk.risk_profile", NOT_STATED, provenance.COMPUTED, "left blank on the decisions form"
+            )
+        )
+    if not str(risk_answers.get("materiality_definition") or "").strip():
+        out.append(
+            Proposal(
+                "risk.materiality_definition",
+                NOT_STATED,
+                provenance.COMPUTED,
+                "not asked before the review; one edit here",
+            )
+        )
+    return out
 
 
 def propose_controls(*, level: str, mode: str, found: discover.Discovered) -> list[Proposal]:
@@ -58,193 +135,132 @@ def propose_controls(*, level: str, mode: str, found: discover.Discovered) -> li
     for spec in section.fields:
         key = f"controls.{spec.id}"
         if spec.id == "above_floor":
-            # Nothing above the floor. A level is a floor, and quietly opting an adopter into
-            # controls they did not ask for would be the tool choosing their scope. `ACT-032` made
-            # this ONE proposal where it used to be one per control - the wizard was computing this
-            # same answer eight times over while also asking the adopter for it eight times.
+            # Nothing above the floor unless a human ticks it: a level is a floor, and quietly
+            # opting an adopter into controls they did not ask for would be the tool choosing
+            # their scope. Presented on the remainder form, so this is the value when left unticked.
             out.append(
-                Proposal(key, [], "computed", "nothing beyond this level's floor is declared")
+                Proposal(key, [], provenance.COMPUTED, "nothing beyond this level's floor is declared")
             )
             continue
-        if spec.id.endswith(".declared"):  # pre-`ACT-032` shape, still honoured
-            out.append(Proposal(key, False, "computed", "above this level's floor, so not declared"))
-            continue
-
         if spec.id.endswith(".rationale"):
             control_id = spec.id.rsplit(".", 1)[0]
             example = example_answers.rationale_example(control_id)
             if example and (control_id in floor or control_id in plan.BASELINE_CONTROL_IDS):
                 out.append(
-                    Proposal(key, example, "example", "this framework's own worked example")
+                    Proposal(key, example, provenance.EXAMPLE, "this framework's own worked example")
                 )
             continue
-
         if spec.id.endswith(".implementation_reference"):
             if spec.choices:
-                value = spec.choices[0][0]
                 out.append(
-                    Proposal(key, value, "discovered", "found in this repository")
+                    Proposal(key, spec.choices[0][0], provenance.DISCOVERED, f"found: {spec.choices[0][0]}")
                 )
             continue
-
         if spec.id == "scanner.name":
-            out.append(Proposal(key, spec.default, "example", "the scanner the examples name"))
+            out.append(Proposal(key, spec.default, provenance.EXAMPLE, "the scanner the examples name"))
         elif spec.id == "scanner.wired_in" and spec.choices:
             out.append(
-                Proposal(key, spec.choices[0][0], "discovered", "a workflow file in this repository")
+                Proposal(key, spec.choices[0][0], provenance.DISCOVERED, f"found: {spec.choices[0][0]}")
             )
     return out
 
 
-def propose_gates(*, level: str, builds_ui: bool, mode: str, found: discover.Discovered) -> list[Proposal]:
-    """A status for every gate, and a precondition for the ones that need one.
+def propose_gates(
+    *, level: str, builds_ui: bool, mode: str, found: discover.Discovered, adoption_date: str
+) -> list[Proposal]:
+    """A precondition for every gate that could be `required`, and nothing for any status.
 
-    Gates the level does not require are proposed `not_applicable` with the framework's own example
-    rationale. That is a real decision an adopter must own, which is exactly why it is proposed on a
-    review screen rather than written.
+    `DR-47` (4): the tool never supplies a scope decision, `not_applicable` included. `DR-47` (5):
+    `effective_from` is proposed as the adoption date and recorded as computed unless changed - the
+    value is shown, and a human can only widen the audit window from it (`SP033`, `SP034`).
     """
     out: list[Proposal] = []
-    today = _dt.date.today().isoformat()
-
     for spec in plan.gate_plan(level=level, builds_ui=builds_ui, mode=mode, found=found):
         prefix = f"gates.{spec.id}"
-        status = "required" if spec.mandatory else (spec.auto_status or "not_applicable")
-
-        if not spec.mandatory and not spec.auto_status:
+        # A gate settled `not_applicable` by an earlier answer needs no precondition.
+        if spec.auto_status:
+            continue
+        # `F40`: MATCHED, not merely ranked - a proposal comes only from a candidate that matched
+        # the gate. No match -> no proposal, and the field is asked.
+        matched = discover.matched_for_gate(found.artefacts, spec.id)
+        if matched:
             out.append(
                 Proposal(
-                    f"{prefix}.status",
-                    "not_applicable",
-                    "computed",
-                    f"{level} does not require this gate; declare it if it applies to you",
+                    f"{prefix}.artefact",
+                    matched[0],
+                    provenance.DISCOVERED,
+                    f"the closest match in this repository: {matched[0]}",
                 )
             )
-
-        if status == "required":
-            # `F40`: MATCHED, not merely ranked. `rank_for_gate` returns every candidate so the
-            # dropdown offers everything; its first entry is the best *available* one, which in a
-            # repository with nothing relevant is just the only file. Proposing that produced a
-            # gate satisfying `SP032` while guarding nothing. No match -> no proposal, and
-            # `unanswered()` asks.
-            matched = discover.matched_for_gate(found.artefacts, spec.id)
-            if matched:
-                out.append(
-                    Proposal(
-                        f"{prefix}.artefact",
-                        matched[0],
-                        "discovered",
-                        "the closest match in this repository for this gate",
-                    )
-                )
-            # `F61`: only when discovery found a directory of the adopter's own. The `"**"`
-            # fallback was proposed as "discovered" on a repository holding nothing but this
-            # framework's files, which is a proposal with no honest source; left unproposed, the
-            # field is asked.
-            if found.paths:
-                out.append(
-                    Proposal(
-                        f"{prefix}.paths",
-                        found.paths[0],
-                        "discovered",
-                        "this repository's main source directory",
-                    )
-                )
-            # `F51`: `effective_from` is asked again, so it is PROPOSED again - today's date, as a
-            # computed fact, shown on the defaults screen and written only once a human passes it.
-            # That is the distinction the amended binding rule turns on: proposing a fact a human
-            # approves is not the same act as writing one nobody was shown, which is what
-            # `ACT-032` did and what the review caught.
-            #
-            # `enforcement` and both description fields remain derived and are not proposed:
-            # proposing a value for a field no adopter is shown would put rows on the review screen
-            # that correspond to no question.
+        # `F61`: only when discovery found a directory of the adopter's own.
+        if found.paths:
             out.append(
                 Proposal(
-                    f"{prefix}.effective_from",
-                    today,
-                    "computed",
-                    "today - history before it is out of scope; an earlier date audits more",
+                    f"{prefix}.paths",
+                    found.paths[0],
+                    provenance.DISCOVERED,
+                    "this repository's main source directory",
                 )
             )
-        else:
-            example = example_answers.rationale_example(spec.id)
-            if example:
-                out.append(
-                    Proposal(f"{prefix}.rationale", example, "example", "this framework's own worked example")
-                )
-            else:
-                # `ACT-034`: a field's OWN shipped default was never proposed, so a repository with
-                # no user interface was asked to hand-write four rationales saying it has no user
-                # interface - text the wizard already holds, derived from `builds_user_interface`
-                # which the adopter had already answered. That was 4 of the 14 questions the
-                # defaults route still asked. `computed` is the honest origin: it comes from an
-                # answer already given, not from invention.
-                for field in spec.fields:
-                    if field.id == "rationale" and field.default:
-                        out.append(
-                            Proposal(
-                                f"{prefix}.rationale",
-                                field.default,
-                                "computed",
-                                "follows from an answer you already gave",
-                            )
-                        )
+        out.append(
+            Proposal(
+                f"{prefix}.effective_from",
+                adoption_date,
+                provenance.COMPUTED,
+                "= the adoption date; an earlier date audits more history",
+            )
+        )
     return out
 
 
-def propose_adoption(*, owner: str) -> list[Proposal]:
-    """Only what can be derived from a fact. `decision_record_id` is deliberately absent: there is
-    no honest way to invent an identifier for a record that may not exist."""
+def propose_adoption(*, owner: str, data_classification: str) -> list[Proposal]:
+    """Only what can be derived from a fact or an answer already given."""
     return [
         Proposal(
             "adoption.review_by",
             (_dt.date.today() + _dt.timedelta(days=180)).isoformat(),
-            "computed",
+            provenance.COMPUTED,
             "180 days from today, the interval this framework suggests",
         ),
+        Proposal("adoption.framework_maintainer", owner, provenance.COMPUTED, "= owner"),
         Proposal(
-            "adoption.framework_maintainer",
-            owner,
-            "computed",
-            "the owner you already gave",
+            "adoption.repository_classification",
+            data_classification,
+            provenance.COMPUTED,
+            "= data_classification",
         ),
-        Proposal("adoption.needs_validator", False, "computed", "no independent review declared"),
+        Proposal(
+            "adoption.adoption_status",
+            "in_progress",
+            provenance.COMPUTED,
+            "adopt has just written the profile; the checker has not yet passed against it",
+        ),
+        Proposal(
+            "adoption.needs_validator", False, provenance.COMPUTED, "no independent review declared"
+        ),
     ]
 
 
-def propose(state: dict, *, found: discover.Discovered) -> list[Proposal]:
-    """Everything proposable, given what has already been answered."""
+def propose_wrap() -> list[Proposal]:
+    return [
+        Proposal("wrap.human_roles", "", provenance.COMPUTED, "none stated; one edit here"),
+    ]
+
+
+def propose_after_level(
+    state: dict, *, found: discover.Discovered, adoption_date: str
+) -> list[Proposal]:
+    """Everything proposable once the level is known."""
     level = state["level"]["conformance_level"]
     builds_ui = bool(state["stack"]["builds_user_interface"])
     mode = state["mode"]["mode"]
-    owner = state["identity"]["owner"]
+    owner = str(state["identity"].get("owner") or "")
+    classification = str(state["risk"].get("data_classification") or "")
     return [
         *propose_controls(level=level, mode=mode, found=found),
-        *propose_gates(level=level, builds_ui=builds_ui, mode=mode, found=found),
-        *propose_adoption(owner=owner),
+        *propose_gates(
+            level=level, builds_ui=builds_ui, mode=mode, found=found, adoption_date=adoption_date
+        ),
+        *propose_adoption(owner=owner, data_classification=classification),
+        *propose_wrap(),
     ]
-
-
-def unanswered(state: dict, proposals: list[Proposal], *, repo, found) -> list[str]:
-    """Planned fields that no proposal covers, and so must still be asked.
-
-    This is the honest half. A field with no discovered value, no worked example and nothing to
-    compute from is a judgement, and the wizard asks for it however the adopter chose to finish.
-    """
-    proposed = {p.field for p in proposals}
-    missing: list[str] = []
-    working = dict(state)
-    for name in ("controls", "gates", "adoption", "wrap"):
-        section = plan.section_plan(name, repo=repo, state=working, found=found)
-        local: dict = {}
-        for spec in section.fields:
-            key = f"{name}.{spec.id}"
-            value = next((p.value for p in proposals if p.field == key), None)
-            local[spec.id] = value
-            if not spec.applies(local):
-                local.pop(spec.id, None)
-                continue
-            if key not in proposed:
-                missing.append(key)
-        working[name] = local
-    return missing

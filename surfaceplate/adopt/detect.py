@@ -28,8 +28,27 @@ _LANGUAGE_MARKERS: list[tuple[str, tuple[str, ...]]] = [
 _UI_DEPENDENCY_HINTS = ("react", "vue", "svelte", "@angular/core", "next", "nuxt", "solid-js")
 
 
+# R7: widen what discovery looks for, because each hit removes a question. A repository with no
+# manifest file but source files at its root is still recognisably one language.
+_LANGUAGE_SUFFIXES: list[tuple[str, tuple[str, ...]]] = [
+    ("Python", (".py",)),
+    ("Node.js / TypeScript", (".ts", ".js", ".tsx")),
+    ("Rust", (".rs",)),
+    ("Go", (".go",)),
+    ("Java", (".java", ".kt")),
+    ("Ruby", (".rb",)),
+]
+
+
 def detect_languages(repo: Path) -> list[str]:
     found = [label for label, markers in _LANGUAGE_MARKERS if any((repo / m).is_file() for m in markers)]
+    try:
+        suffixes = {p.suffix for p in repo.iterdir() if p.is_file()}
+    except OSError:
+        suffixes = set()
+    for label, exts in _LANGUAGE_SUFFIXES:
+        if label not in found and any(ext in suffixes for ext in exts):
+            found.append(label)
     return found
 
 

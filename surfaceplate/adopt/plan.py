@@ -122,80 +122,129 @@ class GateSpec:
 # ---------------------------------------------------------------------------------------------
 
 
-def mode_plan() -> SectionPlan:
-    """Ask about the person, not about the prose.
+_YES_NO_CHOICES = (("yes", "yes"), ("no", "no"))
 
-    This used to ask which register of explanation you wanted, which is a question about the
-    tool's output and hard to answer before seeing any. Asking about experience is answerable
-    immediately and the wizard derives the register from it - the maintainer's own suggestion after
-    finishing a run: *"we should suggest simple or advanced explanations by asking what level of
-    experience does the user have."*
+
+def decisions_plan(repo: Path, *, found: discover.Discovered, proposals: dict) -> SectionPlan:
+    """The one form before the level: what only the adopter can tell us (`DR-47`, report R1).
+
+    Eight fields, plus one for each thing discovery could not find that every level needs. Nothing
+    here is a question the tool could answer on the adopter's behalf: who owns this, whether it
+    builds an interface, who relies on it, how its data is classified, how it is released. The
+    three yes/no questions are radio choices with nothing pre-selected (`F64`), so each is a key
+    the human pressed and is recorded as typed. `application_id` is pre-filled from the directory
+    name and recorded as computed unless changed.
     """
-    return SectionPlan(
-        name="mode",
-        title="How much should this explain?",
-        intro=(
-            "Everything gets a real explanation before you are asked about it. This chooses the "
-            "vocabulary those explanations use, and nothing else."
+    fields: list[FieldSpec] = [
+        FieldSpec(
+            id="identity.application_id",
+            label="application_id",
+            help="short, stable, used in file paths and IDs - lowercase, digits, hyphen or underscore",
+            default=str(proposals["identity.application_id"].value) if "identity.application_id" in proposals else "",
+            validate="application_id",
         ),
-        fields=(
+        FieldSpec(
+            id="identity.owner",
+            label="owner",
+            help="who is accountable for this application, not this adoption - a named human",
+        ),
+    ]
+    if "stack.language" not in proposals:
+        fields.append(
             FieldSpec(
-                id="mode",
-                label="Your experience with software delivery and governance",
-                kind="choice",
-                choices=(
-                    (
-                        "simple",
-                        "standard - explain in plain English, assuming no background in either",
-                    ),
-                    (
-                        "advanced",
-                        "advanced - use precise technical terms, and explain this framework's own "
-                        "vocabulary where it is unusual",
-                    ),
-                ),
+                id="stack.language",
+                label="Language(s) / framework",
+                help="nothing recognisable was detected, so say what this is built in",
+            )
+        )
+    fields += [
+        FieldSpec(
+            id="stack.builds_user_interface",
+            label="Does this repository build a user interface?",
+            kind="choice",
+            choices=_YES_NO_CHOICES,
+            help=(
+                "Decides whether the four interface gates are a floor at standard and full. "
+                "Answer for what this repository actually does, not what it might do later."
             ),
         ),
-    )
-
-
-def route_plan(state: dict) -> SectionPlan:
-    """The fork: finish quickly from proposed answers, or answer everything yourself.
-
-    Placed after the minimum - identity, stack, risk, level - because none of the proposals are
-    possible until the level is known, and because those four are the questions nobody can answer
-    on an adopter's behalf.
-    """
-    level = (state.get("level") or {}).get("conformance_level", "essential")
-    summary = catalogue.level_summary(
-        level, bool((state.get("stack") or {}).get("builds_user_interface", False))
-    )
-    return SectionPlan(
-        name="route",
-        title="How would you like to finish?",
-        intro=(
-            f"At {level} the rest of this profile is {summary['gate_count']} gate(s) and "
-            f"{summary['control_count']} control(s). You can answer them one at a time, or start "
-            "from proposed answers and change what you disagree with."
-        ),
-        notes=(
-            "Either way nothing is written until you approve a full review of the profile.",
-        ),
-        fields=(
-            FieldSpec(
-                id="route",
-                label="How to complete the remaining sections",
-                kind="choice",
-                # Short enough to READ on an 80-column terminal, which the previous wording was
-                # not: it rendered as `Set defaults - propose answers f…`, leaving the adopter to
-                # choose between two options they could not finish reading. The detail that was cut
-                # is in the section intro directly above, where there is room for it.
-                choices=(
-                    ("defaults", "Set defaults - propose, then show me"),
-                    ("customise", "Customise - ask me everything"),
-                ),
+        # `ACT-032`: the two questions the level recommendation reads, in the framework's own
+        # words (`catalogue.LEVEL_BLURBS`), so the level is answerable before it is explained.
+        FieldSpec(
+            id="risk.relied_on_outside_team",
+            label="Does anyone outside your team rely on what this produces?",
+            kind="choice",
+            choices=_YES_NO_CHOICES,
+            help=(
+                "A colleague in another team, a customer, or another system reading your "
+                "output. If it is a proof of concept or internal tooling nobody else depends "
+                "on, the answer is no."
             ),
         ),
+        FieldSpec(
+            id="risk.material_quantitative_output",
+            label="Does it produce numbers or AI output that others treat as fact?",
+            kind="choice",
+            choices=_YES_NO_CHOICES,
+            help=(
+                "Figures, model outputs or AI-generated results that another system or another "
+                "team consumes without re-deriving them. Not: logs, dashboards of your own "
+                "activity, or output a human always checks before it is used."
+            ),
+        ),
+        FieldSpec(
+            id="risk.data_classification",
+            label="Data classification",
+            kind="choice",
+            choices=(
+                ("public", "public - no restriction"),
+                ("internal", "internal - not for external release"),
+                ("confidential", "confidential - within the organisation"),
+                ("restricted", "restricted - the strictest tier"),
+            ),
+        ),
+        FieldSpec(
+            id="wrap.release_route",
+            label="Release route",
+            kind="textarea",
+            help="human and platform release controls, in your own words",
+        ),
+        FieldSpec(
+            id="risk.risk_profile",
+            label="Risk, in your own words",
+            kind="textarea",
+            help="optional - intended use, uncertainty, materiality. Left blank, the profile says so",
+            validate="",
+        ),
+    ]
+    # One question per thing discovery could not find that every level needs. A field with no
+    # honest source is asked (`DR-40`); discovery's job is to make this rare, not to invent.
+    if not any("workflow" in a for a in found.artefacts):
+        fields.append(
+            FieldSpec(
+                id="controls.scanner.wired_in",
+                label="Scanner workflow file",
+                help="no workflow file was found; name the one that runs the secret scanner",
+                validate="tracked_path",
+            )
+        )
+    if not found.lock_files:
+        fields.append(
+            FieldSpec(
+                id="controls.dependency_lock.implementation_reference",
+                label="Dependency lock file",
+                help="no lock file was found; name the file that pins this repository's dependencies",
+                validate="tracked_path",
+            )
+        )
+    return SectionPlan(
+        name="decisions",
+        title="What only you can tell us",
+        intro=(
+            "Everything else is proposed from this repository and this framework's own examples, "
+            "and shown to you with where it came from before anything is written."
+        ),
+        fields=tuple(fields),
     )
 
 
@@ -310,11 +359,12 @@ def risk_plan() -> SectionPlan:
                 id="data_classification",
                 label="Data classification",
                 kind="choice",
+                # Short enough to read beside the label column at 80 columns (`F67`).
                 choices=(
                     ("public", "public - no restriction"),
                     ("internal", "internal - not for external release"),
-                    ("confidential", "confidential - restricted within the organisation"),
-                    ("restricted", "restricted - the strictest tier this framework recognises"),
+                    ("confidential", "confidential - within the organisation"),
+                    ("restricted", "restricted - the strictest tier"),
                 ),
             ),
         ),
@@ -966,22 +1016,24 @@ def wrap_plan() -> SectionPlan:
 # The whole run
 # ---------------------------------------------------------------------------------------------
 
-# The minimum first - the four nobody can answer on an adopter's behalf - then the fork, then the
-# rest. `route` decides whether `controls` and `gates` are asked or proposed.
+# The profile's sections, in the order the builders and the provenance walk read them. This is
+# the shape of the STATE, not of the screens: `DR-47`'s flow presents `decisions`, `level`, the
+# gate list and a remainder form (`flow.STAGES`), and scatters their answers into these sections.
 SECTION_ORDER = (
     "mode",
     "identity",
     "stack",
     "risk",
     "level",
-    "route",
     "controls",
     "gates",
     "adoption",
     "wrap",
 )
 
-MINIMUM_SECTIONS = ("mode", "identity", "stack", "risk", "level")
+# The screens that carry a step number, in order. The remainder form and the scaffold offer are
+# conditional and unnumbered (`F45`).
+FLOW = ("decisions", "level", "gates")
 
 
 def recap_lines(state: dict) -> tuple[str, ...]:
@@ -1022,7 +1074,12 @@ def section_plan(
     owner = (state.get("identity") or {}).get("owner", "")
 
     if name == "mode":
-        return mode_plan()
+        # Session state, never written: the register of explanation. `DR-47`'s flow has no
+        # screen for it; plain English is the default and the only value the flow sets.
+        return SectionPlan(name="mode", title="Explanations", fields=(
+            FieldSpec(id="mode", label="register", kind="choice",
+                      choices=(("simple", "plain English"), ("advanced", "precise technical terms"))),
+        ))
     if name == "identity":
         return identity_plan()
     if name == "stack":
@@ -1037,8 +1094,6 @@ def section_plan(
             recap=recap_lines(state),
             risk=state.get("risk") or {},
         )
-    if name == "route":
-        return route_plan(state)
     if name == "controls":
         return controls_plan(level=level, mode=mode, found=found)
     if name == "gates":

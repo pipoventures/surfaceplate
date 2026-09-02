@@ -23,6 +23,7 @@ mount, so a shown example is genuinely edited rather than wiped.
 
 from __future__ import annotations
 
+import dataclasses
 import textwrap
 from typing import Callable
 
@@ -50,7 +51,8 @@ from textual.widgets.option_list import Option, OptionDoesNotExist
 from textual.strip import Strip
 from rich.segment import Segment
 
-from surfaceplate.adopt import plan, validators
+from surfaceplate.adopt import flow as _flow
+from surfaceplate.adopt import plan, scaffold, validators
 
 CANCELLED = "__cancelled__"
 
@@ -734,9 +736,17 @@ class GatesScreen(_SectionScreenBase):
         Binding("ctrl+q", "cancel", "quit", show=True),
         Binding("ctrl+s", "commit", "continue", show=True),
         Binding("ctrl+g", "jump_section", "jump to section", show=True),
+        # `DR-47` (4): the one explicit bulk command. A human making every remaining scope
+        # decision in one act, recorded as such with its count - never the tool pre-marking.
+        Binding("ctrl+n", "bulk_not_applicable", "declare every undecided gate not applicable", show=True),
         Binding("down", "focus_next", "next field", show=False),
         Binding("up", "focus_previous", "previous field", show=False),
     ]
+
+    # Single keys per row (report R3). Handled in `on_key` rather than as bindings, because a
+    # focused text field consumes printable characters and a bare-letter binding would be typed
+    # into a rationale instead of choosing a status.
+    _STATUS_KEYS = {"r": "required", "d": "deferred", "n": "not_applicable"}
 
     def __init__(
         self,
@@ -753,6 +763,7 @@ class GatesScreen(_SectionScreenBase):
         super().__init__(section, step=step, initial=initial, repo=repo)
         self.specs = specs
         self._chosen: dict[str, str] = {}
+        self.bulk_gates: set[str] = set()  # gates whose status the bulk command set
 
     def compose(self) -> ComposeResult:
         with Frame(id="frame"):
@@ -878,6 +889,16 @@ class GatesScreen(_SectionScreenBase):
             return spec.auto_status
         return answers.get(f"{spec.id}.status")  # type: ignore[return-value]
 
+    def _may_be_scaffolded(self, spec: plan.GateSpec, field_spec: plan.FieldSpec, value: object) -> bool:
+        """A blank artefact on a gate this wizard can create one for is not a refusal: the
+        scaffold offer follows this screen, and the review refuses to write if it is declined.
+        `ACT-033` offered the artefact; the screen it followed never let the field be blank."""
+        if field_spec.id != "artefact" or (value is not None and str(value).strip()):
+            return False
+        if spec.id not in scaffold.SEEDABLE or self.repo is None:
+            return False
+        return not (self.repo / scaffold.SEEDABLE[spec.id][0]).exists()
+
     def _gate_is_complete(self, spec: plan.GateSpec, answers: dict) -> bool:
         """A gate is finished when it has a status AND every field that status calls for validates.
 
@@ -893,6 +914,8 @@ class GatesScreen(_SectionScreenBase):
                 other, wanted = field_spec.depends_on
                 if answers.get(f"{spec.id}.{other}") not in wanted:
                     continue
+            if self._may_be_scaffolded(spec, field_spec, answers.get(key)):
+                continue
             if validators.check(field_spec.validate, answers.get(key, ""), repo=self.repo):
                 return False
         return True
@@ -957,13 +980,59 @@ class GatesScreen(_SectionScreenBase):
         return sum(1 for spec in self.specs if self._gate_is_complete(spec, answers))
 
     def _set_hint(self, error: str = "") -> None:
+        """`F43` and R3: the counter says what matters - how many gates will be audited, how
+        many are still undecided, and how many are complete (a status and every field it needs)."""
         total = len(self.specs)
-        done = self._answered_count()
+        answers = self._answers()
+        statuses = [self._status_of(spec, answers) for spec in self.specs]
+        audited = sum(1 for s in statuses if s == "required")
+        undecided = sum(1 for s in statuses if s is None)
+        done = self._answered_count(answers)
         keys = (
-            f"{done} of {total} answered · [\u2191\u2193] move  [Ctrl+G] jump to section  "
-            "[Ctrl+S] continue  [Ctrl+Q] cancel"
+            f"{audited} will be audited · {undecided} undecided · {done} of {total} complete\n"
+            "[r/d/n] status  [Ctrl+N] all undecided → not applicable  [Ctrl+G] jump to section\n"
+            "[\u2191\u2193] move  [Ctrl+S] continue  [Ctrl+Q] cancel"
         )
         self.query_one("#hint", Static).update(hint_line(keys=keys, error=error))
+
+    def _press_status(self, gate_id: str, value: str) -> bool:
+        try:
+            button = self.query_one(f"#chip-{gate_id}--{value}", RadioButton)
+        except Exception:
+            return False
+        button.value = True
+        return True
+
+    def on_key(self, event: events.Key) -> None:
+        """`r`, `d`, `n` on the focused gate, unless a text field or an open dropdown has the key."""
+        value = self._STATUS_KEYS.get(event.key)
+        if value is None:
+            return
+        focused = self.focused
+        if isinstance(focused, (Input, TextArea)):
+            return
+        if isinstance(focused, Select) and focused.expanded:
+            return
+        gate_id = self._focused_gate_id()
+        if gate_id and self._press_status(gate_id, value):
+            event.stop()
+            event.prevent_default()
+            self.bulk_gates.discard(gate_id)
+
+    def action_bulk_not_applicable(self) -> None:
+        """Every gate still undecided becomes `not_applicable`, as one recorded human act."""
+        answers = self._answers()
+        pressed = 0
+        for spec in self.specs:
+            if self._status_of(spec, answers) is None and self._press_status(spec.id, "not_applicable"):
+                self.bulk_gates.add(spec.id)
+                pressed += 1
+        self._refresh_visibility()
+        self._set_hint(
+            f"{pressed} gate(s) declared not applicable in one act; it is recorded as yours."
+            if pressed
+            else "Nothing is undecided."
+        )
 
     def action_jump_section(self) -> None:
         headings = list(self.query(".section-subline"))
@@ -990,6 +1059,9 @@ class GatesScreen(_SectionScreenBase):
                     if answers.get(f"{spec.id}.{other}") not in wanted:
                         answers.pop(key, None)
                         continue
+                if self._may_be_scaffolded(spec, field_spec, answers.get(key)):
+                    answers.pop(key, None)  # left blank: the offer to create it follows
+                    continue
                 problem = validators.check(
                     field_spec.validate, answers.get(key, ""), repo=self.repo
                 )
@@ -1004,52 +1076,190 @@ class GatesScreen(_SectionScreenBase):
         self.dismiss({k: v for k, v in answers.items() if v is not None})
 
 
+class EditLineScreen(Screen):
+    """Change one value on the review. The edit is recorded as typed, with a timestamp."""
+
+    BINDINGS = [
+        Binding("ctrl+s", "save", "use this value", show=True),
+        Binding("ctrl+q", "cancel", "keep it as it was", show=True),
+    ]
+
+    def __init__(self, path: str, current: object, spec: plan.FieldSpec | None) -> None:
+        super().__init__()
+        self.path = path
+        self.current = current
+        self.spec = spec
+
+    def compose(self) -> ComposeResult:
+        with Frame(id="frame"):
+            yield Static(f"[Change {self.path}]", classes="section-header", markup=False)
+            if self.spec is not None and self.spec.help:
+                yield Static(self.spec.help, classes="field-help", markup=False)
+            kind = self.spec.kind if self.spec is not None else "text"
+            if kind == "bool":
+                current = "yes" if self.current else "no"
+                spec = plan.FieldSpec(id="value", label="", kind="choice", choices=(("yes", "yes"), ("no", "no")))
+                widget = _widget_for(spec, current)
+            elif kind in ("choice", "multiselect", "select"):
+                # The same widget the form would show, addressed as `f-value` here.
+                widget = _widget_for(dataclasses.replace(self.spec, id="value"), self.current)
+            elif kind == "textarea":
+                widget = TextArea(str(self.current or ""), id="f-value")
+            else:
+                widget = EditableInput(value=str(self.current or ""), id="f-value")
+            widget.add_class("field-widget")
+            yield widget
+        yield Static(
+            "[Ctrl+S] use this value  [Ctrl+Q] keep it as it was", id="hint", markup=False
+        )
+
+    def on_mount(self) -> None:
+        self.query_one("#f-value").focus()
+
+    def action_save(self) -> None:
+        value = _read_widget(self.query_one("#f-value"))
+        if self.spec is not None and self.spec.kind == "bool":
+            value = value == "yes"
+        self.dismiss(value)
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
+
+
+TAG_WIDTH = 12
+
+
 class ReviewScreen(Screen):
-    """The confirmation the mockup deliberately did not draw. Nothing is written before it."""
+    """Every line of the profile with where its value came from, and Enter to change any of them.
+
+    `DR-47` (1): a value is asked when it is presented with its origin and the human can change it
+    before the profile is written; this screen is where most values are asked. `F65`: an error
+    names the line, `Ctrl+E` goes to it, and "write it" is not offered while an error stands.
+    Nothing is written before this screen, and nothing is written by it: it returns an edit or an
+    approval, and `wizard.run` does the writing.
+    """
 
     BINDINGS = [
         Binding("ctrl+q", "cancel", "quit", show=True),
         Binding("ctrl+s", "confirm", "write", show=True),
+        Binding("ctrl+e", "go_to_error", "go to the line", show=True),
     ]
 
-    def __init__(self, rendered: str, error: str = "", creating: list | None = None) -> None:
+    def __init__(
+        self,
+        review: _flow.Review,
+        creating: list | None = None,
+        highlight: int | None = None,
+    ) -> None:
         super().__init__()
-        self.rendered = rendered
-        self.error = error
-        # `ACT-035`: the files this run is about to create, named on the screen that actually
-        # commits them. The scaffold offer is where they are chosen, and its own docstring said the
-        # review "commits" - but the review showed only the rendered profile, so the last thing an
-        # adopter saw before `Ctrl+S` wrote files into their repository never mentioned them. The
-        # point of execution is here.
+        self.review = review
         self.creating = list(creating or [])
+        self.highlight = highlight
+        self._by_line = {entry.line: entry for entry in review.lines}
+
+    def _composed(self, width: int = 0) -> list[str]:
+        """One row per line of the profile, never wrapped: a wrapped continuation loses its
+        origin gutter and reads as a line of its own. A line too long for `width` ends in an
+        ellipsis, and Enter shows the whole value."""
+        out = []
+        for index, text in enumerate(self.review.rendered.splitlines()):
+            entry = self._by_line.get(index)
+            tag = (entry.origin if entry else "")[:TAG_WIDTH]
+            line = f"{tag:<{TAG_WIDTH}}│ {text}"
+            if width and len(line) > width:
+                line = line[: width - 1] + "…"
+            out.append(line)
+        return out
+
+    def _fit(self) -> None:
+        """Rebuild the rows for the terminal's width, keeping the highlight where it was."""
+        body = self.query_one("#review-body", OptionList)
+        width = max(20, self.size.width - 6)
+        if getattr(self, "_fitted_width", None) == width:
+            return
+        self._fitted_width = width
+        highlighted = body.highlighted
+        body.clear_options()
+        body.add_options([Option(line, id=str(i)) for i, line in enumerate(self._composed(width))])
+        body.highlighted = highlighted
+
+    def on_resize(self, event: events.Resize) -> None:
+        self._fit()
 
     def compose(self) -> ComposeResult:
-        with Frame(id="frame"):
-            yield Static("[Review — nothing has been written yet]", classes="section-header")
-            if self.error:
-                yield Static(self.error, id="review-error")
+        # A plain `Vertical`, not the scrolling `Frame`: the list below is the thing that scrolls,
+        # and it takes every row the heading and notes leave, which a `1fr` inside a scroll
+        # container does not (two rows of profile per page at 80x24, found by taking the image).
+        with Vertical(id="review-frame"):
+            yield Static("[Review — nothing has been written yet]", classes="section-header", markup=False)
+            if self.review.error:
+                where = "  Ctrl+E goes to the line." if self.review.error_line is not None else ""
+                yield Static(self.review.error + where, id="review-error", markup=False)
             if self.creating:
+                # One wrapped line, not one row per file: at 80x24 every row here is a row of
+                # profile the review cannot show. The point-of-execution disclosure stands.
                 yield Static(
-                    f"Writing this will also CREATE {len(self.creating)} file(s) in this "
-                    "repository:",
+                    f"Writing this will also CREATE {len(self.creating)} file(s): "
+                    + ", ".join(offer.path for offer in self.creating),
                     classes="note",
                     id="review-creating",
+                    markup=False,
                 )
-                for offer in self.creating:
-                    yield Static(f"    {offer.path}", classes="gate-name", markup=False)
-            with VerticalScroll(id="review-body"):
-                yield Static(self.rendered)
-        yield Static(
-            "[Ctrl+S] write it  [Ctrl+Q] cancel, keeping your draft", id="hint", markup=False
-        )
+            counts = self.review.counts()
+            yield Static(
+                "where each value came from: "
+                + " · ".join(f"{n} {kind}" for kind, n in sorted(counts.items(), key=lambda kv: -kv[1])),
+                classes="recap",
+                markup=False,
+            )
+            # One row per line of the profile, never wrapped: a wrapped continuation loses its
+            # origin gutter and reads as a line of its own. A line too long for the terminal ends
+            # in an ellipsis, and Enter shows the whole value.
+            widget = OptionList(
+                *[Option(line, id=str(i)) for i, line in enumerate(self._composed())],
+                id="review-body",
+            )
+            yield widget
+        yield Static("", id="hint", markup=False)
+
+    def on_mount(self) -> None:
+        self._fit()
+        body = self.query_one("#review-body", OptionList)
+        body.focus()
+        if self.highlight is not None:
+            body.highlighted = self.highlight
+        elif self.review.error_line is not None:
+            body.highlighted = self.review.error_line
+        self._set_hint()
+
+    def _set_hint(self, note: str = "") -> None:
+        write = "" if self.review.error else "[Ctrl+S] write it  "
+        keys = f"[↑↓] move  [Enter] change this line  {write}[Ctrl+Q] cancel, keeping your draft"
+        self.query_one("#hint", Static).update(hint_line(keys=keys, help_text=note))
+
+    @on(OptionList.OptionSelected)
+    def _on_selected(self, event: OptionList.OptionSelected) -> None:
+        entry = self._by_line.get(event.option_index)
+        if entry is None:
+            self._set_hint("That line carries no value to change.")
+            return
+        if not entry.editable:
+            self._set_hint(f"{entry.path}: {entry.note}.")
+            return
+        self.dismiss({"edit": entry.path, "line": event.option_index})
+
+    def action_go_to_error(self) -> None:
+        if self.review.error_line is not None:
+            self.query_one("#review-body", OptionList).highlighted = self.review.error_line
 
     def action_confirm(self) -> None:
-        if self.error:
+        if self.review.error:
+            self._set_hint("Fix the error first; Ctrl+E goes to the line.")
             return
-        self.dismiss(True)
+        self.dismiss({"approve": True})
 
     def action_cancel(self) -> None:
-        self.dismiss(False)
+        self.dismiss(None)
 
 
 class ResumeScreen(Screen):
@@ -1164,80 +1374,3 @@ class ScaffoldScreen(Screen):
 
     def action_cancel(self) -> None:
         self.dismiss(None)
-
-
-class DefaultsScreen(Screen):
-    """What the wizard proposes, and where each value came from.
-
-    The maintainer asked for a defaults path after finishing a real adoption, and the condition he
-    set on it is the whole design: proposals are *shown* with their origin, and nothing is written
-    until the profile review at the end. A value here is a suggestion until a human passes this
-    screen - which is what keeps the binding rule true and the provenance walk unchanged.
-    """
-
-    BINDINGS = [
-        Binding("ctrl+s", "accept", "use these", show=True),
-        Binding("c", "customise", "answer everything myself", show=True),
-        Binding("ctrl+q", "cancel", "quit", show=True),
-    ]
-
-    def __init__(self, proposals, still_asked: int) -> None:
-        super().__init__()
-        self.proposals = proposals
-        self.still_asked = still_asked
-
-    def compose(self) -> ComposeResult:
-        counts: dict[str, int] = {}
-        for proposal in self.proposals:
-            counts[proposal.origin] = counts.get(proposal.origin, 0) + 1
-        with Frame(id="frame"):
-            yield Static("[Proposed answers - nothing is written yet]", classes="section-header")
-            yield Static(
-                f"{len(self.proposals)} values proposed: "
-                + ", ".join(f"{n} {origin}" for origin, n in sorted(counts.items()))
-                + (
-                    f". {self.still_asked} more can only be answered by you, and are asked next."
-                    if self.still_asked
-                    else "."
-                ),
-                classes="intro",
-                markup=False,
-            )
-            yield Static(
-                "  [disc] read from this repository · [exam] this framework's own worked "
-                "example · [comp] derived from a fact",
-                classes="note",
-                markup=False,
-            )
-            with VerticalScroll(id="proposal-list"):
-                # `ACT-035`: grouped by section, and the origin is a tag rather than a sentence
-                # repeated on every row. Forty-six proposals as a flat list of dotted identifiers,
-                # each with the same explanatory sentence under it, was ~140 rows to scroll at
-                # 80x24 - a screen an adopter approves by pressing Ctrl+S rather than by reading,
-                # which defeats the only thing this screen is for.
-                section_of = ""
-                for proposal in self.proposals:
-                    section, _, field = proposal.field.partition(".")
-                    if section != section_of:
-                        section_of = section
-                        yield Static(f"  {section}", classes="section-header", markup=False)
-                    yield Static(
-                        f"    [{proposal.origin[:4]}] {field}", classes="gate-name", markup=False
-                    )
-                    yield Static(
-                        f"          {proposal.value}", classes="recap", markup=False
-                    )
-        yield Static(
-            "[Ctrl+S] use these  [c] answer everything myself instead  [Ctrl+Q] cancel",
-            id="hint",
-            markup=False,
-        )
-
-    def action_accept(self) -> None:
-        self.dismiss("accept")
-
-    def action_customise(self) -> None:
-        self.dismiss("customise")
-
-    def action_cancel(self) -> None:
-        self.dismiss(CANCELLED)

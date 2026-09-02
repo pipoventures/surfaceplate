@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -38,6 +39,8 @@ PAYLOAD = ROOT / "surfaceplate"  # the package itself - see surfaceplate/__init_
 # code uses real `surfaceplate.xxx` imports throughout. ROOT, not PAYLOAD, must be on sys.path so
 # `import surfaceplate` resolves to the real package rather than some other installed copy.
 sys.path.insert(0, str(ROOT))
+
+import yaml  # noqa: E402
 
 from surfaceplate.adopt import catalogue, plan, sections, wizard  # noqa: E402
 from surfaceplate.adopt.interview import Cancelled, ScriptedInterview  # noqa: E402
@@ -90,7 +93,6 @@ def make_installed_repo(tmp: Path, name: str) -> Path:
 # a whole run explicitly, so a change to what `essential` asks shows up here as a diff rather than
 # being absorbed by a generator.
 ESSENTIAL_ANSWERS: dict[str, object] = {
-    "mode.mode": "simple",
     "identity.application_id": "billing-reconciler",
     "identity.display_name": "Billing Reconciler",
     "identity.owner": "Finance Platform team",
@@ -107,7 +109,9 @@ ESSENTIAL_ANSWERS: dict[str, object] = {
     "risk.material_quantitative_output": False,
     "risk.data_classification": "internal",
     "level.conformance_level": "essential",
-    "route.route": "customise",  # these fixtures exercise the full flow, not the defaults path
+    # `DR-47`: every key below that the flow PROPOSES (a rationale, a review date, a maintainer)
+    # is an override of that proposal, recorded as typed the way a review edit would be; every
+    # key the flow PRESENTS (the decisions form, the gate list, the remainder) is the answer.
     "controls.agent_work_packets.rationale": "All agent-assisted work is bounded, scoped, and reviewable.",
     "controls.actual_diff_review.rationale": "Material changes are reviewed against their actual diff content.",
     "controls.secret_hygiene.rationale": "Secrets and sensitive data must not enter uncontrolled storage.",
@@ -145,7 +149,6 @@ ESSENTIAL_ANSWERS: dict[str, object] = {
 # for being illegal rather than for being badly escaped, testing nothing.
 TRICKY_CHARACTER_ANSWERS: dict[str, object] = {
     **ESSENTIAL_ANSWERS,
-    "mode.mode": "advanced",
     "controls.scanner.wired_in": "workflows/secret-scan.yml?raw=true",
     "gates.work_registration.artefact": "-docs/DEVELOPMENT_REGISTER.md",
     "gates.work_registration.paths": "src/**, [other]?",
@@ -165,20 +168,27 @@ MULTILINE_ANSWERS: dict[str, object] = {
 }
 
 
+def _commit_all(repo: Path, message: str = "fixture") -> None:
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", message], capture_output=True)
+
+
 def answers_for(repo: Path, *, level: str, builds_ui: bool, mode: str, overrides: dict | None = None) -> dict:
-    """Walk the plan the wizard will walk, answering every applicable field.
+    """Walk the flow the wizard will walk, answering every field it presents and overriding
+    every proposal, so a run exercises every branch.
 
     A FIXTURE BUILDER, not a correctness oracle: the tests below assert real properties of the
-    WRITTEN profile rather than trusting that generating answers this way proves anything. Building
-    the `full` set by hand (~160 answers) was tried in Phase 1 and is exactly the error-prone
-    busywork this avoids without weakening what is actually checked.
+    WRITTEN profile rather than trusting that generating answers this way proves anything. Since
+    `DR-48` a path field refuses anything git does not track, so this creates and commits a real
+    file for each such field rather than typing a plausible string into it - which is exactly
+    the answer `F66` found the wizard accepting and the checker rejecting.
     """
+    from surfaceplate.adopt import flow as _flow
+
     overrides = overrides or {}
     seeded = {
-        "mode.mode": mode,
         "stack.builds_user_interface": builds_ui,
         "level.conformance_level": level,
-        "route.route": "customise",
         "risk.data_classification": "internal",
         "adoption.adoption_status": "in_progress",
         "adoption.needs_validator": False,
@@ -186,46 +196,96 @@ def answers_for(repo: Path, *, level: str, builds_ui: bool, mode: str, overrides
         **overrides,
     }
     answers: dict = {}
-    state: dict = {}
-    for name in plan.SECTION_ORDER:
-        section = plan.section_plan(name, repo=repo, state=state)
+    workflow_steps: list[str] = []
+
+    def real_file(key: str) -> str:
+        rel = "docs/fixtures/" + re.sub(r"[^a-z0-9]+", "-", key.lower()).strip("-") + ".md"
+        target = repo / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(f"# {key}\n\nA real file for the fixture.\n", encoding="utf-8")
+        return rel
+
+    def value_for(key: str, spec: plan.FieldSpec) -> object:
+        if key in seeded:
+            return seeded[key]
+        if spec.kind == "bool":
+            return bool(spec.default)
+        if spec.id.endswith("above_floor") or key.endswith("above_floor"):
+            # `ACT-032`. Sweep every above-floor control ON, so this fixture exercises the branch
+            # where ticking one really does ask for its rationale and reference.
+            return [c for c, _ in spec.choices]
+        if spec.kind == "choice":
+            return spec.choices[0][0]
+        if spec.validate == "tracked_path":
+            return real_file(key)
+        if spec.validate == "ci_step":
+            name = f"Step for {key.split('.')[-2]}"
+            workflow_steps.append(name)
+            return name
+        if spec.default:
+            return spec.default
+        if key.endswith("paths"):
+            return "src/**"
+        return f"answer for {key}"
+
+    flow = _flow.Flow(repo, {"standard_version": "0.0.0", "framework_digest": "0"})
+    for spec in flow.decisions_plan().fields:
+        answers[spec.id] = value_for(spec.id, spec)
+    flow.answer_decisions(dict(answers))
+    answers["level.conformance_level"] = level
+    flow.answer_level({"conformance_level": level})
+    gate_answers: dict = {}
+    for gate in flow.gate_specs():
         local: dict = {}
-        for spec in section.fields:
-            if not spec.applies(local):
+        for f in gate.fields:
+            if not f.applies(local):
                 continue
-            key = f"{name}.{spec.id}"
-            if key in seeded:
-                value: object = seeded[key]
-            elif spec.kind == "bool":
-                # Above-the-floor controls default to not declared; the level's own floor is not a
-                # field at all, so nothing here can accidentally decline a required control.
-                value = True if spec.id.endswith(".declared") and level == "full" else bool(spec.default)
-            elif spec.id == "above_floor":
-                # `ACT-032`. Sweep every above-floor control ON, so this fixture exercises the
-                # branch where ticking one really does ask for its rationale and reference - a
-                # sweep that always answered "nothing declared" would never reach that code.
-                value = [c for c, _ in spec.choices]
-            elif spec.kind == "choice":
-                value = spec.choices[0][0]
-            elif spec.default:
-                value = spec.default
-            elif spec.id.endswith("paths"):
-                value = "src/**"
-            else:
-                value = f"answer for {name}.{spec.id}"
-            local[spec.id] = value
-            answers[key] = value
-        state[name] = local
+            key = f"gates.{gate.id}.{f.id}"
+            local[f.id] = value_for(key, f)
+            answers[key] = local[f.id]
+            gate_answers[f"{gate.id}.{f.id}"] = local[f.id]
+    flow.answer_gates(gate_answers)
+    remainder = flow.remainder_plan()
+    local = {}
+    for spec in remainder.fields:
+        if not spec.applies(local):
+            continue
+        local[spec.id] = value_for(spec.id, spec)
+        answers[spec.id] = local[spec.id]
+    # Every proposal, overridden, so the run's written values are the fixture's own.
+    for key, proposal in flow.proposals.items():
+        if key not in answers and key.split(".")[0] != "gates":
+            spec = flow.field_spec(key)
+            answers[key] = value_for(key, spec) if spec is not None else proposal.value
+    if workflow_steps:
+        workflow = repo / ".github" / "workflows" / "fixture-tests.yml"
+        workflow.parent.mkdir(parents=True, exist_ok=True)
+        steps = "".join(f"      - name: {n}\n        run: echo {n!r}\n" for n in dict.fromkeys(workflow_steps))
+        workflow.write_text("jobs:\n  tests:\n    steps:\n" + steps, encoding="utf-8")
+    _commit_all(repo, "fixture files")
     return answers
 
 
-def seed_referenced_files(repo: Path) -> None:
-    """The artefacts an `essential` fixture names, so the real checker has something to find."""
+def seed_referenced_files(repo: Path, *, ci: bool = False) -> None:
+    """The artefacts an `essential` fixture names, so the real checker has something to find -
+    committed, because since `DR-48` the field itself refuses an untracked path. The decisions
+    directory makes `decision_record_id` a question rather than a scaffolded record. With `ci`,
+    a workflow with a named step, so pattern-B references are discovered rather than asked."""
+    if ci:
+        workflow = repo / ".github" / "workflows" / "ci.yml"
+        workflow.parent.mkdir(parents=True, exist_ok=True)
+        workflow.write_text(
+            "jobs:\n  t:\n    steps:\n      - name: Run the tests\n        run: pytest\n",
+            encoding="utf-8",
+        )
     (repo / "requirements.txt").write_text("PyYAML==6.0.3\n", encoding="utf-8")
     (repo / "docs").mkdir(exist_ok=True)
     (repo / "docs" / "DEVELOPMENT_REGISTER.md").write_text("# Register\n", encoding="utf-8")
+    (repo / "docs" / "decisions").mkdir(exist_ok=True)
+    (repo / "docs" / "decisions" / "README.md").write_text("# Decisions\n", encoding="utf-8")
     (repo / "workflows").mkdir(exist_ok=True)
     (repo / "workflows" / "secret-scan.yml").write_text("name: scan\n", encoding="utf-8")
+    _commit_all(repo, "seed")
 
 
 # ---------------------------------------------------------------------------------------------
@@ -406,6 +466,16 @@ def test_tricky_characters_round_trip(tmp: Path) -> None:
     written, re-parsed, and equal to exactly what was typed. Before the fix this failed at the write
     step itself (`WriteRefused`, nothing on disk), so the first check is that it writes at all."""
     repo = make_installed_repo(tmp, "tricky-characters-repo")
+    # Since `DR-48` a path field refuses anything git does not track, so the awkward names are
+    # real files here: the property under test is that the renderer escapes them, not that the
+    # wizard accepts a path that does not exist.
+    for rel in ("workflows/secret-scan.yml?raw=true", "-docs/DEVELOPMENT_REGISTER.md", "requirements.txt"):
+        target = repo / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("# real\n", encoding="utf-8")
+    (repo / "docs" / "decisions").mkdir(parents=True, exist_ok=True)
+    (repo / "docs" / "decisions" / "README.md").write_text("# Decisions\n", encoding="utf-8")
+    _commit_all(repo, "tricky names")
     interview = ScriptedInterview(answers=dict(TRICKY_CHARACTER_ANSWERS))
     try:
         written = wizard.run(repo, interview)
@@ -449,6 +519,7 @@ def test_multiline_prose_survives_the_whole_flow(tmp: Path) -> None:
     PyYAML's problem to solve and this test's job to prove it did.
     """
     repo = make_installed_repo(tmp, "multiline-repo")
+    seed_referenced_files(repo)
     interview = ScriptedInterview(answers=dict(MULTILINE_ANSWERS))
     try:
         written = wizard.run(repo, interview)
@@ -729,36 +800,34 @@ def test_the_opt_in_removed_questions_not_answers() -> None:
 
 
 def test_defaults_propose_but_never_decide(tmp: Path) -> None:
-    """`DR-40`: the defaults route proposes; a human still submits.
+    """`DR-40`, re-read under `DR-47`: the wizard proposes; a human still decides.
 
-    The two properties that keep the binding rule true, checked rather than asserted: every
-    proposal traces to discovery, a worked example, or a computed fact - never to invention - and
-    a field with no honest source is left for the adopter rather than filled in.
+    Every proposal traces to discovery, a worked example, or a computed fact - never to invention;
+    a field with no honest source is left for the adopter; and no gate STATUS is ever proposed,
+    `not_applicable` included, because a scope decision is a key a human presses.
     """
     from surfaceplate.adopt import defaults, discover
+    from surfaceplate.adopt import flow as _flow
 
     repo = make_installed_repo(tmp, "defaults-repo")
     seed_referenced_files(repo)
-    subprocess.run(["git", "-C", str(repo), "add", "-A"], capture_output=True)
-    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "seed"], capture_output=True)
 
     found = discover.scan(repo)
     state = {
         "mode": {"mode": "simple"},
         "identity": {"owner": "Finance Platform team"},
         "stack": {"builds_user_interface": False},
+        "risk": {"data_classification": "internal"},
         "level": {"conformance_level": "standard"},
     }
-    proposals = defaults.propose(state, found=found)
+    proposals = defaults.propose_after_level(state, found=found, adoption_date="2026-09-02")
 
-    check("the defaults route proposes something to work from", len(proposals) > 20, str(len(proposals)))
+    check("the wizard proposes something to work from", len(proposals) > 20, str(len(proposals)))
     check(
         "every proposal declares an honest origin",
         all(p.origin in {"discovered", "example", "computed"} for p in proposals),
         str(sorted({p.origin for p in proposals})),
     )
-    # "Discovered" covers two kinds of thing - a path in the repository, and a CI step name read
-    # out of its workflow YAML. Both must come from the scan; neither may be invented.
     discovered = [p for p in proposals if p.origin == "discovered"]
     from_scan = set(found.artefacts) | set(found.paths) | set(found.lock_files) | set(
         found.register_dirs
@@ -769,29 +838,28 @@ def test_defaults_propose_but_never_decide(tmp: Path) -> None:
         discovered and not invented,
         f"not found by the scan: {invented[:3]}",
     )
-    paths = [p for p in discovered if p.value in from_scan and (repo / str(p.value)).exists()]
-    check(
-        "and the ones that are paths really exist on disk",
-        bool(paths),
-        "no discovered value resolved to a real file",
-    )
-
-    # The honest half: a judgement nobody can compute is NOT proposed.
     proposed = {p.field for p in proposals}
+    check(
+        "no gate status is proposed, not_applicable included (DR-47)",
+        not any(f.endswith(".status") for f in proposed),
+        str(sorted(f for f in proposed if f.endswith(".status"))),
+    )
     check(
         "a gate's own description is left for the adopter, not invented",
         "gates.work_registration.precondition_description" not in proposed,
-        "the tool proposed prose it has no source for",
     )
+    check("the adoption decision record id is never invented", "adoption.decision_record_id" not in proposed)
     check(
-        "the adoption decision record id is never invented",
-        "adoption.decision_record_id" not in proposed,
+        "effective_from is proposed as the adoption date, as computed (DR-47 (5))",
+        any(p.field == "gates.work_registration.effective_from" and p.value == "2026-09-02" and p.origin == "computed" for p in proposals),
     )
-    outstanding = defaults.unanswered(state, proposals, repo=repo, found=found)
+
+    flow = _flow.Flow(repo, {"standard_version": "0.0.0", "framework_digest": "0"}, state=state, done=("decisions", "level"))
+    remainder = {f.id for f in flow.remainder_plan().fields}
     check(
-        "and the wizard knows exactly what it still has to ask",
-        "adoption.decision_record_id" in outstanding and len(outstanding) > 0,
-        str(outstanding[:4]),
+        "and the wizard knows exactly what it still has to ask: the record id, since a decisions directory exists, and nothing it proposed",
+        "adoption.decision_record_id" in remainder and not (remainder & proposed - {"controls.above_floor"}),
+        str(sorted(remainder)),
     )
 
 
@@ -885,7 +953,7 @@ def test_interrupt_leaves_repo_untouched(tmp: Path) -> None:
     before_profile = (repo / "governance" / "application-profile.yaml").read_text(encoding="utf-8")
     before_files = {p.relative_to(repo) for p in repo.rglob("*") if p.is_file() and ".git" not in p.parts}
 
-    interview = ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS), cancel_before="risk")
+    interview = ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS), cancel_before="level")
     try:
         wizard.run(repo, interview)
         check("an interrupt raises Cancelled", False, "wizard.run returned instead of raising")
@@ -904,14 +972,19 @@ def test_interrupt_leaves_repo_untouched(tmp: Path) -> None:
     )
     draft = json.loads((repo / wizard.DRAFT_FILENAME).read_text(encoding="utf-8"))
     check(
-        "the draft records only the sections completed before the interrupt",
-        set(draft["sections"]) == {"mode", "identity", "stack"},
-        str(set(draft["sections"])),
+        "the draft records only the stages completed before the interrupt",
+        draft["done"] == ["decisions"] and "level" not in draft["sections"],
+        f"done={draft.get('done')} sections={sorted(draft['sections'])}",
     )
     check(
         "the draft states its own format, so a differently-shaped one is never misread",
-        draft.get("format") == 2,
+        draft.get("format") == 3,
         str(draft.get("format")),
+    )
+    check(
+        "and the draft carries an origin for every answer it holds (DR-47)",
+        all(f"{s}.{f}" in draft["origins"] for s, fields in draft["sections"].items() for f in fields if s != "mode"),
+        str(sorted(set(f"{s}.{f}" for s, fs in draft["sections"].items() for f in fs) - set(draft["origins"]))),
     )
     check(
         "the draft's completed sections carry the real scripted answers",
@@ -926,7 +999,7 @@ def test_resume_from_draft(tmp: Path) -> None:
     repo = make_installed_repo(tmp, "resume-repo")
     seed_referenced_files(repo)
 
-    first = ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS), cancel_before="controls")
+    first = ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS), cancel_before="gates")
     try:
         wizard.run(repo, first)
         check("resume fixture: the first attempt is interrupted as designed", False, "did not raise")
@@ -935,21 +1008,18 @@ def test_resume_from_draft(tmp: Path) -> None:
 
     draft_path = repo / wizard.DRAFT_FILENAME
     check("resume fixture: a draft exists after the interrupt", draft_path.is_file())
-    completed = set(json.loads(draft_path.read_text(encoding="utf-8"))["sections"])
+    draft = json.loads(draft_path.read_text(encoding="utf-8"))
     check(
         "resume fixture: the draft completed everything up to the interrupt",
-        completed == {"mode", "identity", "stack", "risk", "level", "route"},
-        str(completed),
+        draft["done"] == ["decisions", "level"] and "level" in draft["sections"],
+        f"done={draft.get('done')}",
     )
+    answered = {f"{s}.{f}" for s, fields in draft["sections"].items() for f in fields}
 
-    # The second interview is given ONLY the answers for the sections still outstanding. Because
-    # ScriptedInterview raises on any planned field it has no answer for, a resumed section that was
-    # re-asked would fail here rather than pass quietly.
-    remaining = {
-        key: value
-        for key, value in ESSENTIAL_ANSWERS.items()
-        if key.split(".")[0] not in completed
-    }
+    # The second interview is given ONLY the answers for the fields still outstanding. Because
+    # ScriptedInterview raises on any presented field it has no answer for, a resumed stage that
+    # was re-asked would fail here rather than pass quietly.
+    remaining = {key: value for key, value in ESSENTIAL_ANSWERS.items() if key not in answered}
     second = ScriptedInterview(answers=remaining)
     written = wizard.run(repo, second)
     try:
@@ -981,7 +1051,7 @@ def test_resume_from_draft(tmp: Path) -> None:
 def test_declining_a_resume_starts_fresh(tmp: Path) -> None:
     repo = make_installed_repo(tmp, "decline-resume-repo")
     seed_referenced_files(repo)
-    first = ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS), cancel_before="risk")
+    first = ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS), cancel_before="level")
     try:
         wizard.run(repo, first)
     except Cancelled:
@@ -990,9 +1060,9 @@ def test_declining_a_resume_starts_fresh(tmp: Path) -> None:
     second = ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS), resume=False)
     written = wizard.run(repo, second)
     check(
-        "declining the draft re-asks every section from the start",
-        {key.split(".")[0] for key in second.asked} == set(plan.SECTION_ORDER),
-        str(sorted({key.split(".")[0] for key in second.asked})),
+        "declining the draft re-asks every stage from the start",
+        second.stages[:3] == ["decisions", "level", "gates"],
+        str(second.stages),
     )
     check("declining the draft still produces a profile", written.is_file())
 
@@ -1005,7 +1075,7 @@ def test_quitting_at_the_resume_prompt_keeps_the_draft(tmp: Path) -> None:
     repo = make_installed_repo(tmp, "quit-at-resume-repo")
     seed_referenced_files(repo)
     try:
-        wizard.run(repo, ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS), cancel_before="risk"))
+        wizard.run(repo, ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS), cancel_before="level"))
     except Cancelled:
         pass
     draft = repo / wizard.DRAFT_FILENAME
@@ -1122,6 +1192,130 @@ def test_write_refused_on_placeholder_content(repo: Path, valid_profile: dict) -
             "placeholder" in exc.detail,
             exc.detail,
         )
+
+
+def test_proposing_writes_the_same_profile_as_typing_the_same_values(tmp: Path) -> None:
+    """The prototype's claim, reproduced on the real code (report Part II §II.1): the profile a
+    run writes with every proposal left standing is line-for-line the profile written when the
+    same values are typed. Proposing changes nothing about what is written; and since a value
+    submitted unchanged is recorded under its proposal's origin (`DR-47` (3)), the two
+    provenance records are the same document too."""
+    from surfaceplate.adopt import provenance
+
+    base = {
+        "identity.owner": "Owner Person",
+        "stack.builds_user_interface": "no",
+        "risk.relied_on_outside_team": "yes",
+        "risk.material_quantitative_output": "no",
+        "risk.data_classification": "internal",
+        "wrap.release_route": "Merged to main by the maintainer.",
+        "level.conformance_level": "standard",
+        "adoption.decision_record_id": "DR-1",
+        "controls.scanner.wired_in": "workflows/secret-scan.yml",  # asked: not under .github
+    }
+    # The same directory NAME in two places, because the id and the display name are proposed
+    # from it.
+    repo_a = make_installed_repo(tmp / "proposed", "equal")
+    seed_referenced_files(repo_a, ci=True)
+    proposed = ScriptedInterview(answers=dict(base), bulk_not_applicable=True)
+    written_a = wizard.run(repo_a, proposed)
+    assert proposed.flow is not None
+    typed_values = {
+        key: (proposed.flow.state[key.split(".")[0]][key.split(".", 1)[1]])
+        for key, origin in proposed.flow.origins.items()
+        if origin.kind != "typed" and key.split(".", 1)[1] in proposed.flow.state.get(key.split(".")[0], {})
+        # The two prose fields the form leaves optional are "Not stated at adoption." only by
+        # being left blank; typing that sentence is a different act and is recorded as one.
+        and key not in ("risk.risk_profile", "risk.materiality_definition")
+    }
+    check("the first run proposed a good share of the profile", len(typed_values) > 15, str(len(typed_values)))
+
+    repo_b = make_installed_repo(tmp / "typed", "equal")
+    seed_referenced_files(repo_b, ci=True)
+    typed = ScriptedInterview(answers={**typed_values, **base}, bulk_not_applicable=True)
+    written_b = wizard.run(repo_b, typed)
+
+    # A scaffolded artefact binds from the instant it was created, which differs between the
+    # two runs by however long the first took: a fact of record, normalised for the comparison.
+    instant = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}")
+    profile_a = instant.sub("INSTANT", written_a.read_text(encoding="utf-8"))
+    profile_b = instant.sub("INSTANT", written_b.read_text(encoding="utf-8"))
+    check(
+        "proposing and typing the same values write the same profile, line for line",
+        profile_a == profile_b,
+        "\n".join(l for l in profile_a.splitlines() if l not in profile_b.splitlines())[:300],
+    )
+    record_a = yaml.safe_load((repo_a / provenance.PROVENANCE_PATH).read_text(encoding="utf-8"))
+    record_b = yaml.safe_load((repo_b / provenance.PROVENANCE_PATH).read_text(encoding="utf-8"))
+    check(
+        "and a value submitted unchanged is recorded under its proposal's origin either way",
+        {p: f["origin"] for p, f in record_a["fields"].items()} == {p: f["origin"] for p, f in record_b["fields"].items()},
+        str([p for p in record_a["fields"] if record_a["fields"][p]["origin"] != record_b["fields"].get(p, {}).get("origin")][:5]),
+    )
+    check(
+        "the record names typed, discovered, example, computed and fact of record among its origins",
+        {"typed", "discovered", "example", "computed", "fact of record"} <= {f["origin"] for f in record_a["fields"].values()},
+        str(sorted({f["origin"] for f in record_a["fields"].values()})),
+    )
+
+
+def test_fields_presented_before_the_review_are_measured(tmp: Path) -> None:
+    """`DR-47`'s budget, measured on the two fixtures the prototype used rather than estimated:
+    a repository with things to discover at standard, and a bare one at essential. The count is
+    the fields presented as a form before the review; the gate list is counted separately
+    (report Part II §II.4). Phase 3 turns the numbers into the budget test; this records them."""
+    from surfaceplate.adopt import flow as _flow
+    from surfaceplate.adopt.interview import ScriptedInterview
+
+    def measure(repo: Path, level: str, relied: str) -> tuple[int, int, list[str]]:
+        flow = _flow.Flow(repo, {"standard_version": "0.16.0", "framework_digest": "x"})
+        interview = ScriptedInterview(
+            answers={
+                "identity.owner": "O", "stack.builds_user_interface": "no",
+                "risk.relied_on_outside_team": relied, "risk.material_quantitative_output": "no",
+                "risk.data_classification": "internal", "wrap.release_route": "R",
+                "level.conformance_level": level,
+            },
+            bulk_not_applicable=True,
+        )
+        original = interview._answer
+
+        def answer_everything(section, prefix=""):
+            # The script answers whatever a form presents - a real path where git is asked,
+            # a word otherwise - so the run reaches the review and every presented field counts.
+            for spec in section.fields:
+                key = f"{prefix}{spec.id}"
+                if key in interview.answers or spec.default or not spec.validate or spec.kind not in ("text", "textarea"):
+                    continue  # a pre-filled proposal is submitted unchanged
+                interview.answers[key] = "main.py" if spec.validate == "tracked_path" else f"answer for {key}"
+            return original(section, prefix)
+
+        interview._answer = answer_everything  # type: ignore[method-assign]
+        interview.collect(flow, on_progress=lambda: None)
+        presented = [k for k in interview.asked if not k.startswith("gates.")]
+        gate_keys = [k for k in interview.asked if k.startswith("gates.")]
+        return len(presented), len(gate_keys), presented
+
+    rich = make_installed_repo(tmp, "budget-standard")
+    seed_referenced_files(rich)
+    (rich / "src").mkdir(); (rich / "src" / "app.py").write_text("x=1\n", encoding="utf-8")
+    (rich / ".github" / "workflows").mkdir(parents=True, exist_ok=True)
+    (rich / ".github" / "workflows" / "ci.yml").write_text(
+        "jobs:\n  t:\n    steps:\n      - name: Run the tests\n        run: pytest\n", encoding="utf-8")
+    _commit_all(rich, "rich")
+    bare = make_installed_repo(tmp, "budget-bare")
+    (bare / "main.py").write_text("x = 1\n", encoding="utf-8")
+    _commit_all(bare, "bare")
+    (rich / "main.py").write_text("x = 1\n", encoding="utf-8")
+    _commit_all(rich, "main")
+
+    n_std, g_std, fields_std = measure(rich, "standard", "yes")
+    n_ess, g_ess, fields_ess = measure(bare, "essential", "no")
+    print(f"      measured: standard/discoverable {n_std} fields before the review ({g_std} gate fields); essential/bare {n_ess} ({g_ess})")
+    print(f"      standard: {fields_std}")
+    print(f"      essential/bare: {fields_ess}")
+    check("standard with things to discover: at most twelve fields before the review", n_std <= 12, str(n_std))
+    check("essential on a bare repository: at most twelve fields before the review", n_ess <= 12, str(n_ess))
 
 
 def test_validators_refuse_what_the_checker_rejects(tmp: Path) -> None:
@@ -1325,7 +1519,7 @@ def main() -> int:
         print("\nF38 regression: multi-line prose survives the whole flow")
         test_multiline_prose_survives_the_whole_flow(tmp)
 
-        print("\nDR-40: the defaults route proposes, and says where each value came from")
+        print("\nDR-47: the wizard proposes, and says where each value came from")
         test_the_profile_says_which_controls_are_actually_checked()
         test_the_tool_does_not_set_effective_from()
         test_the_level_is_recommended_and_never_chosen()
@@ -1352,6 +1546,10 @@ def main() -> int:
         test_the_untouched_template_is_still_fair_game(tmp)
         test_write_refused_on_placeholder_content(essential_repo, essential_profile)
         test_scripted_interview_objects_in_both_directions(tmp)
+
+        print("\nDR-47: proposing writes what typing writes; the budget, measured")
+        test_proposing_writes_the_same_profile_as_typing_the_same_values(tmp)
+        test_fields_presented_before_the_review_are_measured(tmp)
 
         print("\nDR-48: one set of rules for the wizard and the checker")
         test_validators_refuse_what_the_checker_rejects(tmp)

@@ -17,7 +17,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from surfaceplate.adopt import render, scaffold, sections
+from surfaceplate.adopt import flow as _flow
+from surfaceplate.adopt import provenance, render, scaffold
 from surfaceplate.adopt.interview import DRAFT_FORMAT, Cancelled, DraftInfo, Interview
 
 PROFILE_PATH = "governance/application-profile.yaml"
@@ -35,7 +36,7 @@ DRAFT_FILENAME = ".surfaceplate-adopt-draft.json"
 # profile, and `sections.build_profile` walks it. A list of paths is an instruction to this module,
 # not an answer, and it is popped before the profile is assembled so it can never be mistaken for
 # one.
-SCAFFOLD_KEY = "__scaffold__"
+SCAFFOLD_KEY = "__scaffold__"  # historical: `Flow.accepted_scaffold` carries offers now
 
 
 class Written:
@@ -210,17 +211,18 @@ def _draft_path(repo: Path) -> Path:
     return repo / DRAFT_FILENAME
 
 
-def _save_draft(repo: Path, record: dict, state: dict) -> None:
-    """Called after every section completes - a late failure loses at most the section in
-    progress, not the whole run. `framework_version`/`framework_digest` travel with the draft so a
-    later resume can tell whether the install underneath it has changed since, flagged rather than
-    silently trusted; `format` states the shape of `sections` so a draft written by a different
-    shape of this wizard is recognised rather than misread (`DRAFT_FORMAT`)."""
+def _save_draft(repo: Path, record: dict, draft: dict) -> None:
+    """Called after every stage completes - a late failure loses at most the stage in progress,
+    not the whole run. `framework_version`/`framework_digest` travel with the draft so a later
+    resume can tell whether the install underneath it has changed since, flagged rather than
+    silently trusted; `format` states the shape so a draft written by a different shape of this
+    wizard is recognised rather than misread (`DRAFT_FORMAT`). `draft` is `Flow.draft()`: the
+    answers, the origin of each, and which stages are done."""
     payload = {
         "format": DRAFT_FORMAT,
         "framework_version": record.get("standard_version", ""),
         "framework_digest": record.get("framework_digest", ""),
-        "sections": state,
+        **draft,
     }
     _draft_path(repo).write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
@@ -258,7 +260,9 @@ def _resume_or_start(repo: Path, record: dict, interview: Interview) -> dict:
     if draft is None:
         return {}
 
-    if draft.get("format") != DRAFT_FORMAT:
+    if draft.get("format") != DRAFT_FORMAT or not isinstance(draft.get("sections"), dict):
+        # An older shape, or a JSON-valid file that is not a draft: not offered. Left in place
+        # rather than deleted; this run's first completed stage overwrites it.
         return {}
 
     matches = draft.get("framework_version") == record.get(
@@ -280,7 +284,7 @@ def _resume_or_start(repo: Path, record: dict, interview: Interview) -> dict:
     if not answer:
         _clear_draft(repo)  # an explicit "n": the human chose to discard it
         return {}
-    return dict(draft.get("sections", {}))
+    return draft
 
 
 def _walk_strings(node: object, path: str = "") -> list[tuple[str, str]]:
@@ -314,48 +318,44 @@ def run(repo: Path, interview: Interview) -> Path:
     _refuse_if_already_adopted(repo)
     record = _read_install_record(repo)
 
-    state: dict = _resume_or_start(repo, record, interview)
-
-    def on_section_complete(name: str, answers: dict) -> None:
-        state[name] = answers
-        _save_draft(repo, record, state)
-
-    def preview(current: dict) -> str:
-        """Assemble, render and verify without writing - what the review screen shows.
-
-        A `WriteRefused` raised here surfaces in the interface as a message the human can act on.
-        It is deliberately NOT the last word: `run` verifies again below before writing, so the
-        interface cannot put an unverified profile on disk however this closure behaved.
-        """
-        profile = assemble(current, record)
-        rendered = render.render_profile(profile)
-        _verify(profile, rendered, repo)
-        return rendered
-
-    state = interview.collect(
-        repo=repo,
-        resumed=state,
-        on_section_complete=on_section_complete,
-        preview=preview,
+    draft = _resume_or_start(repo, record, interview)
+    flow = _flow.Flow(
+        repo,
+        record,
+        verify=lambda profile, rendered: _verify(profile, rendered, repo),
+        state=draft.get("sections") or {},
+        origins=_flow.Flow.origins_from(draft),
+        done=tuple(draft.get("done") or ()),
     )
 
-    # `ACT-033`. Files the adopter approved on the scaffold screen, carried out of band under a key
-    # `assemble` never sees: everything else in `state` is a section of the profile, and putting a
-    # list of paths in there would put it in front of the provenance walk as though it were an
-    # answer. Popped before `assemble`, so a profile is built from answers only.
-    accepted = state.pop(SCAFFOLD_KEY, [])
+    def on_progress() -> None:
+        _save_draft(repo, record, flow.draft())
 
-    profile = assemble(state, record)
-    rendered = render.render_profile(profile)
+    approved_at = interview.collect(flow, on_progress=on_progress)
+
+    profile = flow.assemble()
+    rendered = render.render_profile(profile, written_on=flow.adoption_date)
     _verify(profile, rendered, repo)
+    traced = provenance.trace(profile, flow.state, flow.origins)
+    sidecar = provenance.render_record(
+        provenance.record(
+            traced,
+            framework_version=record.get("standard_version", ""),
+            approved_at=approved_at,
+            bulk=flow.bulk,
+        )
+    )
 
     # Written BEFORE the profile, and only once the profile is known to render and verify. A
     # profile naming an artefact that does not exist fails `SP032` on the next run, so if anything
     # here is going to fail it should fail before the profile claims the artefact is there.
-    created, scaffold_problems = scaffold.write(repo, accepted)
+    created, scaffold_problems = scaffold.write(repo, flow.accepted_scaffold)
 
     target = repo / PROFILE_PATH
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(rendered, encoding="utf-8", newline="\n")
+    # `DR-47` (2): the machine-owned record beside the profile, every field's origin and the one
+    # document-level approval.
+    (repo / provenance.PROVENANCE_PATH).write_text(sidecar, encoding="utf-8", newline="\n")
     _clear_draft(repo)  # a completed run leaves no draft behind - it exists only to protect one
     return Written(profile=target, created=created, problems=scaffold_problems)

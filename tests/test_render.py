@@ -32,6 +32,7 @@ sys.path.insert(0, str(ROOT))
 from textual import work  # noqa: E402
 from textual.app import App  # noqa: E402
 
+from surfaceplate.adopt import flow as _flow  # noqa: E402
 from surfaceplate.adopt import plan  # noqa: E402
 from surfaceplate.adopt.interview import DraftInfo  # noqa: E402
 from surfaceplate.adopt.tui.screens import (  # noqa: E402
@@ -122,7 +123,7 @@ def test_every_legend_renders_the_keys_it_names() -> None:
                 ),
                 ["y", "n"],
             ),
-            ("review", ReviewScreen("schema_version: '1.0'\n"), ["Ctrl+S", "Ctrl+Q"]),
+            ("review", ReviewScreen(_flow.Review(rendered="schema_version: '1.0'\n", lines=[])), ["Ctrl+S", "Ctrl+Q"]),
         ]
         for label, screen, keys in cases:
             app = Host(screen)
@@ -298,7 +299,11 @@ def test_a_bracketed_heading_is_rendered_not_parsed() -> None:
                                        framework_digest="abc", matches=True)),
                 "A saved draft was found",
             ),
-            ("mode form, no step prefix", FormScreen(plan.mode_plan()), plan.mode_plan().title),
+            (
+                "decisions form, no step prefix",
+                FormScreen(plan.decisions_plan(ROOT, found=plan.discover.Discovered(), proposals={})),
+                plan.decisions_plan(ROOT, found=plan.discover.Discovered(), proposals={}).title,
+            ),
             (
                 "conformance level, no step prefix",
                 LevelScreen(plan.level_plan(ROOT, builds_ui=False, mode="simple")),
@@ -488,19 +493,30 @@ def test_the_most_consequential_choice_is_readable_at_80_columns() -> None:
     """
 
     async def _run() -> None:
-        section = plan.route_plan({"level": {"conformance_level": "standard"}})
+        # `DR-47`: the route screen is gone; the consequential choices now sit on the decisions
+        # form, and the property is the same - every option readable in full at 80 columns.
+        section = plan.decisions_plan(ROOT, found=plan.discover.Discovered(), proposals={})
         app = Host(FormScreen(section))
+        cut = []
         async with app.run_test(size=(80, 24)) as pilot:
             await pilot.pause()
-            lines = rendered(app)
-        spec = section.fields[0]
-        cut = []
-        for value, label in spec.choices:
-            row = next((ln for ln in lines if label[:18] in ln), "")
-            if not row or label not in row:
-                cut.append((value, row.strip()))
+            for spec in section.fields:
+                if spec.kind != "choice":
+                    continue
+                # The form scrolls; each choice is read with its own widget scrolled into view.
+                widget = app.screen.query_one(f"#f-{spec.id.replace('.', '--')}")
+                widget.focus()
+                await pilot.pause()  # Textual's own scroll-into-view lands first
+                app.screen.query_one("#frame").scroll_to_widget(widget, top=True, animate=False)
+                await pilot.pause()
+                await pilot.pause()
+                lines = rendered(app)
+                for value, label in spec.choices:
+                    row = next((ln for ln in lines if label[:12] in ln), "")
+                    if not row or label not in row:
+                        cut.append((spec.id, value, row.strip()))
         check(
-            "every route option is readable in full at 80 columns",
+            "every decision option is readable in full at 80 columns",
             not cut,
             f"truncated on screen: {cut}",
         )

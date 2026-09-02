@@ -30,7 +30,7 @@ sys.path.insert(0, str(ROOT))
 
 from textual.app import App  # noqa: E402
 from textual import work  # noqa: E402
-from textual.widgets import RadioButton  # noqa: E402
+from textual.widgets import RadioButton, RadioSet  # noqa: E402
 
 from surfaceplate.adopt import plan  # noqa: E402
 from surfaceplate.adopt.tui.screens import (  # noqa: E402
@@ -70,6 +70,19 @@ class Host(App):
     async def _drive(self) -> None:
         self.result = await self.push_screen_wait(self._screen_under_test)
         self.exit(self.result)
+
+
+def _a_flow(repo: Path, state: dict, done: tuple[str, ...] = ()):
+    """A `Flow` resumed at a given point, with every answer it holds given an origin."""
+    from surfaceplate.adopt import flow as _flow
+    from surfaceplate.adopt.provenance import TYPED, Origin
+
+    origins = {
+        f"{section}.{field}": Origin(TYPED)
+        for section, fields in state.items()
+        for field in fields
+    }
+    return _flow.Flow(repo, {"standard_version": "0.0.0", "framework_digest": "0"}, state=state, origins=origins, done=done)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -203,7 +216,7 @@ def test_gate_catalogue_behaviour() -> None:
             )
 
             hint = str(screen.query_one("#hint").content)
-            check("the hint counts what has been answered", "of 19 answered" in hint, hint)
+            check("the hint counts what is complete", "of 19 complete" in hint, hint)
 
             # `ctrl+g`, not a bare `g`: a focused text field would swallow a printable key.
             before = screen.query_one("#gate-list").scroll_offset.y
@@ -227,7 +240,11 @@ def test_an_empty_choice_is_refused_at_the_field() -> None:
     never a decision; `None` was."""
 
     async def _run() -> None:
-        section = plan.mode_plan()
+        section = plan.SectionPlan(
+            name="choice", title="A choice",
+            fields=(plan.FieldSpec(id="pick", label="Pick one", kind="choice",
+                                   choices=(("a", "a - the first"), ("b", "b - the second"))),),
+        )
         app = Host(FormScreen(section))
         async with app.run_test(size=(100, 34)) as pilot:
             await pilot.pause()
@@ -318,7 +335,7 @@ def test_a_blank_dropdown_is_refused_at_the_field() -> None:
             hint_after = str(app.screen.query_one("#hint").content) if still_there else ""
             check(
                 "a gate whose artefact dropdown is blank is not counted as answered",
-                "0 of 1 answered" in hint_before,
+                "0 of 1 complete" in hint_before,
                 hint_before.splitlines()[-2:],
             )
             check(
@@ -524,7 +541,7 @@ def test_the_app_itself_gives_every_screen_the_repository_scan() -> None:
             subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
             subprocess.run(["git", "-C", str(repo), "commit", "-qm", "seed"], check=True)
 
-            # Resume straight into the gates section so the app builds that screen for real.
+            # Resume straight into the gates stage so the app builds that screen for real.
             resumed = {
                 "mode": {"mode": "simple"},
                 "identity": {"application_id": "x", "display_name": "X", "owner": "O"},
@@ -532,14 +549,8 @@ def test_the_app_itself_gives_every_screen_the_repository_scan() -> None:
                 "risk": {"risk_profile": "r", "materiality_definition": "m",
                          "data_classification": "internal"},
                 "level": {"conformance_level": "standard"},
-                "route": {"route": "customise"},
-                "controls": {},
             }
-            app = AdoptApp(
-                repo=repo, resumed=resumed,
-                on_section_complete=lambda *_: None,
-                preview=lambda _state: "",
-            )
+            app = AdoptApp(flow=_a_flow(repo, resumed, done=("decisions", "level")), on_progress=lambda: None)
             async with app.run_test(size=(120, 60)) as pilot:
                 await pilot.pause()
                 for _ in range(6):
@@ -627,9 +638,9 @@ def test_the_step_counter_agrees_with_the_sections() -> None:
     from surfaceplate.adopt.tui import app as tui_app
 
     labelled = {name: step for name, step in tui_app._STEPS.items() if step}
-    missing = [n for n in plan.SECTION_ORDER if n not in tui_app._STEPS]
+    missing = [n for n in plan.FLOW if n not in tui_app._STEPS]
     check(
-        "every section in SECTION_ORDER has a step label",
+        "every screen in FLOW has a step label",
         not missing,
         f"no step label for: {missing}",
     )
@@ -677,12 +688,12 @@ def test_a_gate_with_nothing_supplied_is_not_counted_as_answered() -> None:
 
         check(
             "an untouched required gate is not counted as answered",
-            "0 of 1 answered" in empty_hint,
+            "0 of 1 complete" in empty_hint,
             f"hint claimed completion with nothing supplied: {empty_hint!r}",
         )
         check(
             "and it IS counted once its artefact and paths are supplied",
-            "1 of 1 answered" in filled_hint,
+            "1 of 1 complete" in filled_hint,
             f"hint never counts a completed gate: {filled_hint!r}",
         )
 
@@ -740,7 +751,6 @@ def test_a_resumed_run_still_offers_an_artefact_that_was_never_created() -> None
                     "data_classification": "internal",
                 },
                 "level": {"conformance_level": "essential"},
-                "route": {"route": "customise"},
                 "controls": {},
                 "gates": {
                     "work_registration.artefact": seed_path,
@@ -764,9 +774,8 @@ def test_a_resumed_run_still_offers_an_artefact_that_was_never_created() -> None
             )
 
             app = AdoptApp(
-                repo=repo, resumed=resumed,
-                on_section_complete=lambda *_: None,
-                preview=lambda _state: "",
+                flow=_a_flow(repo, resumed, done=("decisions", "level", "gates", "remainder")),
+                on_progress=lambda: None,
             )
             reached_offer = False
             async with app.run_test(size=(120, 60)) as pilot:
@@ -830,11 +839,7 @@ def test_the_app_hands_the_level_recommendation_to_the_screen() -> None:
                     "data_classification": "internal",
                 },
             }
-            app = AdoptApp(
-                repo=repo, resumed=resumed,
-                on_section_complete=lambda *_: None,
-                preview=lambda _state: "",
-            )
+            app = AdoptApp(flow=_a_flow(repo, resumed, done=("decisions",)), on_progress=lambda: None)
             async with app.run_test(size=(120, 60)) as pilot:
                 await pilot.pause()
                 for _ in range(6):
@@ -875,6 +880,8 @@ def test_the_app_hands_the_level_recommendation_to_the_screen() -> None:
 
 
 def _git_repo_with_a_register(tmp: Path) -> Path:
+    """A small repository with things to discover: a register, a source directory, a workflow
+    with a named step, and a lock file."""
     import subprocess
 
     repo = tmp / "repo"
@@ -882,9 +889,11 @@ def _git_repo_with_a_register(tmp: Path) -> Path:
     (repo / "activity" / "register.md").write_text("# register\n", encoding="utf-8")
     (repo / "src").mkdir()
     (repo / "src" / "main.py").write_text("print(1)\n", encoding="utf-8")
+    (repo / "requirements.txt").write_text("PyYAML==6.0.3\n", encoding="utf-8")
     (repo / ".github" / "workflows").mkdir(parents=True)
     (repo / ".github" / "workflows" / "ci.yml").write_text(
-        "jobs:\n  build:\n    steps:\n      - name: Run the unit tests\n        run: pytest\n",
+        "jobs:\n  build:\n    steps:\n      - name: Run the unit tests\n        run: pytest\n"
+        "      - name: gitleaks\n        run: gitleaks detect\n",
         encoding="utf-8",
     )
     for args in (
@@ -896,19 +905,18 @@ def _git_repo_with_a_register(tmp: Path) -> Path:
     return repo
 
 
+_RECORD = {"standard_version": "0.0.0", "framework_digest": "0"}
+
 _PRESENTED_KINDS = ("text", "textarea", "select", "choice")
 
 
 def _unfilled_on(screen) -> list[str]:
     """Fields a screen presents with nothing in them: a visible text box, text area, dropdown or
-    radio set holding no value. A tick box and a tick list always show a state, so they are never
-    "unfilled" - what they show may be wrong, but it is not blank."""
+    radio set holding no value. A tick box and a tick list always show a state."""
     from surfaceplate.adopt.tui.screens import _read_widget
 
     if isinstance(screen, GatesScreen):
-        pairs = [
-            (f"{spec.id}.{f.id}", f.kind) for spec in screen.specs for f in spec.fields
-        ]
+        pairs = [(f"{spec.id}.{f.id}", f.kind) for spec in screen.specs for f in spec.fields]
     else:
         pairs = [(spec.id, spec.kind) for spec in screen.section.fields]
     blank: list[str] = []
@@ -925,12 +933,10 @@ def _unfilled_on(screen) -> list[str]:
 
 
 def _fill_blanks(screen, blank: list[str]) -> None:
-    """What a human does with a field nothing could propose: answers it. Only so the driver can
-    reach the next screen; the count was taken before this ran."""
-    from textual.widgets import RadioSet, Select, TextArea
+    """What a human does with a field nothing could propose: answers it, with something the
+    fixture repository really holds where the field checks git."""
+    from textual.widgets import Select, TextArea
 
-    # `DR-48`: a path field is validated against git and a step field against the workflows,
-    # so the driver answers those with things the fixture repository really holds.
     real = {"tracked_path": "activity/register.md", "ci_step": "Run the unit tests"}
     specs = {spec.id: spec for spec in screen.section.fields}
     for field_id in blank:
@@ -946,143 +952,313 @@ def _fill_blanks(screen, blank: list[str]) -> None:
             widget.value = answer
 
 
-def test_the_defaults_route_seeds_the_gates_screen_and_counts_what_is_left() -> None:
-    """`F60`. The defaults route proposed thirty-odd gate values, said "5 more can only be answered
-    by you", and then opened a gates screen with nothing in it.
 
-    `tui/app.py` passed `initial=` to `FormScreen` only; `GatesScreen` took none. And the "N more"
-    figure counted fields with no proposal, which was 5 at every level while the gates screen
-    re-asked 38 fields at standard. Neither was asserted anywhere: no test drove the route, and
-    a search of `tests/` for `seeded` or `initial=` found nothing.
 
-    This drives the REAL `AdoptApp` from the route screen through the proposals to the gates
-    screen at every level, and asserts three things: the first required gate's artefact dropdown
-    holds the proposal; the gates hint counts the seeded gates as answered; and the "N more"
-    figure equals what the remaining screens actually present unfilled - measured on the screens
-    the app builds, not recomputed from the proposals.
+async def _until(app, pilot, screen_type, *, name: str | None = None, limit: int = 60):
+    """Pause until the app shows `screen_type` (and, for a form, the section `name`)."""
+    for _ in range(limit):
+        await pilot.pause()
+        screen = app.screen
+        if isinstance(screen, screen_type) and (name is None or getattr(getattr(screen, "section", None), "name", None) == name):
+            return screen
+    raise AssertionError(f"never reached {screen_type.__name__} {name or ''}; on {type(app.screen).__name__}")
+
+
+async def _fill_decisions(screen, pilot, *, relied: str = "yes", material: str = "no") -> None:
+    from textual.widgets import TextArea
+
+    screen.query_one("#f-identity--owner").value = "Owner Person"
+    for field, value in (
+        ("stack.builds_user_interface", "no"),
+        ("risk.relied_on_outside_team", relied),
+        ("risk.material_quantitative_output", material),
+        ("risk.data_classification", "internal"),
+    ):
+        screen.query_one(f"#r-{field.replace('.', '--')}--{value}", RadioButton).value = True
+    screen.query_one("#f-wrap--release_route", TextArea).text = "Merged by the maintainer."
+    await pilot.pause()
+    await pilot.press("ctrl+s")
+
+
+def test_the_flow_is_decisions_level_gates_review() -> None:
+    """`DR-47` / R1 / R3, driven on the real `AdoptApp` at 80x24.
+
+    The screens are the decisions form, the level, the gate list and the review; there is no
+    route screen and no proposals screen. On the gate list an unmandated gate starts with no
+    status; `n` offers the example rationale; `Ctrl+N` declares every remaining gate not
+    applicable as one recorded act with its count. On the review every value carries its origin,
+    Enter changes a line and the changed line becomes typed with a timestamp, and `Ctrl+S`
+    approves the document once. `F69`, `F62`, `F76` and the question count are what this holds.
     """
 
     async def _run() -> None:
         import tempfile
 
-        from textual.widgets import RadioButton, Select
+        from textual.widgets import Input, OptionList, TextArea
 
-        from surfaceplate.adopt import defaults
+        from surfaceplate.adopt import example_answers, flow as _flow, provenance
         from surfaceplate.adopt.tui.app import AdoptApp
-        from surfaceplate.adopt.tui.screens import DefaultsScreen
+        from surfaceplate.adopt.tui.screens import EditLineScreen, ReviewScreen, ScaffoldScreen
 
         with tempfile.TemporaryDirectory() as tmp:
             repo = _git_repo_with_a_register(Path(tmp))
-            for level in ("essential", "standard", "full"):
-                resumed = {
-                    "mode": {"mode": "simple"},
-                    "identity": {"application_id": "x", "display_name": "X", "owner": "O"},
-                    "stack": {"language": "Python", "builds_user_interface": False},
-                    "risk": {"risk_profile": "r", "materiality_definition": "m",
-                             "data_classification": "internal"},
-                    "level": {"conformance_level": level},
-                }
-                app = AdoptApp(
-                    repo=repo, resumed=dict(resumed),
-                    on_section_complete=lambda *_: None,
-                    preview=lambda _state: "",
+            flow = _flow.Flow(repo, _RECORD)
+            saves: list[str] = []
+            app = AdoptApp(flow=flow, on_progress=lambda: saves.append(flow.next_stage()))
+            seen: list[str] = []
+            async with app.run_test(size=(80, 24)) as pilot:
+                decisions = await _until(app, pilot, FormScreen, name="decisions")
+                seen.append("decisions")
+                check(
+                    "the first screen is the decisions form, pre-filled from the directory name",
+                    decisions.query_one("#f-identity--application_id", Input).value == "repo",
+                    decisions.query_one("#f-identity--application_id", Input).value,
                 )
-                async with app.run_test(size=(120, 60)) as pilot:
-                    still_asked = None
-                    unfilled: dict[str, list[str]] = {}
-                    last = None
-                    waited = 0
-                    for _ in range(80):
-                        await pilot.pause()
-                        screen = app.screen
-                        if isinstance(screen, GatesScreen):
-                            break
-                        if screen is last:
-                            # The app pushes the next screen from a worker; give it a few
-                            # pauses before concluding this one refused to commit.
-                            waited += 1
-                            if waited > 8:
-                                hint = str(screen.query_one("#hint").content)
-                                where = getattr(getattr(screen, "section", None), "name", "")
-                                blank = _unfilled_on(screen) if isinstance(screen, FormScreen) else []
-                                raise AssertionError(
-                                    f"{level}: stuck on {type(screen).__name__} {where!r}; "
-                                    f"blank fields {blank}; hint {hint!r}"
-                                )
-                            continue
-                        last = screen
-                        waited = 0
-                        if isinstance(screen, DefaultsScreen):
-                            still_asked = screen.still_asked
-                            await pilot.press("ctrl+s")
-                        elif isinstance(screen, FormScreen):
-                            if screen.section.name == "route":
-                                screen.query_one("#r-route--defaults", RadioButton).value = True
-                                await pilot.pause()
-                            else:
-                                unfilled[screen.section.name] = _unfilled_on(screen)
-                                _fill_blanks(screen, unfilled[screen.section.name])
-                                await pilot.pause()
-                            await pilot.press("ctrl+s")
-                        else:
-                            raise AssertionError(type(screen).__name__)
-                    gates = app.screen
-                    check(
-                        f"{level}: the defaults route reaches the gates screen",
-                        isinstance(gates, GatesScreen),
-                        type(gates).__name__,
-                    )
-                    if not isinstance(gates, GatesScreen):
-                        app.exit(None)
-                        continue
-                    unfilled["gates"] = _unfilled_on(gates)
-                    proposals = defaults.propose(app.state, found=app.found)
-                    proposed = {p.field: p.value for p in proposals}
-                    artefact_keys = [k for k in proposed if k.startswith("gates.") and k.endswith(".artefact")]
-                    if artefact_keys:
-                        key = artefact_keys[0]
-                        widget = gates.query_one(f"#f-{key[len('gates.'):].replace('.', '--')}")
-                        check(
-                            f"{level}: the first proposed gate artefact ({key}) is what the dropdown holds",
-                            isinstance(widget, Select) and widget.value == proposed[key],
-                            f"proposed {proposed[key]!r}, widget holds {getattr(widget, 'value', None)!r}",
-                        )
-                    # A gate is answered on this screen when every field it presents is filled.
-                    # Seeding is what fills them, so the counter must reflect it.
-                    total = len(gates.specs)
-                    blank_gates = {f.split(".")[0] for f in unfilled["gates"]}
-                    expected_done = sum(1 for spec in gates.specs if spec.id not in blank_gates)
-                    hint = str(gates.query_one("#hint").content)
-                    check(
-                        f"{level}: the gates hint counts the seeded gates as answered "
-                        f"({expected_done} of {total})",
-                        f"{expected_done} of {total} answered" in hint,
-                        hint.splitlines()[-2:] if hint else "no hint",
-                    )
-                    # The adoption and wrap screens are built exactly as the app builds them, from
-                    # the same seeded proposals, so what they present can be measured without
-                    # driving a complete gates screen first.
-                    seeded = dict(app._seeded)
-                    state = dict(app.state)
-                    state["gates"] = dict(seeded.get("gates", {}))
-                    for name in ("adoption", "wrap"):
-                        section = plan.section_plan(name, repo=repo, state=state, found=app.found)
-                        host = Host(FormScreen(section, initial=seeded.get(name, {})))
-                        async with host.run_test(size=(120, 60)) as inner:
-                            await inner.pause()
-                            unfilled[name] = _unfilled_on(host.screen)
-                            host.exit(None)
-                    presented_unfilled = sorted(
-                        f"{section}.{field}" for section, fields in unfilled.items() for field in fields
-                    )
-                    check(
-                        f"{level}: '{still_asked} more can only be answered by you' is the number "
-                        f"the remaining screens present unfilled ({len(presented_unfilled)})",
-                        still_asked == len(presented_unfilled),
-                        f"unfilled on screen: {presented_unfilled}",
-                    )
-                    app.exit(None)
+                presented = [spec.id for spec in decisions.section.fields]
+                check(
+                    "the decisions form presents the eight fields and nothing discovery answered",
+                    len(presented) == 8 and "controls.scanner.wired_in" not in presented,
+                    str(presented),
+                )
+                await _fill_decisions(decisions, pilot)
+                level = await _until(app, pilot, LevelScreen)
+                seen.append("level")
+                await pilot.press("enter")  # the caret starts on the recommendation: standard
+                gates = await _until(app, pilot, GatesScreen)
+                seen.append("gates")
+                undecided = [s for s in gates.specs if not s.mandatory and not s.auto_status]
+                first = undecided[0]
+                radios = gates.query_one(f"#f-{first.id}--status", RadioSet)
+                check(
+                    "an unmandated gate starts with no status - nothing is pre-marked (DR-47 (4))",
+                    radios.pressed_button is None,
+                    str(radios.pressed_button),
+                )
+                check(
+                    "a required gate's artefact holds the discovered proposal",
+                    gates.query_one("#f-work_registration--artefact").value == "activity/register.md",
+                    str(gates.query_one("#f-work_registration--artefact").value),
+                )
+                radios.focus()
+                await pilot.pause()
+                await pilot.press("n")
+                await pilot.pause()
+                rationale = gates.query_one(f"#f-{first.id}--rationale", TextArea)
+                check(
+                    "n on the focused gate chooses not applicable and offers the example rationale",
+                    radios.pressed_button is not None
+                    and radios.pressed_button.id.endswith("not_applicable")
+                    and rationale.text == example_answers.rationale_example(first.id),
+                    f"pressed={radios.pressed_button and radios.pressed_button.id} text={rationale.text[:40]!r}",
+                )
+                await pilot.press("ctrl+n")
+                await pilot.pause()
+                hint = str(gates.query_one("#hint").content)
+                check(
+                    "Ctrl+N declares every remaining undecided gate not applicable, and says how many",
+                    len(gates.bulk_gates) == len(undecided) - 1 and "0 undecided" in hint,
+                    f"bulk={len(gates.bulk_gates)} of {len(undecided)}; hint={hint.splitlines()[0]!r}",
+                )
+                await pilot.press("ctrl+s")
+                # The remainder form, if anything was left; then the scaffold offer.
+                for _ in range(40):
                     await pilot.pause()
+                    screen = app.screen
+                    if isinstance(screen, FormScreen) and screen.section.name == "remainder":
+                        seen.append("remainder")
+                        _fill_blanks(screen, _unfilled_on(screen))
+                        await pilot.pause()
+                        await pilot.press("ctrl+s")
+                    elif isinstance(screen, ScaffoldScreen):
+                        seen.append("scaffold")
+                        await pilot.press("ctrl+s")
+                    elif isinstance(screen, ReviewScreen):
+                        break
+                review_screen = await _until(app, pilot, ReviewScreen)
+                seen.append("review")
+                review = review_screen.review
+                origins = {entry.path: entry.origin for entry in review.lines}
+                index = {g.id: i for i, g in enumerate(flow.gate_specs())}
+                artefact_path = f"prerequisites[{index['work_registration']}].precondition.artefacts[0]"
+                check(
+                    "the review shows every line with its origin: typed, discovered, example, computed",
+                    origins.get("owner") == "typed"
+                    and origins.get("adoption.framework_maintainer", "").startswith("computed")
+                    and origins.get(artefact_path) == "discovered"
+                    and any(o == "example" for o in origins.values()),
+                    str({k: v for k, v in origins.items() if k in ("owner", "adoption.framework_maintainer", artefact_path)})
+                    + f"; kinds={sorted(set(origins.values()))}",
+                )
+                check(
+                    "the bulk decision shows as typed on every gate it decided",
+                    all(origins.get(f"prerequisites[{index[g]}].status") == "typed" for g in gates.bulk_gates),
+                    str({g: origins.get(f"prerequisites[{index[g]}].status") for g in list(gates.bulk_gates)[:3]}),
+                )
+                target = next(e for e in review.lines if e.path == "adoption.review_by")
+                body = review_screen.query_one("#review-body", OptionList)
+                body.highlighted = target.line
+                await pilot.pause()
+                await pilot.press("enter")
+                editor = await _until(app, pilot, EditLineScreen)
+                editor.query_one("#f-value", Input).value = "2027-01-15"
+                await pilot.press("ctrl+s")
+                review_screen = await _until(app, pilot, ReviewScreen)
+                edited = next(e for e in review_screen.review.lines if e.path == "adoption.review_by")
+                check(
+                    "editing a line on the review changes the value and its origin becomes typed",
+                    edited.origin == "typed" and flow.state["adoption"]["review_by"] == "2027-01-15"
+                    and flow.origins["adoption.review_by"].at != "",
+                    f"origin={edited.origin} value={flow.state['adoption']['review_by']} at={flow.origins['adoption.review_by'].at!r}",
+                )
+                await pilot.press("ctrl+s")
+                await pilot.pause()
+            check(
+                "the flow is decisions, level, gates, (remainder, scaffold,) review - and nothing else",
+                seen[:3] == ["decisions", "level", "gates"] and seen[-1] == "review" and "route" not in seen,
+                str(seen),
+            )
+            check("approving the review ends the run with a document-level timestamp", isinstance(app.return_value, str) and "T" in app.return_value, str(app.return_value))
+            traced = provenance.trace(flow.assemble(), flow.state, flow.origins)
+            record = provenance.record(traced, framework_version="0.0.0", approved_at=str(app.return_value), bulk=flow.bulk)
+            check(
+                "the provenance record carries one bulk decision with its count, and the approval",
+                record["bulk_decisions"] == [{"status": "not_applicable", "count": len(gates.bulk_gates), "at": flow.bulk[0].at}]
+                and record["approved_at"] == app.return_value,
+                str(record.get("bulk_decisions")),
+            )
+            check("a draft was saved at every stage boundary", len(saves) >= 3, str(saves))
+
+    asyncio.run(_run())
+
+
+def test_a_placeholder_is_refused_at_the_field_and_the_review_names_the_line() -> None:
+    """`F65`. `TBD` typed into a rationale passed the field and was refused at the review, where
+    nothing but cancel worked. Now the field refuses it; and where the review does refuse, the
+    error names the line, `Ctrl+E` goes to it, and "write it" is not offered."""
+
+    async def _run() -> None:
+        import tempfile
+
+        from textual.widgets import OptionList
+
+        from surfaceplate.adopt import flow as _flow
+        from surfaceplate.adopt.interview import ScriptedInterview
+        from surfaceplate.adopt.provenance import TYPED, Origin
+        from surfaceplate.adopt.tui.screens import ReviewScreen
+
+        # At the field.
+        app = Host(FormScreen(plan.identity_plan()))
+        async with app.run_test(size=(80, 24)) as pilot:
+            await pilot.pause()
+            screen = app.screen
+            screen.query_one("#f-application_id").value = "ok-id"
+            screen.query_one("#f-display_name").value = "TBD"
+            screen.query_one("#f-owner").value = "O"
+            await pilot.pause()
+            await pilot.press("ctrl+s")
+            await pilot.pause()
+            hint = str(screen.query_one("#hint").content) if isinstance(app.screen, FormScreen) else ""
+            check(
+                "a placeholder is refused where it is typed",
+                isinstance(app.screen, FormScreen) and "placeholder" in hint.lower(),
+                f"hint={hint!r}",
+            )
+            app.exit(None)
+            await pilot.pause()
+
+        # At the review.
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = _git_repo_with_a_register(Path(tmp))
+            flow = _flow.Flow(repo, _RECORD)
+            interview = ScriptedInterview(
+                answers={
+                    "identity.owner": "O", "stack.builds_user_interface": "no",
+                    "risk.relied_on_outside_team": "no", "risk.material_quantitative_output": "no",
+                    "risk.data_classification": "internal", "wrap.release_route": "R",
+                    "level.conformance_level": "essential",
+                },
+            )
+            interview.collect(flow, on_progress=lambda: None)
+            flow._set("adoption.review_by", "", Origin(TYPED))
+            review = flow.review()
+            check(
+                "a blank required value makes the review name the line",
+                review.error.startswith("adoption.review_by") and review.error_line is not None,
+                f"error={review.error!r} line={review.error_line}",
+            )
+            app = Host(ReviewScreen(review))
+            async with app.run_test(size=(80, 24)) as pilot:
+                await pilot.pause()
+                screen = app.screen
+                hint = str(screen.query_one("#hint").content)
+                check("and 'write it' is not offered while the error stands", "write it" not in hint, hint)
+                body = screen.query_one("#review-body", OptionList)
+                body.highlighted = 0
+                await pilot.press("ctrl+e")
+                await pilot.pause()
+                check("Ctrl+E goes to the line", body.highlighted == review.error_line, f"{body.highlighted} vs {review.error_line}")
+                await pilot.press("ctrl+s")
+                await pilot.pause()
+                check("and Ctrl+S does not write", isinstance(app.screen, ReviewScreen) and app.result is None)
+                app.exit(None)
+                await pilot.pause()
+
+    asyncio.run(_run())
+
+
+def test_resuming_a_draft_keeps_its_proposals() -> None:
+    """`F76`. A draft written after the proposals were made resumed into the full manual flow
+    with every proposal gone. The draft now carries every answer and its origin, and a resumed
+    run lands where it left off, proposals intact."""
+
+    async def _run() -> None:
+        import tempfile
+
+        from surfaceplate.adopt import flow as _flow
+        from surfaceplate.adopt.interview import ScriptedInterview
+        from surfaceplate.adopt.tui.app import AdoptApp
+        from surfaceplate.adopt.tui.screens import ReviewScreen, ScaffoldScreen
+
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = _git_repo_with_a_register(Path(tmp))
+            first = _flow.Flow(repo, _RECORD)
+            interview = ScriptedInterview(
+                answers={
+                    "identity.owner": "O", "stack.builds_user_interface": "no",
+                    "risk.relied_on_outside_team": "no", "risk.material_quantitative_output": "no",
+                    "risk.data_classification": "internal", "wrap.release_route": "R",
+                    "level.conformance_level": "essential",
+                },
+                cancel_before="scaffold",
+            )
+            try:
+                interview.collect(first, on_progress=lambda: None)
+            except Exception:
+                pass
+            draft = first.draft()
+            resumed = _flow.Flow(repo, _RECORD, state=draft["sections"], origins=_flow.Flow.origins_from(draft), done=tuple(draft["done"]))
+            proposed = [k for k, o in resumed.origins.items() if o.kind != "typed"]
+            check("the resumed flow still holds every proposed value with its origin", len(proposed) > 10, str(len(proposed)))
+            app = AdoptApp(flow=resumed, on_progress=lambda: None)
+            async with app.run_test(size=(80, 24)) as pilot:
+                await pilot.pause()
+                screen = app.screen
+                for _ in range(10):
+                    if isinstance(screen, ScaffoldScreen):
+                        await pilot.press("ctrl+s")
+                    if isinstance(app.screen, ReviewScreen):
+                        break
+                    await pilot.pause()
+                    screen = app.screen
+                on_review = isinstance(app.screen, ReviewScreen)
+                origins = {e.path: e.origin for e in app.screen.review.lines} if on_review else {}
+                check(
+                    "a resumed run lands on the review with the proposals still in it",
+                    on_review and origins.get("prerequisites[0].precondition.artefacts[0]") == "discovered",
+                    f"{type(app.screen).__name__} {origins.get('prerequisites[0].precondition.artefacts[0]')}",
+                )
+                app.exit(None)
+                await pilot.pause()
 
     asyncio.run(_run())
 
@@ -1118,8 +1294,10 @@ def main() -> int:
     test_example_defaults_survive_being_typed_into()
     test_a_choice_field_starts_genuinely_empty()
 
-    print("\nF60: the defaults route seeds every screen it says it will")
-    test_the_defaults_route_seeds_the_gates_screen_and_counts_what_is_left()
+    print("\nDR-47: decisions, level, gates, review - proposals shown with their origin")
+    test_the_flow_is_decisions_level_gates_review()
+    test_a_placeholder_is_refused_at_the_field_and_the_review_names_the_line()
+    test_resuming_a_draft_keeps_its_proposals()
 
     print()
     if FAILURES:
