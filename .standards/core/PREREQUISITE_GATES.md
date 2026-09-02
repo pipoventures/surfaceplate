@@ -81,6 +81,12 @@ For each gate decided `required`, the normal checker:
    `F15`, and it is open in general precisely because the alternative was rejected on evidence: a
    rule that guessed at blank forms by their shape was removed under `DR-17` after producing seven
    false positives and no true ones. The framework will not guess; you must mark.
+
+   The one blank form the framework can recognise is its own. A seed `surfaceplate adopt` creates
+   is complete and true on the day it is written and satisfies `SP032` by design (`DR-43`); the
+   checker ships the seeds, so an artefact still byte-identical to one earns an advisory on every
+   run - "seeded, holds no entries of this repository's own yet" - until the file changes. An
+   advisory, not a finding: the register exists; whether anyone keeps it is what the advisory asks.
 2. Reads `effective_from`, rejects a date in the future, and compares it against every value
    that gate has *ever* carried in the profile's own git history. If the date has moved forward,
    the check fails and **is never graced** — see below.
