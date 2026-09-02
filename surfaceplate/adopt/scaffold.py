@@ -304,6 +304,39 @@ def write(repo: Path, accepted: list[Offer]) -> tuple[list[Path], list[str]]:
     return written, problems
 
 
+def rollback(repo: Path, written: list[Path]) -> tuple[list[Path], list[str]]:
+    """Remove the files `write` created in this run, and the directories left empty by removing
+    them, up to the repository root. Returns `(removed, problems)`.
+
+    `F101`: the seeds are written before the profile so that the profile never names a file that
+    does not exist; when the profile write then fails, the seeds were left on disk and reported.
+    They are this run's own files - created seconds earlier with an exclusive create, so nothing
+    of the adopter's is among them - and are removed, with the report as the fallback where a
+    removal itself fails. An empty directory is pruned only if it is empty; git tracks no empty
+    directory, so the tracked tree is exactly as it was.
+    """
+    removed: list[Path] = []
+    problems: list[str] = []
+    root = repo.resolve()
+    for target in written:
+        try:
+            target.unlink()
+            removed.append(target)
+        except FileNotFoundError:
+            continue
+        except OSError as exc:
+            problems.append(f"{target}: could not be removed - {exc.strerror or exc}")
+            continue
+        parent = target.parent
+        while parent.resolve() != root and root in parent.resolve().parents:
+            try:
+                parent.rmdir()  # only an empty directory can be removed this way
+            except OSError:
+                break
+            parent = parent.parent
+    return removed, problems
+
+
 def seed_texts() -> list[str]:
     """Every seed's full text. `tests/test_provenance.py` uses this to allow exactly the framework
     content this module can write, and nothing else."""

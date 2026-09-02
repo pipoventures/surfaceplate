@@ -1558,6 +1558,53 @@ def test_the_tool_writes_no_note_about_the_adopters_scanner(tmp: Path) -> None:
     check("sections.py no longer defines a scanner note", not hasattr(sections, "SCANNER_NOTES"))
 
 
+def test_a_failed_write_removes_the_seeds_this_run_created(tmp: Path) -> None:
+    """`F101` (pass-2 CRIT-01). The seeds are written before the profile so the profile never names
+    a file that does not exist; a failure at the profile write then left them on disk and reported
+    them. They are now removed - this run's own files, created seconds earlier with an exclusive
+    create, and the directories that became empty - and the failure says what was removed. The
+    draft still holds the answers."""
+    import os
+
+    repo = make_installed_repo(tmp, "rollback-repo")
+    (repo / "src").mkdir(); (repo / "src" / "app.c").write_text("int main(void) { return 0; }\n", encoding="utf-8")
+    (repo / "ci").mkdir(); (repo / "ci" / "secret-scan.sh").write_text("#!/bin/sh\ngitleaks detect\n", encoding="utf-8")
+    _commit_all(repo, "fixture")
+    before = {p.relative_to(repo).as_posix() for p in repo.rglob("*") if ".git" not in p.parts}
+    answers = {
+        "identity.owner": "Owner", "stack.language": "C", "stack.builds_user_interface": "no",
+        "risk.relied_on_outside_team": "no", "risk.material_quantitative_output": "no", "risk.data_classification": "internal",
+        "wrap.release_route": "manual", "risk.risk_profile": "", "controls.scanner.wired_in": "ci/secret-scan.sh",
+        "controls.dependency_lock.implementation_reference": "src/app.c", "level.conformance_level": "essential",
+        "gates.work_registration.artefact": "activity/register.md", "gates.work_registration.paths": "src/**",
+    }
+    real_replace = os.replace
+
+    def failing_replace(src, dst):
+        if str(dst).endswith("application-profile.yaml"):
+            raise OSError(28, "No space left on device")
+        return real_replace(src, dst)
+
+    os.replace = failing_replace
+    try:
+        try:
+            wizard.run(repo, ScriptedInterview(answers=answers))
+            outcome = "wrote"
+        except wizard.PartialWrite as exc:
+            outcome = str(exc)
+            removed = [str(p) for p in getattr(exc, "removed", [])]
+    finally:
+        os.replace = real_replace
+    check("the failure is reported", outcome != "wrote" and "No space left" in outcome, outcome[:160])
+    after = {p.relative_to(repo).as_posix() for p in repo.rglob("*") if ".git" not in p.parts}
+    check("the seeds this run created are gone, and the directories they opened",
+          after - before <= {wizard.DRAFT_FILENAME}, f"left behind: {sorted(after - before)}")
+    check("and the failure says what was removed", outcome != "wrote" and "removed" in outcome and "activity/register.md" in outcome, outcome[:300])
+    check("the draft is kept, so the run can be resumed", (repo / wizard.DRAFT_FILENAME).is_file())
+    written = wizard.run(repo, ScriptedInterview(answers=answers))
+    check("the same run then completes and creates the seeds", written.is_file() and (repo / "activity" / "register.md").is_file())
+
+
 def test_a_full_run_choosing_every_create_it_row_passes_the_checker(tmp: Path) -> None:
     """`DR-55`. On a bare repository at `full`, every seedable gate's artefact and every
     record-directory control's reference open with "create it"; a run choosing every one writes
@@ -2333,6 +2380,7 @@ def main() -> int:
         test_adopt_edit_applies_the_fields_own_validator(tmp)
         test_a_half_completed_profile_is_not_the_template(tmp)
         test_the_tool_writes_no_note_about_the_adopters_scanner(tmp)
+        test_a_failed_write_removes_the_seeds_this_run_created(tmp)
 
         print("\nDR-47: proposing writes what typing writes; the budget, measured")
         test_proposing_writes_the_same_profile_as_typing_the_same_values(tmp)
