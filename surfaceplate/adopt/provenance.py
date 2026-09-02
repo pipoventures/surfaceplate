@@ -86,6 +86,8 @@ _DIRECT = {
     "risk_profile": "risk.risk_profile",
     "materiality_definition": "risk.materiality_definition",
     "data_classification": "risk.data_classification",
+    "risk.relied_on_outside_team": "risk.relied_on_outside_team",
+    "risk.material_quantitative_output": "risk.material_quantitative_output",
     "conformance_level": "level.conformance_level",
     "adoption.review_by": "adoption.review_by",
     "adoption.framework_maintainer": "adoption.framework_maintainer",

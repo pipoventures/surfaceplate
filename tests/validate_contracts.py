@@ -1,6 +1,7 @@
 """Positive and negative conformance checks for the JSON Schema contracts."""
 from copy import deepcopy
 from pathlib import Path
+import json
 import re
 import sys
 
@@ -442,13 +443,14 @@ no_adoption = deepcopy(profile)
 del no_adoption["adoption"]
 assert_invalid("application-profile.schema.yaml", no_adoption)
 
+# `repository_classification` left this list at `ACT-046`: `DR-50` (1) made it optional, because
+# no finding code reads it. It is asserted optional in the DR-50 block below instead.
 for field in (
     "framework_version",
     "framework_digest",
     "adoption_date",
     "review_by",
     "framework_maintainer",
-    "repository_classification",
     "decision_record_id",
     "adoption_status",
 ):
@@ -533,6 +535,29 @@ assert_invalid("application-profile.schema.yaml", invalid_level)
 silent_deferral = deepcopy(profile)
 silent_deferral["adoption"]["deferrals"] = []
 assert_semantically_invalid(silent_deferral)
+
+# --- DR-50: fields the checker never reads are optional; the two reliance answers are recorded -
+#
+# `F77` (code item 18) and R9. `display_name`, `repository_classification`, `human_roles`,
+# `exclusions` and `independent_validator` are read by no `SP` code, so a profile without them
+# validates; and `risk.relied_on_outside_team` / `risk.material_quantitative_output`, which the
+# wizard asks to recommend a level and then discarded, round-trip through the schema.
+_essential_for_dr50 = load_yaml(EXAMPLES_DIR / "application-profile.essential.example.yaml")
+_without_unchecked = json.loads(json.dumps(_essential_for_dr50))
+for _field in ("display_name", "human_roles", "exclusions"):
+    _without_unchecked.pop(_field, None)
+_without_unchecked["adoption"].pop("repository_classification", None)
+_without_unchecked["adoption"].pop("independent_validator", None)
+assert_valid("application-profile.schema.yaml", _without_unchecked)
+_with_risk = json.loads(json.dumps(_essential_for_dr50))
+_with_risk["risk"] = {"relied_on_outside_team": False, "material_quantitative_output": False}
+assert_valid("application-profile.schema.yaml", _with_risk)
+_bad_risk = json.loads(json.dumps(_essential_for_dr50))
+_bad_risk["risk"] = {"relied_on_outside_team": "yes"}
+assert_invalid("application-profile.schema.yaml", _bad_risk)
+assert "risk" in _essential_for_dr50 and set(_essential_for_dr50["risk"]) == {"relied_on_outside_team", "material_quantitative_output"}, \
+    "the essential example should carry the two reliance answers (DR-50 (2))"
+print("  DR-50: never-checked fields optional; the two reliance answers round-trip")
 
 # --- Golden examples (F4): shipped examples must stay valid as schemas change ------
 

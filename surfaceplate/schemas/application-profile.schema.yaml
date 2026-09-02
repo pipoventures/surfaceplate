@@ -3,10 +3,13 @@ $id: urn:pipo-ventures:surfaceplate:0.7.0:application-profile.schema.yaml
 title: Application Profile
 type: object
 additionalProperties: false
+# `DR-50` (1): fields the checker never reads are optional - `display_name`,
+# `adoption.repository_classification`, `human_roles`, `exclusions`, and `independent_validator`
+# at `essential`. Nothing is removed, so every existing profile stays valid; the renderer stamps
+# each of them `# not checked` when present.
 required:
   - schema_version
   - application_id
-  - display_name
   - owner
   - risk_profile
   - materiality_definition
@@ -29,6 +32,17 @@ properties:
   data_classification:
     type: string
     enum: [public, internal, confidential, restricted]
+  risk:
+    type: object
+    description: >-
+      `DR-50` (2). The two answers the adoption wizard asks to recommend a level, recorded so the
+      reason a level was chosen survives: whether anyone outside the team relies on the output,
+      and whether it produces numbers or AI output others treat as fact. Optional; read by no
+      finding code.
+    additionalProperties: false
+    properties:
+      relied_on_outside_team: {type: boolean}
+      material_quantitative_output: {type: boolean}
   conformance_level:
     type: string
     enum: [essential, standard, full]
@@ -48,7 +62,6 @@ properties:
       - framework_digest
       - adoption_date
       - framework_maintainer
-      - repository_classification
       - decision_record_id
       - adoption_status
       - review_by

@@ -1067,6 +1067,39 @@ def test_declining_a_resume_starts_fresh(tmp: Path) -> None:
     check("declining the draft still produces a profile", written.is_file())
 
 
+def test_the_draft_lives_under_standards_and_an_old_one_is_migrated(tmp: Path) -> None:
+    """`DR-50` (3). The draft sat at the repository root, untracked, with nothing ignoring it, and
+    gitignoring it would have meant the installer editing an adopter-owned file. It now lives
+    under `.standards/`, which the install record already governs; a draft at the old location
+    is offered once and moved."""
+    repo = make_installed_repo(tmp, "draft-home-repo")
+    seed_referenced_files(repo)
+    try:
+        wizard.run(repo, ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS), cancel_before="level"))
+    except Cancelled:
+        pass
+    check(
+        "the draft is written under .standards/",
+        (repo / ".standards" / "adopt-draft.json").is_file() and not (repo / ".surfaceplate-adopt-draft.json").exists(),
+        str(sorted(p.name for p in repo.iterdir())),
+    )
+    # A draft from before the move, at the old location.
+    old = repo / ".surfaceplate-adopt-draft.json"
+    old.write_text((repo / ".standards" / "adopt-draft.json").read_text(encoding="utf-8"), encoding="utf-8")
+    (repo / ".standards" / "adopt-draft.json").unlink()
+    second = ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS), cancel_before="gates")
+    try:
+        wizard.run(repo, second)
+    except Cancelled:
+        pass
+    check("a draft at the old location is offered", len(second.resume_offers) == 1)
+    check(
+        "and migrated to the new one",
+        (repo / ".standards" / "adopt-draft.json").is_file() and not old.exists(),
+        str(sorted(p.name for p in repo.iterdir())),
+    )
+
+
 def test_quitting_at_the_resume_prompt_keeps_the_draft(tmp: Path) -> None:
     """`F68`, first half. `ConfirmResumeApp.run()` returns `None` on `Ctrl+Q` or a closed
     terminal; `confirm_resume` returned `bool(None)`; `_resume_or_start` read `False` as "start
@@ -1314,8 +1347,11 @@ def test_fields_presented_before_the_review_are_measured(tmp: Path) -> None:
     print(f"      measured: standard/discoverable {n_std} fields before the review ({g_std} gate fields); essential/bare {n_ess} ({g_ess})")
     print(f"      standard: {fields_std}")
     print(f"      essential/bare: {fields_ess}")
-    check("standard with things to discover: at most twelve fields before the review", n_std <= 12, str(n_std))
-    check("essential on a bare repository: at most twelve fields before the review", n_ess <= 12, str(n_ess))
+    # `ACT-046` (plan item 3.2): the budget test asserts the MEASURED numbers, not an estimate.
+    # Measured on 2026-09-02 on these two fixtures: 11 and 12, both within DR-47's eight to twelve.
+    # A change to either is a change to what the wizard asks, and belongs in a decision record.
+    check("standard with things to discover: eleven fields before the review, as measured", n_std == 11, str(n_std))
+    check("essential on a bare repository: twelve fields before the review, as measured", n_ess == 12, str(n_ess))
 
 
 def test_propose_writes_a_proposal_and_never_the_profile(tmp: Path) -> None:
@@ -1656,6 +1692,7 @@ def main() -> int:
         test_resume_from_draft(tmp)
         test_declining_a_resume_starts_fresh(tmp)
         test_quitting_at_the_resume_prompt_keeps_the_draft(tmp)
+        test_the_draft_lives_under_standards_and_an_old_one_is_migrated(tmp)
 
         print("\nrefusals, and the guarantee itself")
         test_refuses_without_install(tmp)

@@ -401,6 +401,46 @@ def test_help_text_is_muted_and_kept_off_the_next_field() -> None:
     asyncio.run(_run())
 
 
+def test_the_renderer_never_writes_none_or_an_unescaped_enum() -> None:
+    """Code items 16 and 19. A draft carrying `human_roles: null` rendered the literal `['None']`;
+    and the enum-valued fields were interpolated into the YAML without `_scalar`, unreachable
+    from the interface but reachable from a draft. Both are the renderer's job to refuse or
+    escape, never to pass through."""
+    from surfaceplate.adopt import render, sections
+
+    roles = sections.build_wrap({"human_roles": None, "release_route": "R"})
+    check("human_roles: null builds as an empty list, not ['None']", roles["human_roles"] == [], str(roles["human_roles"]))
+
+    profile = {
+        "schema_version": "1.0", "application_id": "x", "display_name": "X", "owner": "O",
+        "stack": {"language": "Python"}, "risk_profile": "r", "materiality_definition": "m",
+        "data_classification": "internal\nnot really", "conformance_level": "essential",
+        "adoption": {"framework_version": "0.16.0", "framework_digest": "0" * 64, "adoption_date": "2026-09-01",
+                     "review_by": "2027-03-01", "framework_maintainer": "O", "repository_classification": "c",
+                     "decision_record_id": "DR-1", "adoption_status": "in_progress", "independent_validator": None, "deferrals": []},
+        "baseline_controls": {c: {"decision": "required", "rationale": "r"} for c in ("agent_work_packets", "actual_diff_review", "secret_hygiene")},
+        "control_decisions": {"dependency_lock": {"decision": "required", "rationale": "r", "implementation_reference": "requirements.txt"}},
+        "builds_user_interface": False,
+        "prerequisites": [{"id": "work_registration", "status": "required", "effective_from": "2026-09-01",
+                           "precondition": {"artefacts": ["a.md"], "description": "d"},
+                           "gated_activity": {"paths": ["**"], "description": "d"}, "enforcement": ["review"]}],
+        "human_roles": [], "release_route": "R", "exclusions": [],
+    }
+    profile["baseline_controls"]["secret_hygiene"]["scanner"] = {"name": "gitleaks", "wired_in": ["w.yml"], "notes": "Blocking."}
+    try:
+        render.render_profile(profile)
+        refused = False
+    except ValueError:
+        refused = True
+    check("an enum value carrying a newline is refused by the renderer, not written", refused)
+    profile["data_classification"] = "internal"
+    profile["adoption"]["adoption_status"] = "in_progress"
+    text = render.render_profile(profile)
+    import yaml
+    check("and every enum field round-trips through the renderer as the value given",
+          yaml.safe_load(text)["data_classification"] == "internal" and yaml.safe_load(text)["adoption"]["adoption_status"] == "in_progress")
+
+
 # ---------------------------------------------------------------------------------------------
 # The level screen's own structure
 # ---------------------------------------------------------------------------------------------
@@ -738,6 +778,9 @@ def main() -> int:
 
     print("\nF67: help text is muted and kept off the next field")
     test_help_text_is_muted_and_kept_off_the_next_field()
+
+    print("\ncode items 16 and 19: the renderer never writes None or an unescaped enum")
+    test_the_renderer_never_writes_none_or_an_unescaped_enum()
 
     print("\nthe level screen reads as a choice")
     test_level_screen_numbers_its_options_and_marks_the_highlight()

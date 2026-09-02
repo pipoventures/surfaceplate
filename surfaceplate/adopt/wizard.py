@@ -36,7 +36,11 @@ ANSWERS_FORMAT = 1
 # dot so it reads as scratch state rather than a file this framework is asking anyone to commit.
 # This lives only in an ADOPTING repository's working tree - never in surfaceplate's own source
 # tree - so it has no interaction with this project's own release manifest.
-DRAFT_FILENAME = ".surfaceplate-adopt-draft.json"
+DRAFT_FILENAME = ".standards/adopt-draft.json"
+# Where drafts lived before `DR-50` (3): untracked at the root, with nothing ignoring it, and
+# gitignoring it would have meant the installer editing an adopter-owned file. A draft found here
+# is offered once and moved.
+LEGACY_DRAFT_FILENAME = ".surfaceplate-adopt-draft.json"
 
 # `ACT-033`. Where the interface parks the scaffold files a human approved, on its way back here.
 # Deliberately not a section name: everything else in the collected state is a section of the
@@ -271,13 +275,19 @@ def _save_draft(repo: Path, record: dict, draft: dict) -> None:
         "framework_digest": record.get("framework_digest", ""),
         **draft,
     }
-    _draft_path(repo).write_text(
-        json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    target = _draft_path(repo)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _legacy_draft_path(repo: Path) -> Path:
+    return repo / LEGACY_DRAFT_FILENAME
 
 
 def _load_draft(repo: Path) -> dict | None:
     path = _draft_path(repo)
+    if not path.is_file():
+        path = _legacy_draft_path(repo)
     if not path.is_file():
         return None
     try:
@@ -290,6 +300,7 @@ def _load_draft(repo: Path) -> dict | None:
 
 def _clear_draft(repo: Path) -> None:
     _draft_path(repo).unlink(missing_ok=True)
+    _legacy_draft_path(repo).unlink(missing_ok=True)
 
 
 def _resume_or_start(repo: Path, record: dict, interview: Interview) -> dict:
@@ -331,6 +342,11 @@ def _resume_or_start(repo: Path, record: dict, interview: Interview) -> dict:
     if not answer:
         _clear_draft(repo)  # an explicit "n": the human chose to discard it
         return {}
+    legacy = _legacy_draft_path(repo)
+    if legacy.is_file():
+        # Resumed from the old location: moved to the one the install record governs.
+        _save_draft(repo, record, {k: v for k, v in draft.items() if k not in ("format", "framework_version", "framework_digest")})
+        legacy.unlink()
     return draft
 
 
