@@ -136,14 +136,19 @@ def propose_gates(*, level: str, builds_ui: bool, mode: str, found: discover.Dis
                         "the closest match in this repository for this gate",
                     )
                 )
-            out.append(
-                Proposal(
-                    f"{prefix}.paths",
-                    _first(found.paths, "**"),
-                    "discovered",
-                    "this repository's main source directory",
+            # `F61`: only when discovery found a directory of the adopter's own. The `"**"`
+            # fallback was proposed as "discovered" on a repository holding nothing but this
+            # framework's files, which is a proposal with no honest source; left unproposed, the
+            # field is asked.
+            if found.paths:
+                out.append(
+                    Proposal(
+                        f"{prefix}.paths",
+                        found.paths[0],
+                        "discovered",
+                        "this repository's main source directory",
+                    )
                 )
-            )
             # `F51`: `effective_from` is asked again, so it is PROPOSED again - today's date, as a
             # computed fact, shown on the defaults screen and written only once a human passes it.
             # That is the distinction the amended binding rule turns on: proposing a fact a human

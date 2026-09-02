@@ -487,7 +487,15 @@ def _implementation_reference_field(
     # `DR-48`: what the checker will ask of the value is asked at the field - a tracked path for
     # patterns A and C (`SP051`, `SP055`), a step name that exists for pattern B (`SP053`).
     if control_id in catalogue.PATTERN_A_CONTROLS:
-        candidates = found.lock_files or found.artefacts
+        # A lock file for `dependency_lock`; for `assurance_findings`, a document whose name says
+        # so. `lock_files or artefacts` offered `requirements.txt` as a findings register and, on
+        # a repository with nothing else, whatever file it held first - the `F40` shape.
+        if control_id == "dependency_lock":
+            candidates = found.lock_files
+        else:
+            candidates = tuple(
+                a for a in found.artefacts if any(w in a.lower() for w in ("finding", "assurance"))
+            )
         validate = "tracked_path"
     elif control_id in catalogue.PATTERN_B_CONTROLS:
         candidates = found.ci_steps
@@ -628,13 +636,16 @@ def _from_candidates(
     git, an unusual layout - this degrades to the plain text field it always was, rather than
     presenting an empty dropdown that cannot be answered.
     """
+    # `F75`: the cap is here, per field, after the caller has ranked for the field at hand -
+    # never on the scan.
+    shown = tuple(candidates)[: discover.SHOWN]
     return FieldSpec(
         id=id,
         label=label,
-        kind="select" if candidates else "text",
+        kind="select" if shown else "text",
         help=help,
-        choices=tuple((c, c) for c in candidates),
-        suggestions=candidates,
+        choices=tuple((c, c) for c in shown),
+        suggestions=shown,
         validate=validate,
         depends_on=depends_on,
     )

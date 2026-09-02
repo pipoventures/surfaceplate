@@ -66,13 +66,19 @@ def detect_ci_workflows(repo: Path) -> list[str]:
     `implementation_reference` (`deterministic_tests`, `contract_tests`) or a gate's `enforcement:
     [ci]`. Returns paths, not a verdict: this module never tells whether a step in one of them
     actually fails the build, which only `check_conformance.py`'s own pattern-B check can."""
+    from surfaceplate.adopt import discover
+
+    installed, _steps = discover.framework_paths(repo)
     found: list[str] = []
     for directory in _CI_WORKFLOW_DIRS:
         d = repo / directory
         if not d.is_dir():
             continue
         found.extend(
-            str(p.relative_to(repo)) for p in sorted(d.glob("*.y*ml")) if p.is_file()
+            p.relative_to(repo).as_posix()
+            for p in sorted(d.glob("*.y*ml"))
+            # `F61`: the workflow this framework installed is not one the adopter "appears to have".
+            if p.is_file() and p.relative_to(repo).as_posix() not in installed
         )
     return found
 

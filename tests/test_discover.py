@@ -228,14 +228,158 @@ def test_a_proposal_needs_evidence_not_merely_a_candidate(tmp: Path) -> None:
     )
 
 
-def test_the_cap_is_on_the_offer_not_on_the_answer(repo: Path) -> None:
+def _git(repo: Path, *args: str) -> None:
+    subprocess.run(["git", "-C", str(repo), *args], check=True)
+
+
+def _init(repo: Path) -> None:
+    for args in (
+        ["init", "-q"], ["config", "user.email", "h@example.invalid"],
+        ["config", "user.name", "H"], ["config", "commit.gpgsign", "false"],
+    ):
+        _git(repo, *args)
+
+
+def test_discovery_cannot_find_the_framework_in_the_mirror(tmp: Path) -> None:
+    """`F61` / R7. Discovery proposed `.github/instructions/authority.instructions.md` as the
+    adopter's authority map and the installed workflow's own step as the adopter's contract test,
+    and the level screen told a bare repository "You appear to have: a CI workflow" sixty seconds
+    after the installer wrote it. A repository containing nothing but the install payload must
+    yield no candidates, no proposals and no "you appear to have"."""
+    import json
+    import sys
+
+    from surfaceplate.adopt import plan
+
+    ROOT_SRC = ROOT / "surfaceplate"
+    repo = tmp / "only-the-payload"
+    repo.mkdir()
+    _init(repo)
+    result = subprocess.run(
+        [sys.executable, str(ROOT_SRC / "install_standard.py"), "--source", str(ROOT_SRC),
+         "--target", str(repo), "--no-hooks"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "install")
+    installed = set(json.loads((repo / ".standards" / "INSTALL.json").read_text())["files"])
+
+    found = discover.scan(repo)
+    offered = set(found.artefacts) | set(found.register_dirs) | set(found.lock_files)
+    check(
+        "no installed file is offered as an artefact, register or lock file",
+        not (offered & installed) and not any(p.startswith(".standards") for p in offered),
+        str(sorted(offered)[:6]),
+    )
+    check(
+        "the installed workflow's steps are not offered as CI steps",
+        not found.ci_steps,
+        str(found.ci_steps),
+    )
+    state = {"mode": {"mode": "simple"}, "identity": {"owner": "O"},
+             "stack": {"builds_user_interface": False}, "level": {"conformance_level": "standard"}}
+    proposals = [p for p in defaults.propose(state, found=found) if p.origin == "discovered"]
+    check(
+        "and nothing is proposed as discovered",
+        not proposals,
+        "; ".join(p.describe() for p in proposals[:4]),
+    )
+    present, _absent = plan.detected_signals(repo)
+    check(
+        "and the level screen does not say 'you appear to have' a CI workflow",
+        not any("CI workflow" in line for line in present),
+        str(present),
+    )
+
+
+def test_ranking_happens_before_the_cap(tmp: Path) -> None:
+    """`F75`. `_capped` cut the artefact list to 200 before `matched_for_gate` ran, so a
+    repository with 300 files under `docs/` lost its real `activity/register.md` and got no
+    proposal. Rank first, cap last, cap per field."""
+    repo = tmp / "big-docs"
+    (repo / "docs" / "archive").mkdir(parents=True)
+    for i in range(300):
+        (repo / "docs" / "archive" / f"note-{i:03d}.md").write_text("# note\n", encoding="utf-8")
+    (repo / "activity").mkdir()
+    (repo / "activity" / "register.md").write_text("# activity register\n", encoding="utf-8")
+    _init(repo)
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "big")
+
+    found = discover.scan(repo)
+    proposed = {
+        p.field: p.value
+        for p in defaults.propose_gates(level="essential", builds_ui=False, mode="simple", found=found)
+    }
+    check(
+        "a real register is proposed even with 300 documents ahead of it",
+        proposed.get("gates.work_registration.artefact") == "activity/register.md",
+        str(proposed.get("gates.work_registration.artefact")),
+    )
+    check(
+        "and the register is offered in the per-gate list, ranked first",
+        discover.rank_for_gate(found.artefacts, "work_registration")[:1] == ["activity/register.md"],
+        str(discover.rank_for_gate(found.artefacts, "work_registration")[:3]),
+    )
+
+
+def test_a_non_ascii_path_is_offered_verbatim(tmp: Path) -> None:
+    """Code item 8. `git ls-files` C-quotes a non-ASCII path (`"docs/caf\\303\\251.md"`), and
+    `_tracked_files` kept the quotes, so the real file was dropped and a quoted string offered.
+    `git ls-files -z` outputs paths verbatim regardless of `core.quotePath`."""
+    repo = tmp / "accents"
+    (repo / "docs").mkdir(parents=True)
+    (repo / "docs" / "caf\u00e9-register.md").write_text("# register\n", encoding="utf-8")
+    _init(repo)
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "accent")
     found = discover.scan(repo)
     check(
-        "candidate lists stay short enough to pick from",
-        all(
-            len(group) <= discover._MAX_CANDIDATES
-            for group in (found.artefacts, found.paths, found.register_dirs, found.ci_steps)
-        ),
+        "the accented path is offered exactly as it is on disk",
+        "docs/caf\u00e9-register.md" in found.artefacts,
+        str(found.artefacts),
+    )
+    check(
+        "and no C-quoted form of it is offered",
+        not any(p.startswith('"') or "\\303" in p for p in found.artefacts),
+        str(found.artefacts),
+    )
+
+
+def test_is_empty_is_true_when_git_cannot_answer(tmp: Path) -> None:
+    """Code item 9. `Discovered.is_empty()` could never be true because `candidate_paths` always
+    appended `**`, so its documented fallback had no case. A tree git cannot read is empty."""
+    plain = tmp / "not-git"
+    (plain / "docs").mkdir(parents=True)
+    (plain / "docs" / "REGISTER.md").write_text("# register\n", encoding="utf-8")
+    found = discover.scan(plain)
+    check("a non-git tree scans as empty", found.is_empty(), str(found))
+    check("and a git repository with content does not", not discover.scan(make_repo(tmp / "again")).is_empty())
+
+
+def test_the_cap_is_on_the_offer_not_on_the_answer(repo: Path) -> None:
+    """`F75` moved the cap from the scan to the field: the scan keeps everything so ranking has
+    everything to promote, and what an adopter is offered is cut to `SHOWN` afterwards."""
+    from surfaceplate.adopt import plan
+
+    found = discover.scan(repo)
+    gates = plan.gate_plan(level="full", builds_ui=True, mode="simple", found=found)
+    offers = [
+        len(f.choices)
+        for spec in gates
+        for f in spec.fields
+        if f.kind == "select"
+    ]
+    check(
+        "every dropdown an adopter is offered is short enough to pick from",
+        offers and all(n <= discover.SHOWN for n in offers),
+        str(offers),
+    )
+    check(
+        "and the ranked-first candidate survives whatever the cap removes",
+        discover.rank_for_gate(found.artefacts, "work_registration")[0] == "docs/REGISTER.md",
+        str(discover.rank_for_gate(found.artefacts, "work_registration")[:2]),
     )
 
 
@@ -253,6 +397,12 @@ def main() -> int:
 
         print("\nand never PROPOSES what it merely offers (F40)")
         test_a_proposal_needs_evidence_not_merely_a_candidate(tmp)
+
+        print("\nF61, F75 and code items 8, 9: the framework is not in the mirror, and the cap comes last")
+        test_discovery_cannot_find_the_framework_in_the_mirror(tmp)
+        test_ranking_happens_before_the_cap(tmp)
+        test_a_non_ascii_path_is_offered_verbatim(tmp)
+        test_is_empty_is_true_when_git_cannot_answer(tmp)
 
         print("\nlist sizes")
         test_the_cap_is_on_the_offer_not_on_the_answer(repo)

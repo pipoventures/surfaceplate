@@ -140,7 +140,7 @@ an unknown number of releases with nothing noticing.
 | F72 | Ten findings say Open in the body and Closed in the index, and `check_code_registers.py` never compares status | low | Open — `ACT-046` (`org/REMEDIATION_PLAN.md`) |
 | F73 | Every `action_cancel` is unreachable: Textual's priority quit binding fires first | low | Open — recorded against `ACT-043`, but phase 0 carries no item for it; the maintainer decides which activity closes it (`org/REMEDIATION_PLAN.md`) |
 | F74 | A validation error is erased by the focus move that reports it | medium | Closed — `ACT-043`; the error is held on the screen until the next commit and re-shown on every focus move, asserted after six pauses in `tests/test_adopt_tui.py` |
-| F75 | Candidates are capped at 200 before any gate ranking, so a large `docs/` pushes the register out; the comment says the opposite | high | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
+| F75 | Candidates are capped at 200 before any gate ranking, so a large `docs/` pushes the register out; the comment says the opposite | high | Closed — `ACT-044`; the scan keeps everything and each field cuts to `SHOWN` after ranking, asserted with 300 documents ahead of the register in `tests/test_discover.py` |
 | F76 | Resuming a draft that chose the defaults route never offers defaults again | medium | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
 | F77 | Hygiene: non-atomic profile write; a draft with the wrong shape or stale ids kills the run; non-UTF-8 paths quoted; `is_empty` never true; `human_roles: null` as `['None']`; unescaped enums; `KeyboardInterrupt` uncaught; `adopt` exits 0 on findings; the two reliance answers discarded | medium | Open — `ACT-044`, `ACT-045`, `ACT-046` (`org/REMEDIATION_PLAN.md`) |
 Closed entries are indexed here and left in their original records; they are not restated.
@@ -1194,6 +1194,13 @@ Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, 
 
 From the review's read-only correctness pass (report §7), each probed against throwaway directories: `wizard.py:321-324` writes the profile non-atomically and a truncated profile then fails `_refuse_if_already_adopted` forever; a JSON-valid draft whose `sections` is not a dict raises at `wizard.py:231-247` (exit 4) against the docstring's promise; a draft naming a level or gate no longer in the catalogue resumes and fails later with a bare `KeyError`; `_tracked_files` keeps `git ls-files`'s C-quoting, so `"docs/**` is offered as a pathspec and `docs/café.md` is dropped; `Discovered.is_empty()` can never be true because `candidate_paths` always appends `**`, and its documented fallback has no callers; `sections.build_wrap` renders `human_roles: null` as `['None']`; `render.py:203, 218, 221, 231, 256` interpolate enum values without `_scalar`; `cli.py:88`'s `except Exception` lets `KeyboardInterrupt` through as a traceback and the trailing check runs outside every handler; `adopt` exits 0 when the check it runs reports findings; `relied_on_outside_team` and `material_quantitative_output` are asked, validated, drafted and never written. Nine dead functions and twelve docstring-versus-code discrepancies are listed in the report.
 
+**Two items closed by `ACT-044`, item 1.4 (2026-09-02); the rest stay open.** `_tracked_files`
+runs `git ls-files -z`, so a non-ASCII path is offered verbatim
+(`tests/test_discover.py::test_a_non_ascii_path_is_offered_verbatim`, `docs/café-register.md`);
+and `candidate_paths` returns nothing when git can read nothing of the adopter's, so
+`Discovered.is_empty()` is true on a non-git tree and its docstring describes a case that exists
+(`::test_is_empty_is_true_when_git_cannot_answer`). Both seen to fail before and pass after.
+
 ## F76 — Resuming a draft that chose the defaults route never offers defaults again
 
 **Severity: medium. Open.**
@@ -1204,11 +1211,22 @@ Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, 
 
 ## F75 — Candidates are capped at 200 before any gate ranking, so a large `docs/` pushes the register out; the comment says the opposite
 
-**Severity: high. Open.**
+**Severity: high. Closed.**
 
 Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, the adversarial product review of 2026-09-02, authorised by the maintainer in the review session (https://claude.ai/code/session_01X1MZfNScrJjgD5e2AGBjvs). Closes by `ACT-044`; see `org/REMEDIATION_PLAN.md`.
 
 `discover._capped` (`discover.py:94`) cuts the artefact list to 200 at `:215`, `:232`, `:239` before `matched_for_gate` runs. A repository with 300 files under `docs/` and a real `activity/register.md`: the register is not in `found.artefacts` and `matched_for_gate` returns nothing, so the adopter gets no proposal, a dropdown of unrelated files, and the help "expect to create the artefact" for a repository that has it. The comment at `discover.py:168-171` says "Cut AFTER ranking, never before: capping first threw away the register and the CHANGELOG"; the cut moved one level up — `F55`'s class. The scan itself is fast (5,000 files in 18 ms).
+
+**Closed by `ACT-044`, item 1.4 (2026-09-02).** `discover.scan` no longer caps anything:
+`_capped` became `_dedupe`, and the only cut is per field, after ranking - `rank_for_gate`'s
+`[:limit]` and `plan._from_candidates`' `[:discover.SHOWN]`. The comment that described the cut
+as "after ranking" is true again, and says why it was not.
+`tests/test_discover.py::test_ranking_happens_before_the_cap` commits 300 files under
+`docs/archive/` ahead of `activity/register.md` and asserts the register is proposed and ranked
+first; `::test_the_cap_is_on_the_offer_not_on_the_answer` now asserts every dropdown is at most
+`SHOWN` long and the ranked-first candidate survives it. Seen to fail before (no proposal; the
+first three offers were `docs/archive/note-00*.md`) and to pass after (`DISCOVER=PASS (29
+checks)`).
 
 ## F74 — A validation error is erased by the focus move that reports it
 
