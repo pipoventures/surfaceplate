@@ -20,7 +20,7 @@ from pathlib import Path
 
 from surfaceplate import about, install_standard
 from surfaceplate.adopt import flow as _flow
-from surfaceplate.adopt import provenance, render, scaffold, sections
+from surfaceplate.adopt import plan, provenance, render, scaffold, sections, validators
 from surfaceplate.adopt.interview import DRAFT_FORMAT, Cancelled, DraftInfo, Interview, Welcome
 
 PROFILE_PATH = "governance/application-profile.yaml"
@@ -580,6 +580,26 @@ def _walk_to(profile: dict, path: str):
     raise KeyError(path)
 
 
+def _spec_behind(repo: Path, profile: dict, answer_key: str) -> plan.FieldSpec | None:
+    """The `FieldSpec` a written profile line was answered through, rebuilt from the profile's own
+    level, interface answer and scanner name - so an edit is held to the rule the field applied."""
+
+    scanner = ((profile.get("baseline_controls") or {}).get("secret_hygiene") or {}).get("scanner") or {}
+    state = {
+        "mode": {"mode": "simple"},
+        "identity": {"owner": str(profile.get("owner") or "")},
+        "stack": {"builds_user_interface": bool(profile.get("builds_user_interface", False))},
+        "level": {"conformance_level": str(profile.get("conformance_level") or "essential")},
+        "controls": {"scanner.name": str(scanner.get("name") or "")},
+    }
+    section, _, field_id = answer_key.partition(".")
+    try:
+        section_plan = plan.section_plan(section, repo=repo, state=state)
+    except KeyError:
+        return None
+    return next((s for s in section_plan.fields if s.id == field_id), None)
+
+
 def edit(repo: Path, path: str, value: str, *, because: str = "") -> Path:
     """Change one line of the written profile, through the same renderer and verification as
     the wizard, and record it in the provenance sidecar as typed with a timestamp and the reason.
@@ -617,6 +637,15 @@ def edit(repo: Path, path: str, value: str, *, because: str = "") -> Path:
         raise WriteRefused(f"{path} is a block, not a line; name one of its lines.", path=path)
     else:
         new_value = value
+    # `F100`: the field's own rule, as the wizard applies it at the field - an untracked artefact,
+    # a future date, a workflow that never runs the scanner - and not only the schema afterwards.
+    answer_key, _fixed = provenance.answer_key_for(path, profile)
+    if answer_key is not None and isinstance(new_value, str):
+        spec = _spec_behind(repo, profile, answer_key)
+        if spec is not None:
+            problem = validators.check(spec.validate, new_value, repo=repo)
+            if problem:
+                raise WriteRefused(f"{path}: {problem}", path=path)
     container[key] = new_value
     written_on = str((profile.get("adoption") or {}).get("adoption_date") or "")
     rendered = _render.render_profile(profile, written_on=written_on)
@@ -674,6 +703,7 @@ def propose(repo: Path, *, level: str | None = None) -> Proposed:
     flow = _flow.Flow(repo, record)
     answers: dict[str, object] = {}
     notes: dict[str, str] = {}
+    conditional: dict[str, object] = {}  # `F99`: lines that apply only to a control listed above the floor
 
     decisions = flow.decisions_plan()
     placeholder: dict[str, object] = {}
@@ -750,10 +780,17 @@ def propose(repo: Path, *, level: str | None = None) -> Proposed:
                 continue
             answers[key] = _proposal_entry(proposal)
         for spec in flow.remainder_plan().fields:
-            if spec.id not in answers:
-                answers[spec.id] = NEEDS_HUMAN
-                if spec.kind == "multiselect":
-                    notes[spec.id] = "a list of control ids, or []"
+            if spec.id in answers:
+                continue
+            # `F99`: a line for a control the human may list above the floor is not a decision
+            # until the control is listed, so it sits apart from the answers and is applied only
+            # to the controls named in `controls.above_floor` at replay.
+            if spec.depends_on is not None and spec.depends_on[0] == "controls.above_floor":
+                conditional[spec.id] = NEEDS_HUMAN
+                continue
+            answers[spec.id] = NEEDS_HUMAN
+            if spec.kind == "multiselect":
+                notes[spec.id] = "a list of control ids, or []"
         if detect.detect_decisions_folder(repo) is None:
             answers.setdefault("adoption.decision_record_id", {
                 "value": scaffold.DECISION_RECORD_ID, "origin": provenance.SCAFFOLDED,
@@ -805,6 +842,12 @@ def propose(repo: Path, *, level: str | None = None) -> Proposed:
     }
     if notes:
         record_out["choices"] = notes
+    if conditional:
+        record_out["if_declared_above_floor"] = conditional
+        header.append(
+            "# Lines under if_declared_above_floor apply only to a control you list in controls.above_floor;"
+        )
+        header.append("# complete those for the controls you list and leave the rest as they are.")
     body = yaml.safe_dump(record_out, sort_keys=False, allow_unicode=True, width=1000)
     answers_path = repo / ANSWERS_PATH
     answers_path.parent.mkdir(parents=True, exist_ok=True)
@@ -825,6 +868,15 @@ def replay(repo: Path, answers_path: Path) -> Path:
         raise WriteRefused(f"the answers record could not be read: {exc}") from None
     if not isinstance(record, dict) or record.get("format") != ANSWERS_FORMAT or not isinstance(record.get("answers"), dict):
         raise WriteRefused(f"{answers_path} is not an answers record this version writes (format {ANSWERS_FORMAT}).")
+    # `F99`: the lines held apart for controls above the floor join the answers for the controls
+    # the human listed, and only those; an unlisted control's lines are left alone.
+    listed = record["answers"].get("controls.above_floor")
+    if isinstance(listed, str):
+        listed = [c.strip() for c in listed.split(",") if c.strip()]
+    listed = set(listed) if isinstance(listed, list) else set()
+    for key, value in (record.get("if_declared_above_floor") or {}).items():
+        if isinstance(key, str) and key.split(".")[1:2] and key.split(".")[1] in listed:
+            record["answers"][key] = value
     pending = [key for key, value in record["answers"].items() if value == NEEDS_HUMAN]
     if record.get("level") == NEEDS_HUMAN or not record.get("level"):
         pending.insert(0, "level")

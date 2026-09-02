@@ -1382,6 +1382,126 @@ def test_adopt_edit_rewrites_one_line_and_records_it(tmp: Path) -> None:
     check("the profile still passes the checker", _schema_ok(repo, repo / wizard.PROFILE_PATH))
 
 
+# ---------------------------------------------------------------------------------------------
+# ACT-057: what the combinatorial matrix found (F97 to F100), each held here as a regression
+# ---------------------------------------------------------------------------------------------
+
+
+def test_a_control_verified_through_an_undeclared_gate_is_not_offered_above_the_floor() -> None:
+    """`F97` / `DR-59`. At `essential` the above-floor list offered `documentation_authority`, and a
+    profile declaring it fails `SP052` on its first check: the checker verifies that control through
+    the `authority_map` gate, which `essential` does not declare. The list withholds it and says why."""
+    section = plan.controls_plan(level="essential", mode="simple")
+    above = next(f for f in section.fields if f.id == "above_floor")
+    offered = [value for value, _ in above.choices]
+    check("essential's above-floor list withholds documentation_authority", "documentation_authority" not in offered, str(offered))
+    check("and the field says why, naming the gate and the code", "authority_map" in above.help and "SP052" in above.help, above.help)
+    check("every other control beyond the floor is still offered",
+          set(offered) == {c for c in catalogue.CONFORMANCE_LEVELS["full"] if c not in catalogue.CONFORMANCE_LEVELS["essential"]} - {"documentation_authority"}, str(offered))
+    standard = next(f for f in plan.controls_plan(level="standard", mode="simple").fields if f.id == "above_floor")
+    check("at standard the control is on the floor and the list is unchanged", "documentation_authority" not in [v for v, _ in standard.choices] and "SP052" not in standard.help)
+
+
+def test_resuming_after_the_scaffold_stage_still_creates_the_decision_record(tmp: Path) -> None:
+    """`F98`. A draft saved after the scaffold stage carries `adoption.decision_record_id` as
+    scaffolded, and on resume the record was not offered again because the id was answered - so the
+    profile named `DR-0001` and the sidecar said "created", for a file never written."""
+    repo = make_installed_repo(tmp, "resume-after-scaffold-repo")
+    (repo / "main.py").write_text("x = 1\n", encoding="utf-8")
+    (repo / "requirements.txt").write_text("PyYAML==6.0.3\n", encoding="utf-8")
+    (repo / ".github" / "workflows").mkdir(parents=True, exist_ok=True)
+    (repo / ".github" / "workflows" / "scan.yml").write_text("jobs:\n  s:\n    steps:\n      - name: Run gitleaks\n        run: gitleaks detect\n", encoding="utf-8")
+    _commit_all(repo, "fixture")
+    answers = {
+        "identity.owner": "Owner", "stack.builds_user_interface": "no", "risk.relied_on_outside_team": "no",
+        "risk.material_quantitative_output": "no", "risk.data_classification": "internal", "wrap.release_route": "manual",
+        "risk.risk_profile": "", "level.conformance_level": "essential",
+        "gates.work_registration.artefact": "activity/register.md", "gates.work_registration.paths": "**",
+    }
+    try:
+        wizard.run(repo, ScriptedInterview(answers=dict(answers), cancel_before="review"))
+    except Cancelled:
+        pass
+    draft = json.loads((repo / wizard.DRAFT_FILENAME).read_text(encoding="utf-8"))
+    check("precondition: the draft holds the scaffolded record id", draft["sections"].get("adoption", {}).get("decision_record_id") == "DR-0001"
+          and draft["origins"]["adoption.decision_record_id"]["kind"] == "scaffolded", str(draft["sections"].get("adoption")))
+    written = wizard.run(repo, ScriptedInterview(answers={}))
+    created = sorted(p.relative_to(repo).as_posix() for p in written.created)
+    check("the resumed run creates the decision record it names", "docs/decisions/DR-0001-adopt-surfaceplate.md" in created, str(created))
+    check("and the register", "activity/register.md" in created, str(created))
+    data = yaml.safe_load(written.read_text(encoding="utf-8"))
+    check("the profile names the record that now exists", data["adoption"]["decision_record_id"] == "DR-0001" and (repo / "docs/decisions/DR-0001-adopt-surfaceplate.md").is_file())
+
+
+def test_propose_does_not_demand_rationales_for_controls_nobody_declared(tmp: Path) -> None:
+    """`F99`. The answers record marked every above-floor control's rationale and reference
+    `needs-human`, so a human completing it had to invent lines for controls they never declared,
+    and `--answers` refused until they did. Those lines now sit apart, applied only to controls
+    listed in `controls.above_floor`."""
+    repo = make_installed_repo(tmp, "propose-above-floor-repo")
+    seed_referenced_files(repo, ci=True)
+    proposed = wizard.propose(repo, level="essential")
+    record = yaml.safe_load(proposed.answers.read_text(encoding="utf-8"))
+    needs = {k for k, v in record["answers"].items() if v == wizard.NEEDS_HUMAN}
+    check("no above-floor control's rationale is a needs-human line", not any(k.startswith("controls.provenance.") for k in needs), str(sorted(k for k in needs if k.startswith("controls."))))
+    conditional = record.get("if_declared_above_floor") or {}
+    check("the record carries them apart, for the controls a human may list", "controls.provenance.rationale" in conditional and "controls.provenance.implementation_reference" in conditional, str(sorted(conditional))[:200])
+    human = {"identity.owner": "Owner Person", "stack.builds_user_interface": "no", "risk.relied_on_outside_team": "no",
+             "risk.material_quantitative_output": "no", "risk.data_classification": "internal", "wrap.release_route": "Manual.",
+             "adoption.decision_record_id": "DR-1", "create_missing_artefacts": "no", "controls.above_floor": ["provenance"]}
+    for key in needs:
+        record["answers"][key] = human.get(key, "not_applicable" if key.endswith(".status") else f"answer for {key}")
+    record["answers"]["controls.above_floor"] = ["provenance"]
+    completed = repo / "answers-completed.yaml"
+    completed.write_text(yaml.safe_dump(record, sort_keys=False), encoding="utf-8")
+    try:
+        wizard.replay(repo, completed)
+        outcome = "wrote"
+    except wizard.NeedsHuman as exc:
+        outcome = str(exc)
+    check("a listed control's lines left needs-human are refused by name", outcome != "wrote" and "controls.provenance.rationale" in outcome, outcome[:200])
+    record["if_declared_above_floor"]["controls.provenance.rationale"] = "Lineage is kept for every run."
+    record["if_declared_above_floor"]["controls.provenance.implementation_reference"] = "governance"
+    completed.write_text(yaml.safe_dump(record, sort_keys=False), encoding="utf-8")
+    written = wizard.replay(repo, completed)
+    data = yaml.safe_load(written.read_text(encoding="utf-8"))
+    check("completed, the listed control is declared with its lines and no other above-floor control is", sorted(data["control_decisions"]) == ["dependency_lock", "provenance"]
+          and data["control_decisions"]["provenance"]["implementation_reference"] == "governance", str(sorted(data["control_decisions"])))
+
+
+def test_adopt_edit_applies_the_fields_own_validator(tmp: Path) -> None:
+    """`F100`. `--edit` verified the rendered profile against the schema and the placeholder scan
+    but applied no field validator, so an artefact edited to an untracked path was written and
+    failed `SP032` on the next run - the class of answer `DR-48` made the wizard refuse."""
+    from surfaceplate import check_conformance
+
+    repo = make_installed_repo(tmp, "edit-validator-repo")
+    seed_referenced_files(repo)
+    wizard.run(repo, ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS)))
+    _commit_all(repo, "adopted")
+    before = (repo / wizard.PROFILE_PATH).read_text(encoding="utf-8")
+    refused = []
+    for path, value, why in (
+        ("prerequisites[0].precondition.artefacts[0]", "does-not-exist.md", "an artefact nothing tracks (SP032)"),
+        ("prerequisites[0].effective_from", (_dt.date.today() + _dt.timedelta(days=1)).isoformat(), "a future effective_from (SP033)"),
+        ("adoption.review_by", (_dt.date.today() + _dt.timedelta(days=401)).isoformat(), "a review_by beyond the horizon (SP026)"),
+        ("baseline_controls.secret_hygiene.scanner.wired_in[0]", "requirements.txt", "a scanner file that never mentions the scanner (SP046)"),
+    ):
+        try:
+            wizard.edit(repo, path, value, because="testing the validator")
+            outcome = "edited"
+        except wizard.WriteRefused as exc:
+            outcome = exc.detail
+        refused.append(outcome != "edited")
+        check(f"--edit refuses {why}", outcome != "edited" and path in outcome, outcome[:160])
+    check("and the profile is untouched by the refusals", (repo / wizard.PROFILE_PATH).read_text(encoding="utf-8") == before)
+    report = check_conformance.evaluate(repo, _dt.date.today(), False, False)
+    check("so the checker still passes", report.verdict == "PASS" and not report.findings, f"{report.verdict} {[f.code for f in report.findings]}")
+    wizard.edit(repo, "adoption.review_by", (_dt.date.today() + _dt.timedelta(days=90)).isoformat(), because="a valid date")
+    check("while a value the field accepts is still written",
+          yaml.safe_load((repo / wizard.PROFILE_PATH).read_text(encoding="utf-8"))["adoption"]["review_by"] == (_dt.date.today() + _dt.timedelta(days=90)).isoformat())
+
+
 def test_a_full_run_choosing_every_create_it_row_passes_the_checker(tmp: Path) -> None:
     """`DR-55`. On a bare repository at `full`, every seedable gate's artefact and every
     record-directory control's reference open with "create it"; a run choosing every one writes
@@ -2149,6 +2269,12 @@ def main() -> int:
         test_the_untouched_template_is_still_fair_game(tmp)
         test_write_refused_on_placeholder_content(essential_repo, essential_profile)
         test_scripted_interview_objects_in_both_directions(tmp)
+
+        print("\nACT-057: what the combinatorial matrix found, held as regressions (F97 to F100)")
+        test_a_control_verified_through_an_undeclared_gate_is_not_offered_above_the_floor()
+        test_resuming_after_the_scaffold_stage_still_creates_the_decision_record(tmp)
+        test_propose_does_not_demand_rationales_for_controls_nobody_declared(tmp)
+        test_adopt_edit_applies_the_fields_own_validator(tmp)
 
         print("\nDR-47: proposing writes what typing writes; the budget, measured")
         test_proposing_writes_the_same_profile_as_typing_the_same_values(tmp)

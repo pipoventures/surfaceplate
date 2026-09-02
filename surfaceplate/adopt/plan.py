@@ -64,6 +64,11 @@ RELEASE_ROUTE_WRONG = "a route nobody follows is a promise the profile makes on 
 # proposal comes only from a match (`F40`'s rule, applied to controls at `DR-54` (2)).
 FINDINGS_WORDS = ("finding", "assurance")
 
+# `F97` / `DR-59`: controls the checker verifies through a gate, and the gate. Above the floor, such
+# a control is offered only at a level that declares its gate; `SP052` otherwise fails the profile
+# on its first check, and the wizard would have written a profile it knew the checker faults.
+WITHHELD_ABOVE_FLOOR = {"documentation_authority": "authority_map"}
+
 TEMPLATE_PLACEHOLDER_HELP = (
     'Type an actual value. "TBD", "TODO" and similar are template placeholders this framework\'s '
     "own checker rejects (SP020) - writing one here would fail the profile you're about to produce."
@@ -734,8 +739,22 @@ def controls_plan(
     #
     # Above the floor stays a real choice, because a level is a floor and not a ceiling; it is now
     # a single list to tick through rather than a sequence of screens to say no to.
-    above_floor = [c for c in sorted(catalogue.CONFORMANCE_LEVELS["full"]) if c not in required]
+    # `F97` / `DR-59`: a control the checker verifies through a gate this level does not declare is
+    # withheld from the list, and the help says why. `documentation_authority` at `essential` was
+    # offered, and a profile declaring it failed `SP052` on its first check: the level declares no
+    # `authority_map` gate, so the control would be checked against nothing.
+    withheld = {
+        control_id: gate_id
+        for control_id, gate_id in WITHHELD_ABOVE_FLOOR.items()
+        if control_id not in required and gate_id not in catalogue.LEVEL_REQUIRED_GATES[level]
+    }
+    above_floor = [c for c in sorted(catalogue.CONFORMANCE_LEVELS["full"]) if c not in required and c not in withheld]
     if above_floor:
+        withheld_note = "".join(
+            f" {control_id} is not offered at {level}: the checker verifies it through the {gate_id} gate, "
+            f"which {level} does not declare (SP052); choose a level that requires both."
+            for control_id, gate_id in sorted(withheld.items())
+        )
         fields.append(
             FieldSpec(
                 id="above_floor",
@@ -744,7 +763,7 @@ def controls_plan(
                 help=(
                     f"{level} does not require these. Tick any you want this repository held to "
                     "anyway - a level is a floor, not a ceiling. Leaving them all unticked is a "
-                    "complete answer."
+                    "complete answer." + withheld_note
                 ),
                 # `F67`: a row is the id and a short cue that fits 60 columns; the full explanation
                 # of the highlighted row is shown beside the list (`choice_help`).

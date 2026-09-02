@@ -1065,6 +1065,25 @@ scheduled sweep, so previously there was no way to scan history at all.
 
 ## Unreleased
 
+### Every reachable decision of `adopt`, run and recorded (`ACT-057`, `DR-58`, `DR-59`)
+
+Before launch the maintainer asked for every combination of the wizard's parameters and choices to
+be run against a real repository and the output checked, and for the testing to be documented so a
+complaint can be answered by pointing at it. `DR-58` fixes what "every combination" means - every
+level × interface answer × repository shape in full; every free gate in every status, in bulk and
+cycled; every artefact field found, seeded and typed; every above-floor control on and off; every
+route (interactive, `--propose` then `--answers`, resume after every stage, `--edit` per leaf class,
+cancel at every point, every refusal); the screens driven headlessly at every configuration - and the
+form of the record: a generated report under `audit/validation/` compared byte for byte in CI, and an
+assurance-evidence record under `governance/assurance/` whose outcome is the maintainer's.
+`tests/test_adopt_matrix.py` is the fourteenth suite and the sixteenth CI step: 208 cases, 45,257
+checks, judged by a property oracle (the profile, the sidecar, the files created, the real checker)
+rather than a second profile builder. It found four defects, fixed test-first: an `essential` adopter
+could tick `documentation_authority` and write a profile the checker faults with `SP052` (`F97`,
+withheld under `DR-59`); a run cancelled after the scaffold stage and resumed never created the
+adoption decision record it named (`F98`); `--propose` demanded rationales for controls nobody
+declared (`F99`); `--edit` applied no field validator (`F100`).
+
 ### The adversarial product review of 2 September, and `adopt` rebuilt for a first-time reader (`ACT-042` to `ACT-048`)
 
 A cross-provider adversarial review of the product (`audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`)

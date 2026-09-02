@@ -332,8 +332,13 @@ class Flow:
             and not (self.repo / path).exists()
         ]
         offers += scaffold.offers_for_controls(self.repo, wanted)
-        if "decisions" in self.done and not self._answered("adoption.decision_record_id"):
-            if detect.detect_decisions_folder(self.repo) is None:
+        # `F98`: a resumed draft carries the id as scaffolded from the attempt that was cancelled
+        # after this stage, and the file was never written; the offer stands until the file exists
+        # (`decision_record_offer` returns nothing once it does), as a gate's seed does above.
+        record_origin = self.origins.get("adoption.decision_record_id")
+        scaffolded_record = record_origin is not None and record_origin.kind == provenance.SCAFFOLDED
+        if "decisions" in self.done and (not self._answered("adoption.decision_record_id") or scaffolded_record):
+            if detect.detect_decisions_folder(self.repo) is None or scaffolded_record:
                 offer = scaffold.decision_record_offer(self.repo)
                 if offer is not None:
                     offers.append(offer)

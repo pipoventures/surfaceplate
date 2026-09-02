@@ -1,0 +1,51 @@
+# Assurance-evidence record for the combinatorial validation of `surfaceplate adopt` (`DR-58`,
+# `ACT-057`). The agent ran the validation and drafted this record with the measured result and
+# the evidence gaps as limitations; the `outcome` and `reviewer_identity` below are the
+# maintainer's, set by merging the pull request that carries this file, or amended before it.
+# The suite that produced the evidence is `tests/test_adopt_matrix.py`; what it measured is
+# `audit/validation/ADOPT_MATRIX.md`, regenerated and compared byte for byte on every CI run.
+schema_version: "1.0"
+evidence_id: AE-0001
+evidence_type: test
+outcome: passed_with_conditions
+reviewer_role: maintainer
+reviewer_identity: Mario Pipo
+reviewed_at: "2026-09-02T22:30:00+01:00"
+scope: >-
+  DR-58's coverage definition, applied to surfaceplate 0.16.0 with the fixes of ACT-057: every
+  conformance level × interface answer × repository shape (bare, rich, mixed) run in full through
+  wizard.run; every free gate in every status, cycled, in bulk and in a partial bulk; every
+  artefact field with a found file, the seed row and a typed path; every above-floor control
+  ticked singly and all together; the decisions form's variants; the design review's stress cases
+  including the expected-finding cases (SP035, SP056, SP032 on a seed whose parent is a file) and
+  the review's refusals; every route (propose then replay, resume after every stage, edit per leaf
+  class, cancel at every point, every refusal class); the screens driven headlessly at every
+  configuration and compared with the scripted run. 208 cases, 45,257 checks, all passing on
+  2026-09-02 in about three minutes; a coverage self-check derived from the catalogue reports no
+  gap, and was shown to report gaps when cases are removed. Each run is judged on the written
+  profile (schema, per-field value and origin), the provenance sidecar, the files created, and the
+  real checker's verdict after committing.
+reference: >-
+  audit/validation/ADOPT_MATRIX.md (the generated report);
+  audit/validation/ADOPT_MATRIX_FIRST_RUN.md (the preserved pre-fix output); tests/test_adopt_matrix.py,
+  tests/adopt_matrix.py and tests/adopt_matrix_screens.py (the suite); the CI step `matrix` in
+  .github/workflows/standard-self-check.yml; DR-58 and DR-59; findings F97 to F100.
+limitations:
+  - >-
+    No real terminal: the screens are driven headlessly by Textual's pilot at 80×24; rendering on a real terminal is covered by the snapshot suite, not by this record.
+  - >-
+    One Python (3.12) and one Textual (8.2.8), on Linux, on one machine and on the CI runner.
+  - >-
+    Free text is one equivalence class per field, a distinct sentinel per run; length, Unicode and multi-line prose are exercised by tests/test_adopt.py, not by the matrix.
+  - >-
+    Cross-gate status interactions are argued independent from the code (each gate is built from its own answers alone) and not swept; the literal 3^11 combinations at standard were not run.
+  - >-
+    The history audit (SP034, SP035) is exercised only against a fresh fixture history: one back-dated commit and the adoption; real repositories have longer histories.
+  - >-
+    The advanced explanation register is asserted to change nothing written; its text was not proof-read by the suite.
+  - >-
+    The checker's own correctness is assumed: it is the oracle for each run's final verdict, and it is validated separately by tests/test_install_and_check.py.
+  - >-
+    A typed record directory for a pattern-C control is exercised only as the present-but-unfit directory (SP056); a fitting directory is exercised as discovered, and the seed row as scaffolded.
+  - >-
+    Four defects were found by the matrix and fixed under the same activity before this record was drafted (F97 to F100); the record describes the code after those fixes.
