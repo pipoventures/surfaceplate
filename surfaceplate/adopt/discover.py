@@ -214,6 +214,58 @@ GATE_KEYWORDS: dict[str, tuple[str, ...]] = {
 }
 
 
+# `F94`: a path with one of these components is not a live artefact whatever its name says. Still
+# offered - the adopter chooses from everything found - but never proposed, and ranked last.
+_ARCHIVE_COMPONENTS = ("archive", "archived", "attic", "deprecated")
+
+
+def is_archived(path: str) -> bool:
+    return any(part.lower() in _ARCHIVE_COMPONENTS for part in path.split("/")[:-1])
+
+
+# `F93`: the words a record directory's name must carry to be proposed for a pattern-C control.
+CONTROL_DIR_WORDS: dict[str, tuple[str, ...]] = {
+    "method_registry": ("registry", "method"),
+    "overrides": ("override",),
+    "run_lineage": ("lineage", "run"),
+    "provenance": ("provenance", "lineage", "run"),
+}
+
+
+def register_dirs_that_fit(repo: Path, directories, control_id: str) -> list[str]:
+    """The register directories a pattern-C control may be PROPOSED: named for the control, and
+    holding no YAML record the control's schema rejects (`SP056`). `F93`: four controls were
+    proposed a directory of account configuration because it held YAML."""
+    from surfaceplate.check_conformance import PATTERN_C_CONTROLS, load_yaml
+
+    words = CONTROL_DIR_WORDS.get(control_id, ())
+    schema_path = repo / ".standards" / "schemas" / PATTERN_C_CONTROLS.get(control_id, "")
+    if not words or not schema_path.is_file():
+        return []
+    try:
+        import jsonschema
+        import yaml
+
+        schema = yaml.safe_load(schema_path.read_text(encoding="utf-8"))
+        validator = jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker())
+    except Exception:  # noqa: BLE001 - no schema, no proposal
+        return []
+    out: list[str] = []
+    for directory in directories:
+        name = directory.rsplit("/", 1)[-1].lower()
+        if not any(w in name for w in words) or is_archived(directory + "/x"):
+            continue
+        ok = True
+        for record in sorted((repo / directory).glob("*.y*ml")):
+            document, _ = load_yaml(record)
+            if document is None or next(validator.iter_errors(document), None) is not None:
+                ok = False
+                break
+        if ok:
+            out.append(directory)
+    return out
+
+
 def rank_for_gate(
     candidates: tuple[str, ...] | list[str], gate_id: str, limit: int = SHOWN
 ) -> list[str]:
@@ -254,12 +306,13 @@ def matched_for_gate(
     if not words:
         return []
 
-    def score(path: str) -> tuple[int, int, str]:
+    def score(path: str) -> tuple[int, int, int, str]:
         low = path.lower()
         matches = sum(1 for w in words if w in low)
-        # More keywords first, then shallower paths: `activity/register.md` matches both
-        # "activity" and "register" and sits above `activity/ACT-001.md`, which matches one.
-        return (-matches, path.count("/"), path)
+        # Archived paths last (`F94`); then more keywords first, then shallower paths:
+        # `activity/register.md` matches both "activity" and "register" and sits above
+        # `activity/ACT-001.md`, which matches one.
+        return (1 if is_archived(path) else 0, -matches, path.count("/"), path)
 
     hit = sorted((c for c in candidates if any(w in c.lower() for w in words)), key=score)
     return hit if limit is None else hit[:limit]
@@ -298,11 +351,16 @@ def candidate_register_dirs(repo: Path) -> list[str]:
     and contains nothing invalid, never that it contains anything at all.
     """
     dirs: set[str] = set()
+    control_words = tuple(w for words in CONTROL_DIR_WORDS.values() for w in words)
     for path in _adopters_own(repo):
-        if not path.endswith((".yaml", ".yml")):
-            continue
         parent = "/".join(path.split("/")[:-1])
-        if parent and not parent.startswith(".github"):
+        if not parent or parent.startswith(".github"):
+            continue
+        name = parent.rsplit("/", 1)[-1].lower()
+        # A directory holding records, or one named for a record control that holds none yet -
+        # which is what a seeded directory is (`F93`); it would otherwise vanish from the offer
+        # the moment it was created.
+        if path.endswith((".yaml", ".yml")) or any(w in name for w in control_words):
             dirs.add(parent)
     return _dedupe(_adopter_first(sorted(dirs)))
 
@@ -509,9 +567,11 @@ class Discovered:
     # `DR-54` (1): seeds whose path is free here, by gate id and by control id.
     free_seeds: dict[str, str] = None  # type: ignore[assignment]
     free_control_seeds: dict[str, str] = None  # type: ignore[assignment]
+    # `F93`: per pattern-C control, the register directories it may be proposed.
+    register_fit: dict[str, tuple[str, ...]] = None  # type: ignore[assignment]
 
     def __post_init__(self) -> None:
-        for name in ("rejected", "free_seeds", "free_control_seeds"):
+        for name in ("rejected", "free_seeds", "free_control_seeds", "register_fit"):
             if getattr(self, name) is None:
                 object.__setattr__(self, name, {})
 
@@ -533,6 +593,8 @@ def scan(repo: Path, scanner: str = DEFAULT_SCANNER) -> Discovered:
     """Read the repository once. Cheap enough to do at startup; nothing here writes."""
     artefacts = tuple(candidate_artefacts(repo))
     seeds_by_gate, seeds_by_control = free_seeds(repo)
+    register_dirs = tuple(candidate_register_dirs(repo))
+    register_fit = {c: tuple(register_dirs_that_fit(repo, register_dirs, c)) for c in CONTROL_DIR_WORDS}
     rejected = {}
     for rel in artefacts:
         problem = content_problem(repo / rel)
@@ -540,7 +602,7 @@ def scan(repo: Path, scanner: str = DEFAULT_SCANNER) -> Discovered:
             rejected[rel] = problem
     return Discovered(
         artefacts=artefacts,
-        register_dirs=tuple(candidate_register_dirs(repo)),
+        register_dirs=register_dirs,
         lock_files=tuple(candidate_lock_files(repo)),
         paths=tuple(candidate_paths(repo)),
         ci_steps=tuple(candidate_ci_steps(repo)),
@@ -548,4 +610,5 @@ def scan(repo: Path, scanner: str = DEFAULT_SCANNER) -> Discovered:
         rejected=rejected,
         free_seeds=seeds_by_gate,
         free_control_seeds=seeds_by_control,
+        register_fit=register_fit,
     )

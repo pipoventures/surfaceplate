@@ -485,6 +485,48 @@ def test_every_artefact_is_offered_and_free_seeds_are_known(tmp: Path) -> None:
           set(found2.free_control_seeds) == set(scaffold.SEEDABLE_CONTROLS), str(found2.free_control_seeds))
 
 
+def test_record_directories_and_archived_documents_are_never_proposed(tmp: Path) -> None:
+    """`F93`, `F94`. Four record-directory controls were proposed an account-configuration
+    directory because it held YAML; two gates were proposed archived documents because their
+    names matched a word. A pattern-C reference is proposed only from a directory whose name
+    matches the control and whose records the control's schema accepts; an archived path is
+    never proposed and ranks last. Both stay offered."""
+    from surfaceplate.adopt import plan
+
+    repo = tmp / "third-run-repo"
+    repo.mkdir()
+    _init(repo)
+    (repo / "config" / "accounts").mkdir(parents=True)
+    (repo / "config" / "accounts" / "wrappers.yaml").write_text("accounts: []\n", encoding="utf-8")
+    (repo / "governance" / "overrides").mkdir(parents=True)
+    (repo / "governance" / "overrides" / "README.md").write_text("# Overrides\n", encoding="utf-8")
+    (repo / "docs" / "archive").mkdir(parents=True)
+    (repo / "docs" / "archive" / "old_review_protocol.md").write_text("# Old protocol\n", encoding="utf-8")
+    (repo / "docs" / "testing").mkdir(parents=True)
+    (repo / "docs" / "testing" / "EQUIVALENCE_PROTOCOL.md").write_text("# Equivalence protocol\n", encoding="utf-8")
+    (repo / "src").mkdir(); (repo / "src" / "app.py").write_text("x = 1\n", encoding="utf-8")
+    # Installed, because a record's fit is judged against the control's schema, which the
+    # installer vendors; `adopt` itself refuses to run on an uninstalled repository.
+    subprocess.run([sys.executable, str(ROOT / "surfaceplate" / "install_standard.py"), "--source", str(ROOT / "surfaceplate"),
+                    "--target", str(repo), "--no-hooks"], check=True, capture_output=True)
+    _git(repo, "add", "-A"); _git(repo, "commit", "-qm", "fixture")
+    found = discover.scan(repo)
+    check("the account-configuration directory is still offered as a register directory", "config/accounts" in found.register_dirs, str(found.register_dirs))
+    proposals = {p.field: p for p in defaults.propose_controls(level="full", mode="simple", found=found)}
+    for control in ("method_registry", "overrides", "run_lineage", "provenance"):
+        key = f"controls.{control}.implementation_reference"
+        proposed = proposals.get(key)
+        check(f"{control} is not proposed a directory that does not match it", proposed is None or proposed.value != "config/accounts", str(proposed))
+    check("a directory named for the control, holding no invalid record, is proposed", proposals["controls.overrides.implementation_reference"].value == "governance/overrides", str(proposals.get("controls.overrides.implementation_reference")))
+    check("archived documents rank last among the matches",
+          discover.matched_for_gate(found.artefacts, "equivalence_evidence") == ["docs/testing/EQUIVALENCE_PROTOCOL.md", "docs/archive/old_review_protocol.md"],
+          str(discover.matched_for_gate(found.artefacts, "equivalence_evidence")))
+    gate_proposals = {p.field: p for p in defaults.propose_gates(level="full", builds_ui=False, mode="simple", found=found, adoption_date="2026-09-02")}
+    check("the live protocol is proposed, not the archived one", gate_proposals["gates.equivalence_evidence.artefact"].value == "docs/testing/EQUIVALENCE_PROTOCOL.md", str(gate_proposals.get("gates.equivalence_evidence.artefact")))
+    check("a gate whose only match is archived gets no proposal", "gates.dependency_output_delta.artefact" not in gate_proposals, str(gate_proposals.get("gates.dependency_output_delta.artefact")))
+    check("the archived file is still offered", "docs/archive/old_review_protocol.md" in found.artefacts)
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory() as tmp_str:
         tmp = Path(tmp_str)
@@ -510,6 +552,7 @@ def main() -> int:
         test_the_cap_is_on_the_offer_not_on_the_answer(repo)
         test_the_wizard_proposes_nothing_the_checker_rejects(tmp)
         test_every_artefact_is_offered_and_free_seeds_are_known(tmp)
+        test_record_directories_and_archived_documents_are_never_proposed(tmp)
 
     print()
     if FAILURES:
