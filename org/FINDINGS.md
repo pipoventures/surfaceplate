@@ -1613,6 +1613,8 @@ timestamp, or a checker note when the profile is newer than its record. A decisi
 
 **Closed by `ACT-052` (`DR-54`), 2026-09-02.** `surfaceplate adopt --edit <path> <value> [--because <reason>]` changes one line of the written profile through the same renderer and verification as the wizard and records it in the sidecar as typed with a timestamp and the reason, under a history of edits the header now describes; a path the profile lacks is refused with the nearest named, and a line the review marks as not editable is refused. `tests/test_adopt.py::test_adopt_edit_rewrites_one_line_and_records_it` (a scalar, a list element by index, three refusals, the CLI flag, the checker still passing), seen to fail first.
 
+**Evidence after the fact, 2026-09-02 (recorded under `ACT-056`'s closure).** The hand edit this finding was written about broke the record it was made in: the two `detail` values written by hand into Plutos's sidecar that afternoon held a colon and were not quoted, so the file did not parse as YAML from plutos#6 until Surfaceplate's own verification of the adoption, run read-only against the repository, tried to read it (repaired as plutos#7, values unchanged). The checker never reads the sidecar, so CI stayed green throughout. The path that avoids this, `adopt --edit`, is the remedy above.
+
 ## F82 — The wizard explains its fields, not the framework: a reader who does not know Surfaceplate cannot adopt it from the wizard alone
 
 **Severity: high. Closed.**
