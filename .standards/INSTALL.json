@@ -33,7 +33,7 @@
     ".github/skills/review/SKILL.md": "b303e2740d3a0af2d51c671994e8a7d9de84622e21361420a05b7e2d721bb52f",
     ".github/skills/security-review/SKILL.md": "02d0531951ffa751ab9d7ed49d263236ce293cfbb7433d585b9b6e145363654b",
     ".github/workflows/standards-conformance.yml": "97b32a25ff8018e2b81e152f861d9f28091360078f9065766963881022b676c1",
-    ".standards/MANIFEST.sha256": "46ad705f47e93e10981c20fa9704daa33da44bdf6a04dde842278318824cbde0",
+    ".standards/MANIFEST.sha256": "fd49aaf6a41419f638c3b369d19e189a6282a54a3acff6dc2f8c825cef193c7f",
     ".standards/VERSION": "aa037454b5e8320521a32b278a3f4aff05fc79009ab5503f5d4a1b9a33b38c47",
     ".standards/adapters/python.md": "1ca5607d907f60e29ed9ec843a900384915f20b4fa114c14bd8923bc3e7d72bd",
     ".standards/adapters/r.md": "c4da3094ecbe5cc560a7b7aeb4171c72d7fc8e3e85df723e8ffbc8124049f50f",
@@ -72,7 +72,7 @@
     ".standards/templates/work-packet.md": "121f5270ee57740adee42ec82abd4b6b7b714093faf299efbb3ae6d78654be60"
   },
   "first_installed_at": "2026-08-31",
-  "framework_digest": "46ad705f47e93e10981c20fa9704daa33da44bdf6a04dde842278318824cbde0",
+  "framework_digest": "fd49aaf6a41419f638c3b369d19e189a6282a54a3acff6dc2f8c825cef193c7f",
   "grace_expires": "2026-09-30",
   "installed_at": "2026-09-02",
   "profile_path": "governance/application-profile.yaml",
