@@ -57,9 +57,10 @@ class DraftInfo:
 
 
 class Interview(Protocol):
-    def confirm_resume(self, info: DraftInfo) -> bool:
+    def confirm_resume(self, info: DraftInfo) -> bool | None:
         """Whether to resume an unfinished run. Never answered on a human's behalf: a draft is
-        offered, never silently reloaded."""
+        offered, never silently reloaded. `None` means the human quit at the prompt: the run is
+        cancelled and the draft is kept (`F68`)."""
         ...
 
     def collect(

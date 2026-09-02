@@ -997,6 +997,45 @@ def test_declining_a_resume_starts_fresh(tmp: Path) -> None:
     check("declining the draft still produces a profile", written.is_file())
 
 
+def test_quitting_at_the_resume_prompt_keeps_the_draft(tmp: Path) -> None:
+    """`F68`, first half. `ConfirmResumeApp.run()` returns `None` on `Ctrl+Q` or a closed
+    terminal; `confirm_resume` returned `bool(None)`; `_resume_or_start` read `False` as "start
+    fresh" and deleted the draft. Three answers, three outcomes: `True` resumes, `False` deletes,
+    `None` - the human quit - cancels the run and leaves the draft where it was."""
+    repo = make_installed_repo(tmp, "quit-at-resume-repo")
+    seed_referenced_files(repo)
+    try:
+        wizard.run(repo, ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS), cancel_before="risk"))
+    except Cancelled:
+        pass
+    draft = repo / wizard.DRAFT_FILENAME
+    check("precondition: the interrupted run left a draft", draft.is_file())
+
+    class QuitsAtThePrompt:
+        """An `Interview` whose resume answer is neither yes nor no: the human quit."""
+
+        def confirm_resume(self, info):
+            return None
+
+        def collect(self, **kwargs):
+            raise AssertionError("collect must not run after the human quit at the prompt")
+
+    try:
+        wizard.run(repo, QuitsAtThePrompt())
+        outcome = "ran on"
+    except Cancelled:
+        outcome = "cancelled"
+    except AssertionError as exc:
+        outcome = str(exc)
+    check("quitting at the resume prompt cancels the run", outcome == "cancelled", outcome)
+    check("and the draft is still on disk", draft.is_file())
+
+    second = ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS), resume=False)
+    wizard.run(repo, second)
+    check("an explicit no still discards it and completes a fresh run",
+          not draft.is_file() and len(second.resume_offers) == 1)
+
+
 def test_refuses_without_install(tmp: Path) -> None:
     repo = tmp / "no-install-repo"
     repo.mkdir()
@@ -1153,6 +1192,7 @@ def main() -> int:
         test_interrupt_leaves_repo_untouched(tmp)
         test_resume_from_draft(tmp)
         test_declining_a_resume_starts_fresh(tmp)
+        test_quitting_at_the_resume_prompt_keeps_the_draft(tmp)
 
         print("\nrefusals, and the guarantee itself")
         test_refuses_without_install(tmp)

@@ -245,7 +245,9 @@ def _clear_draft(repo: Path) -> None:
 
 def _resume_or_start(repo: Path, record: dict, interview: Interview) -> dict:
     """Never resumes silently. A version/digest mismatch is flagged - shown to the human, who
-    still decides - rather than either trusted or refused outright.
+    still decides - rather than either trusted or refused outright. Three answers: yes resumes,
+    an explicit no deletes the draft, and quitting at the prompt (`None`) cancels the run with
+    the draft kept.
 
     A draft in an older `format` is a different case and is not offered at all: Phase 1 drafts hold
     built profile fragments where these hold raw answers, so resuming one as the other would produce
@@ -269,8 +271,14 @@ def _resume_or_start(repo: Path, record: dict, interview: Interview) -> dict:
         framework_digest=str(draft.get("framework_digest", "")),
         matches=matches,
     )
-    if not interview.confirm_resume(info):
-        _clear_draft(repo)
+    answer = interview.confirm_resume(info)
+    if answer is None:
+        # `F68`: the human quit at the prompt - `Ctrl+Q`, or the terminal closed. That is neither
+        # "resume" nor "start fresh", and reading it as the latter deleted the draft the prompt
+        # existed to protect. The run is cancelled and the draft stays where it was.
+        raise Cancelled()
+    if not answer:
+        _clear_draft(repo)  # an explicit "n": the human chose to discard it
         return {}
     return dict(draft.get("sections", {}))
 

@@ -1278,6 +1278,17 @@ Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, 
 
 `ConfirmResumeApp.run()` returns `None` on `Ctrl+Q` or a closed terminal; `TextualInterview.confirm_resume` returns `bool(None)`; `_resume_or_start` treats `False` as "start fresh" and calls `_clear_draft` (`surfaceplate/adopt/wizard.py:244-246`). Verified against the real function: the draft existed before and not after. The screen's own heading `Static("[A saved draft was found]")` lacks `markup=False` and renders as an empty string in Textual 8.2.8 (image `resume-open-80x24`; the spike confirmed the other headers survive only because their step prefix defeats the parser) — `F37 #1` on a screen it did not reach.
 
+**First half closed by `ACT-043`, item 0.6 (2026-09-02).** `TextualInterview.confirm_resume`
+returns what `ConfirmResumeApp.run()` returns - `True` on `y`, `False` on `n`, `None` when the
+app ended without either - and `_resume_or_start` raises `Cancelled` on `None`, deleting the
+draft only on an explicit `False`. The `Interview` protocol's annotation and docstring in
+`interview.py` say so; that is the one edit outside the phase's owning files.
+`tests/test_adopt.py::test_quitting_at_the_resume_prompt_keeps_the_draft` drives all three
+answers: seen to fail before (`ADOPT_CONFORMANCE=FAIL (3 failed, 93 passed)`: the quit ran on
+and the draft was gone) and to pass after (`ADOPT_CONFORMANCE=PASS (96 checks)`). The real prompt
+driven under `run_test` with `y`, `n` and `ctrl+q` returned `True`, `False`, `None`; the draft
+existed before and after `y` and `ctrl+q`, and before but not after `n`.
+
 ## F67 — The 80×24 pass looked at the wrong screens: the level options below the fold, help text unstyled and flush, off-state controls near-invisible, labels and text areas clipped
 
 **Severity: medium. Open.**

@@ -286,8 +286,11 @@ class ConfirmResumeApp(App):
 class TextualInterview:
     """The real `Interview`: runs the app, returns what it collected."""
 
-    def confirm_resume(self, info: DraftInfo) -> bool:
-        return bool(ConfirmResumeApp(info).run())
+    def confirm_resume(self, info: DraftInfo) -> bool | None:
+        # `True` on `y`, `False` on `n`, and `None` when the app ended without either - `Ctrl+Q`
+        # is Textual's own priority quit binding and returns `None` from `run()`. `F68`: wrapping
+        # this in `bool()` turned a quit into "start fresh", and the draft was deleted.
+        return ConfirmResumeApp(info).run()
 
     def collect(
         self,
