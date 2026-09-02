@@ -60,7 +60,12 @@ directly from the repository root:
            surfaceplate/adopt/scaffold.py surfaceplate/adopt/wizard.py \
            surfaceplate/seeds/activity-register.md surfaceplate/seeds/decision-log.md \
            surfaceplate/seeds/CHANGELOG.md surfaceplate/seeds/source-of-truth-matrix.yaml \
-           surfaceplate/seeds/adoption-decision-record.md surfaceplate/seeds/findings-register.md; do
+           surfaceplate/seeds/adoption-decision-record.md surfaceplate/seeds/findings-register.md \
+           surfaceplate/seeds/options-log.md surfaceplate/seeds/risk-classification.md \
+           surfaceplate/seeds/test-conventions.md surfaceplate/seeds/data-source-register.md \
+           surfaceplate/seeds/output-validation-log.md surfaceplate/seeds/dependency-review-log.md \
+           surfaceplate/seeds/release-checklist.md surfaceplate/seeds/method-registry-readme.md \
+           surfaceplate/seeds/overrides-readme.md surfaceplate/seeds/run-lineage-readme.md; do
     [ -f "$f" ] || { echo "MISSING: $f" >&2; exit 1; }
     echo "## FILE: \`$f\`"; echo '```'; cat "$f"; echo '```'; echo
   done

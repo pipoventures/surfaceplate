@@ -54,6 +54,45 @@ SEEDABLE: dict[str, tuple[str, str, str]] = {
         "source-of-truth-matrix.yaml",
         "an authority map routing each material question to its one canonical answer",
     ),
+    # `DR-55`: every gate whose artefact can be an honest empty register, log or statement of
+    # the standard's own rule. Paths follow the worked example. What stays out, on purpose: the
+    # four interface gates, the regression suite, the equivalence protocol, and the two gates
+    # that reuse the map and the register.
+    "options_before_build": (
+        "docs/decisions/OPTIONS.md",
+        "options-log.md",
+        "a log of design options considered, holding none yet",
+    ),
+    "risk_classification": (
+        "governance/RISK_CLASSIFICATION.md",
+        "risk-classification.md",
+        "the standard's scale and rule, with this repository's level meanings left to declare",
+    ),
+    "test_convention": (
+        "docs/testing/TEST_CONVENTIONS.md",
+        "test-conventions.md",
+        "the standard's naming convention, with this repository's test areas left to declare",
+    ),
+    "data_source_lifecycle": (
+        "governance/DATA_SOURCES.md",
+        "data-source-register.md",
+        "a register of data sources and their approval state, holding none yet",
+    ),
+    "output_validation_before_external_use": (
+        "docs/OUTPUT_VALIDATION.md",
+        "output-validation-log.md",
+        "a log of validated outputs, holding none yet",
+    ),
+    "dependency_output_delta": (
+        "docs/DEPENDENCY_REVIEW.md",
+        "dependency-review-log.md",
+        "a log of dependency reviews, holding none yet",
+    ),
+    "records_before_release": (
+        "docs/RELEASE_CHECKLIST.md",
+        "release-checklist.md",
+        "the records a release needs, quoted from the standard, with one line only this repository can fill",
+    ),
 }
 
 
@@ -66,7 +105,38 @@ SEEDABLE_CONTROLS: dict[str, tuple[str, str, str]] = {
         "findings-register.md",
         "a register of known limitations and findings, holding none yet",
     ),
+    # `DR-55`: the record-directory controls. The reference is the directory; what is written is
+    # a note inside it, which the checker does not read (it validates `*.y*ml` only), so an empty
+    # directory with the note is exactly what the control's check describes as a valid start.
+    "method_registry": (
+        "governance/method-registry",
+        "method-registry-readme.md",
+        "a directory for method records, holding none yet",
+    ),
+    "overrides": (
+        "governance/overrides",
+        "overrides-readme.md",
+        "a directory for override records, holding none yet",
+    ),
+    "run_lineage": (
+        "governance/run-lineage",
+        "run-lineage-readme.md",
+        "a directory for run records, holding none yet",
+    ),
+    "provenance": (
+        "governance/run-lineage",
+        "run-lineage-readme.md",
+        "the same directory of run records as run_lineage, holding none yet",
+    ),
 }
+
+# For a reference that is a directory, the file the seed writes inside it.
+DIRECTORY_NOTE = "README.md"
+
+
+def write_path_for(reference: str) -> str:
+    """Where a seed is written: the reference itself for a file, the note inside it for a directory."""
+    return f"{reference}/{DIRECTORY_NOTE}" if not reference.rsplit("/", 1)[-1].count(".") else reference
 
 
 # `DR-47` (2): a scaffolded artefact is a file the tool creates and therefore knows. The adoption
@@ -92,6 +162,7 @@ class Offer:
     seed: str  # file name under `seeds/`
     why: str
     control_id: str = ""  # set for a control's implementation reference (`DR-54` (3))
+    reference: str = ""  # what the profile records, where it differs from `path` (a directory)
 
     def content(self) -> str:
         return (SEEDS / self.seed).read_text(encoding="utf-8")
@@ -154,10 +225,11 @@ def offers_for_controls(repo: Path, control_ids) -> list[Offer]:
     for control_id in control_ids:
         if control_id not in SEEDABLE_CONTROLS:
             continue
-        path, seed, why = SEEDABLE_CONTROLS[control_id]
-        if _occupied(repo / path):
+        reference, seed, why = SEEDABLE_CONTROLS[control_id]
+        if _occupied(repo / reference):
             continue
-        out.append(Offer(gate_id=f"control:{control_id}", path=path, seed=seed, why=why, control_id=control_id))
+        out.append(Offer(gate_id=f"control:{control_id}", path=write_path_for(reference), seed=seed, why=why,
+                         control_id=control_id, reference=reference))
     return out
 
 
@@ -165,7 +237,7 @@ def seed_preview(path: str, lines: int = 2) -> str:
     """The first lines of whichever seed creates `path`, for the help beside a "create it" row."""
     for table in (SEEDABLE, SEEDABLE_CONTROLS):
         for seed_path, seed, _why in table.values():
-            if seed_path == path:
+            if path in (seed_path, write_path_for(seed_path)):
                 body = [ln for ln in (SEEDS / seed).read_text(encoding="utf-8").splitlines() if ln.strip()]
                 return " / ".join(body[:lines])
     return ""
@@ -194,7 +266,11 @@ def write(repo: Path, accepted: list[Offer]) -> tuple[list[Path], list[str]]:
     """
     written: list[Path] = []
     problems: list[str] = []
+    seen: set[str] = set()
     for offer in accepted:
+        if offer.path in seen:
+            continue  # two controls sharing one directory (`provenance`, `run_lineage`): one note
+        seen.add(offer.path)
         target = repo / offer.path
         if not _inside(repo, Path(offer.path)):
             problems.append(f"{offer.path}: refused - it does not land inside this repository")

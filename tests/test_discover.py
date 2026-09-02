@@ -477,12 +477,12 @@ def test_every_artefact_is_offered_and_free_seeds_are_known(tmp: Path) -> None:
           str(found.free_seeds))
     check("a seed whose path is taken is not free (the changelog exists)", "change_record_before_completion" not in found.free_seeds)
     check("and the findings register's seed is free for its control, since docs/FINDINGS.md is not there",
-          found.free_control_seeds == {"assurance_findings": scaffold.SEEDABLE_CONTROLS["assurance_findings"][0]}, str(found.free_control_seeds))
+          found.free_control_seeds.get("assurance_findings") == scaffold.SEEDABLE_CONTROLS["assurance_findings"][0], str(found.free_control_seeds))
     repo2 = tmp / "bare-wide-repo"; repo2.mkdir(); _init(repo2)
     (repo2 / "main.py").write_text("x=1\n", encoding="utf-8"); _git(repo2, "add", "-A"); _git(repo2, "commit", "-qm", "f")
     found2 = discover.scan(repo2)
-    check("with no findings register, its seed is free for assurance_findings",
-          found2.free_control_seeds == {"assurance_findings": scaffold.SEEDABLE_CONTROLS["assurance_findings"][0]}, str(found2.free_control_seeds))
+    check("on a bare repository every control seed is free (the findings register and, since DR-55, the record directories)",
+          set(found2.free_control_seeds) == set(scaffold.SEEDABLE_CONTROLS), str(found2.free_control_seeds))
 
 
 def main() -> int:

@@ -1382,6 +1382,79 @@ def test_adopt_edit_rewrites_one_line_and_records_it(tmp: Path) -> None:
     check("the profile still passes the checker", _schema_ok(repo, repo / wizard.PROFILE_PATH))
 
 
+def test_a_full_run_choosing_every_create_it_row_passes_the_checker(tmp: Path) -> None:
+    """`DR-55`. On a bare repository at `full`, every seedable gate's artefact and every
+    record-directory control's reference open with "create it"; a run choosing every one writes
+    them all, and once committed the real checker passes in full - the seeds are what the
+    checks describe as a valid start."""
+    from surfaceplate import check_conformance
+    from surfaceplate.adopt import flow as _flow
+    from surfaceplate.adopt import scaffold
+
+    repo = make_installed_repo(tmp, "every-seed-run")
+    (repo / "src").mkdir(); (repo / "src" / "app.py").write_text("x = 1\n", encoding="utf-8")
+    (repo / "requirements.txt").write_text("PyYAML==6.0.3\n", encoding="utf-8")
+    (repo / ".github" / "workflows").mkdir(parents=True, exist_ok=True)
+    (repo / ".github" / "workflows" / "ci.yml").write_text(
+        "jobs:\n  t:\n    steps:\n      - name: Run the tests\n        run: pytest\n      - name: Run the contract tests\n        run: pytest tests/contract\n      - name: Run gitleaks\n        run: gitleaks detect\n",
+        encoding="utf-8")
+    # Committed yesterday, so a gated commit made in the same second as the seeds' instant does
+    # not read as crossing a gate before its artefact (the scaffold suite's own precaution).
+    import os
+
+    yesterday = (_dt.date.today() - _dt.timedelta(days=1)).isoformat() + "T12:00:00"
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "fixture"], check=True, capture_output=True,
+                   env={**os.environ, "GIT_AUTHOR_DATE": yesterday, "GIT_COMMITTER_DATE": yesterday})
+    flow = _flow.Flow(repo, {"standard_version": "0.16.0", "framework_digest": "x"})
+    seeds = flow.found.free_seeds
+    check("every seedable gate's seed is free on the bare repository", set(seeds) == set(scaffold.SEEDABLE), str(sorted(seeds)))
+    check("and every record-directory control's", set(flow.found.free_control_seeds) == set(scaffold.SEEDABLE_CONTROLS), str(sorted(flow.found.free_control_seeds)))
+    answers: dict = {
+        "identity.owner": "Owner", "stack.builds_user_interface": "no", "risk.relied_on_outside_team": "yes",
+        "risk.material_quantitative_output": "yes", "risk.data_classification": "internal", "wrap.release_route": "manual",
+        "level.conformance_level": "full",
+    }
+    for gate_id, path in seeds.items():
+        answers[f"gates.{gate_id}.artefact"] = path
+        if gate_id not in catalogue.LEVEL_REQUIRED_GATES["full"]:
+            answers[f"gates.{gate_id}.status"] = "required"  # above the floor, so every seed is exercised
+    for gate_id in ("regression_before_merge", "equivalence_evidence", "authority_same_change"):
+        answers[f"gates.{gate_id}.artefact"] = "src/app.py"  # no seed: a real tracked file
+    interview = ScriptedInterview(answers=answers, bulk_not_applicable=True, accept_scaffold=True)
+    original = interview._answer
+
+    def fill(section, prefix=""):
+        for spec in section.fields:
+            key = f"{prefix}{spec.id}"
+            if key in interview.answers:
+                continue
+            if spec.kind == "select" and spec.seed:
+                interview.answers[key] = spec.seed
+            elif spec.validate == "tracked_path" and spec.kind in ("text", "select"):
+                interview.answers[key] = spec.choices[0][0] if spec.choices else "src/app.py"
+            elif spec.validate.startswith("ci_step") and spec.choices:
+                interview.answers[key] = spec.choices[0][0]
+            elif spec.kind in ("text", "textarea") and spec.validate and not spec.default:
+                interview.answers[key] = f"answer for {key}"
+        return original(section, prefix)
+
+    interview._answer = fill  # type: ignore[method-assign]
+    for gate_id in catalogue.GATE_CATALOGUE:
+        answers[f"gates.{gate_id}.paths"] = "src/**"
+    written = wizard.run(repo, interview)
+    created = sorted(p.relative_to(repo).as_posix() for p in written.created)
+    # `options_before_build` is an interface gate: with no user interface it is settled not
+    # applicable before any artefact is asked, so its seed is offered only to a UI repository.
+    expected = sorted({scaffold.write_path_for(v) for g, v in seeds.items() if g != "options_before_build"}
+                      | {scaffold.write_path_for(v) for v in flow.found.free_control_seeds.values()} | {scaffold.DECISION_RECORD[0]})
+    check("every chosen seed was created, the shared directory once", created == expected, f"created {created}\nexpected {expected}")
+    _commit_all(repo, "adopted")
+    report = check_conformance.evaluate(repo, _dt.date.today(), False, False)
+    check("and the real checker passes in full against the seeded repository", report.verdict == "PASS" and not report.findings,
+          f"{report.verdict}: " + "; ".join(f"{f.code} {f.title}" for f in report.findings[:6]))
+
+
 def test_the_run_opens_with_the_tool_and_the_install_named(tmp: Path) -> None:
     """`F81` / `DR-51` (2). Before the first question the interview is handed what the opening
     screen shows: the tool's name, version, licence and publisher, the installed version and
@@ -2054,6 +2127,7 @@ def main() -> int:
         test_a_draft_with_stale_ids_is_not_resumed_into_a_crash(tmp)
         test_the_create_it_row_leads_to_a_scaffold_for_gates_and_controls(tmp)
         test_adopt_edit_rewrites_one_line_and_records_it(tmp)
+        test_a_full_run_choosing_every_create_it_row_passes_the_checker(tmp)
         test_the_run_opens_with_the_tool_and_the_install_named(tmp)
         test_refuses_when_the_tool_and_the_install_differ(tmp)
         test_package_metadata_agrees_with_pyproject()

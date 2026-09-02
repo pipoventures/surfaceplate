@@ -345,7 +345,7 @@ class Flow:
             if offer.control_id:
                 self._set(
                     f"controls.{offer.control_id}.implementation_reference",
-                    offer.path,
+                    offer.reference or offer.path,
                     Origin(provenance.SCAFFOLDED, f"created: {offer.path}"),
                 )
                 continue
