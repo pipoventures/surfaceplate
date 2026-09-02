@@ -458,6 +458,11 @@ class FormScreen(_SectionScreenBase):
         yield Static("", id="hint", markup=False)
 
     def on_mount(self) -> None:
+        # `F74`: an error reported by `action_commit` is held here until the next commit, because
+        # the focus move that reports it arrives as a later `DescendantFocus` event whose handler
+        # rewrites the hint - and rewrote it without the error, so the error was on screen for
+        # one frame. Held on the screen, it survives every focus move until the human tries again.
+        self._pending_error = ""
         self._refresh_visibility()
         self._focus_first_field()
         self._show_help_for_focused()
@@ -481,7 +486,7 @@ class FormScreen(_SectionScreenBase):
 
     def on_descendant_focus(self, event: events.DescendantFocus) -> None:
         self._show_help_for_focused()
-        self._set_hint()
+        self._set_hint(getattr(self, "_pending_error", ""))
 
     def _show_help_for_focused(self) -> None:
         focused = self._focused_spec()
@@ -536,6 +541,7 @@ class FormScreen(_SectionScreenBase):
         )
 
     def action_commit(self) -> None:
+        self._pending_error = ""
         answers = self._answers()
         for spec in self.section.fields:
             if not spec.applies(answers):
@@ -549,11 +555,14 @@ class FormScreen(_SectionScreenBase):
                 if answers.get(spec.id) not in {value for value, _ in spec.choices}:
                     problem = "Choose one of the options."
             if problem:
-                self._set_hint(f"{spec.label}: {problem}")
+                # Focus first, then report - and keep the report, because the focus event that
+                # follows redraws the hint (`F74`).
                 try:
                     self.query_one(f"#f-{spec.id.replace('.', '--')}").focus()
                 except Exception:
                     pass
+                self._pending_error = f"{spec.label}: {problem}"
+                self._set_hint(self._pending_error)
                 return
         self.dismiss(answers)
 

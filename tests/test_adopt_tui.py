@@ -253,6 +253,45 @@ def test_an_empty_choice_is_refused_at_the_field() -> None:
     asyncio.run(_run())
 
 
+def test_a_validation_error_survives_the_focus_move_that_reports_it() -> None:
+    """`F74`. On the identity screen with `application_id` blank and focus on `owner`, `Ctrl+S`
+    moved focus to the blank field, did not dismiss the screen, and left the hint showing only the
+    key legend: `action_commit` wrote the error into the hint and then focused the field, and
+    `on_descendant_focus` called `_set_hint()` with no error and erased it. The review's earlier
+    image of that error was taken with focus already on the failing field, the one case where it
+    survived."""
+
+    async def _run() -> None:
+        section = plan.identity_plan()
+        app = Host(FormScreen(section))
+        async with app.run_test(size=(80, 24)) as pilot:
+            await pilot.pause()
+            app.screen.query_one("#f-owner").focus()
+            await pilot.pause()
+            await pilot.press("ctrl+s")
+            for _ in range(6):
+                await pilot.pause()
+            still_there = isinstance(app.screen, FormScreen) and app.result is None
+            hint = str(app.screen.query_one("#hint").content) if still_there else ""
+            focused = app.screen.focused.id if still_there and app.screen.focused else None
+            check("identity: Ctrl+S with application_id blank does not leave the screen", still_there)
+            check(
+                "and focus has moved to the blank field",
+                focused == "f-application_id",
+                f"focused: {focused!r}",
+            )
+            check(
+                "and after six pauses the hint still carries the error",
+                "This cannot be blank." in hint,
+                f"hint: {hint!r}",
+            )
+            if still_there:
+                app.exit(None)
+                await pilot.pause()
+
+    asyncio.run(_run())
+
+
 def test_a_blank_dropdown_is_refused_at_the_field() -> None:
     """`F64`, the other path. A blank `Select` reads as `None`, so a required gate whose artefact
     was never chosen counted as answered, committed, and the review then showed
@@ -1052,6 +1091,9 @@ def main() -> int:
     print("\nF64: an empty choice or dropdown is refused where it is made")
     test_an_empty_choice_is_refused_at_the_field()
     test_a_blank_dropdown_is_refused_at_the_field()
+
+    print("\nF74: the error survives the focus move that reports it")
+    test_a_validation_error_survives_the_focus_move_that_reports_it()
 
     print("\ndiscovery (DR-38)")
     test_discovered_candidates_are_offered_as_choices()

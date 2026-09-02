@@ -139,7 +139,7 @@ an unknown number of releases with nothing noticing.
 | F71 | The standard's documents contradict themselves on what is checked, which principle limits a tool, whether Actions is enabled, how many gates are asked, and which evidence labels to use | medium | Open — `ACT-045` (`org/REMEDIATION_PLAN.md`) |
 | F72 | Ten findings say Open in the body and Closed in the index, and `check_code_registers.py` never compares status | low | Open — `ACT-046` (`org/REMEDIATION_PLAN.md`) |
 | F73 | Every `action_cancel` is unreachable: Textual's priority quit binding fires first | low | Open — `ACT-043` (`org/REMEDIATION_PLAN.md`) |
-| F74 | A validation error is erased by the focus move that reports it | medium | Open — `ACT-043` (`org/REMEDIATION_PLAN.md`) |
+| F74 | A validation error is erased by the focus move that reports it | medium | Closed — `ACT-043`; the error is held on the screen until the next commit and re-shown on every focus move, asserted after six pauses in `tests/test_adopt_tui.py` |
 | F75 | Candidates are capped at 200 before any gate ranking, so a large `docs/` pushes the register out; the comment says the opposite | high | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
 | F76 | Resuming a draft that chose the defaults route never offers defaults again | medium | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
 | F77 | Hygiene: non-atomic profile write; a draft with the wrong shape or stale ids kills the run; non-UTF-8 paths quoted; `is_empty` never true; `human_roles: null` as `['None']`; unescaped enums; `KeyboardInterrupt` uncaught; `adopt` exits 0 on findings; the two reliance answers discarded | medium | Open — `ACT-044`, `ACT-045`, `ACT-046` (`org/REMEDIATION_PLAN.md`) |
@@ -1212,11 +1212,23 @@ Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, 
 
 ## F74 — A validation error is erased by the focus move that reports it
 
-**Severity: medium. Open.**
+**Severity: medium. Closed.**
 
 Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, the adversarial product review of 2026-09-02, authorised by the maintainer in the review session (https://claude.ai/code/session_01X1MZfNScrJjgD5e2AGBjvs). Closes by `ACT-043`; see `org/REMEDIATION_PLAN.md`.
 
 On the real identity screen, with `application_id` blank and focus on `owner`, `Ctrl+S` moves focus to the blank field, does not dismiss the screen, and leaves the hint showing only the key legend at every pause afterwards (`vanish/identity-after-ctrl-s-from-owner-80x24`). `FormScreen.action_commit` writes the error into the hint and then focuses the field; `on_descendant_focus` calls `_set_hint()` with no error and overwrites it. The review's earlier image of that error was taken with focus already on the failing field, the one case where it survives. Found while driving the review's prototype.
+
+**Closed by `ACT-043`, item 0.5 (2026-09-02).** `FormScreen.action_commit` now focuses the
+failing field first, then records the error in `self._pending_error` and shows it;
+`on_descendant_focus` re-shows the pending error rather than an empty hint, and the next
+`action_commit` clears it. Focusing first alone would not have been enough: the `DescendantFocus`
+event arrives after `action_commit` returns, so whatever the hint held at that moment was
+overwritten. `tests/test_adopt_tui.py::test_a_validation_error_survives_the_focus_move_that_reports_it`
+re-drives the review's sequence at 80×24 - `application_id` blank, focus on `owner`, `Ctrl+S`,
+six pauses - and asserts the screen stays, focus is on the blank field, and the hint still
+carries "This cannot be blank.". Seen to fail before (`ADOPT_TUI=FAIL (1 failed, 63 passed)`, the
+hint reduced to the key legend) and to pass after (`ADOPT_TUI=PASS (64 checks)`). The vanish
+image re-taken: before, the legend alone; after, the error above it.
 
 ## F73 — Every `action_cancel` is unreachable: Textual's priority quit binding fires first
 
