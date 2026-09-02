@@ -97,6 +97,14 @@ jobs:
         if: ${{ !cancelled() }}
         run: python tests/test_adopt_snapshots.py
 
+      # DR-58 / ACT-057: every reachable decision of `adopt` run against a real repository and
+      # judged by a property oracle; the tracked report under audit/validation/ is compared byte
+      # for byte, so the matrix cannot narrow or move without the report being regenerated and read.
+      - name: Run the adopt matrix and compare its tracked report
+        id: matrix
+        if: ${{ !cancelled() }}
+        run: python tests/test_adopt_matrix.py
+
       # DR-38: candidates offered to an adopter must be things that really exist in their
       # repository. The negative half of this suite is the load-bearing half.
       - name: Check repository discovery only offers what is really there
@@ -182,6 +190,7 @@ jobs:
             adopt_tui=${{ steps.adopt_tui.outcome }}
             render=${{ steps.render.outcome }}
             snapshots=${{ steps.snapshots.outcome }}
+            matrix=${{ steps.matrix.outcome }}
             discover=${{ steps.discover.outcome }}
             scaffold=${{ steps.scaffold.outcome }}
             audit_packet=${{ steps.audit_packet.outcome }}

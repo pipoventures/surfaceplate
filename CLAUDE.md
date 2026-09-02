@@ -12,7 +12,7 @@ here was done by an agent that had never read them. The import above is what clo
 
 ## Working here
 
-- **Thirteen suites**, and each reports a count on success so "everything passed" is distinguishable
+- **Fourteen suites**, and each reports a count on success so "everything passed" is distinguishable
   from "nothing ran". `.github/workflows/standard-self-check.yml` is the authority for the full set
   and the order — it runs every one and then asserts that every one actually ran. Six need no
   optional dependency: `validate_contracts.py`, `test_install_and_check.py`, `check_identifiers.py`,
@@ -22,10 +22,15 @@ here was done by an agent that had never read them. The import above is what clo
   from the virtualenv (`.venv/bin/python`): `test_render.py`, `test_adopt_tui.py`, and
   `test_adopt_snapshots.py`, which also needs the `test` extra (`pytest`, `pytest-textual-snapshot`,
   `syrupy`) and holds golden SVGs under `tests/__snapshots__/` — never regenerated to absorb a
-  difference nobody has explained. `scripts/front_door.sh` is not a suite: it is every documented
+  difference nobody has explained. A fourth needs `textual` too: `test_adopt_matrix.py`, the
+  combinatorial matrix (`DR-58`, `ACT-057`), which runs every reachable decision of `adopt` against
+  a real repository, about three minutes, and compares its tracked report
+  `audit/validation/ADOPT_MATRIX.md` byte for byte; a change to what the wizard asks regenerates it
+  with `--write`, and the diff is read, never absorbed. `scripts/front_door.sh` is not a suite: it is every documented
   command run on a clean machine, by `.github/workflows/front-door.yml`.
-  *(This line said "the five suites" until `ACT-033`, six suites after that stopped being true; it is
-  corrected in the same change that adds one, which is the habit that keeps it true.)*
+  *(This line said "the five suites" until `ACT-033`, six suites after that stopped being true, and
+  thirteen until `ACT-057`; it is corrected in the same change that adds one, which is the habit that
+  keeps it true.)*
 - After changing anything the standard ships: `scripts/build_release.py`, reinstall from a clean
   source copy, re-pin `adoption.framework_digest` from `.standards/INSTALL.json`, and then **build
   the manifest again, last**. The order matters and CI fails on it otherwise: the checker compares

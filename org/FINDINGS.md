@@ -162,6 +162,10 @@ an unknown number of releases with nothing noticing.
 | F94 | An archived document is proposed as a gate's artefact on a keyword match: two gates were proposed files under `docs/archive/` | medium | Closed — `ACT-054`; see the body |
 | F95 | A focus-driven scroll is animated, and the scrollbar keeps a fractional thumb position from the animation's last frame, so a golden of a scrolled screen differed one run in four | low | Closed — `ACT-055`; see the body |
 | F96 | With the gates beyond the floor folded, Ctrl+S refused by naming a folded gate: an optional gate read as required | medium | Closed — `ACT-056` (`DR-57`); see the body |
+| F97 | At `essential` the above-floor list offered `documentation_authority`, and a profile declaring it fails `SP052` on its first check: the wizard wrote a combination it knew the checker faults | medium | Closed — `ACT-057` (`DR-59`); see the body |
+| F98 | A run cancelled after the scaffold stage and resumed never created the adoption decision record: the profile named `DR-0001` and the sidecar said "created" for a file that did not exist | high | Closed — `ACT-057`; see the body |
+| F99 | `--propose` marked every above-floor control's rationale and reference `needs-human`, so a human had to invent lines for controls they never declared before `--answers` would write | medium | Closed — `ACT-057`; see the body |
+| F100 | `--edit` applied no field validator, so an artefact edited to an untracked path was written and failed `SP032` on the next run | medium | Closed — `ACT-057`; see the body |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1488,6 +1492,97 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F100 — `--edit` applied no field validator, so an artefact edited to an untracked path was written and failed `SP032` on the next run
+
+**Severity: medium. Closed.**
+
+Recorded under `ACT-057` on 2026-09-02 in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z), predicted from reading
+`wizard.edit` while the matrix was designed and confirmed by its edit cases (`T6-194`, `T6-195` in the tracked report)
+before the fix: the edit went through, the checker then reported `SP032` against the profile.
+
+`edit` verified the rendered profile against the schema and the placeholder scan - the write-time
+checks - and applied none of the field validators `DR-48` gave the wizard so that it refuses what
+the checker rejects. An artefact edited to a path nothing tracks, an `effective_from` in the
+future, a `review_by` beyond the horizon, a scanner file that never mentions the scanner: each is
+refused at the field during a run and was accepted by `--edit` after it. Medium: the profile then
+fails its next check with a code, so nothing is hidden; but the command exists so a human can fix
+one line without a run, and it let them break the line the same way the run would have stopped.
+
+**Closed by `ACT-057`, 2026-09-02.** `edit` rebuilds the `FieldSpec` behind the edited line from
+the profile's own level, interface answer and scanner name (`wizard._spec_behind`) and applies
+`validators.check` before rendering, refusing with the field's own words and the path. Regression:
+`tests/test_adopt.py::test_adopt_edit_applies_the_fields_own_validator`, seen to fail first on all
+four classes; the matrix's edit cases assert the refusal and an unchanged profile.
+
+## F99 — `--propose` marked every above-floor control's rationale and reference `needs-human`, so a human had to invent lines for controls they never declared before `--answers` would write
+
+**Severity: medium. Closed.**
+
+Recorded under `ACT-057` on 2026-09-02 in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z), from the matrix's propose-then-replay
+cases (`T6-162` to `T6-167` in the tracked report): at `essential` and `standard` the answers record carried up to
+thirteen `needs-human` lines for controls beyond the floor, and `--answers` refused until every one
+was filled, whether or not the control was listed in `controls.above_floor`.
+
+`propose` walked the remainder plan's fields without regard to `depends_on`, so the conditional
+fields - a rationale and a reference that apply only when their control is ticked - were written
+as decisions outstanding. The existing replay test filled every `needs-human` line with a stock
+sentence, which is exactly how the defect survived it: a human doing the same would put invented
+rationales under their own name for controls the profile then does not even declare. Medium: no
+wrong profile results, but the non-terminal route demanded answers to questions the interactive
+route never asks.
+
+**Closed by `ACT-057`, 2026-09-02.** The record holds those lines apart under
+`if_declared_above_floor`, the header says they apply only to a control listed in
+`controls.above_floor`, and `replay` applies them to the listed controls and no other; a listed
+control's line left `needs-human` is refused by name. Regression:
+`tests/test_adopt.py::test_propose_does_not_demand_rationales_for_controls_nobody_declared`, seen
+to fail first.
+
+## F98 — A run cancelled after the scaffold stage and resumed never created the adoption decision record: the profile named `DR-0001` and the sidecar said "created" for a file that did not exist
+
+**Severity: high. Closed.**
+
+Recorded under `ACT-057` on 2026-09-02 in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z), predicted from reading `Flow.draft()`
+and `scaffold_offers()` while the matrix was designed and confirmed by its resume-after-review cases
+(`T6-182`, `T6-187`, `T6-192` in the tracked report) before the fix: the created-file set lacked
+`docs/decisions/DR-0001-adopt-surfaceplate.md` while the profile cited the id and the sidecar
+recorded it as scaffolded, "created: docs/decisions/DR-0001-adopt-surfaceplate.md".
+
+The draft drops `scaffold` from the stages done, so a resumed run offers the scaffold again; every
+gate and control seed is re-offered because the offer is keyed on the seed path being named and the
+file being absent. The decision record's offer was keyed on the id being **unanswered**, and the
+cancelled attempt had answered it as scaffolded. High: a profile and a machine-owned provenance
+record both asserting a file exists that does not, produced by the ordinary act of quitting at the
+review and coming back - and the checker does not read the record, so nothing would have said so.
+
+**Closed by `ACT-057`, 2026-09-02.** The offer stands while the id's recorded origin is
+`scaffolded` and the file is absent (`Flow.scaffold_offers`), as a gate's seed does. Regression:
+`tests/test_adopt.py::test_resuming_after_the_scaffold_stage_still_creates_the_decision_record`,
+seen to fail first; the matrix asserts the exact created-file set on every resume.
+
+## F97 — At `essential` the above-floor list offered `documentation_authority`, and a profile declaring it fails `SP052` on its first check
+
+**Severity: medium. Closed.**
+
+Recorded under `ACT-057` on 2026-09-02 in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z), from the matrix's above-floor cases at
+`essential` (four cases before the fix; after it the control has no case to tick, and `T4-115` and
+`T4-123` tick every control that remains): ticking `documentation_authority` at `essential`, alone
+or with every other control, wrote a profile the checker met with `WARN` and `SP052`
+"documentation_authority is required without the gate that verifies it".
+
+The checker's rule is deliberate and documented (`core/CONFORMANCE_LEVELS.md`): the control is
+verified through the `authority_map` gate, and `SP052` closes the seam a level being a floor would
+otherwise open. The wizard reads the same catalogue and offered the combination anyway, on the one
+level whose gate list does not declare the gate. Medium: the finding is graced and named, so the
+adopter is told at once; but the wizard had written a profile it could have known the checker
+faults, which is the class `DR-48` exists to remove.
+
+**Closed by `ACT-057` (`DR-59`), 2026-09-02.** A control verified through a gate the level does
+not declare is withheld from the above-floor list (`plan.WITHHELD_ABOVE_FLOOR`) and the field's
+help names the gate and the code. Regression:
+`tests/test_adopt.py::test_a_control_verified_through_an_undeclared_gate_is_not_offered_above_the_floor`,
+seen to fail first; matrix tier T4 green at every level.
 
 ## F96 — With the gates beyond the floor folded, Ctrl+S refused by naming a folded gate: an optional gate read as required
 

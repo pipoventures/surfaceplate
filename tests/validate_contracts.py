@@ -885,4 +885,18 @@ assert "locally_excluded.txt" not in seen, (
 )
 CHECKS += 3
 
+# ACT-057 / DR-58: this repository's own assurance-evidence records, under governance/assurance/,
+# validate against the schema that defines them. The outcome each carries is the maintainer's; this
+# asserts only that the record is one the schema accepts, so a malformed record cannot stand as
+# evidence.
+ASSURANCE_DIR = ROOT / "governance" / "assurance"
+records = sorted(ASSURANCE_DIR.glob("*.yaml"))
+assert records, f"{ASSURANCE_DIR} holds no assurance-evidence record; DR-58 requires AE-0001"
+for record_path in records:
+    with record_path.open("r", encoding="utf-8") as handle:
+        record = yaml.safe_load(handle)
+    assert_valid("assurance-evidence.schema.yaml", record)
+    assert record.get("reviewer_identity") not in ("", None, "replace-me"), f"{record_path.name}: no reviewer identity"
+CHECKS += len(records)
+
 print(f"CONTRACT_CONFORMANCE=PASS  ({CHECKS} checks)")
