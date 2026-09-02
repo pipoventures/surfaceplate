@@ -157,7 +157,7 @@ an unknown number of releases with nothing noticing.
 | F89 | The opening screen is text only; the maintainer asked for a mark | low | Closed — `ACT-051` (`DR-53`); see the body |
 | F90 | A render test read the screen before the deferred scroll had run, and turned `main` red on the runner while passing locally | low | Closed — `ACT-051`; see the body |
 | F91 | The conformance level barely changes the screens that follow: every gate is listed at standard and full alike, and the above-floor controls read the same, so the level tells the reader nothing | medium | Closed — `ACT-055` (`DR-56`); see the body |
-| F92 | `SP034` prints an instant as a bare date, so "moved forward" reads as the same date twice; whether a later instant on the same day is a forward move at all is undecided | low | Open — recorded at `ACT-054`; message fixed there, the rule needs a decision |
+| F92 | `SP034` prints an instant as a bare date, so "moved forward" reads as the same date twice; whether a later instant on the same day is a forward move at all is undecided | low | Closed — message fixed at `ACT-054`; the rule kept as it is by `DR-60`, 2026-09-02 |
 | F93 | A record-directory control's reference is proposed from any directory holding YAML: four controls were proposed `config/accounts` and the checker rejected every record in it | high | Closed — `ACT-054`; see the body |
 | F94 | An archived document is proposed as a gate's artefact on a keyword match: two gates were proposed files under `docs/archive/` | medium | Closed — `ACT-054`; see the body |
 | F95 | A focus-driven scroll is animated, and the scrollbar keeps a fractional thumb position from the animation's last frame, so a golden of a scrolled screen differed one run in four | low | Closed — `ACT-055`; see the body |
@@ -1452,7 +1452,7 @@ shown beside an asked value is a change to the interview: a decision record.
 
 ## F92 — `SP034` prints an instant as a bare date, so "moved forward" reads as the same date twice; whether a later instant on the same day is a forward move at all is undecided
 
-**Severity: low. Open.**
+**Severity: low. Closed.**
 
 Recorded under `ACT-054` from the maintainer's third run of `adopt`, at `full` on a fresh scratch copy of Plutos on 2026-09-02, reported in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z). The message is fixed by `ACT-054`; the rule's question is the maintainer's.
 
@@ -1469,6 +1469,10 @@ declaration cannot avoid this without the wizard reading the profile's history.
 **Remedy:** the message prints each value as declared. The rule stays as it is until decided.
 
 **Message fixed by `ACT-054`, 2026-09-02; the rule's question stays open.** `SP034` prints each value as declared, so a later instant on the same day reads as what it is. `tests/test_install_and_check.py`, the `moved` fixture extended with a same-day instant, seen to fail on the old message. Whether a same-day instant should count as a forward move, and whether the wizard should read the profile's history when it scaffolds, is for the maintainer.
+
+**Closed by `DR-60`, 2026-09-02.** The maintainer kept the rule as it is: a later instant on the
+same day is a forward move and stays blocked; the two alternatives and their costs are in the
+record. Decided in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z).
 
 ## F93 — A record-directory control's reference is proposed from any directory holding YAML: four controls were proposed `config/accounts` and the checker rejected every record in it
 
