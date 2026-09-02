@@ -1100,6 +1100,11 @@ screen's own cancel (`F73`); the profile is written atomically and a draft with 
 fresh run rather than a crash (`F77`). `DR-52` records that release-plan item 5 is met with one
 adopter, Plutos, and that Plyego is deliberately left alone.
 
+`ACT-051` gave the opening screen its mark: a surface plate in isometric with the `SP` monogram
+on its top face, generated from its geometry, chosen by the maintainer on rendered previews
+(`F89`, `DR-53`); and fixed a render test that read the screen before a deferred scroll had run
+and turned `main` red on the runner (`F90`).
+
 Recorded and not yet addressed: a hand edit to the profile after the write leaves the provenance
 record asserting the old origin (`F86`).
 

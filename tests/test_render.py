@@ -103,22 +103,64 @@ def a_welcome(draft=None) -> Welcome:
     )
 
 
+def test_the_slab_is_drawn_from_its_geometry() -> None:
+    """`F89` / `DR-53`. The mark is generated, not drawn: the right face is exactly `thickness`
+    rows deep, its bottom slant runs the full length parallel to the top edge, the letters sit
+    inside the top face, and only the slab's four edge characters and the full block are used."""
+    from surfaceplate.adopt.tui import mark
+
+    rows = mark.slab()
+    check("the slab is two plus five plus two rows", len(rows) == mark.height() == 9, str(len(rows)))
+    back = max(len(r) for r in rows) - 1
+    verticals = [i for i, r in enumerate(rows) if len(r) > back and r[back] == "▏"]
+    check("the back-right edge is vertical for the top corner and exactly `thickness` rows below it",
+          verticals == [0, 1, 2], str(verticals))
+    slants = [r.rfind("╱") for r in rows[3:]]
+    check("the bottom slant of the right face steps one cell left per row, to the front corner",
+          slants == list(range(back - 1, back - 1 - len(slants), -1)), str(slants))
+    check("the front face is `thickness` rows with its bottom edge drawn",
+          rows[-2].strip().startswith("▏") and rows[-2].strip().endswith("╱") and "▁" in rows[-1] and "▁" not in rows[-2], rows[-2] + " / " + rows[-1])
+    used = {c for r in rows for c in r if c != " "}
+    check("only edge characters and the full block are used", used <= set(mark.EDGE) | {"█"}, str(used))
+    for r in rows[1:6]:
+        left = r.index("╱"); right = r.rindex("╱", 0, r.index("╱", left + 1) + 1)
+        check("the letters sit inside the top face", r.find("█") > left and r.rfind("█") < right, r)
+
+
 def test_the_opening_screen_names_the_tool_the_install_and_what_will_be_written() -> None:
     """`F81` / `DR-51` (2), at 80x24: everything a stranger needs before the first question, on
-    one screen, with the keys."""
-    async def _run() -> list[str]:
+    one screen, with the keys - and, since `F89`, the mark: the slab in the muted ink with the
+    monogram in the accent, the tool line beside it."""
+    from surfaceplate.adopt.tui import mark
+
+    async def _run():
         app = Host(WelcomeScreen(a_welcome()))
         async with app.run_test(size=(80, 24)) as pilot:
             await pilot.pause()
-            return rendered(app)
+            strips = app.screen._compositor.render_strips()
+            return [s.text for s in strips], strips
 
-    lines = asyncio.run(_run())
+    lines, strips = asyncio.run(_run())
     text = screen_text(lines)
     for needle in ("Surfaceplate 0.16.0", "Apache-2.0", "Pipo Ventures Ltd", "01cb1b5892…", "2026-09-02",
                    "/home/someone/github/plutos", "application-profile.yaml", "provenance record",
                    "Nothing is written", "[Enter] begin", "[Ctrl+Q] quit"):
         check(f"the opening screen shows {needle!r}", needle in text, text[:400])
     check("it fits: nothing is pushed off 24 rows", "[Enter] begin" in screen_text(lines[-4:]), screen_text(lines[-4:]))
+    for row in mark.slab():
+        check(f"the slab row {row.strip()[:12]!r}… is on screen", row.strip() in text, text[:600])
+    letter_rows = [s for s in strips if "█████" in s.text]
+    check("the monogram is on screen", len(letter_rows) >= 3, str(len(letter_rows)))
+    amber = all(any(seg.text.strip("█") == "" and seg.text and seg.style is not None and seg.style.color is not None
+                    and seg.style.color.triplet is not None and seg.style.color.triplet.red > 180 and seg.style.color.triplet.blue < 100
+                    for seg in s) for s in letter_rows)
+    check("the letters are in the accent colour", amber, str([str(seg.style) for seg in letter_rows[0] if "█" in seg.text][:2]))
+    edge_row = next(s for s in strips if "▔▔▔" in s.text)
+    muted = any("▔" in seg.text and seg.style is not None and seg.style.color is not None and seg.style.color.triplet is not None
+                and abs(seg.style.color.triplet.red - 0x7a) < 8 for seg in edge_row)
+    check("the slab's edges are in the muted ink", muted, str([str(seg.style) for seg in edge_row if "▔" in seg.text][:1]))
+    tool_row = next((s.text for s in strips if "Surfaceplate 0.16.0" in s.text), "")
+    check("the tool line sits beside the slab, on a slab row", "╱" in tool_row and "▏" in tool_row, tool_row)
 
     draft = DraftInfo(sections=("decisions", "level"), framework_version="0.16.0", framework_digest="x", matches=True)
 
@@ -226,7 +268,15 @@ def test_every_classification_option_is_on_screen_and_a_text_area_shows_three_li
         async with app.run_test(size=(80, 24)) as pilot:
             await pilot.pause()
             app.screen.query_one("#f-risk--data_classification", RadioSet).focus()
-            await pilot.pause(); await pilot.pause()
+            # `F90`: the field is scrolled to the top after the next refresh, and two pauses were
+            # not always enough for that refresh on a loaded runner (main went red on it). Wait,
+            # bounded, until the layout has settled rather than assume a number of frames.
+            first = ""
+            for _ in range(20):
+                await pilot.pause()
+                first = screen_text(rendered(app))
+                if "( ) restricted" in first:
+                    break
             first = screen_text(rendered(app))
             area = app.screen.query_one("#f-wrap--release_route", TextArea)
             area.text = "line one\nline two\nline three\nline four"
@@ -937,6 +987,7 @@ def test_an_empty_field_still_shows_where_to_type() -> None:
 def main() -> int:
     print("legends render the keys they name (F37 #1, #2)")
     test_every_legend_renders_the_keys_it_names()
+    test_the_slab_is_drawn_from_its_geometry()
     test_the_opening_screen_names_the_tool_the_install_and_what_will_be_written()
     test_the_review_hint_names_the_way_forward_while_an_error_stands()
     test_the_level_options_are_all_on_screen_at_80x24()

@@ -154,7 +154,8 @@ an unknown number of releases with nothing noticing.
 | F86 | A hand edit to the profile after the write leaves the provenance record asserting the old origin; nothing records a post-write edit | low | Open — needs a decision; not in `DR-51` |
 | F87 | A seedable artefact is created only when the field is left blank, and nothing says so: the dropdown forces a choice among existing files | medium | Open — recorded at `ACT-050`; needs a decision |
 | F88 | A control's implementation reference offers only files whose names carry fixed words, from fixed directories; a repository with the file elsewhere gets a text box, and one without it has no path to create one | medium | Open — recorded at `ACT-050`; needs a decision |
-| F89 | The opening screen is text only; the maintainer asked for a mark | low | Open — recorded at `ACT-050`; needs a decision |
+| F89 | The opening screen is text only; the maintainer asked for a mark | low | Closed — `ACT-051` (`DR-53`); see the body |
+| F90 | A render test read the screen before the deferred scroll had run, and turned `main` red on the runner while passing locally | low | Closed — `ACT-051`; see the body |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1412,9 +1413,29 @@ chosen to be held to.
 widen the artefact directories or drop the restriction in favour of ranking; a seed for the
 findings register (`assurance_findings`) and the same "create it" choice as `F87`.
 
+## F90 — A render test read the screen before the deferred scroll had run, and turned `main` red on the runner while passing locally
+
+**Severity: low. Closed.**
+
+Recorded under `ACT-051` on 2026-09-02, in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z), from the self-check run of
+`main` at `a6ebca6` (PR #51's merge) and PR #52's first run, both `RENDER=FAIL (4 failed)` on
+`test_every_classification_option_is_on_screen_and_a_text_area_shows_three_lines`, while PR #51's
+own run and three local runs passed.
+
+`ACT-049` made a focused field scroll to the top of its container after the next refresh
+(`screens.reveal`, deferred because the help slot's relayout undoes a scroll made at once). The
+test paused twice after focusing and read the screen; on a loaded runner the refresh had not
+happened, so the four classification rows were still below the fold. A test that assumes a number
+of frames is a test of the runner's speed. Low: a false red, no defect in the product.
+
+**Closed by `ACT-051`, 2026-09-02.** The test waits, bounded to twenty pauses, until the last
+option is on screen, and reads the screen then. Making the scroll immediate instead was tried and
+rejected: the relayout that follows undid it and the options vanished. PR #52's failed job passed
+on re-run before the fix; the fix is what makes the next run not depend on that.
+
 ## F89 — The opening screen is text only; the maintainer asked for a mark
 
-**Severity: low. Open.**
+**Severity: low. Closed.**
 
 Recorded under `ACT-050` from the maintainer's second run of `adopt`, against a scratch copy of Plutos on 2026-09-02, reported in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z). Closes by an activity the maintainer authorises; each changes what is asked, so a decision record precedes it (`DR-47`).
 
@@ -1426,6 +1447,8 @@ of mark is the maintainer's.
 
 **Remedy hypothesis:** a four-row mark in box-drawing characters above the tool line, chosen by
 the maintainer from alternatives, held by the opening screen's snapshot.
+
+**Closed by `ACT-051` (`DR-53`), 2026-09-02.** The slab, generated from its geometry in `tui/mark.py` with the monogram on its top face, the tool line and tagline beside it; the screen's frame without vertical padding so it fits 24 rows with the draft note. Chosen by the maintainer from four alternatives and corrected twice on rendered previews (the right face was one row too deep and the slant too short by hand; the generator cannot get that wrong). `tests/test_render.py::test_the_slab_is_drawn_from_its_geometry` and the extended opening-screen test, seen to fail first on every slab row; the golden regenerated for cause.
 
 ## F86 — A hand edit to the profile after the write leaves the provenance record asserting the old origin; nothing records a post-write edit
 
