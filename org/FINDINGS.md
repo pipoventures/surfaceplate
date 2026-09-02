@@ -132,7 +132,7 @@ an unknown number of releases with nothing noticing.
 | F64 | `validators.check` passes any non-string, so an unpressed radio set and a blank dropdown commit; one path ends in a black screen, the other in an unactionable `KeyError` | high | Closed — `ACT-043`; `None` is blank in `validators.check`, a choice must be one of its choices at commit, and both paths are refused at the field in `tests/test_adopt_tui.py` |
 | F65 | A placeholder is accepted at the field and refused at the review, where nothing but cancel works, and a resumed draft lands on the same refusal | medium | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
 | F66 | The wizard accepts dates and paths the checker rejects, so a profile can pass the wizard and fail its first check | medium | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
-| F67 | The 80×24 pass looked at the wrong screens: the level options below the fold, help text unstyled and flush, off-state controls near-invisible, labels and text areas clipped | medium | Open — `ACT-043`, `ACT-044` (`org/REMEDIATION_PLAN.md`) |
+| F67 | The 80×24 pass looked at the wrong screens: the level options below the fold, help text unstyled and flush, off-state controls near-invisible, labels and text areas clipped | medium | Open — the help-text part closed by `ACT-043`; the level fold, off-state contrast and clipping remain for `ACT-044` (`org/REMEDIATION_PLAN.md`) |
 | F68 | Quitting at the resume prompt deletes the draft, and the prompt's heading is swallowed as markup | medium | Closed — `ACT-043`; a quit cancels the run with the draft kept, and the four bracketed headings are `markup=False`, both asserted in `tests/test_adopt.py` and `tests/test_render.py` |
 | F69 | The route screen says the rest is four gates while the next screen says all nineteen | low | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
 | F70 | The front door: two incompatible install paths, a stale version line, two dead links, a pointer to an uninstalled file, and a global hooks path that stops the first command undocumented | medium | Open — `ACT-045` (`org/REMEDIATION_PLAN.md`) |
@@ -1307,6 +1307,17 @@ checks)`). Image at 80×24: before, the prompt opens on "It has answers for"; af
 Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, the adversarial product review of 2026-09-02, authorised by the maintainer in the review session (https://claude.ai/code/session_01X1MZfNScrJjgD5e2AGBjvs). Closes by `ACT-043`, `ACT-044`; see `org/REMEDIATION_PLAN.md`.
 
 At 80×24 (the size `F41`, `F46` and `F56` appeared at, and `run_test`'s own default, which no suite uses): the level screen's recap and recommendation fill the frame and the three options sit below the fold, so the recommended option is not on screen and `?` appears to do nothing (`std-def-11`, `-12`); `.field-help` has no stylesheet rule, so help renders full-white, brighter than its label, flush against the next field, and a rationale's help runs off the frame (`std-def-03`, `-21`, same at 120×40); unticked boxes and unselected radios are dark brackets on a black ground, and an unpressed first radio is highlighted as if chosen (`std-def-01`, `-07`); mode and `above_floor` options end in "…", data classification shows two of four options, text areas show one line of a value, and the review shows nine lines of a 130-line profile per page. The maintainer's complaints 2 and 3 are these.
+
+**Help-text part closed by `ACT-043`, item 0.8 (2026-09-02); the rest stays open for `ACT-044`.**
+`app.tcss` gains `.field-help { color: #7a827e; margin: 0 0 1 2; }`.
+`tests/test_render.py::test_help_text_is_muted_and_kept_off_the_next_field` hosts the identity
+screen at 80×24 and 120×40 and reads the colour of every segment on the help rows: seen to fail
+before (`RENDER=FAIL (4 failed, 27 passed)`: the help in `#dce0dd`, the screen's full ink, and
+`display_name` on the very next row) and to pass after (`RENDER=PASS (31 checks)`). Images at both
+sizes: before, the help full-white from the frame's edge with the next label touching it; after,
+muted, indented under its field, one clear row before the next. The level options below the fold,
+the off-state contrast of unticked boxes and unpressed radios (visible again in `F59`'s after
+image, where the focused but unpressed first option is highlighted), and the clipping remain.
 
 ## F66 — The wizard accepts dates and paths the checker rejects, so a profile can pass the wizard and fail its first check
 

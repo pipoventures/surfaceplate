@@ -329,6 +329,73 @@ def test_a_bracketed_heading_is_rendered_not_parsed() -> None:
     asyncio.run(_run())
 
 
+MUTED = "#7a827e"
+
+
+def _rows_with_styles(app: App) -> list[list[tuple[str, str]]]:
+    """Each terminal row as `(text, colour hex)` per segment - the colour a viewer would see."""
+    rows = []
+    for strip in app.screen._compositor.render_strips():
+        row = []
+        for segment in strip:
+            colour = ""
+            if segment.style is not None and segment.style.color is not None:
+                colour = segment.style.color.get_truecolor().hex.lower()
+            row.append((segment.text, colour))
+        rows.append(row)
+    return rows
+
+
+def test_help_text_is_muted_and_kept_off_the_next_field() -> None:
+    """`F67`, the help-text part (the maintainer's complaint 2). `.field-help` had no rule in
+    `app.tcss`, so the help line under `application_id` rendered full-white - brighter than the
+    label it explains - flush against the frame, with `display_name` starting on the very next
+    row. Identical at 120×40, so it was styling, not width. This reads the colour of every
+    segment on the help rows and the row that follows them."""
+
+    async def _run() -> None:
+        section = plan.identity_plan()
+        first, second = section.fields[0], section.fields[1]
+        for size in ((80, 24), (120, 40)):
+            app = Host(FormScreen(section))
+            async with app.run_test(size=size) as pilot:
+                await pilot.pause()
+                await pilot.pause()
+                rows = _rows_with_styles(app)
+            texts = ["".join(text for text, _ in row) for row in rows]
+            opening = " ".join(first.help.split()[:3])
+            help_rows = [i for i, text in enumerate(texts) if opening in text]
+            next_label = next((i for i, text in enumerate(texts) if second.label in text), None)
+            check(
+                f"{size[0]}x{size[1]}: the focused field's help is on screen",
+                bool(help_rows) and next_label is not None,
+                f"help rows {help_rows}, next label row {next_label}",
+            )
+            if not help_rows or next_label is None:
+                continue
+            start = help_rows[0]
+            loud = [
+                (text, colour)
+                for row in rows[start:next_label]
+                for text, colour in row
+                if text.strip() and text.strip() not in "│" and colour != MUTED
+                and any(word in text for word in first.help.split())
+            ]
+            check(
+                f"{size[0]}x{size[1]}: every word of the help renders in the muted colour {MUTED}",
+                not loud,
+                f"louder segments: {loud[:3]}",
+            )
+            gap = texts[next_label - 1].strip("│ ")
+            check(
+                f"{size[0]}x{size[1]}: one blank row separates the help from the next field",
+                next_label - 1 > start and gap == "",
+                f"row before {second.label!r}: {texts[next_label - 1].strip()!r}",
+            )
+
+    asyncio.run(_run())
+
+
 # ---------------------------------------------------------------------------------------------
 # The level screen's own structure
 # ---------------------------------------------------------------------------------------------
@@ -652,6 +719,9 @@ def main() -> int:
 
     print("\nF68: a bracketed heading is rendered, not parsed")
     test_a_bracketed_heading_is_rendered_not_parsed()
+
+    print("\nF67: help text is muted and kept off the next field")
+    test_help_text_is_muted_and_kept_off_the_next_field()
 
     print("\nthe level screen reads as a choice")
     test_level_screen_numbers_its_options_and_marks_the_highlight()

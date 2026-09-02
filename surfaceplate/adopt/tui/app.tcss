@@ -131,6 +131,14 @@ Checkbox:focus {
     background: #171c1f;
 }
 
+/* `F67`: the help line beside the focused field had no rule at all, so it rendered in the
+   screen's full ink - louder than the label it explains - flush against the frame, and touching
+   the next field. Muted, indented under its field, and one row clear of whatever follows. */
+.field-help {
+    color: #7a827e;
+    margin: 0 0 1 2;
+}
+
 /* --- level screen (mockup frame 02): highlight is not selection --- */
 OptionList {
     background: #0e1316;
