@@ -1150,6 +1150,31 @@ def main() -> int:
             result.stdout[-400:],
         )
 
+        # `F102` (the second review's CRIT-02, decided under `H13`): a seed `adopt` creates is
+        # complete and true on the day it is written and satisfies SP032, by `DR-43`'s design; the
+        # checker ships the seeds, so it can say when an artefact is still exactly one of them.
+        # An advisory, not a finding: it disappears the day the register is first used.
+        seed_text = (PAYLOAD / "seeds" / "activity-register.md").read_text(encoding="utf-8")
+        (gates / "docs" / "DEVELOPMENT_REGISTER.md").write_text(seed_text, encoding="utf-8")
+        result = gate_check(essential_src)
+        check(
+            "an artefact byte-identical to a shipped seed still passes",
+            result.returncode == 0 and "SP032" not in result.stdout,
+            result.stdout[-300:],
+        )
+        check(
+            "and is named as seeded, holding no entries yet",
+            "seeded" in result.stdout and "docs/DEVELOPMENT_REGISTER.md" in result.stdout,
+            result.stdout[-500:],
+        )
+        (gates / "docs" / "DEVELOPMENT_REGISTER.md").write_text(seed_text + "\n| ACT-1 | the first entry |\n", encoding="utf-8")
+        result = gate_check(essential_src)
+        check(
+            "the advisory is gone once the register holds an entry",
+            result.returncode == 0 and "seeded" not in result.stdout,
+            result.stdout[-300:],
+        )
+
         (gates / "docs" / "DEVELOPMENT_REGISTER.md").write_text(
             "# Register\n\nReal content.\n", encoding="utf-8"
         )

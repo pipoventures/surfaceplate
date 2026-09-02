@@ -1065,9 +1065,23 @@ scheduled sweep, so previously there was no way to scan history at all.
 
 ## Unreleased
 
+<<<<<<< HEAD
 ### The name reserved on PyPI (`ACT-058`, `DR-61`)
 
 A manual-dispatch workflow publishes the current version by trusted publishing, so no token is stored; the package is classified alpha and every instruction keeps naming the git form until 1.0. Dispatching it is the maintainer's (`H8`).
+=======
+### The second cross-provider review, and what it changed (`ACT-059`, `DR-63`)
+
+The maintainer ran the second cross-provider adversarial review (`audit/CROSS_PROVIDER_REVIEW_2026-09-02_PASS2.md`,
+verbatim) and decided each of its eleven points (`F101` to `F111`). A run that fails at the write now
+removes the seeds it created and says so; a half-completed profile is refused rather than overwritten;
+the answers record's proposals are accepted as one act before `--answers` writes; the tool no longer
+writes a note about the adopter's scanner; an artefact still byte-identical to a shipped seed is named
+as seeded on every run, the seeds travelling with the checker; `effective_from`'s fraction follows
+seconds and `complete` explains itself (`DR-63`); this repository's own profile lost a contradiction
+and two duplicate deferrals and gained the checked/declared labels. The reviewer's view of the
+narrative docstrings was recorded and the practice kept.
+>>>>>>> main
 
 ### Every reachable decision of `adopt`, run and recorded (`ACT-057`, `DR-58`, `DR-59`)
 
