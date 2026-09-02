@@ -351,16 +351,13 @@ def reveal(field, slot) -> None:
     Focus scrolls the field into view and nothing else; the help under it fell below the fold at
     80x24. Scrolling the help into view instead pushed the field's first rows off the top, which
     `F59`'s regression test refuses, and deciding between the two from widget regions proved
-    unreliable at the moment the slot has just been shown. So the field goes to the top of its
-    scroll container, and the help takes the rows beneath: the thing being answered and what it
-    means, always together, whatever else has to scroll.
+    unreliable at the moment the slot has just been shown. So the field goes to the top of
+    whatever scrolls, and the help takes the rows beneath. `F90`: this asked one chosen ancestor
+    to scroll; on the CI runner that was not the one holding the overflow, so nothing moved.
+    `scroll_visible` walks every scrolling ancestor.
     """
-    container = field.parent
-    while container is not None and not isinstance(container, VerticalScroll):
-        container = container.parent
-    if container is None:
-        return
-    container.scroll_to_widget(field, top=True, animate=False)
+    del slot  # the field alone decides the position; the slot follows it in layout
+    field.scroll_visible(top=True, animate=False, force=True)
 
 
 def hint_line(*, keys: str, help_text: str = "", error: str = "") -> str:
