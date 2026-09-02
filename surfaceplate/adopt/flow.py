@@ -392,16 +392,17 @@ class Flow:
     def review(self) -> Review:
         """The rendered profile, every line annotated, and the first thing stopping a write."""
         problem = self._first_problem()
-        state_for_render = self.state
+        state_for_render = {n: dict(v) for n, v in self.state.items()}
         placeholders: dict[str, Origin] = {}
-        if problem is not None:
-            # Render with the blank in place, so the error has a line to go to.
-            key, _ = problem
-            section, _, field_id = key.partition(".")
-            state_for_render = {n: dict(v) for n, v in self.state.items()}
-            state_for_render.setdefault(section, {}).setdefault(field_id, "")
-            if key not in self.origins:
-                placeholders[key] = Origin(provenance.TYPED, "not yet answered")
+        # Render with every blank in place, so the builders never meet a missing answer and the
+        # error has a line to go to. The first problem is the one named.
+        for name in plan.SECTION_ORDER:
+            answered = state_for_render.get(name) or {}
+            section = plan.section_plan(name, repo=self.repo, state=self.state, found=self.found)
+            for spec in section.fields:
+                if spec.applies(answered) and spec.id not in answered:
+                    state_for_render.setdefault(name, {})[spec.id] = ""
+                    placeholders[f"{name}.{spec.id}"] = Origin(provenance.TYPED, "not yet answered")
         profile = sections.build_profile(
             state_for_render,
             framework_version=self.record.get("standard_version", ""),

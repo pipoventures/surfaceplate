@@ -165,6 +165,15 @@ class ScriptedInterview:
                 if not gate_field.applies(local):
                     continue
                 self.asked.append(key)
+                if (
+                    gate_field.id == "artefact"
+                    and spec.id in scaffold.SEEDABLE
+                    and self.answers.get(key, seeds.get(short)) == scaffold.SEEDABLE[spec.id][0]
+                    and not (flow.repo / scaffold.SEEDABLE[spec.id][0]).exists()
+                ):
+                    # The seed path named before the file exists: as on the screen, left blank so
+                    # the scaffold offer supplies it (or the review refuses if declined).
+                    continue
                 if key in self.answers:
                     local[gate_field.id] = self.answers[key]
                 elif short in seeds:

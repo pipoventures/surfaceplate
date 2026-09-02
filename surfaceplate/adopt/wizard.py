@@ -18,11 +18,18 @@ import json
 from pathlib import Path
 
 from surfaceplate.adopt import flow as _flow
-from surfaceplate.adopt import provenance, render, scaffold
+from surfaceplate.adopt import provenance, render, scaffold, sections
 from surfaceplate.adopt.interview import DRAFT_FORMAT, Cancelled, DraftInfo, Interview
 
 PROFILE_PATH = "governance/application-profile.yaml"
 INSTALL_RECORD = ".standards/INSTALL.json"
+
+# `DR-49` (3): adoption without a terminal. `--propose` writes these two and never the profile;
+# `--answers` replays the second once a human has completed every `needs-human` line.
+PROPOSED_PATH = "governance/application-profile.proposed.yaml"
+ANSWERS_PATH = "governance/application-profile.answers.yaml"
+NEEDS_HUMAN = "needs-human"
+ANSWERS_FORMAT = 1
 
 # DR-35: basic resumability. A name distinct from anything the standard itself ships (never
 # `.standards/...`, never `governance/...`) so it can never be mistaken for payload, and a leading
@@ -90,6 +97,30 @@ class NotInstalled(Exception):
 
 class AlreadyAdopted(Exception):
     """A real (non-template) profile already exists - `adopt` will not overwrite it silently."""
+
+
+class NeedsHuman(Exception):
+    """An answers record still carries `needs-human` lines - nothing is written until a human
+    has completed them. Carries the keys, so the message says which."""
+
+    def __init__(self, keys: list[str]) -> None:
+        shown = ", ".join(keys[:6]) + (f" (and {len(keys) - 6} more)" if len(keys) > 6 else "")
+        super().__init__(
+            f"{len(keys)} line(s) in the answers record still say {NEEDS_HUMAN!r}: {shown}. "
+            "Complete them - they are the decisions only a human can make - and run --answers again."
+        )
+        self.keys = keys
+
+
+class Proposed:
+    """What `propose` wrote: the answers record, and the preview profile where a level was given."""
+
+    def __init__(self, answers: Path, proposed: Path | None) -> None:
+        self.answers = answers
+        self.proposed = proposed
+
+    def __str__(self) -> str:
+        return f"{self.answers}" + (f" and {self.proposed}" if self.proposed else "")
 
 
 class WriteRefused(Exception):
@@ -359,3 +390,221 @@ def run(repo: Path, interview: Interview) -> Path:
     (repo / provenance.PROVENANCE_PATH).write_text(sidecar, encoding="utf-8", newline="\n")
     _clear_draft(repo)  # a completed run leaves no draft behind - it exists only to protect one
     return Written(profile=target, created=created, problems=scaffold_problems)
+
+
+# ---------------------------------------------------------------------------------------------
+# Without a terminal: propose, then replay
+# ---------------------------------------------------------------------------------------------
+
+# The yes/no decisions the form asks as radios; a record answers them with the same two words.
+_YES_NO = {"stack.builds_user_interface", "risk.relied_on_outside_team", "risk.material_quantitative_output"}
+
+
+def _proposal_entry(proposal) -> dict:
+    """A proposal as the answers record carries it. A value copied from an answer the human has
+    not given yet (`= owner`, `= data_classification`) is written as `null`: it is filled from
+    the human's answer when the record is replayed, and must not carry a placeholder into the
+    profile."""
+    if proposal.detail.startswith("= "):
+        return {"value": None, "origin": proposal.origin, "detail": f"{proposal.detail} (filled from your answer at replay)"}
+    return {"value": proposal.value, "origin": proposal.origin, "detail": proposal.detail}
+
+
+def propose(repo: Path, *, level: str | None = None) -> Proposed:
+    """Run discovery and write the answers record - every proposal with its origin, every decision
+    only a human can make as a `needs-human` line - and, where `level` is given, a preview of the
+    profile the proposals would produce. Never the profile (`DR-49` (3)).
+
+    Without a level the record stops at the level, because nothing after it can be proposed
+    until the level is known; the human sets the level and runs `--propose --level` again, or
+    completes the record by hand. With a level, the interface gates are proposed as though the
+    repository builds no user interface, and the record says so beside that line.
+    """
+    import yaml
+
+    from surfaceplate.adopt import detect
+    from surfaceplate.adopt import flow as _flow
+    from surfaceplate.adopt import provenance, scaffold
+
+    record = _read_install_record(repo)
+    flow = _flow.Flow(repo, record)
+    answers: dict[str, object] = {}
+    notes: dict[str, str] = {}
+
+    decisions = flow.decisions_plan()
+    placeholder: dict[str, object] = {}
+    for spec in decisions.fields:
+        proposal = flow.proposals.get(spec.id)
+        if proposal is not None:
+            answers[spec.id] = _proposal_entry(proposal)
+            placeholder[spec.id] = proposal.value
+        else:
+            answers[spec.id] = NEEDS_HUMAN
+            if spec.id in _YES_NO:
+                placeholder[spec.id] = "no"
+                notes[spec.id] = "yes | no"
+            elif spec.kind == "choice":
+                placeholder[spec.id] = spec.choices[0][0]
+                notes[spec.id] = " | ".join(value for value, _ in spec.choices)
+            else:
+                placeholder[spec.id] = NEEDS_HUMAN
+    flow.answer_decisions(placeholder)
+    # The two prose fields the form leaves blank are proposed as "Not stated"; recorded as such.
+    for key in ("risk.risk_profile", "risk.materiality_definition"):
+        proposal = flow.proposals.get(key)
+        if proposal is not None and answers.get(key) in (None, NEEDS_HUMAN):
+            answers[key] = _proposal_entry(proposal)
+
+    header = [
+        "# Written by `surfaceplate adopt --propose`. Nothing else was written.",
+        "#",
+        "# Every line that says needs-human is a decision only a human can make. Complete them all,",
+        "# then run:  surfaceplate adopt --answers <this file>",
+        "# A proposed value is shown with where it came from; change it if it is wrong. The origin",
+        "# of every value is recorded beside the profile when it is written.",
+    ]
+    proposed_path: Path | None = None
+    if level is None:
+        answers["level.conformance_level"] = NEEDS_HUMAN
+        notes["level.conformance_level"] = "essential | standard | full - then run --propose --level <level> for the rest"
+        header.append("# No level was given, so the record stops at the level: set it and run --propose --level.")
+    else:
+        flow.answer_level({"conformance_level": level})
+        answers["level.conformance_level"] = level
+        header.append(
+            f"# Proposed at level {level}, and as though this repository builds no user interface;"
+        )
+        header.append("# answer stack.builds_user_interface and run --propose --level again to see the interface gates.")
+        seeds = flow.gate_seeds()
+        gate_placeholder: dict = {}
+        for spec in flow.gate_specs():
+            if not spec.mandatory and not spec.auto_status:
+                answers[f"gates.{spec.id}.status"] = NEEDS_HUMAN
+                notes[f"gates.{spec.id}.status"] = "required | deferred | not_applicable"
+            for field in spec.fields:
+                key = f"{spec.id}.{field.id}"
+                proposal = flow.proposals.get(f"gates.{key}")
+                if proposal is not None:
+                    answers[f"gates.{key}"] = _proposal_entry(proposal)
+                    gate_placeholder[key] = proposal.value
+                elif field.id == "artefact" and (spec.mandatory or spec.auto_status == ""):
+                    if spec.id in scaffold.SEEDABLE and not (repo / scaffold.SEEDABLE[spec.id][0]).exists():
+                        answers[f"gates.{key}"] = {"value": scaffold.SEEDABLE[spec.id][0], "origin": provenance.SCAFFOLDED,
+                                                 "detail": "created when the profile is written, if create_missing_artefacts is yes"}
+                        gate_placeholder[key] = scaffold.SEEDABLE[spec.id][0]
+                    else:
+                        answers[f"gates.{key}"] = NEEDS_HUMAN
+                        notes[f"gates.{key}"] = "a file git tracks in this repository"
+                        gate_placeholder[key] = NEEDS_HUMAN
+                elif field.id == "paths" and (spec.mandatory or spec.auto_status == ""):
+                    answers[f"gates.{key}"] = NEEDS_HUMAN
+                    notes[f"gates.{key}"] = "a git pathspec, e.g. src/**"
+                    gate_placeholder[key] = NEEDS_HUMAN
+        # Everything after the level that was proposed, and what the remainder form would ask.
+        for key, proposal in flow.proposals.items():
+            if key.startswith("gates.") or key in answers:
+                continue
+            answers[key] = _proposal_entry(proposal)
+        for spec in flow.remainder_plan().fields:
+            if spec.id not in answers:
+                answers[spec.id] = NEEDS_HUMAN
+                if spec.kind == "multiselect":
+                    notes[spec.id] = "a list of control ids, or []"
+        if detect.detect_decisions_folder(repo) is None:
+            answers.setdefault("adoption.decision_record_id", {
+                "value": scaffold.DECISION_RECORD_ID, "origin": provenance.SCAFFOLDED,
+                "detail": f"created as {scaffold.DECISION_RECORD[0]} when the profile is written, if create_missing_artefacts is yes",
+            })
+        # The preview: the proposals rendered, human lines as needs-human, undecided gates left out.
+        preview_state = {name: dict(values) for name, values in flow.state.items()}
+        for key, value in answers.items():
+            section, _, field_id = key.partition(".")
+            if section == "gates" or section == "level":
+                continue
+            if value == NEEDS_HUMAN and field_id not in preview_state.get(section, {}):
+                preview_state.setdefault(section, {})[field_id] = NEEDS_HUMAN
+        preview_state["gates"] = dict(gate_placeholder)
+        undecided = [spec.id for spec in flow.gate_specs() if not spec.mandatory and not spec.auto_status]
+        for spec in flow.gate_specs():
+            if spec.id in undecided:
+                preview_state["gates"][f"{spec.id}.status"] = "not_applicable"
+                preview_state["gates"][f"{spec.id}.rationale"] = NEEDS_HUMAN
+            if spec.auto_status:
+                preview_state["gates"].setdefault(f"{spec.id}.rationale", "This repository has no user interface.")
+        preview_state.setdefault("adoption", {}).setdefault("decision_record_id", scaffold.DECISION_RECORD_ID)
+        for key in ("adoption.repository_classification",):
+            preview_state["adoption"].setdefault(key.split(".")[1], NEEDS_HUMAN)
+        profile = sections.build_profile(
+            preview_state, framework_version=record.get("standard_version", ""), framework_digest=record.get("framework_digest", "")
+        )
+        profile["prerequisites"] = [g for g in profile["prerequisites"] if g["id"] not in undecided]
+        rendered = render.render_profile(profile, written_on=flow.adoption_date)
+        preview_header = (
+            "# PROPOSED - not the profile. Written by `surfaceplate adopt --propose` as a preview of what the\n"
+            "# answers record would produce; the checker never reads this file. Every `needs-human` below is a\n"
+            f"# decision for a human, and {len(undecided)} undecided gate(s) are left out entirely: "
+            + ", ".join(undecided) + ".\n"
+            "# Complete the answers record and run `surfaceplate adopt --answers` to write the real profile.\n\n"
+        )
+        proposed_path = repo / PROPOSED_PATH
+        proposed_path.parent.mkdir(parents=True, exist_ok=True)
+        proposed_path.write_text(preview_header + rendered, encoding="utf-8", newline="\n")
+        answers.setdefault("create_missing_artefacts", NEEDS_HUMAN)
+        notes.setdefault("create_missing_artefacts", "yes | no - whether to create the scaffolded files named above")
+
+    record_out = {
+        "format": ANSWERS_FORMAT,
+        "framework_version": record.get("standard_version", ""),
+        "framework_digest": record.get("framework_digest", ""),
+        "level": answers.pop("level.conformance_level"),
+        "answers": answers,
+    }
+    if notes:
+        record_out["choices"] = notes
+    body = yaml.safe_dump(record_out, sort_keys=False, allow_unicode=True, width=1000)
+    answers_path = repo / ANSWERS_PATH
+    answers_path.parent.mkdir(parents=True, exist_ok=True)
+    answers_path.write_text("\n".join(header) + "\n\n" + body, encoding="utf-8", newline="\n")
+    return Proposed(answers=answers_path, proposed=proposed_path)
+
+
+def replay(repo: Path, answers_path: Path) -> Path:
+    """Replay a human-completed answers record through the same code as the interface, and
+    write the profile. A record with any `needs-human` line left refuses to write anything."""
+    import yaml
+
+    from surfaceplate.adopt.interview import ScriptedInterview
+
+    try:
+        record = yaml.safe_load(answers_path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as exc:
+        raise WriteRefused(f"the answers record could not be read: {exc}") from None
+    if not isinstance(record, dict) or record.get("format") != ANSWERS_FORMAT or not isinstance(record.get("answers"), dict):
+        raise WriteRefused(f"{answers_path} is not an answers record this version writes (format {ANSWERS_FORMAT}).")
+    pending = [key for key, value in record["answers"].items() if value == NEEDS_HUMAN]
+    if record.get("level") == NEEDS_HUMAN or not record.get("level"):
+        pending.insert(0, "level")
+    if pending:
+        raise NeedsHuman(pending)
+    scripted: dict[str, object] = {}
+    for key, value in record["answers"].items():
+        if key == "create_missing_artefacts":
+            continue
+        if isinstance(value, dict):
+            if value.get("value") is None:
+                continue  # filled from the human's answers by the flow itself
+            scripted[key] = value["value"]
+        else:
+            scripted[key] = value
+    scripted["level.conformance_level"] = record["level"]
+    create = str(record["answers"].get("create_missing_artefacts", "yes")).strip().lower() in ("yes", "true", "y")
+    interview = ScriptedInterview(answers=scripted, accept_scaffold=create)
+    try:
+        return run(repo, interview)
+    except AssertionError as exc:
+        # The scripted interview objects to a presented field the record lacks: say which, and
+        # how to get a complete record.
+        raise WriteRefused(
+            f"the answers record is incomplete for this repository at level {record['level']}: {exc}. "
+            f"Run `surfaceplate adopt --propose --level {record['level']}` for a complete record."
+        ) from None

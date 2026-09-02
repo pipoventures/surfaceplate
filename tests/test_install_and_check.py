@@ -470,6 +470,157 @@ def test_every_agent_receives_the_skills(tmp: Path) -> None:
     )
 
 
+def test_exit_codes_and_formats(tmp: Path) -> None:
+    """`DR-49` (1), (2), (5) and code items 13, 14, 17. Exit codes: 0 pass or graced, 1 findings
+    that fail, 2 not installed, 3 usage or no terminal, 4 internal error. `--format json|sarif`.
+    A missing directory, a file and an uninstalled repository each get their own message."""
+    import json as _json
+
+    checker = str(PAYLOAD / "check_conformance.py")
+    missing = tmp / "no-such-directory"
+    result = run([checker, "--repo", str(missing)])
+    check("a missing directory exits 3 and says so", result.returncode == 3 and "does not exist" in result.stderr, result.stderr[-200:])
+    a_file = tmp / "a-file.txt"
+    a_file.write_text("x\n", encoding="utf-8")
+    result = run([checker, "--repo", str(a_file)])
+    check("a file exits 3 and says it is a file", result.returncode == 3 and "is a file" in result.stderr, result.stderr[-200:])
+    result = run([checker, "--repo", str(tmp), "--format", "nonsense"])
+    check("an unknown format is a usage error, exit 3", result.returncode == 3, result.stderr[-200:])
+
+    repo = make_git_repo(tmp, "formats")
+    assert install(repo).returncode == 0
+    (repo / "governance" / "application-profile.yaml").write_text(
+        without_local_hook(read_example("application-profile.essential.example.yaml")), encoding="utf-8"
+    )
+    seed_gate_artefacts(repo, read_example("application-profile.essential.example.yaml"))
+    text = verify(repo)
+    check("a passing repository exits 0", text.returncode == 0, text.stdout[-300:])
+
+    result = verify(repo, "--format", "json")
+    try:
+        data = _json.loads(result.stdout)
+    except ValueError:
+        data = None
+    check("--format json is parseable JSON", isinstance(data, dict), result.stdout[:200])
+    check(
+        "and carries the result, the exit code and the findings list",
+        isinstance(data, dict) and data.get("result") == "PASS" and data.get("exit_code") == 0
+        and isinstance(data.get("findings"), list) and "advisory" in data,
+        str(data)[:300] if data else "",
+    )
+
+    # A failing one, for the findings.
+    (repo / "governance" / "application-profile.yaml").write_text(
+        (repo / "governance" / "application-profile.yaml").read_text(encoding="utf-8").replace(
+            "review_by:", "review_by_gone:", 1
+        ),
+        encoding="utf-8",
+    )
+    result = verify(repo, "--no-grace", "--format", "json")
+    data = _json.loads(result.stdout)
+    codes = [f["code"] for f in data["findings"]]
+    check(
+        "a failing repository exits 1 and its JSON names the codes",
+        result.returncode == 1 and data["result"] == "FAIL" and data["exit_code"] == 1 and codes,
+        f"rc={result.returncode} codes={codes[:4]}",
+    )
+    check(
+        "each JSON finding carries code, title, detail, remedy and graceable",
+        all({"code", "title", "detail", "remedy", "graceable"} <= set(f) for f in data["findings"]),
+    )
+    result = verify(repo, "--no-grace", "--format", "sarif")
+    try:
+        sarif = _json.loads(result.stdout)
+    except ValueError:
+        sarif = None
+    ok = isinstance(sarif, dict) and sarif.get("version") == "2.1.0" and sarif.get("runs")
+    rules = sarif["runs"][0]["tool"]["driver"].get("rules", []) if ok else []
+    results = sarif["runs"][0].get("results", []) if ok else []
+    rule_ids = {r["id"] for r in rules}
+    check("--format sarif is SARIF 2.1.0 with a rules list", bool(ok) and bool(rules), result.stdout[:200])
+    check(
+        "every SARIF result names a listed rule and carries partialFingerprints and a message",
+        bool(results) and all(
+            r.get("ruleId") in rule_ids and r.get("partialFingerprints") and r.get("message", {}).get("text")
+            and r.get("level") in ("error", "warning", "note")
+            for r in results
+        ),
+        str(results[:1])[:300],
+    )
+    check("the SARIF invocation records the exit code", sarif["runs"][0]["invocations"][0]["exitCode"] == 1 if ok else False)
+
+    # Graced findings: WARN, exit 0, a printed summary.
+    result = verify(repo)
+    check(
+        "graced findings exit 0 with a WARN summary",
+        result.returncode == 0 and "WARN" in result.stdout,
+        result.stdout[-300:],
+    )
+    result = verify(repo, "--format", "json")
+    data = _json.loads(result.stdout)
+    check("and the JSON says WARN with exit_code 0", data["result"] == "WARN" and data["exit_code"] == 0)
+
+    # The console script: --version and --help at the top level, usage errors exit 3.
+    env = {**os.environ, "PYTHONPATH": str(ROOT)}
+    cli = [sys.executable, "-m", "surfaceplate.cli"]
+    version = subprocess.run([*cli, "--version"], capture_output=True, text=True, env=env, cwd=str(ROOT))
+    expected = (PAYLOAD / "VERSION").read_text(encoding="utf-8").strip()
+    check("surfaceplate --version prints the version and exits 0", version.returncode == 0 and expected in version.stdout, version.stdout + version.stderr)
+    helped = subprocess.run([*cli, "--help"], capture_output=True, text=True, env=env, cwd=str(ROOT))
+    check("surfaceplate --help exits 0 and names the commands", helped.returncode == 0 and "doctor" in helped.stdout and "adopt" in helped.stdout, helped.stdout[:200])
+    nothing = subprocess.run(cli, capture_output=True, text=True, env=env, cwd=str(ROOT))
+    check("surfaceplate with no command is a usage error, exit 3", nothing.returncode == 3, str(nothing.returncode))
+    unknown = subprocess.run([*cli, "frobnicate"], capture_output=True, text=True, env=env, cwd=str(ROOT))
+    check("an unknown command is a usage error, exit 3", unknown.returncode == 3, str(unknown.returncode))
+    piped = subprocess.run([*cli, "adopt", "--target", str(repo)], capture_output=True, text=True, env=env, cwd=str(ROOT), stdin=subprocess.DEVNULL)
+    check("adopt without a terminal exits 3 and names --propose", piped.returncode == 3 and "--propose" in piped.stderr, f"rc={piped.returncode} {piped.stderr[-200:]}")
+
+
+def test_doctor_reports_the_facts_that_stopped_the_stranger_install(tmp: Path) -> None:
+    """`DR-49` (4). `surfaceplate doctor`, offline by default: Python and pip, `core.hooksPath` at
+    every scope, whether a terminal is attached, whether the virtualenv is on PATH, the vendored
+    copy's digest against the install record. Non-zero when anything is wrong. Anything needing
+    a token is behind `--online` and is skipped, saying so, without one."""
+    env = {**os.environ, "PYTHONPATH": str(ROOT)}
+    env.pop("GITHUB_TOKEN", None)
+    cli = [sys.executable, "-m", "surfaceplate.cli", "doctor"]
+
+    repo = make_git_repo(tmp, "doctor")
+    assert install(repo).returncode == 0
+    result = subprocess.run([*cli, "--repo", str(repo)], capture_output=True, text=True, env=env, cwd=str(ROOT))
+    out = result.stdout
+    facts = ["python", "pip", "core.hooksPath", "terminal", "PATH", "digest"]
+    check(
+        "doctor reports Python and pip, the hooks path at every scope, the terminal, the PATH and the digest",
+        all(f.lower() in out.lower() for f in facts),
+        out[-600:],
+    )
+    check(
+        "and names every scope of core.hooksPath",
+        all(scope in out for scope in ("local", "global", "system", "worktree")),
+        out[-600:],
+    )
+    check("doctor is offline by default and says the online check was skipped", "--online" in out and "skipped" in out.lower(), out[-300:])
+    check("a healthy repository gives exit 0 or a warning-only exit", result.returncode in (0, 1), f"rc={result.returncode}\n{out[-400:]}")
+
+    # A problem: the vendored digest no longer matches the install record.
+    record = read_record(repo)
+    record["framework_digest"] = "0" * 64
+    write_record(repo, record)
+    result = subprocess.run([*cli, "--repo", str(repo)], capture_output=True, text=True, env=env, cwd=str(ROOT))
+    check(
+        "a mismatched digest is a failing line and a non-zero exit",
+        result.returncode != 0 and "fail" in result.stdout.lower() and "digest" in result.stdout.lower(),
+        f"rc={result.returncode}\n{result.stdout[-400:]}",
+    )
+    result = subprocess.run([*cli, "--repo", str(repo), "--online"], capture_output=True, text=True, env=env, cwd=str(ROOT))
+    check(
+        "--online without a token says so rather than sending a request",
+        "GITHUB_TOKEN" in result.stdout and "token" in result.stdout.lower(),
+        result.stdout[-300:],
+    )
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory() as raw:
         tmp = Path(raw)
@@ -480,8 +631,14 @@ def main() -> int:
         result = verify_uninstalled = run(
             [str(PAYLOAD / "check_conformance.py"), "--repo", str(empty)]
         )
-        check("uninstalled repository fails", result.returncode == 1, result.stdout[-200:])
+        # `DR-49` (2): not installed is its own exit code, so a wrapper can tell it from a failing
+        # profile. This read `== 1` until `ACT-045`; the contract changed by decision record.
+        check("uninstalled repository exits 2", result.returncode == 2, result.stdout[-200:])
         check("and says why", "SP001" in result.stdout)
+
+        print("\nDR-49: exit codes and output formats")
+        test_exit_codes_and_formats(tmp)
+        test_doctor_reports_the_facts_that_stopped_the_stranger_install(tmp)
 
         print("\nevery agent receives the skills (F58)")
         test_every_agent_receives_the_skills(tmp)
@@ -1649,7 +1806,7 @@ def main() -> int:
         )
         check(
             "an unusable Git directory is reported as not installed",
-            result.returncode == 1 and "SP001" in result.stdout,
+            result.returncode == 2 and "SP001" in result.stdout,  # exit 2 since DR-49
             result.stdout[-300:],
         )
         # Enumerated rather than derived, and it drifted the moment the installer gained new
