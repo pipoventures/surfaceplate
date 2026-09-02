@@ -70,6 +70,10 @@ class AdoptApp(App, inherit_bindings=False):
 
     def __init__(self, *, flow: _flow.Flow, on_progress: Callable[[], None]) -> None:
         super().__init__()
+        # `F95`: no animated scrolling. A focus-driven scroll animated by default and left the
+        # scrollbar's thumb at a fractional position, so a golden of a scrolled screen differed
+        # one run in four; on a 24-row form the animation buys nothing. Every scroll lands exactly.
+        self.animation_level = "none"
         self.flow = flow
         self.repo = flow.repo
         self.found = flow.found
@@ -109,7 +113,8 @@ class AdoptApp(App, inherit_bindings=False):
                 flow.answer_level(result)
             elif stage == "gates":
                 screen = GatesScreen(
-                    flow.gate_specs(), flow.gates_plan(), step=step, initial=flow.gate_seeds(), repo=self.repo
+                    flow.gate_specs(), flow.gates_plan(), step=step, initial=flow.gate_seeds(), repo=self.repo,
+                    level=flow.state["level"]["conformance_level"],
                 )
                 result = await self.push_screen_wait(screen)
                 if result == CANCELLED or result is None:
@@ -171,6 +176,7 @@ class OpeningApp(App, inherit_bindings=False):
 
     def __init__(self, welcome: Welcome) -> None:
         super().__init__()
+        self.animation_level = "none"  # `F95`, as for AdoptApp
         self.welcome = welcome
 
     def on_mount(self) -> None:

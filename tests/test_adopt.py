@@ -1455,6 +1455,17 @@ def test_a_full_run_choosing_every_create_it_row_passes_the_checker(tmp: Path) -
           f"{report.verdict}: " + "; ".join(f"{f.code} {f.title}" for f in report.findings[:6]))
 
 
+def test_the_above_floor_list_says_how_many_the_level_requires() -> None:
+    """`DR-56` (4): the level's effect is visible on the remainder form too."""
+    for level, count in (("essential", 1), ("standard", 4), ("full", 9)):
+        section = plan.controls_plan(level=level, mode="simple")
+        above = next((f for f in section.fields if f.id == "above_floor"), None)
+        if above is None:
+            check(f"at {level} there is nothing above the floor to list", count == 9)
+            continue
+        check(f"at {level} the above-floor list says the level already requires {count}", f"{count} already required" in above.label or f"requires {count}" in above.label, above.label)
+
+
 def test_the_run_opens_with_the_tool_and_the_install_named(tmp: Path) -> None:
     """`F81` / `DR-51` (2). Before the first question the interview is handed what the opening
     screen shows: the tool's name, version, licence and publisher, the installed version and
@@ -2128,6 +2139,7 @@ def main() -> int:
         test_the_create_it_row_leads_to_a_scaffold_for_gates_and_controls(tmp)
         test_adopt_edit_rewrites_one_line_and_records_it(tmp)
         test_a_full_run_choosing_every_create_it_row_passes_the_checker(tmp)
+        test_the_above_floor_list_says_how_many_the_level_requires()
         test_the_run_opens_with_the_tool_and_the_install_named(tmp)
         test_refuses_when_the_tool_and_the_install_differ(tmp)
         test_package_metadata_agrees_with_pyproject()

@@ -156,10 +156,11 @@ an unknown number of releases with nothing noticing.
 | F88 | A control's implementation reference offers only files whose names carry fixed words, from fixed directories; a repository with the file elsewhere gets a text box, and one without it has no path to create one | medium | Closed — `ACT-052` (`DR-54`); see the body |
 | F89 | The opening screen is text only; the maintainer asked for a mark | low | Closed — `ACT-051` (`DR-53`); see the body |
 | F90 | A render test read the screen before the deferred scroll had run, and turned `main` red on the runner while passing locally | low | Closed — `ACT-051`; see the body |
-| F91 | The conformance level barely changes the screens that follow: every gate is listed at standard and full alike, and the above-floor controls read the same, so the level tells the reader nothing | medium | Open — recorded at `ACT-054`; needs a decision |
+| F91 | The conformance level barely changes the screens that follow: every gate is listed at standard and full alike, and the above-floor controls read the same, so the level tells the reader nothing | medium | Closed — `ACT-055` (`DR-56`); see the body |
 | F92 | `SP034` prints an instant as a bare date, so "moved forward" reads as the same date twice; whether a later instant on the same day is a forward move at all is undecided | low | Open — recorded at `ACT-054`; message fixed there, the rule needs a decision |
 | F93 | A record-directory control's reference is proposed from any directory holding YAML: four controls were proposed `config/accounts` and the checker rejected every record in it | high | Closed — `ACT-054`; see the body |
 | F94 | An archived document is proposed as a gate's artefact on a keyword match: two gates were proposed files under `docs/archive/` | medium | Closed — `ACT-054`; see the body |
+| F95 | A focus-driven scroll is animated, and the scrollbar keeps a fractional thumb position from the animation's last frame, so a golden of a scrolled screen differed one run in four | low | Closed — `ACT-055`; see the body |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1423,7 +1424,7 @@ findings register (`assurance_findings`) and the same "create it" choice as `F87
 
 ## F91 — The conformance level barely changes the screens that follow: every gate is listed at standard and full alike, and the above-floor controls read the same, so the level tells the reader nothing
 
-**Severity: medium. Open.**
+**Severity: medium. Closed.**
 
 Recorded under `ACT-054` from the maintainer's third run of `adopt`, at `full` on a fresh scratch copy of Plutos on 2026-09-02, reported in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z). Closes by an activity the maintainer authorises after a decision record.
 
@@ -1441,6 +1442,8 @@ one heading ("beyond the {level} floor, not required: N gates"), so `standard` s
 and `full` eleven before anything is opened; the hint counts the floor; the above-floor list on
 the remainder form says how many the level already requires. Under `DR-47` a change to what is
 shown beside an asked value is a change to the interview: a decision record.
+
+**Closed by `ACT-055` (`DR-56`), 2026-09-02.** The gate list opens with the level's floor expanded under a heading that names the level and its count, and every other gate folded under one counted heading ("Beyond the standard floor: 15 gates, not required · [Ctrl+O] open"); the counter names the floor; the above-floor list on the remainder form says how many controls the level already requires. Nothing is hidden and nothing decided: the fold opens on one key and the bulk command still covers every undecided gate. `gates_plan` lists the floor first as the screen shows it, while the profile keeps catalogue order. `tests/test_render.py::test_the_gate_list_opens_with_the_floor_and_folds_the_rest` and `tests/test_adopt.py::test_the_above_floor_list_says_how_many_the_level_requires`, seen to fail first; two older render tests and the gate-list snapshot open the fold before reaching a gate beyond the floor, and the several-gates-visible test seeds the floor so its property is asserted on the screen a reader now meets. The golden regenerated for cause.
 
 ## F92 — `SP034` prints an instant as a bare date, so "moved forward" reads as the same date twice; whether a later instant on the same day is a forward move at all is undecided
 
@@ -1484,6 +1487,27 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F95 — A focus-driven scroll is animated, and the scrollbar keeps a fractional thumb position from the animation's last frame, so a golden of a scrolled screen differed one run in four
+
+**Severity: low. Closed.**
+
+Recorded under `ACT-055` on 2026-09-02, in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z), from the gate-list golden
+failing one local run in four after `DR-56`'s fold, with CI green on the same commit.
+
+The two end states differed in two cells: the scrollbar's thumb glyph. The list's measured size
+and scroll offset were identical; the scrollbar's own `position` was `56.125`, `55.5`, `55.875`
+across runs. Textual animates the scroll that follows a focus, and the scrollbar widget keeps
+whichever intermediate value its last frame saw, so the thumb's eighth-block glyph varied with
+timing. `F90`'s two-pass reveal did not touch it: that scroll is immediate, the focus's own is
+not. Low: two cells of a scrollbar; but a golden that differs one run in four is a red build
+waiting to happen, and the cause would have been invisible from the runner.
+
+**Closed by `ACT-055`, 2026-09-02.** Both apps set `animation_level = "none"`, as do the three
+test hosts, so every scroll lands exactly; on a 24-row form the animation bought nothing. The
+gate-list golden regenerated from the converged state and the suite run six times unchanged.
+Found by capturing the frame sequence across runs and diffing the two end states, then reading
+the scrollbar's own position.
 
 ## F94 — An archived document is proposed as a gate's artefact on a keyword match: two gates were proposed files under `docs/archive/`
 

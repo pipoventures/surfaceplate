@@ -1122,6 +1122,10 @@ records fit the control, an archived document is never proposed, a seeded direct
 the conformance level barely changes the screens that follow (`F91`), and whether a same-day instant is
 a forward move (`F92`).
 
+`ACT-055` (`DR-56`): the gate list opens with the level's floor expanded and every other gate folded
+under one counted heading, so `standard` shows four gates and `full` eleven before anything is opened;
+the counter and the above-floor list name the floor (`F91`).
+
 ### `F58` closed: every agent now receives the skills, not only Copilot
 
 `AGENTS.md` tells every adopting repository that the skills' *"required inputs, gates and mandatory

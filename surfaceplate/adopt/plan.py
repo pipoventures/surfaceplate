@@ -739,7 +739,7 @@ def controls_plan(
         fields.append(
             FieldSpec(
                 id="above_floor",
-                label=f"Declare any control beyond the {level} floor?",
+                label=f"Declare any control beyond the {level} floor? ({len(required)} already required)",
                 kind="multiselect",
                 help=(
                     f"{level} does not require these. Tick any you want this repository held to "
@@ -1063,6 +1063,9 @@ def gates_plan(
     """The gate catalogue as a `SectionPlan`, so the screen↔plan join test has one rule for every
     section including this one. Its `fields` are every gate's fields, prefixed by gate id."""
     specs = gate_plan(level=level, builds_ui=builds_ui, mode=mode, found=found)
+    # `DR-56`: the floor first, as the screen shows it; the profile itself keeps catalogue order
+    # because `sections.build_gates` walks `gate_plan`, not this.
+    specs = tuple(s for s in specs if s.mandatory) + tuple(s for s in specs if not s.mandatory)
     fields: list[FieldSpec] = []
     for spec in specs:
         for f in spec.fields:
