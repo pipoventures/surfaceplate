@@ -57,6 +57,20 @@ SEEDABLE: dict[str, tuple[str, str, str]] = {
 }
 
 
+# `DR-47` (2): a scaffolded artefact is a file the tool creates and therefore knows. The adoption
+# decision record is the one non-gate artefact this module creates: `adoption.decision_record_id`
+# has no honest source unless a decisions directory already exists to name a record in, and
+# inventing an identifier for a record nobody wrote was the thing `defaults.py` refused to do.
+# Where a decisions directory exists the id is asked instead (report Part II §II.4).
+DECISION_RECORD_ID = "DR-0001"
+DECISION_RECORD = (
+    "docs/decisions/DR-0001-adopt-surfaceplate.md",
+    "adoption-decision-record.md",
+    "the record of this adoption decision, which the profile's decision_record_id names",
+)
+DECISION_RECORD_GATE = "adoption_decision_record"  # the `gate_id` an `Offer` for it carries
+
+
 @dataclass(frozen=True)
 class Offer:
     """One file the wizard could create, and the gate it would answer."""
@@ -120,6 +134,14 @@ def offers(repo: Path, gate_ids) -> list[Offer]:
     return out
 
 
+def decision_record_offer(repo: Path) -> Offer | None:
+    """The adoption decision record, offered only where nothing is at its path."""
+    path, seed, why = DECISION_RECORD
+    if _occupied(repo / path):
+        return None
+    return Offer(gate_id=DECISION_RECORD_GATE, path=path, seed=seed, why=why)
+
+
 def write(repo: Path, accepted: list[Offer]) -> tuple[list[Path], list[str]]:
     """Create the accepted files. Returns `(written, problems)`.
 
@@ -143,8 +165,20 @@ def write(repo: Path, accepted: list[Offer]) -> tuple[list[Path], list[str]]:
         if _occupied(target):
             problems.append(f"{offer.path}: left alone - something is already there")
             continue
+        # Two separate tries, because they fail for different reasons and used to share one
+        # `FileExistsError` handler: a parent that exists as a regular FILE raises it from
+        # `mkdir`, and was reported as a race on the target that never happened (code item 12).
         try:
             target.parent.mkdir(parents=True, exist_ok=True)
+        except (FileExistsError, NotADirectoryError):
+            problems.append(
+                f"{offer.path}: could not be created - a parent of it is a file, not a directory"
+            )
+            continue
+        except OSError as exc:
+            problems.append(f"{offer.path}: could not be created - {exc.strerror or exc}")
+            continue
+        try:
             with open(target, "x", encoding="utf-8", newline="\n") as handle:
                 handle.write(offer.content())
         except FileExistsError:

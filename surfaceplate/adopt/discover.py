@@ -24,6 +24,7 @@ did before, while a walk would quietly start offering junk.
 
 from __future__ import annotations
 
+import json
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -55,9 +56,10 @@ _SOURCE_DIRS = ("src", "lib", "app", "pkg", "internal", "cmd", "services", "pack
 _CI_DIRS = (".github/workflows", ".gitlab-ci.d")
 
 # Short enough to read. Forty was "too many options to know which one is the right one", and a list
-# nobody can scan is a list nobody uses. Ranking (below) is what makes a short list the RIGHT short
-# list rather than an arbitrary truncation.
-_MAX_CANDIDATES = 200   # what `scan` keeps; the per-field list is cut to `SHOWN` after ranking
+# nobody can scan is a list nobody uses. **The cap is applied per field, after ranking, and never
+# to the scan** (`F75`): `scan` used to keep 200 and a repository with 300 files under `docs/` lost
+# its real `activity/register.md` before any gate had ranked it. `plan._from_candidates` and
+# `rank_for_gate` cut to `SHOWN` once the field at hand has put its best candidate first.
 SHOWN = 12              # what an adopter is actually offered, once ranked for the field at hand
 
 
@@ -66,38 +68,97 @@ def _tracked_files(repo: Path) -> list[str]:
 
     Deliberately not a filesystem walk. A walk offers `.venv/`, `node_modules/` and build output as
     candidate governance artefacts, which is worse than offering nothing.
+
+    `-z`, so paths come back verbatim: without it git C-quotes a non-ASCII path
+    (`"docs/caf\\303\\251.md"`), and the quoted string was offered while the real file was dropped
+    (the review's code item 8).
     """
     try:
         result = subprocess.run(
-            ["git", "-C", str(repo), "ls-files", "--cached", "--exclude-standard"],
+            ["git", "-C", str(repo), "ls-files", "-z", "--cached", "--exclude-standard"],
             capture_output=True,
-            text=True,
             timeout=10,
         )
     except (OSError, subprocess.TimeoutExpired):
         return []
     if result.returncode != 0:
         return []
-    return [line for line in result.stdout.splitlines() if line]
+    return [
+        chunk.decode("utf-8", errors="surrogateescape")
+        for chunk in result.stdout.split(b"\0")
+        if chunk
+    ]
 
 
-def _capped(values: list[str]) -> list[str]:
-    """De-duplicated, order preserved, and short enough to pick from.
+def _dedupe(values: list[str]) -> list[str]:
+    """De-duplicated, order preserved - each caller ranks its own candidates, and sorting here
+    would bury the most likely answer somewhere alphabetical. No cap: see `SHOWN`."""
+    return list(dict.fromkeys(values))
 
-    A list nobody can scan is a list nobody uses, and a repository with three thousand markdown
-    files would produce one. The cap is on the OFFER, never on what may be typed: every field that
-    takes a candidate list also accepts a value that is not in it.
 
-    Insertion order is kept deliberately - each caller ranks its own candidates, and sorting here
-    would throw that away and bury the most likely answer somewhere alphabetical.
+# The one directory only this framework writes. Everything else it installs is read from the
+# install record at scan time, so the exclusion cannot go stale when the payload changes - except
+# the two files the installer CREATES when absent and then manages a block in, which the record
+# does not list because they are the adopter's to keep. On a repository holding nothing else they
+# are framework output all the same, and offering them proposed `**` as a discovered pathspec.
+_FRAMEWORK_DIR = ".standards/"
+_BLOCK_HOSTS = (".github/copilot-instructions.md", "AGENTS.md")
+
+
+def framework_paths(repo: Path) -> tuple[set[str], set[str]]:
+    """`(files, ci_steps)` this framework put into the repository, read from the install record.
+
+    `F61`: discovery proposed `.github/instructions/authority.instructions.md` as the adopter's
+    authority map, the installed workflow's own "Check conformance to Surfaceplate" as their
+    contract test, and told a bare repository it appeared to have a CI workflow sixty seconds after
+    the installer wrote one. A gate whose precondition is a file the framework installed is
+    satisfied the moment the framework is installed, and the checker passes it. So every path in
+    the install record's file list, the profile the wizard is about to write, and every step of the
+    installed workflow are excluded from every candidate list - not ranked last, excluded.
     """
-    return list(dict.fromkeys(values))[:_MAX_CANDIDATES]
+    record_path = repo / ".standards" / "INSTALL.json"
+    try:
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return set(), set()
+    files = set((record.get("files") or {}).keys()) if isinstance(record.get("files"), dict) else set()
+    profile = record.get("profile_path")
+    if isinstance(profile, str):
+        files.add(profile)
+    steps: set[str] = set()
+    for rel in files:
+        if rel.startswith(".github/workflows/") and rel.endswith((".yml", ".yaml")):
+            steps |= set(_steps_in(repo / rel))
+    return files, steps
 
 
-# Paths this framework installs into an adopting repository. They are real files and a gate may
-# legitimately point at one, so they are still offered - but never ahead of the adopter's own
-# documents, which are almost always the intended answer.
-_FRAMEWORK_OWNED = (".standards/", ".github/instructions/", ".github/skills/", ".claude/")
+def _steps_in(path: Path) -> list[str]:
+    from surfaceplate.check_conformance import load_yaml
+
+    if not path.is_file():
+        return []
+    document, _ = load_yaml(path)
+    if not isinstance(document, dict) or not isinstance(document.get("jobs"), dict):
+        return []
+    names: list[str] = []
+    for job in document["jobs"].values():
+        if not isinstance(job, dict):
+            continue
+        for step in job.get("steps") or []:
+            if isinstance(step, dict) and isinstance(step.get("name"), str):
+                names.append(step["name"])
+    return names
+
+
+def _adopters_own(repo: Path) -> list[str]:
+    """The tracked files that are the adopter's, not this framework's."""
+    excluded, _ = framework_paths(repo)
+    if excluded:
+        excluded |= set(_BLOCK_HOSTS)
+    return [
+        p for p in _tracked_files(repo)
+        if p not in excluded and not p.startswith(_FRAMEWORK_DIR)
+    ]
 
 
 # Where a governance artefact is most likely to be, most likely first. Ranking matters more than
@@ -108,15 +169,14 @@ _ARTEFACT_RANK = ("docs/", "governance/", "activity/", "decisions/", "adr/")
 
 def _adopter_first(paths: list[str]) -> list[str]:
     """Ranked by how likely the adopter means it: their own governance directories first, then
-    their root-level documents, then anything else of theirs, then what this framework installed.
+    their root-level documents, then anything else. What this framework installed is not ranked
+    last any more - it is not offered at all (`framework_paths`).
 
     Matches a bare directory name as well as a prefix, because the register-directory candidates are
     directories (`governance`) where the artefact candidates are files (`governance/x.yaml`).
     """
 
     def rank(path: str) -> tuple[int, str]:
-        if path.startswith(_FRAMEWORK_OWNED):
-            return (len(_ARTEFACT_RANK) + 2, path)
         for index, prefix in enumerate(_ARTEFACT_RANK):
             if path == prefix.rstrip("/") or path.startswith(prefix):
                 return (index, path)
@@ -165,9 +225,9 @@ def rank_for_gate(
     if not GATE_KEYWORDS.get(gate_id, ()):
         return list(candidates)[:limit]
     rest = [c for c in candidates if c not in hit]
-    # Cut AFTER ranking, never before: capping first threw away the register and the CHANGELOG
-    # because they sorted below a dozen files in `docs/archive/`, and then ranking had nothing
-    # left to promote.
+    # Cut AFTER ranking, never before. `F75`: this comment was true here while `scan` capped the
+    # list to 200 one level up, so the register was thrown away before this line ever ran. The
+    # scan now keeps everything and this is the only cut.
     return (hit + rest)[:limit]
 
 
@@ -204,15 +264,16 @@ def matched_for_gate(
 
 
 def candidate_artefacts(repo: Path) -> list[str]:
-    """Files that could serve as a gate's precondition artefact."""
+    """Files that could serve as a gate's precondition artefact - the adopter's own, all of them,
+    ranked; the field at hand cuts the list after ranking it for its gate."""
     out = []
-    for path in _tracked_files(repo):
+    for path in _adopters_own(repo):
         if not path.endswith(_ARTEFACT_SUFFIXES):
             continue
         head = path.split("/")[0]
         if head in _ARTEFACT_DIRS or "/" not in path:
             out.append(path)
-    return _capped(_adopter_first(out))
+    return _dedupe(_adopter_first(out))
 
 
 def candidate_register_dirs(repo: Path) -> list[str]:
@@ -223,20 +284,20 @@ def candidate_register_dirs(repo: Path) -> list[str]:
     and contains nothing invalid, never that it contains anything at all.
     """
     dirs: set[str] = set()
-    for path in _tracked_files(repo):
+    for path in _adopters_own(repo):
         if not path.endswith((".yaml", ".yml")):
             continue
         parent = "/".join(path.split("/")[:-1])
         if parent and not parent.startswith(".github"):
             dirs.add(parent)
-    return _capped(_adopter_first(sorted(dirs)))
+    return _dedupe(_adopter_first(sorted(dirs)))
 
 
 def candidate_lock_files(repo: Path) -> list[str]:
     """Dependency lock files, for `dependency_lock`'s implementation reference."""
-    tracked = _tracked_files(repo)
+    tracked = _adopters_own(repo)
     names = {name.lower() for name in _LOCK_FILES}
-    return _capped(_adopter_first([p for p in tracked if p.split("/")[-1].lower() in names]))
+    return _dedupe(_adopter_first([p for p in tracked if p.split("/")[-1].lower() in names]))
 
 
 def candidate_paths(repo: Path) -> list[str]:
@@ -245,8 +306,13 @@ def candidate_paths(repo: Path) -> list[str]:
     Offers the top-level directories that actually contain tracked code, plus `**` for a gate that
     covers the whole repository - which is a real answer, not a cop-out, for a small one.
     """
+    own = _adopters_own(repo)
+    if not own:
+        # Nothing git could read, or nothing but this framework's own files: no pathspec is an
+        # honest offer, and `Discovered.is_empty()` can then be true (the review's code item 9).
+        return []
     tops: set[str] = set()
-    for path in _tracked_files(repo):
+    for path in own:
         if "/" not in path:
             continue
         head = path.split("/")[0]
@@ -257,7 +323,7 @@ def candidate_paths(repo: Path) -> list[str]:
     # is a real answer for a small one, but rarely the one someone means, so it goes last.
     known = [f"{d}/**" for d in sorted(tops) if d in _SOURCE_DIRS]
     others = [f"{d}/**" for d in sorted(tops) if d not in _SOURCE_DIRS]
-    return _capped(known + others + ["**"])
+    return _dedupe(known + others + ["**"])
 
 
 def candidate_ci_steps(repo: Path) -> list[str]:
@@ -269,27 +335,17 @@ def candidate_ci_steps(repo: Path) -> list[str]:
     different question from "what could the adopter pick", and merging them would make the checker
     depend on the wizard.
     """
-    from surfaceplate.check_conformance import load_yaml
-
+    installed_files, installed_steps = framework_paths(repo)
     names: list[str] = []
     for directory in _CI_DIRS:
         d = repo / directory
         if not d.is_dir():
             continue
         for path in sorted(d.glob("*.y*ml")):
-            document, _ = load_yaml(path)
-            if not isinstance(document, dict):
-                continue
-            jobs = document.get("jobs")
-            if not isinstance(jobs, dict):
-                continue
-            for job in jobs.values():
-                if not isinstance(job, dict):
-                    continue
-                for step in job.get("steps") or []:
-                    if isinstance(step, dict) and isinstance(step.get("name"), str):
-                        names.append(step["name"])
-    return _capped(sorted(dict.fromkeys(names)))
+            if path.relative_to(repo).as_posix() in installed_files:
+                continue  # the framework's own workflow is not the adopter's CI (`F61`)
+            names.extend(step for step in _steps_in(path) if step not in installed_steps)
+    return _dedupe(sorted(dict.fromkeys(names)))
 
 
 @dataclass(frozen=True)
@@ -303,8 +359,9 @@ class Discovered:
     ci_steps: tuple[str, ...] = ()
 
     def is_empty(self) -> bool:
-        """True when nothing could be read - an unusual repository, or no git. Callers fall back to
-        plain text fields, which is exactly how the wizard behaved before this module existed."""
+        """True when nothing of the adopter's could be read - a tree git cannot answer for, or one
+        holding nothing but this framework's own files. Every `_from_candidates` field then
+        degrades to the plain text box it always was; `plan.py` is the caller."""
         return not (
             self.artefacts or self.register_dirs or self.lock_files or self.paths or self.ci_steps
         )

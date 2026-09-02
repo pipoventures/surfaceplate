@@ -28,8 +28,27 @@ _LANGUAGE_MARKERS: list[tuple[str, tuple[str, ...]]] = [
 _UI_DEPENDENCY_HINTS = ("react", "vue", "svelte", "@angular/core", "next", "nuxt", "solid-js")
 
 
+# R7: widen what discovery looks for, because each hit removes a question. A repository with no
+# manifest file but source files at its root is still recognisably one language.
+_LANGUAGE_SUFFIXES: list[tuple[str, tuple[str, ...]]] = [
+    ("Python", (".py",)),
+    ("Node.js / TypeScript", (".ts", ".js", ".tsx")),
+    ("Rust", (".rs",)),
+    ("Go", (".go",)),
+    ("Java", (".java", ".kt")),
+    ("Ruby", (".rb",)),
+]
+
+
 def detect_languages(repo: Path) -> list[str]:
     found = [label for label, markers in _LANGUAGE_MARKERS if any((repo / m).is_file() for m in markers)]
+    try:
+        suffixes = {p.suffix for p in repo.iterdir() if p.is_file()}
+    except OSError:
+        suffixes = set()
+    for label, exts in _LANGUAGE_SUFFIXES:
+        if label not in found and any(ext in suffixes for ext in exts):
+            found.append(label)
     return found
 
 
@@ -66,13 +85,19 @@ def detect_ci_workflows(repo: Path) -> list[str]:
     `implementation_reference` (`deterministic_tests`, `contract_tests`) or a gate's `enforcement:
     [ci]`. Returns paths, not a verdict: this module never tells whether a step in one of them
     actually fails the build, which only `check_conformance.py`'s own pattern-B check can."""
+    from surfaceplate.adopt import discover
+
+    installed, _steps = discover.framework_paths(repo)
     found: list[str] = []
     for directory in _CI_WORKFLOW_DIRS:
         d = repo / directory
         if not d.is_dir():
             continue
         found.extend(
-            str(p.relative_to(repo)) for p in sorted(d.glob("*.y*ml")) if p.is_file()
+            p.relative_to(repo).as_posix()
+            for p in sorted(d.glob("*.y*ml"))
+            # `F61`: the workflow this framework installed is not one the adopter "appears to have".
+            if p.is_file() and p.relative_to(repo).as_posix() not in installed
         )
     return found
 

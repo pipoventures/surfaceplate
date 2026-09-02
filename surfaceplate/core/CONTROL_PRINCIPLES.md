@@ -11,4 +11,4 @@
 9. **Change control:** Material decisions and exceptions require a durable decision record and actual-diff review.
 10. **Tool neutrality:** Share concepts and contracts across stacks; implement them using the receiving repository's native language and tooling.
 11. **Human accountability:** Automation can produce evidence, not approval or risk acceptance.
-12. **Proportionality:** Defer controls that do not reduce a demonstrated B1 risk.
+12. **Proportionality:** Defer controls that do not reduce a demonstrated risk to a material output, its data, or its release.

@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -38,6 +39,8 @@ PAYLOAD = ROOT / "surfaceplate"  # the package itself - see surfaceplate/__init_
 # code uses real `surfaceplate.xxx` imports throughout. ROOT, not PAYLOAD, must be on sys.path so
 # `import surfaceplate` resolves to the real package rather than some other installed copy.
 sys.path.insert(0, str(ROOT))
+
+import yaml  # noqa: E402
 
 from surfaceplate.adopt import catalogue, plan, sections, wizard  # noqa: E402
 from surfaceplate.adopt.interview import Cancelled, ScriptedInterview  # noqa: E402
@@ -90,7 +93,6 @@ def make_installed_repo(tmp: Path, name: str) -> Path:
 # a whole run explicitly, so a change to what `essential` asks shows up here as a diff rather than
 # being absorbed by a generator.
 ESSENTIAL_ANSWERS: dict[str, object] = {
-    "mode.mode": "simple",
     "identity.application_id": "billing-reconciler",
     "identity.display_name": "Billing Reconciler",
     "identity.owner": "Finance Platform team",
@@ -107,7 +109,9 @@ ESSENTIAL_ANSWERS: dict[str, object] = {
     "risk.material_quantitative_output": False,
     "risk.data_classification": "internal",
     "level.conformance_level": "essential",
-    "route.route": "customise",  # these fixtures exercise the full flow, not the defaults path
+    # `DR-47`: every key below that the flow PROPOSES (a rationale, a review date, a maintainer)
+    # is an override of that proposal, recorded as typed the way a review edit would be; every
+    # key the flow PRESENTS (the decisions form, the gate list, the remainder) is the answer.
     "controls.agent_work_packets.rationale": "All agent-assisted work is bounded, scoped, and reviewable.",
     "controls.actual_diff_review.rationale": "Material changes are reviewed against their actual diff content.",
     "controls.secret_hygiene.rationale": "Secrets and sensitive data must not enter uncontrolled storage.",
@@ -145,7 +149,6 @@ ESSENTIAL_ANSWERS: dict[str, object] = {
 # for being illegal rather than for being badly escaped, testing nothing.
 TRICKY_CHARACTER_ANSWERS: dict[str, object] = {
     **ESSENTIAL_ANSWERS,
-    "mode.mode": "advanced",
     "controls.scanner.wired_in": "workflows/secret-scan.yml?raw=true",
     "gates.work_registration.artefact": "-docs/DEVELOPMENT_REGISTER.md",
     "gates.work_registration.paths": "src/**, [other]?",
@@ -165,20 +168,27 @@ MULTILINE_ANSWERS: dict[str, object] = {
 }
 
 
+def _commit_all(repo: Path, message: str = "fixture") -> None:
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", message], capture_output=True)
+
+
 def answers_for(repo: Path, *, level: str, builds_ui: bool, mode: str, overrides: dict | None = None) -> dict:
-    """Walk the plan the wizard will walk, answering every applicable field.
+    """Walk the flow the wizard will walk, answering every field it presents and overriding
+    every proposal, so a run exercises every branch.
 
     A FIXTURE BUILDER, not a correctness oracle: the tests below assert real properties of the
-    WRITTEN profile rather than trusting that generating answers this way proves anything. Building
-    the `full` set by hand (~160 answers) was tried in Phase 1 and is exactly the error-prone
-    busywork this avoids without weakening what is actually checked.
+    WRITTEN profile rather than trusting that generating answers this way proves anything. Since
+    `DR-48` a path field refuses anything git does not track, so this creates and commits a real
+    file for each such field rather than typing a plausible string into it - which is exactly
+    the answer `F66` found the wizard accepting and the checker rejecting.
     """
+    from surfaceplate.adopt import flow as _flow
+
     overrides = overrides or {}
     seeded = {
-        "mode.mode": mode,
         "stack.builds_user_interface": builds_ui,
         "level.conformance_level": level,
-        "route.route": "customise",
         "risk.data_classification": "internal",
         "adoption.adoption_status": "in_progress",
         "adoption.needs_validator": False,
@@ -186,46 +196,96 @@ def answers_for(repo: Path, *, level: str, builds_ui: bool, mode: str, overrides
         **overrides,
     }
     answers: dict = {}
-    state: dict = {}
-    for name in plan.SECTION_ORDER:
-        section = plan.section_plan(name, repo=repo, state=state)
+    workflow_steps: list[str] = []
+
+    def real_file(key: str) -> str:
+        rel = "docs/fixtures/" + re.sub(r"[^a-z0-9]+", "-", key.lower()).strip("-") + ".md"
+        target = repo / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(f"# {key}\n\nA real file for the fixture.\n", encoding="utf-8")
+        return rel
+
+    def value_for(key: str, spec: plan.FieldSpec) -> object:
+        if key in seeded:
+            return seeded[key]
+        if spec.kind == "bool":
+            return bool(spec.default)
+        if spec.id.endswith("above_floor") or key.endswith("above_floor"):
+            # `ACT-032`. Sweep every above-floor control ON, so this fixture exercises the branch
+            # where ticking one really does ask for its rationale and reference.
+            return [c for c, _ in spec.choices]
+        if spec.kind == "choice":
+            return spec.choices[0][0]
+        if spec.validate == "tracked_path":
+            return real_file(key)
+        if spec.validate == "ci_step":
+            name = f"Step for {key.split('.')[-2]}"
+            workflow_steps.append(name)
+            return name
+        if spec.default:
+            return spec.default
+        if key.endswith("paths"):
+            return "src/**"
+        return f"answer for {key}"
+
+    flow = _flow.Flow(repo, {"standard_version": "0.0.0", "framework_digest": "0"})
+    for spec in flow.decisions_plan().fields:
+        answers[spec.id] = value_for(spec.id, spec)
+    flow.answer_decisions(dict(answers))
+    answers["level.conformance_level"] = level
+    flow.answer_level({"conformance_level": level})
+    gate_answers: dict = {}
+    for gate in flow.gate_specs():
         local: dict = {}
-        for spec in section.fields:
-            if not spec.applies(local):
+        for f in gate.fields:
+            if not f.applies(local):
                 continue
-            key = f"{name}.{spec.id}"
-            if key in seeded:
-                value: object = seeded[key]
-            elif spec.kind == "bool":
-                # Above-the-floor controls default to not declared; the level's own floor is not a
-                # field at all, so nothing here can accidentally decline a required control.
-                value = True if spec.id.endswith(".declared") and level == "full" else bool(spec.default)
-            elif spec.id == "above_floor":
-                # `ACT-032`. Sweep every above-floor control ON, so this fixture exercises the
-                # branch where ticking one really does ask for its rationale and reference - a
-                # sweep that always answered "nothing declared" would never reach that code.
-                value = [c for c, _ in spec.choices]
-            elif spec.kind == "choice":
-                value = spec.choices[0][0]
-            elif spec.default:
-                value = spec.default
-            elif spec.id.endswith("paths"):
-                value = "src/**"
-            else:
-                value = f"answer for {name}.{spec.id}"
-            local[spec.id] = value
-            answers[key] = value
-        state[name] = local
+            key = f"gates.{gate.id}.{f.id}"
+            local[f.id] = value_for(key, f)
+            answers[key] = local[f.id]
+            gate_answers[f"{gate.id}.{f.id}"] = local[f.id]
+    flow.answer_gates(gate_answers)
+    remainder = flow.remainder_plan()
+    local = {}
+    for spec in remainder.fields:
+        if not spec.applies(local):
+            continue
+        local[spec.id] = value_for(spec.id, spec)
+        answers[spec.id] = local[spec.id]
+    # Every proposal, overridden, so the run's written values are the fixture's own.
+    for key, proposal in flow.proposals.items():
+        if key not in answers and key.split(".")[0] != "gates":
+            spec = flow.field_spec(key)
+            answers[key] = value_for(key, spec) if spec is not None else proposal.value
+    if workflow_steps:
+        workflow = repo / ".github" / "workflows" / "fixture-tests.yml"
+        workflow.parent.mkdir(parents=True, exist_ok=True)
+        steps = "".join(f"      - name: {n}\n        run: echo {n!r}\n" for n in dict.fromkeys(workflow_steps))
+        workflow.write_text("jobs:\n  tests:\n    steps:\n" + steps, encoding="utf-8")
+    _commit_all(repo, "fixture files")
     return answers
 
 
-def seed_referenced_files(repo: Path) -> None:
-    """The artefacts an `essential` fixture names, so the real checker has something to find."""
+def seed_referenced_files(repo: Path, *, ci: bool = False) -> None:
+    """The artefacts an `essential` fixture names, so the real checker has something to find -
+    committed, because since `DR-48` the field itself refuses an untracked path. The decisions
+    directory makes `decision_record_id` a question rather than a scaffolded record. With `ci`,
+    a workflow with a named step, so pattern-B references are discovered rather than asked."""
+    if ci:
+        workflow = repo / ".github" / "workflows" / "ci.yml"
+        workflow.parent.mkdir(parents=True, exist_ok=True)
+        workflow.write_text(
+            "jobs:\n  t:\n    steps:\n      - name: Run the tests\n        run: pytest\n",
+            encoding="utf-8",
+        )
     (repo / "requirements.txt").write_text("PyYAML==6.0.3\n", encoding="utf-8")
     (repo / "docs").mkdir(exist_ok=True)
     (repo / "docs" / "DEVELOPMENT_REGISTER.md").write_text("# Register\n", encoding="utf-8")
+    (repo / "docs" / "decisions").mkdir(exist_ok=True)
+    (repo / "docs" / "decisions" / "README.md").write_text("# Decisions\n", encoding="utf-8")
     (repo / "workflows").mkdir(exist_ok=True)
     (repo / "workflows" / "secret-scan.yml").write_text("name: scan\n", encoding="utf-8")
+    _commit_all(repo, "seed")
 
 
 # ---------------------------------------------------------------------------------------------
@@ -406,6 +466,16 @@ def test_tricky_characters_round_trip(tmp: Path) -> None:
     written, re-parsed, and equal to exactly what was typed. Before the fix this failed at the write
     step itself (`WriteRefused`, nothing on disk), so the first check is that it writes at all."""
     repo = make_installed_repo(tmp, "tricky-characters-repo")
+    # Since `DR-48` a path field refuses anything git does not track, so the awkward names are
+    # real files here: the property under test is that the renderer escapes them, not that the
+    # wizard accepts a path that does not exist.
+    for rel in ("workflows/secret-scan.yml?raw=true", "-docs/DEVELOPMENT_REGISTER.md", "requirements.txt"):
+        target = repo / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("# real\n", encoding="utf-8")
+    (repo / "docs" / "decisions").mkdir(parents=True, exist_ok=True)
+    (repo / "docs" / "decisions" / "README.md").write_text("# Decisions\n", encoding="utf-8")
+    _commit_all(repo, "tricky names")
     interview = ScriptedInterview(answers=dict(TRICKY_CHARACTER_ANSWERS))
     try:
         written = wizard.run(repo, interview)
@@ -449,6 +519,7 @@ def test_multiline_prose_survives_the_whole_flow(tmp: Path) -> None:
     PyYAML's problem to solve and this test's job to prove it did.
     """
     repo = make_installed_repo(tmp, "multiline-repo")
+    seed_referenced_files(repo)
     interview = ScriptedInterview(answers=dict(MULTILINE_ANSWERS))
     try:
         written = wizard.run(repo, interview)
@@ -729,36 +800,34 @@ def test_the_opt_in_removed_questions_not_answers() -> None:
 
 
 def test_defaults_propose_but_never_decide(tmp: Path) -> None:
-    """`DR-40`: the defaults route proposes; a human still submits.
+    """`DR-40`, re-read under `DR-47`: the wizard proposes; a human still decides.
 
-    The two properties that keep the binding rule true, checked rather than asserted: every
-    proposal traces to discovery, a worked example, or a computed fact - never to invention - and
-    a field with no honest source is left for the adopter rather than filled in.
+    Every proposal traces to discovery, a worked example, or a computed fact - never to invention;
+    a field with no honest source is left for the adopter; and no gate STATUS is ever proposed,
+    `not_applicable` included, because a scope decision is a key a human presses.
     """
     from surfaceplate.adopt import defaults, discover
+    from surfaceplate.adopt import flow as _flow
 
     repo = make_installed_repo(tmp, "defaults-repo")
     seed_referenced_files(repo)
-    subprocess.run(["git", "-C", str(repo), "add", "-A"], capture_output=True)
-    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "seed"], capture_output=True)
 
     found = discover.scan(repo)
     state = {
         "mode": {"mode": "simple"},
         "identity": {"owner": "Finance Platform team"},
         "stack": {"builds_user_interface": False},
+        "risk": {"data_classification": "internal"},
         "level": {"conformance_level": "standard"},
     }
-    proposals = defaults.propose(state, found=found)
+    proposals = defaults.propose_after_level(state, found=found, adoption_date="2026-09-02")
 
-    check("the defaults route proposes something to work from", len(proposals) > 20, str(len(proposals)))
+    check("the wizard proposes something to work from", len(proposals) > 20, str(len(proposals)))
     check(
         "every proposal declares an honest origin",
         all(p.origin in {"discovered", "example", "computed"} for p in proposals),
         str(sorted({p.origin for p in proposals})),
     )
-    # "Discovered" covers two kinds of thing - a path in the repository, and a CI step name read
-    # out of its workflow YAML. Both must come from the scan; neither may be invented.
     discovered = [p for p in proposals if p.origin == "discovered"]
     from_scan = set(found.artefacts) | set(found.paths) | set(found.lock_files) | set(
         found.register_dirs
@@ -769,29 +838,28 @@ def test_defaults_propose_but_never_decide(tmp: Path) -> None:
         discovered and not invented,
         f"not found by the scan: {invented[:3]}",
     )
-    paths = [p for p in discovered if p.value in from_scan and (repo / str(p.value)).exists()]
-    check(
-        "and the ones that are paths really exist on disk",
-        bool(paths),
-        "no discovered value resolved to a real file",
-    )
-
-    # The honest half: a judgement nobody can compute is NOT proposed.
     proposed = {p.field for p in proposals}
+    check(
+        "no gate status is proposed, not_applicable included (DR-47)",
+        not any(f.endswith(".status") for f in proposed),
+        str(sorted(f for f in proposed if f.endswith(".status"))),
+    )
     check(
         "a gate's own description is left for the adopter, not invented",
         "gates.work_registration.precondition_description" not in proposed,
-        "the tool proposed prose it has no source for",
     )
+    check("the adoption decision record id is never invented", "adoption.decision_record_id" not in proposed)
     check(
-        "the adoption decision record id is never invented",
-        "adoption.decision_record_id" not in proposed,
+        "effective_from is proposed as the adoption date, as computed (DR-47 (5))",
+        any(p.field == "gates.work_registration.effective_from" and p.value == "2026-09-02" and p.origin == "computed" for p in proposals),
     )
-    outstanding = defaults.unanswered(state, proposals, repo=repo, found=found)
+
+    flow = _flow.Flow(repo, {"standard_version": "0.0.0", "framework_digest": "0"}, state=state, done=("decisions", "level"))
+    remainder = {f.id for f in flow.remainder_plan().fields}
     check(
-        "and the wizard knows exactly what it still has to ask",
-        "adoption.decision_record_id" in outstanding and len(outstanding) > 0,
-        str(outstanding[:4]),
+        "and the wizard knows exactly what it still has to ask: the record id, since a decisions directory exists, and nothing it proposed",
+        "adoption.decision_record_id" in remainder and not (remainder & proposed - {"controls.above_floor"}),
+        str(sorted(remainder)),
     )
 
 
@@ -885,7 +953,7 @@ def test_interrupt_leaves_repo_untouched(tmp: Path) -> None:
     before_profile = (repo / "governance" / "application-profile.yaml").read_text(encoding="utf-8")
     before_files = {p.relative_to(repo) for p in repo.rglob("*") if p.is_file() and ".git" not in p.parts}
 
-    interview = ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS), cancel_before="risk")
+    interview = ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS), cancel_before="level")
     try:
         wizard.run(repo, interview)
         check("an interrupt raises Cancelled", False, "wizard.run returned instead of raising")
@@ -904,14 +972,19 @@ def test_interrupt_leaves_repo_untouched(tmp: Path) -> None:
     )
     draft = json.loads((repo / wizard.DRAFT_FILENAME).read_text(encoding="utf-8"))
     check(
-        "the draft records only the sections completed before the interrupt",
-        set(draft["sections"]) == {"mode", "identity", "stack"},
-        str(set(draft["sections"])),
+        "the draft records only the stages completed before the interrupt",
+        draft["done"] == ["decisions"] and "level" not in draft["sections"],
+        f"done={draft.get('done')} sections={sorted(draft['sections'])}",
     )
     check(
         "the draft states its own format, so a differently-shaped one is never misread",
-        draft.get("format") == 2,
+        draft.get("format") == 3,
         str(draft.get("format")),
+    )
+    check(
+        "and the draft carries an origin for every answer it holds (DR-47)",
+        all(f"{s}.{f}" in draft["origins"] for s, fields in draft["sections"].items() for f in fields if s != "mode"),
+        str(sorted(set(f"{s}.{f}" for s, fs in draft["sections"].items() for f in fs) - set(draft["origins"]))),
     )
     check(
         "the draft's completed sections carry the real scripted answers",
@@ -926,7 +999,7 @@ def test_resume_from_draft(tmp: Path) -> None:
     repo = make_installed_repo(tmp, "resume-repo")
     seed_referenced_files(repo)
 
-    first = ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS), cancel_before="controls")
+    first = ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS), cancel_before="gates")
     try:
         wizard.run(repo, first)
         check("resume fixture: the first attempt is interrupted as designed", False, "did not raise")
@@ -935,21 +1008,18 @@ def test_resume_from_draft(tmp: Path) -> None:
 
     draft_path = repo / wizard.DRAFT_FILENAME
     check("resume fixture: a draft exists after the interrupt", draft_path.is_file())
-    completed = set(json.loads(draft_path.read_text(encoding="utf-8"))["sections"])
+    draft = json.loads(draft_path.read_text(encoding="utf-8"))
     check(
         "resume fixture: the draft completed everything up to the interrupt",
-        completed == {"mode", "identity", "stack", "risk", "level", "route"},
-        str(completed),
+        draft["done"] == ["decisions", "level"] and "level" in draft["sections"],
+        f"done={draft.get('done')}",
     )
+    answered = {f"{s}.{f}" for s, fields in draft["sections"].items() for f in fields}
 
-    # The second interview is given ONLY the answers for the sections still outstanding. Because
-    # ScriptedInterview raises on any planned field it has no answer for, a resumed section that was
-    # re-asked would fail here rather than pass quietly.
-    remaining = {
-        key: value
-        for key, value in ESSENTIAL_ANSWERS.items()
-        if key.split(".")[0] not in completed
-    }
+    # The second interview is given ONLY the answers for the fields still outstanding. Because
+    # ScriptedInterview raises on any presented field it has no answer for, a resumed stage that
+    # was re-asked would fail here rather than pass quietly.
+    remaining = {key: value for key, value in ESSENTIAL_ANSWERS.items() if key not in answered}
     second = ScriptedInterview(answers=remaining)
     written = wizard.run(repo, second)
     try:
@@ -981,7 +1051,7 @@ def test_resume_from_draft(tmp: Path) -> None:
 def test_declining_a_resume_starts_fresh(tmp: Path) -> None:
     repo = make_installed_repo(tmp, "decline-resume-repo")
     seed_referenced_files(repo)
-    first = ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS), cancel_before="risk")
+    first = ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS), cancel_before="level")
     try:
         wizard.run(repo, first)
     except Cancelled:
@@ -990,9 +1060,9 @@ def test_declining_a_resume_starts_fresh(tmp: Path) -> None:
     second = ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS), resume=False)
     written = wizard.run(repo, second)
     check(
-        "declining the draft re-asks every section from the start",
-        {key.split(".")[0] for key in second.asked} == set(plan.SECTION_ORDER),
-        str(sorted({key.split(".")[0] for key in second.asked})),
+        "declining the draft re-asks every stage from the start",
+        second.stages[:3] == ["decisions", "level", "gates"],
+        str(second.stages),
     )
     check("declining the draft still produces a profile", written.is_file())
 
@@ -1005,7 +1075,7 @@ def test_quitting_at_the_resume_prompt_keeps_the_draft(tmp: Path) -> None:
     repo = make_installed_repo(tmp, "quit-at-resume-repo")
     seed_referenced_files(repo)
     try:
-        wizard.run(repo, ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS), cancel_before="risk"))
+        wizard.run(repo, ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS), cancel_before="level"))
     except Cancelled:
         pass
     draft = repo / wizard.DRAFT_FILENAME
@@ -1124,6 +1194,399 @@ def test_write_refused_on_placeholder_content(repo: Path, valid_profile: dict) -
         )
 
 
+def test_proposing_writes_the_same_profile_as_typing_the_same_values(tmp: Path) -> None:
+    """The prototype's claim, reproduced on the real code (report Part II §II.1): the profile a
+    run writes with every proposal left standing is line-for-line the profile written when the
+    same values are typed. Proposing changes nothing about what is written; and since a value
+    submitted unchanged is recorded under its proposal's origin (`DR-47` (3)), the two
+    provenance records are the same document too."""
+    from surfaceplate.adopt import provenance
+
+    base = {
+        "identity.owner": "Owner Person",
+        "stack.builds_user_interface": "no",
+        "risk.relied_on_outside_team": "yes",
+        "risk.material_quantitative_output": "no",
+        "risk.data_classification": "internal",
+        "wrap.release_route": "Merged to main by the maintainer.",
+        "level.conformance_level": "standard",
+        "adoption.decision_record_id": "DR-1",
+        "controls.scanner.wired_in": "workflows/secret-scan.yml",  # asked: not under .github
+    }
+    # The same directory NAME in two places, because the id and the display name are proposed
+    # from it.
+    repo_a = make_installed_repo(tmp / "proposed", "equal")
+    seed_referenced_files(repo_a, ci=True)
+    proposed = ScriptedInterview(answers=dict(base), bulk_not_applicable=True)
+    written_a = wizard.run(repo_a, proposed)
+    assert proposed.flow is not None
+    typed_values = {
+        key: (proposed.flow.state[key.split(".")[0]][key.split(".", 1)[1]])
+        for key, origin in proposed.flow.origins.items()
+        if origin.kind != "typed" and key.split(".", 1)[1] in proposed.flow.state.get(key.split(".")[0], {})
+        # The two prose fields the form leaves optional are "Not stated at adoption." only by
+        # being left blank; typing that sentence is a different act and is recorded as one.
+        and key not in ("risk.risk_profile", "risk.materiality_definition")
+    }
+    check("the first run proposed a good share of the profile", len(typed_values) > 15, str(len(typed_values)))
+
+    repo_b = make_installed_repo(tmp / "typed", "equal")
+    seed_referenced_files(repo_b, ci=True)
+    typed = ScriptedInterview(answers={**typed_values, **base}, bulk_not_applicable=True)
+    written_b = wizard.run(repo_b, typed)
+
+    # A scaffolded artefact binds from the instant it was created, which differs between the
+    # two runs by however long the first took: a fact of record, normalised for the comparison.
+    instant = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}")
+    profile_a = instant.sub("INSTANT", written_a.read_text(encoding="utf-8"))
+    profile_b = instant.sub("INSTANT", written_b.read_text(encoding="utf-8"))
+    check(
+        "proposing and typing the same values write the same profile, line for line",
+        profile_a == profile_b,
+        "\n".join(l for l in profile_a.splitlines() if l not in profile_b.splitlines())[:300],
+    )
+    record_a = yaml.safe_load((repo_a / provenance.PROVENANCE_PATH).read_text(encoding="utf-8"))
+    record_b = yaml.safe_load((repo_b / provenance.PROVENANCE_PATH).read_text(encoding="utf-8"))
+    check(
+        "and a value submitted unchanged is recorded under its proposal's origin either way",
+        {p: f["origin"] for p, f in record_a["fields"].items()} == {p: f["origin"] for p, f in record_b["fields"].items()},
+        str([p for p in record_a["fields"] if record_a["fields"][p]["origin"] != record_b["fields"].get(p, {}).get("origin")][:5]),
+    )
+    check(
+        "the record names typed, discovered, example, computed and fact of record among its origins",
+        {"typed", "discovered", "example", "computed", "fact of record"} <= {f["origin"] for f in record_a["fields"].values()},
+        str(sorted({f["origin"] for f in record_a["fields"].values()})),
+    )
+
+
+def test_fields_presented_before_the_review_are_measured(tmp: Path) -> None:
+    """`DR-47`'s budget, measured on the two fixtures the prototype used rather than estimated:
+    a repository with things to discover at standard, and a bare one at essential. The count is
+    the fields presented as a form before the review; the gate list is counted separately
+    (report Part II §II.4). Phase 3 turns the numbers into the budget test; this records them."""
+    from surfaceplate.adopt import flow as _flow
+    from surfaceplate.adopt.interview import ScriptedInterview
+
+    def measure(repo: Path, level: str, relied: str) -> tuple[int, int, list[str]]:
+        flow = _flow.Flow(repo, {"standard_version": "0.16.0", "framework_digest": "x"})
+        interview = ScriptedInterview(
+            answers={
+                "identity.owner": "O", "stack.builds_user_interface": "no",
+                "risk.relied_on_outside_team": relied, "risk.material_quantitative_output": "no",
+                "risk.data_classification": "internal", "wrap.release_route": "R",
+                "level.conformance_level": level,
+            },
+            bulk_not_applicable=True,
+        )
+        original = interview._answer
+
+        def answer_everything(section, prefix=""):
+            # The script answers whatever a form presents - a real path where git is asked,
+            # a word otherwise - so the run reaches the review and every presented field counts.
+            for spec in section.fields:
+                key = f"{prefix}{spec.id}"
+                if key in interview.answers or spec.default or not spec.validate or spec.kind not in ("text", "textarea"):
+                    continue  # a pre-filled proposal is submitted unchanged
+                interview.answers[key] = "main.py" if spec.validate == "tracked_path" else f"answer for {key}"
+            return original(section, prefix)
+
+        interview._answer = answer_everything  # type: ignore[method-assign]
+        interview.collect(flow, on_progress=lambda: None)
+        presented = [k for k in interview.asked if not k.startswith("gates.")]
+        gate_keys = [k for k in interview.asked if k.startswith("gates.")]
+        return len(presented), len(gate_keys), presented
+
+    rich = make_installed_repo(tmp, "budget-standard")
+    seed_referenced_files(rich)
+    (rich / "src").mkdir(); (rich / "src" / "app.py").write_text("x=1\n", encoding="utf-8")
+    (rich / ".github" / "workflows").mkdir(parents=True, exist_ok=True)
+    (rich / ".github" / "workflows" / "ci.yml").write_text(
+        "jobs:\n  t:\n    steps:\n      - name: Run the tests\n        run: pytest\n", encoding="utf-8")
+    _commit_all(rich, "rich")
+    bare = make_installed_repo(tmp, "budget-bare")
+    (bare / "main.py").write_text("x = 1\n", encoding="utf-8")
+    _commit_all(bare, "bare")
+    (rich / "main.py").write_text("x = 1\n", encoding="utf-8")
+    _commit_all(rich, "main")
+
+    n_std, g_std, fields_std = measure(rich, "standard", "yes")
+    n_ess, g_ess, fields_ess = measure(bare, "essential", "no")
+    print(f"      measured: standard/discoverable {n_std} fields before the review ({g_std} gate fields); essential/bare {n_ess} ({g_ess})")
+    print(f"      standard: {fields_std}")
+    print(f"      essential/bare: {fields_ess}")
+    check("standard with things to discover: at most twelve fields before the review", n_std <= 12, str(n_std))
+    check("essential on a bare repository: at most twelve fields before the review", n_ess <= 12, str(n_ess))
+
+
+def test_propose_writes_a_proposal_and_never_the_profile(tmp: Path) -> None:
+    """`DR-49` (3) / R4. `adopt --propose` runs discovery and writes the proposed profile and the
+    answers record with every undecided decision marked `needs-human`; it never writes the
+    profile, so the checker never reads a tool-authored declaration."""
+    from surfaceplate.adopt import provenance
+
+    repo = make_installed_repo(tmp, "propose-repo")
+    seed_referenced_files(repo, ci=True)
+    template = (repo / "governance" / "application-profile.yaml").read_text(encoding="utf-8")
+    written = wizard.propose(repo, level="standard")
+    check(
+        "--propose writes the proposed profile and the answers record",
+        written.proposed.is_file() and written.answers.is_file(),
+        str(written),
+    )
+    check(
+        "and never the profile itself",
+        (repo / "governance" / "application-profile.yaml").read_text(encoding="utf-8") == template
+        and not (repo / provenance.PROVENANCE_PATH).exists(),
+    )
+    record = yaml.safe_load(written.answers.read_text(encoding="utf-8"))
+    answers = record["answers"]
+    needs = [k for k, v in answers.items() if v == wizard.NEEDS_HUMAN]
+    check(
+        "every decision only a human can make is marked needs-human",
+        {"identity.owner", "stack.builds_user_interface", "risk.data_classification", "wrap.release_route"} <= set(needs)
+        and all(k.endswith(".status") for k in needs if k.startswith("gates.") and k.endswith(".status")),
+        str(sorted(needs)[:8]),
+    )
+    check(
+        "no gate status is proposed - each undecided gate is a needs-human line",
+        any(k.startswith("gates.") and k.endswith(".status") for k in needs)
+        and not any(k.endswith(".status") and v != wizard.NEEDS_HUMAN for k, v in answers.items()),
+    )
+    proposed = {k: v for k, v in answers.items() if isinstance(v, dict)}
+    check(
+        "every proposal carries its value and origin",
+        proposed and all({"value", "origin"} <= set(v) for v in proposed.values())
+        and all(v["origin"] != "typed" for v in proposed.values()),
+        str(list(proposed.items())[:2]),
+    )
+    check("the level given on the command line is the human's and is recorded as the level", record["level"] == "standard", str(record.get("level")))
+    text = written.proposed.read_text(encoding="utf-8")
+    check("the proposed profile says what it is at the top", "PROPOSED" in text.splitlines()[0].upper(), text.splitlines()[0])
+
+
+def test_answers_replays_a_completed_record_through_the_same_code(tmp: Path) -> None:
+    """`DR-49` (3): `adopt --answers <file>` replays a human-completed record through the same
+    `plan`, `sections` and `_verify` code as the interface and writes the profile; a record with
+    a `needs-human` line left in it refuses to write anything."""
+    from surfaceplate.adopt import provenance
+
+    repo = make_installed_repo(tmp, "answers-repo")
+    seed_referenced_files(repo, ci=True)
+    proposal = wizard.propose(repo, level="standard")
+    record = yaml.safe_load(proposal.answers.read_text(encoding="utf-8"))
+    try:
+        wizard.replay(repo, proposal.answers)
+        outcome = "wrote"
+    except wizard.NeedsHuman as exc:
+        outcome = f"refused: {exc}"
+    check("a record with needs-human lines is refused", outcome.startswith("refused"), outcome)
+    check("and nothing was written", not (repo / provenance.PROVENANCE_PATH).exists())
+
+    # A human completes the record.
+    human = {
+        "identity.owner": "Owner Person",
+        "stack.builds_user_interface": "no",
+        "risk.relied_on_outside_team": "yes",
+        "risk.material_quantitative_output": "no",
+        "risk.data_classification": "internal",
+        "wrap.release_route": "Merged to main by the maintainer.",
+        "adoption.decision_record_id": "DR-1",
+        "create_missing_artefacts": "yes",
+    }
+    for key, value in record["answers"].items():
+        if value == wizard.NEEDS_HUMAN:
+            if key in human:
+                record["answers"][key] = human[key]
+            elif key.endswith(".status"):
+                record["answers"][key] = "not_applicable"
+            else:
+                record["answers"][key] = f"answer for {key}"
+    record["level"] = "standard"
+    completed = repo / "answers-completed.yaml"
+    completed.write_text(yaml.safe_dump(record, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    written = wizard.replay(repo, completed)
+    check("a completed record writes the profile", written.is_file())
+    data = yaml.safe_load(written.read_text(encoding="utf-8"))
+    check(
+        "with the human's answers and the proposals both in it",
+        data["owner"] == "Owner Person" and data["conformance_level"] == "standard"
+        and data["adoption"]["decision_record_id"] == "DR-1",
+        str({k: data.get(k) for k in ("owner", "conformance_level")}),
+    )
+    sidecar = yaml.safe_load((repo / provenance.PROVENANCE_PATH).read_text(encoding="utf-8"))
+    check(
+        "and the provenance record says which values were typed by the human and which were proposed",
+        sidecar["fields"]["owner"]["origin"] == "typed"
+        and sidecar["fields"]["adoption.framework_maintainer"]["origin"] == "computed",
+        str({k: sidecar["fields"][k] for k in ("owner", "adoption.framework_maintainer")}),
+    )
+    # The same values through the scripted interview write the same profile: one code path.
+    repo_b = make_installed_repo(tmp / "b", "answers-repo")
+    seed_referenced_files(repo_b, ci=True)
+    scripted = {k: v for k, v in record["answers"].items() if not isinstance(v, dict)}
+    scripted = {k: v for k, v in scripted.items() if not k.endswith(".status") and k != "create_missing_artefacts"}
+    scripted["level.conformance_level"] = record["level"]
+    interview = ScriptedInterview(answers=scripted, bulk_not_applicable=True)
+    written_b = wizard.run(repo_b, interview)
+    instant = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}")
+    check(
+        "replay and the interface write the same profile from the same answers",
+        instant.sub("I", written.read_text(encoding="utf-8")) == instant.sub("I", written_b.read_text(encoding="utf-8")),
+        "\n".join(l for l in written.read_text(encoding="utf-8").splitlines() if l not in written_b.read_text(encoding="utf-8").splitlines())[:300],
+    )
+
+
+def test_validators_refuse_what_the_checker_rejects(tmp: Path) -> None:
+    """`F66` / `DR-48`. The wizard accepted a future `effective_from`, a 401-day and a past
+    `review_by`, a one-character `application_id`, basic-ISO dates the schema refuses, and an
+    untracked path - each of which the checker's first run rejects. One rules module now holds
+    the rules and both sides import it; this asserts the wizard's side refuses each input."""
+    import datetime as _dt
+
+    from surfaceplate.adopt import validators
+
+    repo = make_installed_repo(tmp, "parity-inputs-repo")
+    (repo / "tracked.md").write_text("# tracked\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "tracked.md"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "tracked"], check=True)
+    (repo / "untracked.md").write_text("# here, but not committed\n", encoding="utf-8")
+
+    today = _dt.date.today()
+    tomorrow = (today + _dt.timedelta(days=1)).isoformat()
+    yesterday = (today - _dt.timedelta(days=1)).isoformat()
+    far = (today + _dt.timedelta(days=401)).isoformat()
+    near = (today + _dt.timedelta(days=180)).isoformat()
+
+    refused = [
+        ("effective_from", tomorrow, "SP033: a future effective_from"),
+        ("effective_from", "20260101", "the schema's date form, not basic ISO"),
+        ("review_by", far, "SP026: review_by beyond 400 days"),
+        ("review_by", yesterday, "SP025: review_by in the past"),
+        ("review_by", "20270101", "SP024: review_by not YYYY-MM-DD"),
+        ("revisit_by", yesterday, "SP054: revisit_by in the past"),
+        ("date", "20270101", "basic ISO is not the schema's date"),
+        ("application_id", "a", "the schema's pattern needs two characters"),
+        ("nonempty", "TBD", "SP020: a placeholder is not an answer"),
+        ("nonempty", "please replace-me", "SP020: a placeholder inside prose"),
+        ("tracked_path", "untracked.md", "SP051: exists but not tracked by git"),
+        ("tracked_path", "missing.md", "SP032/SP051: does not exist"),
+    ]
+    for name, value, why in refused:
+        check(
+            f"validators refuse {name}={value!r} ({why})",
+            validators.check(name, value, repo=repo) is not None,
+        )
+    accepted = [
+        ("effective_from", today.isoformat()),
+        ("effective_from", f"{today.isoformat()}T00:00:00+00:00"),
+        ("review_by", near),
+        ("revisit_by", near),
+        ("date", today.isoformat()),
+        ("application_id", "ab"),
+        ("nonempty", "a real answer"),
+        ("tracked_path", "tracked.md"),
+    ]
+    for name, value in accepted:
+        problem = validators.check(name, value, repo=repo)
+        check(f"and accept {name}={value!r}", problem is None, str(problem))
+
+
+def test_every_checker_code_has_a_validator_or_an_exemption(tmp: Path) -> None:
+    """`DR-48` (4): for every `SP` code the checker emits, the wizard refuses the same input at
+    the field, or an exemption names the reason. The table is compared against the codes the
+    checker actually emits, both ways, so a new code cannot arrive without a row here."""
+    import datetime as _dt
+    import re
+
+    from surfaceplate.adopt import validators
+
+    repo = make_installed_repo(tmp, "parity-table-repo")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "install"], check=True)
+    (repo / "untracked.md").write_text("x\n", encoding="utf-8")
+    yesterday = (_dt.date.today() - _dt.timedelta(days=1)).isoformat()
+    far = (_dt.date.today() + _dt.timedelta(days=401)).isoformat()
+    tomorrow = (_dt.date.today() + _dt.timedelta(days=1)).isoformat()
+
+    V = "validator"
+    X = "exempt"
+    PARITY: dict[str, tuple] = {
+        "SP001": (X, "reads the install record, not a profile field"),
+        "SP002": (X, "reads the install record, not a profile field"),
+        "SP003": (X, "reads the install record, not a profile field"),
+        "SP004": (X, "reads the vendored files, not a profile field"),
+        "SP005": (X, "reads the vendored files, not a profile field"),
+        "SP006": (X, "reads the agent instruction files, not a profile field"),
+        "SP007": (X, "reads the conformance block, not a profile field"),
+        "SP008": (X, "reads the conformance block, not a profile field"),
+        "SP009": (X, "reads the installed workflow, not a profile field"),
+        "SP010": (X, "the wizard writes the profile it is about to check"),
+        "SP011": (X, "wizard._verify re-parses the rendered profile before writing"),
+        "SP012": (X, "wizard._verify re-parses the rendered profile before writing"),
+        "SP013": (X, "wizard._verify refuses to write without the vendored schema"),
+        "SP014": (X, "wizard._verify refuses to write without a readable schema"),
+        "SP015": (X, "wizard._verify validates against the schema before writing"),
+        "SP016": (X, "wizard._verify validates against the schema before writing"),
+        "SP017": (X, "the level is a closed choice of three; an empty choice is refused (F64)"),
+        "SP018": (X, "sections.build_adoption writes the block unconditionally"),
+        "SP019": (V, "nonempty", ""),
+        "SP020": (V, "nonempty", "TBD"),
+        "SP021": (X, "control decisions are computed from the level by sections.build_controls"),
+        "SP022": (X, "control decisions are computed from the level by sections.build_controls"),
+        "SP023": (X, "no control decision can be deferred through the wizard (DR-32)"),
+        "SP024": (V, "review_by", "20270101"),
+        "SP025": (V, "review_by", yesterday),
+        "SP026": (V, "review_by", far),
+        "SP027": (X, "sections.build_gates writes every gate the plan declares"),
+        "SP028": (X, "sections.build_gates writes the schema's shape from the plan"),
+        "SP029": (X, "a level-mandatory gate is stated by the plan, never chosen"),
+        "SP030": (X, "a level-mandatory gate is stated by the plan, never chosen"),
+        "SP031": (V, "revisit_by", ""),
+        "SP032": (V, "tracked_path", "missing.md"),
+        "SP033": (V, "effective_from", tomorrow),
+        "SP034": (X, "history-only: compares against git history (DR-48)"),
+        "SP035": (X, "history-only: compares against git history (DR-48)"),
+        "SP037": (X, "builds_user_interface is a closed yes/no the form refuses empty; the design gates follow it"),
+        "SP038": (X, "enforcement is derived as history_audit + review; the wizard never writes local_hook"),
+        "SP039": (X, "reads the staged snapshot, not the profile the wizard writes"),
+        "SP040": (X, "reads the staged snapshot, not the profile the wizard writes"),
+        "SP041": (X, "reads the staged snapshot, not the profile the wizard writes"),
+        "SP042": (X, "a pathspec is validated by git at check time; the field offers discovered pathspecs"),
+        "SP043": (X, "reads gate exception records, which the wizard does not write"),
+        "SP046": (V, "tracked_path", "untracked.md"),
+        "SP047": (X, "reads the workflow step's shell semantics, not a profile field"),
+        "SP048": (X, "written from the install record, never asked"),
+        "SP049": (X, "written from the install record, never asked"),
+        "SP050": (X, "the wizard writes no placeholder-scan exemptions"),
+        "SP051": (V, "tracked_path", "untracked.md"),
+        "SP052": (X, "authority_map is mandatory at every level that requires documentation_authority"),
+        "SP053": (V, "ci_step", "No such step"),
+        "SP054": (V, "revisit_by", yesterday),
+        "SP055": (V, "tracked_path", "missing-register"),
+        "SP056": (X, "reads the records inside a register, which the wizard does not write"),
+        "SP057": (X, "reads the records inside a register, which the wizard does not write"),
+        "SP058": (X, "reads the records inside a register, which the wizard does not write"),
+        "SP059": (V, "tracked_path", ".standards/VERSION"),
+    }
+    source = (PAYLOAD / "check_conformance.py").read_text(encoding="utf-8")
+    emitted = set(re.findall(r'Finding\(\s*"(SP\d{3})"', source))
+    check(
+        "every emitted SP code has a parity row, and every row is an emitted code",
+        emitted == set(PARITY),
+        f"unmapped: {sorted(emitted - set(PARITY))}; stale rows: {sorted(set(PARITY) - emitted)}",
+    )
+    for code, row in sorted(PARITY.items()):
+        if row[0] == V:
+            _, name, bad = row
+            check(
+                f"{code}: validators.check({name!r}, {bad!r}) refuses it",
+                validators.check(name, bad, repo=repo) is not None,
+            )
+    exemptions = sum(1 for row in PARITY.values() if row[0] == X)
+    check("every exemption names a reason", all(len(r) == 2 and r[1] for r in PARITY.values() if r[0] == X))
+    print(f"  ({len(PARITY) - exemptions} codes met by a validator, {exemptions} exempt by name)")
+
+
 def test_scripted_interview_objects_in_both_directions(tmp: Path) -> None:
     """The two-sided guarantee itself, checked rather than assumed."""
     repo = make_installed_repo(tmp, "two-sided-repo")
@@ -1174,7 +1637,7 @@ def main() -> int:
         print("\nF38 regression: multi-line prose survives the whole flow")
         test_multiline_prose_survives_the_whole_flow(tmp)
 
-        print("\nDR-40: the defaults route proposes, and says where each value came from")
+        print("\nDR-47: the wizard proposes, and says where each value came from")
         test_the_profile_says_which_controls_are_actually_checked()
         test_the_tool_does_not_set_effective_from()
         test_the_level_is_recommended_and_never_chosen()
@@ -1201,6 +1664,18 @@ def main() -> int:
         test_the_untouched_template_is_still_fair_game(tmp)
         test_write_refused_on_placeholder_content(essential_repo, essential_profile)
         test_scripted_interview_objects_in_both_directions(tmp)
+
+        print("\nDR-47: proposing writes what typing writes; the budget, measured")
+        test_proposing_writes_the_same_profile_as_typing_the_same_values(tmp)
+        test_fields_presented_before_the_review_are_measured(tmp)
+
+        print("\nDR-49: adoption without a terminal - propose, then replay the human's answers")
+        test_propose_writes_a_proposal_and_never_the_profile(tmp)
+        test_answers_replays_a_completed_record_through_the_same_code(tmp)
+
+        print("\nDR-48: one set of rules for the wizard and the checker")
+        test_validators_refuse_what_the_checker_rejects(tmp)
+        test_every_checker_code_has_a_validator_or_an_exemption(tmp)
 
     print()
     if FAILURES:

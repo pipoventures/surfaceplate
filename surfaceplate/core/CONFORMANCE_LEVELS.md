@@ -30,7 +30,7 @@ credentials.
 an oversight to be read past: a repository can declare both, do neither, and pass. They are stated
 obligations, and the reason they are unverified is that neither leaves an artefact this framework
 can inspect without inspecting the quality of human work, which `core/CONTROL_PRINCIPLES.md`
-principle 9 places outside what a tool may claim.
+principle 11 places outside what a tool may claim.
 
 ## What a control decision is, and what it is not
 
@@ -67,7 +67,7 @@ history audit — whether anyone changed the gated paths while it was missing.
 **Ten of the twelve controls this framework defines are checked**, at every level. The two that are
 not are `agent_work_packets` and `actual_diff_review`, named above and unchanged: neither leaves an
 artefact this framework can inspect without inspecting the quality of human work, which
-`core/CONTROL_PRINCIPLES.md` principle 9 places outside what a tool may claim.
+`core/CONTROL_PRINCIPLES.md` principle 11 places outside what a tool may claim.
 
 *This paragraph read "Every control this framework defines is now checked, at every level. Nothing is
 declared-only" until `F52`. That directly contradicted the statement thirty-eight lines above it, in
@@ -152,7 +152,8 @@ truthfulness, and never completeness.
 
 This was recorded as finding `F20` and is now closed. `DR-25` set out four patterns by which a
 control becomes provable, with `implementation_reference` naming where the control lives; `DR-26`
-completes the last of them. Every control is checked, so the list above is no longer partial.
+completes the last of them. Every control that leaves an inspectable artefact is checked — ten of
+the twelve, as stated above — so the list above is no longer partial.
 
 **A limit that remains now they are all built, stated more narrowly than it once was.**
 Verification establishes that a record exists, is well-formed, and is linked to what it describes.
@@ -227,3 +228,72 @@ depends on intended use and reliance, which only the application owner can judge
 Raising a level is a normal versioned change. Lowering a level is a material control decision and
 requires the rationale to be recorded, because it reduces assurance over outputs that may already
 be relied upon.
+
+## Every finding code the checker can report
+
+<!-- BEGIN GENERATED: finding codes (tests/check_code_registers.py --write) -->
+
+56 codes. Generated from the checker's own source by `tests/check_code_registers.py --write`;
+the same script fails in CI when this table and the checker disagree. A code's title is what
+the report prints; `<gate>`, `<control>`, `<file>` stand for the name the report fills in.
+
+| Code | What it reports |
+|---|---|
+| `SP001` | Surfaceplate is not installed |
+| `SP002` | The install record is unreadable |
+| `SP003` | The install record is incomplete |
+| `SP004` | Standard-owned files have been deleted |
+| `SP005` | Standard-owned files have been modified locally; Standard-owned hook files are not executable |
+| `SP006` | No agent instruction file at <file> |
+| `SP007` | The conformance block is absent from <file> |
+| `SP008` | The conformance block in <file> has been altered |
+| `SP009` | The conformance workflow is not present |
+| `SP010` | No application profile |
+| `SP011` | The application profile could not be read |
+| `SP012` | The application profile is not a mapping |
+| `SP013` | The application profile schema is not vendored |
+| `SP014` | The schema could not be read |
+| `SP015` | Schema validation could not be performed |
+| `SP016` | The application profile does not satisfy the control contract; Further schema errors were suppressed |
+| `SP017` | The declared conformance level is not recognised |
+| `SP018` | The profile records no adoption metadata |
+| `SP019` | An incomplete adoption carries no rationale |
+| `SP020` | The application profile still contains template placeholders |
+| `SP021` | Conformance level '<level>' is overclaimed |
+| `SP022` | Conformance level '<level>' is overclaimed |
+| `SP023` | Controls were deferred without an owner or a revisit date |
+| `SP024` | The profile records no review date; The profile review date is unreadable |
+| `SP025` | The application profile is overdue for review |
+| `SP026` | The profile review date is beyond the permitted horizon |
+| `SP027` | The profile declares no prerequisite gates |
+| `SP028` | The prerequisites block is malformed; A prerequisite gate is malformed; A prerequisite gate has no identifier; Prerequisite gate '<gate>' is declared more than once; Prerequisite gate '<gate>' is not in the catalogue; Prerequisite gate '<gate>' has no usable status |
+| `SP029` | Conformance level '<level>' requires gate '<gate>'; Conformance level '<level>' leaves catalogue gates undecided |
+| `SP030` | Conformance level '<level>' requires gate '<gate>' to be required |
+| `SP031` | Gate '<gate>' is <status> without a reason; Gate '<gate>' is deferred without an owner or a revisit date |
+| `SP032` | Gate '<gate>' requires an artefact that does not exist; Gate '<gate>' names an empty precondition artefact; Gate '<gate>' names an unfinished precondition artefact |
+| `SP033` | Gate '<gate>' records no effective date; Gate '<gate>' has an unreadable effective date; Gate '<gate>' is dated in the future |
+| `SP034` | Gate '<gate>' has had its effective date moved forward |
+| `SP035` | Gate '<gate>' was crossed without its precondition |
+| `SP037` | The profile does not say whether this repository builds a user interface; 'builds_user_interface' is not a yes or no; Gate '<gate>' is not_applicable in a repository that builds a UI; Gate '<gate>' is {gate.get('status')} in a repository with no UI |
+| `SP038` | Gate '<gate>' claims hook enforcement that is not in place |
+| `SP039` | Staged change crosses gate '<gate>' without its precondition |
+| `SP040` | The staged snapshot has no install record; The staged install record is unreadable; The staged install record differs from the checked-out installer output; Standard-owned files are invalid in the staged snapshot; Standard-owned hooks are not executable in the staged snapshot; The staged snapshot has no Copilot instructions; The conformance block is absent from the staged snapshot; The conformance block is altered in the staged snapshot |
+| `SP041` | The staged application profile cannot be evaluated |
+| `SP042` | Gate '<gate>' has an invalid Git pathspec |
+| `SP043` | Gate exception '<file>' is invalid; Gate exception '<file>' names an unresolved commit; Gate exceptions could not be validated; Gate exception '{path.relative_to(repo).as_posix()}' is unreadable; Staged gate exceptions could not be validated; Staged gate exception '<file>' is unreadable |
+| `SP046` | secret_hygiene is declared but no scanner is named; Scanner '<scanner>' is named but not wired anywhere; Scanner '<scanner>' is wired to a file that does not exist; <file> does not mention '<scanner>'; <file> names '<scanner>' but no step runs it |
+| `SP047` | The scan step in <file> cannot fail the job; The scan command in <file> discards its exit code |
+| `SP048` | The profile declares a different version from the one installed |
+| `SP049` | The profile declares a framework digest that cannot be verified; The installed manifest does not hash to the digest recorded for it; The profile's framework digest does not match what is installed |
+| `SP050` | A placeholder-scan exemption names an artefact that does not exist |
+| `SP051` | Control '<control>' is required but names nothing to check; Control '<control>' names a file that does not exist; Control '<control>' names an empty file; Control '<control>' names an unfinished file; Control '<control>' names an untracked file |
+| `SP052` | documentation_authority is required without the gate that verifies it |
+| `SP053` | Control '<control>' is required but names no CI step; Control '<control>' names a CI step that does not exist; Control '<control>' names a CI step that runs nothing; Control '<control>' names a step that cannot fail the build; Control '<control>' names a step that discards its exit code |
+| `SP054` | <record> has an unreadable revisit date; <record> passed its revisit date |
+| `SP055` | Control '<control>' is required but names no register; Control '<control>' names a file where a register belongs; Control '<control>' names a register that does not exist; Control '<control>' names a register holding untracked records |
+| `SP056` | Control '<control>' could not be checked; Record '<file>' is unreadable; Record '<file>' is invalid for control '<control>' |
+| `SP057` | Record '<file>' references something that does not exist |
+| `SP058` | Two records in the '<control>' register claim one identity; Record '<file>' belongs to a different application |
+| `SP059` | Control '<control>' names a step of the workflow this framework installed; Gate '<gate>' names a file this framework installed as its precondition |
+
+<!-- END GENERATED: finding codes -->

@@ -28,6 +28,17 @@ import sys
 from pathlib import Path
 from typing import Any
 
+# `DR-48`: the date rules, the identifier pattern, the placeholder pattern and "a named path is
+# tracked by git" live once, in `rules.py` beside this file, and the wizard's validators import
+# the same module. Imported as a sibling in every context this checker runs in: as
+# `surfaceplate.check_conformance`, flat with this directory on `sys.path`, and vendored under
+# `.standards/` where it is run as a script.
+try:
+    from . import rules
+except ImportError:  # no parent package: run as a script, or imported flat
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import rules
+
 # --- Fixed contract with adopting repositories -------------------------------
 # These paths are part of the published standard. Changing one is a breaking
 # change for every adopting repository, not a refactor.
@@ -61,7 +72,7 @@ MAX_GRACE_DAYS = 30
 #
 # The horizon is capped for the same reason the grace window is: without a cap, an
 # adopter could set `review_by` to 2099 and the control would be decorative.
-MAX_REVIEW_HORIZON_DAYS = 400
+MAX_REVIEW_HORIZON_DAYS = rules.MAX_REVIEW_HORIZON_DAYS
 REVIEW_WARN_DAYS = 30
 DEFAULT_REVIEW_INTERVAL_DAYS = 180
 
@@ -88,10 +99,7 @@ DEFAULT_REVIEW_INTERVAL_DAYS = 180
 # tests/test_install_and_check.py pins both directions: a genuinely unfilled artefact is
 # still caught, and notation is not. Do not re-add a shape-based branch here without a
 # seen-to-fail case showing it separates the two.
-PLACEHOLDER_PATTERN = re.compile(
-    r"\breplace[-_ ]?me\b|\bTBD\b|\bTBC\b|\bTODO\b",
-    re.IGNORECASE,
-)
+PLACEHOLDER_PATTERN = rules.PLACEHOLDER_PATTERN
 
 # Controls this checker actually verifies against the repository, as opposed to verifying
 # that they were declared. DR-25 records the architecture by which the rest join them; each
@@ -750,9 +758,8 @@ def check_profile_review(
         )
         return
 
-    try:
-        review_by = _dt.date.fromisoformat(str(raw)[:10])
-    except ValueError:
+    state, review_by = rules.review_by_state(raw, today)
+    if state == "unreadable" or review_by is None:
         findings.append(
             Finding(
                 "SP024",
@@ -764,8 +771,7 @@ def check_profile_review(
         )
         return
 
-    horizon = today + _dt.timedelta(days=MAX_REVIEW_HORIZON_DAYS)
-    if review_by > horizon:
+    if state == "beyond_horizon":
         findings.append(
             Finding(
                 "SP026",
@@ -779,7 +785,7 @@ def check_profile_review(
         )
         return
 
-    if review_by < today:
+    if state == "overdue":
         overdue = (today - review_by).days
         findings.append(
             Finding(
@@ -1007,8 +1013,25 @@ def find_workflow_step(repo: Path, step_name: str) -> tuple[str | None, dict | N
     return None, None
 
 
+def framework_owned(path: str, install_record: dict | None) -> bool:
+    """Whether `path` is a file this framework installed, read from the install record: its file
+    list, plus the profile the installer created. `F61`: a gate whose precondition is one of these
+    is satisfied by installing the framework, and a control whose CI step is the installed
+    workflow's is verified against the checker rather than the adopter's tests."""
+    if not install_record:
+        return False
+    files = install_record.get("files")
+    if isinstance(files, dict) and path in files:
+        return True
+    return path == install_record.get("profile_path")
+
+
 def check_pattern_b_controls(
-    repo: Path, profile: dict, findings: list[Finding], notes: list[str]
+    repo: Path,
+    profile: dict,
+    findings: list[Finding],
+    notes: list[str],
+    install_record: dict | None = None,
 ) -> None:
     """Verify that controls claiming pattern B name a CI step that exists and can fail (DR-25).
 
@@ -1058,6 +1081,21 @@ def check_pattern_b_controls(
                     f"No workflow contains a step named {reference!r}.",
                     "Correct the name or add the step. A reference resolving to nothing reads as "
                     "evidence and is not.",
+                    graceable=True,
+                )
+            )
+            continue
+
+        if workflow is not None and framework_owned(workflow, install_record):
+            findings.append(
+                Finding(
+                    "SP059",
+                    f"Control '{control_id}' names a step of the workflow this framework installed",
+                    f"{reference!r} is a step in {workflow}, which Surfaceplate installed. That "
+                    f"step runs the conformance checker, not this repository's own tests.",
+                    "Name a step in one of this repository's own workflows - the one that runs "
+                    "these tests. A control verified against the framework's own workflow "
+                    "verifies nothing about this repository.",
                     graceable=True,
                 )
             )
@@ -1207,8 +1245,7 @@ def check_control_implementations(
         # Tracked by git, because an untracked file is not part of the repository an auditor
         # would receive - it exists on one machine and nowhere else.
         if git_available(repo):
-            code, _ = git(repo, "ls-files", "--error-unmatch", reference)
-            if code != 0:
+            if not rules.is_tracked(repo, reference):
                 findings.append(
                     Finding(
                         "SP051",
@@ -1672,9 +1709,8 @@ def check_deferral_expiry(
     contract change and deserves its own decision.
     """
     def assess(label: str, raw: object, remedy: str) -> None:
-        try:
-            due = _dt.date.fromisoformat(str(raw)[:10])
-        except ValueError:
+        state, due = rules.revisit_by_state(raw, today)
+        if state in ("absent", "unreadable") or due is None:
             findings.append(
                 Finding(
                     "SP054",
@@ -1688,7 +1724,7 @@ def check_deferral_expiry(
             return
 
         overdue = (today - due).days
-        if overdue > 0:
+        if state == "overdue":
             findings.append(
                 Finding(
                     "SP054",
@@ -2303,53 +2339,16 @@ def effective_instant(raw: object) -> _dt.datetime:
 
 
 def _effective_is_future(raw: object, day: _dt.date, today: _dt.date) -> bool:
-    """Whether this `effective_from` is still to come. `F47` widened the field; this keeps
-    `SP033` exactly as strict, by comparing an instant against now when one is supplied."""
-    text = str(raw).strip()
-    if len(text) <= 10:
-        return day > today
-    try:
-        moment = _dt.datetime.fromisoformat(text)
-    except ValueError:
-        return day > today
-    now = _dt.datetime.now(moment.tzinfo) if moment.tzinfo else _dt.datetime.now()
-    return moment > now
+    """Whether this `effective_from` is still to come - `rules.effective_is_future`, held once
+    (`DR-48`) so the wizard refuses exactly what `SP033` refuses."""
+    return rules.effective_is_future(raw, day, today)
 
 
 def parse_effective_from(raw: object) -> tuple[_dt.date, str]:
-    """`effective_from` as `(date, git --since argument)`.
-
-    **`F47`: this field may carry a time, and that is the whole point of accepting one.** A gate
-    binds from an instant, and a date can only say "midnight". A repository adopted at 16:37 on a
-    day it had already committed reported every one of that morning's commits as crossing a gate
-    whose precondition it had just created - accurately, by the letter of a date, and uselessly.
-    Binding from tomorrow instead is what the artefact's real history justifies, and `SP033`
-    refuses it, correctly.
-
-    Date-only values keep their exact previous meaning: midnight, so every existing profile reads
-    the same as it always has. The returned date is what `SP033`/`SP034` compare and what messages
-    print; the string is what `git log --since` receives, and it is the FULL value, which is where
-    the time actually does its work.
-    """
-    text = str(raw).strip()
-    # `date.fromisoformat` accepts a full ISO datetime in 3.11+, so the date half is parsed from
-    # the first ten characters deliberately rather than incidentally - the same slice this code has
-    # always used, now with the remainder kept instead of discarded.
-    day = _dt.date.fromisoformat(text[:10])
-    if len(text) <= 10:
-        # **`F48`: midnight, stated. Never the bare date.** `git log --since=2026-09-01` does NOT
-        # mean that date at 00:00 - approxidate fills the missing time from the CURRENT CLOCK, so
-        # the bare form means "that date, at whatever time you happen to run the check". The audit
-        # window therefore slid forward all day: a violation visible at 09:00 was gone by 23:00,
-        # for no reason but the hour. Measured against git 2.43.0 with four commits at 01:00,
-        # 10:00, 19:00 and 23:00 - `--since=<date>` returned one, `--since=<date>T00:00:00`
-        # returned four.
-        #
-        # Normalising to midnight makes the control deterministic and gives it the meaning the
-        # schema has always claimed. It widens the window, which is the safe direction: it can
-        # surface a violation that was being hidden, and cannot hide one that was being surfaced.
-        return day, f"{day.isoformat()}T00:00:00"
-    return day, text
+    """`effective_from` as `(date, git --since argument)` - `rules.parse_effective_from`, held once
+    (`DR-48`). `F47` (an instant may be given) and `F48` (a bare date means midnight, stated) are
+    recorded on the rule itself."""
+    return rules.parse_effective_from(raw)
 
 
 def blob_exists(repo: Path, sha: str, path: str) -> bool:
@@ -2966,6 +2965,21 @@ def check_prerequisites(
             a for a in (precondition.get("artefacts") or []) if isinstance(a, str) and a
         ]
         for artefact in artefacts:
+            if framework_owned(artefact, install_record):
+                findings.append(
+                    Finding(
+                        "SP059",
+                        f"Gate '{gate_id}' names a file this framework installed as its precondition",
+                        f"{artefact} is in the install record: it exists because Surfaceplate was "
+                        f"installed, so this gate is satisfied by installing the framework and "
+                        f"guards nothing of this repository's own.",
+                        "Name an artefact of this repository's own - the register, the decision "
+                        "log, the changelog this gate is about. If none exists yet, "
+                        "`surfaceplate adopt` offers to create one.",
+                        graceable=True,
+                    )
+                )
+                continue
             target = repo / artefact
             staged_exists, staged_content = (
                 staged_artefact(repo, artefact) if staged_snapshot else (False, None)
@@ -3254,9 +3268,39 @@ def grace_state(record: dict, today: _dt.date) -> tuple[bool, str]:
 # --- Entry point -------------------------------------------------------------
 
 
-def run(repo: Path, today: _dt.date, no_grace: bool, staged: bool) -> int:
-    findings: list[Finding] = []
-    notes: list[str] = []
+class Report:
+    """One evaluation of a repository: what was found, and the verdict.
+
+    `DR-49`: the verdict, the exit code and every finding are data, rendered as text, JSON or
+    SARIF by the functions below. Exit codes are a public contract read by the installed hook and
+    workflow: 0 pass (or graced findings, `WARN`), 1 findings that fail, 2 not installed, 3 usage
+    error, 4 internal error.
+    """
+
+    def __init__(self, repo: Path) -> None:
+        self.repo = repo
+        self.record: dict | None = None
+        self.profile: dict | None = None
+        self.findings: list[Finding] = []
+        self.notes: list[str] = []
+        self.declared_not_checked: tuple[str, list[str]] | None = None
+        self.verdict = "PASS"
+        self.explanation = ""
+        self.exit_code = 0
+
+    @property
+    def blocking(self) -> list[Finding]:
+        return [f for f in self.findings if not f.graceable]
+
+    @property
+    def graceable(self) -> list[Finding]:
+        return [f for f in self.findings if f.graceable]
+
+
+def evaluate(repo: Path, today: _dt.date, no_grace: bool, staged: bool) -> Report:
+    report = Report(repo)
+    findings = report.findings
+    notes = report.notes
 
     # Bound before the branch below, because the level-reporting block after it runs whether
     # or not the standard is installed. Leaving it bound only inside the installed path made an
@@ -3265,6 +3309,7 @@ def run(repo: Path, today: _dt.date, no_grace: bool, staged: bool) -> int:
     profile: dict | None = None
 
     record = check_install_record(repo, findings)
+    report.record = record
     if record is not None:
         check_integrity(repo, record, findings)
         check_conformance_block(repo, record, findings)
@@ -3297,7 +3342,7 @@ def run(repo: Path, today: _dt.date, no_grace: bool, staged: bool) -> int:
             # exactly the output that says a control was narrowed.
             exempt = placeholder_exemptions(repo, profile, findings, notes)
             check_control_implementations(repo, profile, findings, notes, exempt)
-            check_pattern_b_controls(repo, profile, findings, notes)
+            check_pattern_b_controls(repo, profile, findings, notes, install_record=record)
             registers, incomplete = check_pattern_c_controls(repo, profile, findings, notes)
             check_record_references(
                 profile, registers, incomplete, findings, notes
@@ -3317,73 +3362,213 @@ def run(repo: Path, today: _dt.date, no_grace: bool, staged: bool) -> int:
             )
             if staged:
                 check_staged_prerequisites(repo, profile, findings)
-
-    print("Surfaceplate - conformance check")
-    print(f"repository: {repo}")
-    if record:
-        print(f"standard  : {record.get('standard_version')} "
-              f"installed {str(record.get('installed_at'))[:10]}")
+    report.profile = profile
 
     # F20 / DR-25. A reader who sees a level pass may reasonably infer that the controls that
     # level requires were checked. They were not: SP021/SP022 verify only that each is listed
-    # and reads `required`. Saying so here, in the result itself, is what stops a pass being
-    # read as more than it is - the verification arrives across four later packets, and this
-    # line is removed control by control as each becomes genuinely checked.
+    # and reads `required`. Saying so in the result itself is what stops a pass being read as
+    # more than it is.
     if profile is not None:
         level = profile.get("conformance_level")
         if isinstance(level, str) and level in CONFORMANCE_LEVELS:
             declared = sorted(CONFORMANCE_LEVELS[level] - VERIFIED_CONTROLS)
             if declared:
-                print(f"level     : {level} - {len(declared)} of "
-                      f"{len(CONFORMANCE_LEVELS[level])} required controls are DECLARED, "
-                      f"not checked")
-                print(f"            {', '.join(declared)}")
-                print("            A pass does not establish these exist. See F20.")
-    print()
+                report.declared_not_checked = (level, declared)
 
-    if notes:
-        print(f"Advisory ({len(notes)}) - not a failure:")
-        for note in notes:
-            print(f"  - {note}")
-        print()
-
+    if record is None:
+        # `DR-49` (2): not installed is its own exit code, so a wrapper can tell it from a
+        # failing profile. SP001 says why.
+        report.verdict, report.exit_code = "FAIL", 2
+        report.explanation = "Surfaceplate is not installed in this repository."
+        return report
     if not findings:
-        print("PASS - all conformance checks satisfied.")
-        return 0
-
-    blocking = [f for f in findings if not f.graceable]
-    graceable = [f for f in findings if f.graceable]
-
-    if blocking:
-        print(f"Blocking findings ({len(blocking)}) - never graced:")
-        for finding in blocking:
-            print(finding.render())
-        print()
-    if graceable:
-        print(f"Adoption completeness findings ({len(graceable)}):")
-        for finding in graceable:
-            print(finding.render())
-        print()
-
-    if blocking:
-        print("FAIL - the conformance check found findings that cannot be graced.")
-        print("These findings indicate either an invalid staged change or an untrustworthy control.")
-        return 1
-
+        report.verdict, report.exit_code = "PASS", 0
+        return report
+    if report.blocking:
+        report.verdict, report.exit_code = "FAIL", 1
+        report.explanation = "the conformance check found findings that cannot be graced."
+        return report
     in_grace, note = (False, "grace disabled by --no-grace") if no_grace else grace_state(
         record or {}, today
     )
     if in_grace:
-        print(f"WARN - adoption is incomplete, but {note}.")
-        print("This check will fail once the grace window ends. Complete the profile before then.")
-        return 0
+        report.verdict, report.exit_code = "WARN", 0
+        report.explanation = f"adoption is incomplete, but {note}."
+        return report
+    report.verdict, report.exit_code = "FAIL", 1
+    report.explanation = f"adoption is incomplete and {note}."
+    return report
 
-    print(f"FAIL - adoption is incomplete and {note}.")
-    return 1
+
+def render_text(report: Report) -> str:
+    lines: list[str] = []
+    out = lines.append
+    out("Surfaceplate - conformance check")
+    out(f"repository: {report.repo}")
+    if report.record:
+        out(f"standard  : {report.record.get('standard_version')} "
+            f"installed {str(report.record.get('installed_at'))[:10]}")
+    if report.declared_not_checked:
+        level, declared = report.declared_not_checked
+        out(f"level     : {level} - {len(declared)} of "
+            f"{len(CONFORMANCE_LEVELS[level])} required controls are DECLARED, "
+            f"not checked")
+        out(f"            {', '.join(declared)}")
+        out("            A pass does not establish these exist. See F20.")
+    out("")
+    if report.notes:
+        out(f"Advisory ({len(report.notes)}) - not a failure:")
+        for note in report.notes:
+            out(f"  - {note}")
+        out("")
+    if not report.findings:
+        out("PASS - all conformance checks satisfied.")
+        return "\n".join(lines)
+    if report.blocking:
+        out(f"Blocking findings ({len(report.blocking)}) - never graced:")
+        for finding in report.blocking:
+            out(finding.render())
+        out("")
+    if report.graceable:
+        out(f"Adoption completeness findings ({len(report.graceable)}):")
+        for finding in report.graceable:
+            out(finding.render())
+        out("")
+    if report.exit_code == 2:
+        out(f"FAIL - {report.explanation}")
+    elif report.blocking:
+        out(f"FAIL - {report.explanation}")
+        out("These findings indicate either an invalid staged change or an untrustworthy control.")
+    elif report.verdict == "WARN":
+        out(f"WARN - {report.explanation}")
+        out("This check will fail once the grace window ends. Complete the profile before then.")
+    else:
+        out(f"FAIL - {report.explanation}")
+    return "\n".join(lines)
+
+
+def _checker_version() -> str:
+    """The version of the standard this checker belongs to, read from the VERSION file beside it -
+    `surfaceplate/VERSION` in source, `.standards/VERSION` when vendored."""
+    try:
+        return (Path(__file__).resolve().parent / "VERSION").read_text(encoding="utf-8").strip()
+    except OSError:
+        return "unknown"
+
+
+def _finding_dict(finding: Finding) -> dict:
+    return {
+        "code": finding.code,
+        "title": finding.title,
+        "detail": finding.detail,
+        "remedy": finding.remedy,
+        "graceable": finding.graceable,
+    }
+
+
+def render_json(report: Report) -> str:
+    data = {
+        "surfaceplate": {"version": _checker_version(), "format": "1.0"},
+        "repository": str(report.repo),
+        "standard": (
+            {"version": report.record.get("standard_version"), "installed_at": str(report.record.get("installed_at"))[:10]}
+            if report.record else None
+        ),
+        "result": report.verdict,
+        "exit_code": report.exit_code,
+        "explanation": report.explanation,
+        "declared_not_checked": (
+            {"level": report.declared_not_checked[0], "controls": report.declared_not_checked[1]}
+            if report.declared_not_checked else None
+        ),
+        "advisory": list(report.notes),
+        "findings": [_finding_dict(f) for f in report.findings],
+    }
+    return json.dumps(data, indent=2, sort_keys=False)
+
+
+# Where a finding points, for a SARIF location. Codes below SP010 are about the installation;
+# the rest read the profile, so that is the file a code-scanning view opens.
+_INSTALL_RECORD_CODES = {f"SP{n:03d}" for n in range(1, 10)}
+
+
+def render_sarif(report: Report) -> str:
+    """SARIF 2.1.0, the shape GitHub code scanning ingests: a rules list, one result per finding
+    with `partialFingerprints`, and the invocation's exit code (`DR-49` (1))."""
+    rules: dict[str, dict] = {}
+    results: list[dict] = []
+    for finding in report.findings:
+        rules.setdefault(
+            finding.code,
+            {
+                "id": finding.code,
+                "name": finding.code,
+                "shortDescription": {"text": finding.title},
+                "helpUri": "https://github.com/pipoventures/surfaceplate",
+                "defaultConfiguration": {"level": "warning" if finding.graceable else "error"},
+            },
+        )
+        fingerprint = hashlib.sha256(f"{finding.code}|{finding.detail}".encode("utf-8")).hexdigest()[:32]
+        uri = ".standards/INSTALL.json" if finding.code in _INSTALL_RECORD_CODES else str(
+            (report.record or {}).get("profile_path") or "governance/application-profile.yaml"
+        )
+        results.append(
+            {
+                "ruleId": finding.code,
+                "level": "warning" if finding.graceable else "error",
+                "message": {"text": f"{finding.title}. {finding.detail} Fix: {finding.remedy}"},
+                "locations": [{"physicalLocation": {"artifactLocation": {"uri": uri}}}],
+                "partialFingerprints": {"surfaceplate/finding/v1": fingerprint},
+            }
+        )
+    document = {
+        "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+        "version": "2.1.0",
+        "runs": [
+            {
+                "tool": {
+                    "driver": {
+                        "name": "surfaceplate",
+                        "version": _checker_version(),
+                        "informationUri": "https://github.com/pipoventures/surfaceplate",
+                        "rules": list(rules.values()),
+                    }
+                },
+                "invocations": [
+                    {
+                        "executionSuccessful": True,
+                        "exitCode": report.exit_code,
+                        "exitCodeDescription": report.verdict,
+                    }
+                ],
+                "results": results,
+            }
+        ],
+    }
+    return json.dumps(document, indent=2)
+
+
+RENDERERS = {"text": render_text, "json": render_json, "sarif": render_sarif}
+
+
+def run(repo: Path, today: _dt.date, no_grace: bool, staged: bool, output: str = "text") -> int:
+    """Evaluate, print in the chosen format, and return the exit code."""
+    report = evaluate(repo, today, no_grace, staged)
+    print(RENDERERS[output](report))
+    return report.exit_code
+
+
+class _Parser(argparse.ArgumentParser):
+    """A usage error exits 3, not argparse's 2: `DR-49` gives 2 to "not installed"."""
+
+    def error(self, message: str) -> None:  # type: ignore[override]
+        self.print_usage(sys.stderr)
+        sys.stderr.write(f"error: {message}\n")
+        sys.exit(3)
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Check conformance to Surfaceplate.")
+    parser = _Parser(prog="surfaceplate check", description="Check conformance to Surfaceplate.")
     parser.add_argument(
         "--repo",
         default=".",
@@ -3399,16 +3584,34 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Also check the staged snapshot for prerequisite gates the local hook blocks on.",
     )
+    parser.add_argument(
+        "--format",
+        choices=sorted(RENDERERS),
+        default="text",
+        help="Output format: text (default), json, or sarif (2.1.0).",
+    )
     args = parser.parse_args(argv)
 
     repo = Path(args.repo).resolve()
+    # Code item 13: a missing directory, a file, and an uninstalled repository each get their
+    # own message - the first two are usage errors, the third is SP001 and exit 2.
+    if not repo.exists():
+        print(f"error: {repo} does not exist", file=sys.stderr)
+        return 3
+    if repo.is_file():
+        print(f"error: {repo} is a file, not a directory", file=sys.stderr)
+        return 3
     if not repo.is_dir():
         print(f"error: {repo} is not a directory", file=sys.stderr)
-        return 2
+        return 3
     if args.staged and not git_available(repo):
         print("error: --staged requires a readable Git repository", file=sys.stderr)
-        return 2
-    return run(repo, _dt.date.today(), args.no_grace, args.staged)
+        return 3
+    try:
+        return run(repo, _dt.date.today(), args.no_grace, args.staged, output=args.format)
+    except Exception as exc:  # noqa: BLE001 - `DR-49`: an internal error is its own exit code
+        print(f"error: the checker failed internally: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 4
 
 
 if __name__ == "__main__":

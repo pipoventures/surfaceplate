@@ -209,7 +209,6 @@ def test_a_bare_repository_can_reach_a_passing_check(tmp: Path) -> None:
     ) == 0
 
     answers = {
-        "mode.mode": "simple",
         "identity.application_id": "small-tool",
         "identity.display_name": "Small Tool",
         "identity.owner": "Sole maintainer",
@@ -221,7 +220,6 @@ def test_a_bare_repository_can_reach_a_passing_check(tmp: Path) -> None:
         "risk.material_quantitative_output": False,
         "risk.data_classification": "internal",
         "level.conformance_level": "essential",
-        "route.route": "customise",
         "controls.agent_work_packets.rationale": "Agent work is briefed before it starts.",
         "controls.actual_diff_review.rationale": "Changes are read as diffs before merging.",
         "controls.secret_hygiene.rationale": "No secrets belong in this repository.",
@@ -257,6 +255,13 @@ def test_a_bare_repository_can_reach_a_passing_check(tmp: Path) -> None:
         encoding="utf-8",
     )
 
+    # Committed BEFORE the adoption instant by a clear margin, as `bare_repo` does: a commit in
+    # the same second as `effective_from` sits inside the audit window, and the fixture would
+    # then be testing a coincidence rather than the scenario.
+    earlier = (_dt.datetime.now().astimezone() - _dt.timedelta(hours=1)).replace(microsecond=0).isoformat()
+    backdated = {**os.environ, "GIT_AUTHOR_DATE": earlier, "GIT_COMMITTER_DATE": earlier}
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "seed"], check=True, env=backdated)
     interview = ScriptedInterview(answers)
     offered = scaffold.offers(repo, ["work_registration"])
     check("the bare repository is offered a register", len(offered) == 1, str(offered))
@@ -268,8 +273,9 @@ def test_a_bare_repository_can_reach_a_passing_check(tmp: Path) -> None:
     # Exactly what `app._offer_missing_artefacts` records on acceptance (`F47`): the gate binds
     # from the INSTANT the artefact was created, so this morning's commits are not inside a window
     # where the precondition was absent.
-    state_extra = {wizard.SCAFFOLD_KEY: offered}
-    written = wizard.run(repo, _WithScaffold(interview, state_extra))
+    # `DR-47`: the scripted interview accepts the flow's own offer, exactly as the interface does
+    # when the human ticks it.
+    written = wizard.run(repo, interview)
 
     check(
         "the register was created where the gate now names it",
@@ -325,26 +331,71 @@ def test_a_bare_repository_can_reach_a_passing_check(tmp: Path) -> None:
     )
 
 
-class _WithScaffold:
-    """Wraps a `ScriptedInterview` so the collected state carries the accepted offers, the way the
-    real interface does. Kept here rather than in `interview.py`: the scripted interview exists to
-    answer *fields*, and teaching it about scaffolding would blur what it proves."""
+def test_a_parent_that_is_a_file_is_named_as_such(tmp: Path) -> None:
+    """Code item 12. `scaffold.write` caught `FileExistsError` around `mkdir` and `open` together,
+    so a parent that exists as a regular FILE was reported as "it appeared while this run was
+    deciding" - a race that never happened. The parent is named as what it is."""
+    repo = bare_repo(tmp)
+    (repo / "docs").mkdir(exist_ok=True)
+    (repo / "docs" / "decisions").write_text("not a directory\n", encoding="utf-8")
+    offer = scaffold.Offer(
+        gate_id="decision_before_implementation",
+        path="docs/decisions/decision-log.md",
+        seed="decision-log.md",
+        why="a log",
+    )
+    written, problems = scaffold.write(repo, [offer])
+    check("nothing is written under a parent that is a file", written == [], str(written))
+    check(
+        "and the problem names the parent as a file, not as a race",
+        bool(problems) and "is a file" in problems[0] and "appeared" not in problems[0],
+        str(problems),
+    )
 
-    def __init__(self, inner, extra: dict) -> None:
-        self._inner = inner
-        self._extra = extra
 
-    def confirm_resume(self, info) -> bool:
-        return self._inner.confirm_resume(info)
+def test_a_failure_after_the_scaffold_wrote_still_reports_what_it_wrote(tmp: Path) -> None:
+    """Code item 7. `scaffold.write` runs before the profile write, so a failure between them
+    left created files on disk while the CLI said "Nothing was written". The run carries what it
+    created out with the failure, and the CLI prints it."""
+    from surfaceplate.adopt import wizard
+    from surfaceplate.adopt.interview import ScriptedInterview
 
-    def collect(self, **kwargs) -> dict:
-        state = self._inner.collect(**kwargs)
-        for key, value in self._extra.items():
-            if isinstance(value, dict) and isinstance(state.get(key), dict):
-                state[key].update(value)
-            else:
-                state[key] = value
-        return state
+    sys.path.insert(0, str(ROOT / "surfaceplate"))
+    import install_standard  # noqa: E402
+
+    repo = bare_repo(tmp)
+    assert install_standard.main(
+        ["--source", str(ROOT / "surfaceplate"), "--target", str(repo), "--no-hooks"]
+    ) == 0
+    (repo / "requirements.txt").write_text("PyYAML==6.0.3\n", encoding="utf-8")
+    scan = repo / ".github" / "workflows" / "secret-scan.yml"
+    scan.parent.mkdir(parents=True, exist_ok=True)
+    scan.write_text("jobs:\n  scan:\n    steps:\n      - name: gitleaks\n        run: gitleaks detect\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "seed"], check=True)
+    # The profile's path becomes a directory AFTER the guard has looked: the write itself fails.
+    profile = repo / "governance" / "application-profile.yaml"
+    profile.unlink()
+    profile.mkdir()
+    answers = {
+        "identity.owner": "Sole maintainer", "stack.builds_user_interface": "no",
+        "risk.relied_on_outside_team": "no", "risk.material_quantitative_output": "no",
+        "risk.data_classification": "internal", "wrap.release_route": "R",
+        "level.conformance_level": "essential",
+    }
+    try:
+        wizard.run(repo, ScriptedInterview(answers))
+        outcome = "returned"
+    except wizard.PartialWrite as exc:
+        outcome = f"PartialWrite created={[p.name for p in exc.created]}"
+    except Exception as exc:  # noqa: BLE001
+        outcome = f"{type(exc).__name__}: {exc}"
+    check(
+        "a failure after the scaffold wrote raises with the created files named",
+        outcome.startswith("PartialWrite") and "register.md" in outcome,
+        outcome,
+    )
+    check("and the created file really is on disk", (repo / "activity" / "register.md").is_file())
 
 
 def test_a_dangling_symlink_is_not_an_empty_slot(tmp: Path) -> None:
@@ -457,6 +508,9 @@ def main() -> int:
         print("\nand the ways an offer could go wrong (adversarial review)")
         test_a_dangling_symlink_is_not_an_empty_slot(tmp / "f")
         test_a_parent_that_is_a_file_does_not_abort_the_run(tmp / "g")
+        print("\ncode items 7 and 12: what a failed run says about what it wrote")
+        test_a_parent_that_is_a_file_is_named_as_such(tmp / "h")
+        test_a_failure_after_the_scaffold_wrote_still_reports_what_it_wrote(tmp / "i")
         print("\nand a bare repository can now finish")
         test_a_bare_repository_can_reach_a_passing_check(tmp / "e")
 

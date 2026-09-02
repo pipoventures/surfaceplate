@@ -180,10 +180,16 @@ def _render_deferrals(deferrals: list[dict]) -> str:
     return "\n" + "\n".join(parts)
 
 
-def render_profile(profile: dict) -> str:
+def render_profile(profile: dict, *, written_on: str = "") -> str:
     """The whole file, as text. See the module docstring for the correctness discipline this
-    depends on `wizard.py` to enforce - this function only assembles what it is given."""
+    depends on `wizard.py` to enforce - this function only assembles what it is given.
+
+    `F62` / `DR-47` (6): the header states what the provenance record contains and no more. The
+    sentence *"Every value below was typed by a human answering a question"* is withdrawn - it
+    stood above the framework's example prose, computed dates and derived text.
+    """
     p = profile
+    written_on = written_on or str(p["adoption"].get("adoption_date", ""))
     a = p["adoption"]
     bc = p["baseline_controls"]
     scanner = bc["secret_hygiene"]["scanner"]
@@ -202,9 +208,11 @@ def render_profile(profile: dict) -> str:
     return f"""\
 # Application Profile — {p['display_name']}
 #
-# Written by `surfaceplate adopt`. Every value below was typed by a human answering a question;
-# nothing here was inferred, defaulted silently, or chosen by the wizard. See
-# core/CONFORMANCE_LEVELS.md and core/PREREQUISITE_GATES.md for what each section means.
+# Written by `surfaceplate adopt` on {written_on}. The origin of every value below is recorded in
+# application-profile.provenance.yaml beside this file: values marked typed there were entered at
+# the keyboard; the rest were proposed by the tool from the sources recorded there and approved
+# as one document at the review. See core/CONFORMANCE_LEVELS.md and core/PREREQUISITE_GATES.md
+# for what each section means.
 
 schema_version: "1.0"
 application_id: {_scalar(p['application_id'])}
