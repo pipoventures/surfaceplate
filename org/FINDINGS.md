@@ -128,7 +128,7 @@ an unknown number of releases with nothing noticing.
 | F60 | The defaults route discards its gate proposals: `GatesScreen` is built without `initial`, and the "N more" count excludes what it will re-ask | high | Closed — `ACT-043`; `GatesScreen` takes `initial` and the app passes the seeded proposals; the "N more" figure is asserted equal to what the remaining screens present unfilled at all three levels |
 | F61 | Discovery proposes the framework's own installed files and CI step as the adopter's preconditions, and the checker passes them | high | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
 | F62 | The profile header asserts every value was typed by a human above canned rationales, computed dates and derived text | high | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
-| F63 | A real profile whose prose mentions "replace-me" is mistaken for the template and overwritten without a prompt | critical | Open — `ACT-043` (`org/REMEDIATION_PLAN.md`) |
+| F63 | A real profile whose prose mentions "replace-me" is mistaken for the template and overwritten without a prompt | critical | Closed — `ACT-043`; the guard looks for the token in the template's identifying scalars, not the byte stream, and both directions are asserted in `tests/test_adopt.py` |
 | F64 | `validators.check` passes any non-string, so an unpressed radio set and a blank dropdown commit; one path ends in a black screen, the other in an unactionable `KeyError` | high | Closed — `ACT-043`; `None` is blank in `validators.check`, a choice must be one of its choices at commit, and both paths are refused at the field in `tests/test_adopt_tui.py` |
 | F65 | A placeholder is accepted at the field and refused at the review, where nothing but cancel works, and a resumed draft lands on the same refusal | medium | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
 | F66 | The wizard accepts dates and paths the checker rejects, so a profile can pass the wizard and fail its first check | medium | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
@@ -1313,11 +1313,23 @@ could not pass while a blank dropdown still counted as answered.
 
 ## F63 — A real profile whose prose mentions "replace-me" is mistaken for the template and overwritten without a prompt
 
-**Severity: critical. Open.**
+**Severity: critical. Closed.**
 
 Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, the adversarial product review of 2026-09-02, authorised by the maintainer in the review session (https://claude.ai/code/session_01X1MZfNScrJjgD5e2AGBjvs). Closes by `ACT-043`; see `org/REMEDIATION_PLAN.md`.
 
 `wizard._refuse_if_already_adopted` (`surfaceplate/adopt/wizard.py:119-128`) tests `"replace-me" in text` over the whole file. A completed profile whose `risk_profile` reads "Never type replace-me into a rationale." makes the guard return, and `wizard.run` reaches `target.write_text(rendered, …)` at `:323` and destroys the adopter's profile with no prompt. Probed in the review session against a throwaway directory: the guard returned. Unrecoverable data loss; the only finding in the review that destroys work rather than blocking it. Remedy: check the required scalars for the token, not the byte stream.
+
+**Closed by `ACT-043`, item 0.4 (2026-09-02).** `wizard._refuse_if_already_adopted` parses the
+file and treats it as the template only when one of five identifying scalars - `application_id`,
+`owner`, `adoption.framework_version`, `adoption.framework_digest`, `adoption.adoption_date`, the
+ones the shipped template leaves as `replace-me` - is still literally that token; anything else,
+including a file that does not parse as a mapping, is refused and left alone. Prose fields are
+not consulted. `tests/test_adopt.py::test_a_real_profile_that_mentions_the_token_is_not_the_template`
+writes the shipped essential example with `risk_profile: Never type replace-me into a rationale.`
+into a scratch installed repository and asserts `wizard.run` raises `AlreadyAdopted` and the
+file is byte-identical; `::test_the_untouched_template_is_still_fair_game` asserts the installer's
+own template is not refused. Seen to fail before (`ADOPT_CONFORMANCE=FAIL (1 failed, 91 passed)`:
+the run got past the guard) and to pass after (`ADOPT_CONFORMANCE=PASS (92 checks)`).
 
 ## F62 — The profile header asserts every value was typed by a human above canned rationales, computed dates and derived text
 

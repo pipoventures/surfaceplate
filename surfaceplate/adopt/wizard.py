@@ -109,8 +109,26 @@ def _read_install_record(repo: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+# The scalars the shipped template (`templates/application-profile.yaml`) leaves as `replace-me`
+# and that no completed profile could carry that value in: its identity and its adoption record.
+# Prose fields are deliberately absent - they are where a real profile may mention the token.
+_TEMPLATE_SCALARS = (
+    ("application_id",),
+    ("owner",),
+    ("adoption", "framework_version"),
+    ("adoption", "framework_digest"),
+    ("adoption", "adoption_date"),
+)
+
+
 def _refuse_if_already_adopted(repo: Path) -> None:
-    """Refuses only on a REAL profile, not the untouched template.
+    """Refuses on a REAL profile; the template, still carrying its placeholders, is fair game.
+
+    A profile is the template when one of its identifying scalars is still literally
+    `replace-me`. `F63`: this tested `"replace-me" in text` over the whole file, so a completed
+    profile whose prose mentioned the token was mistaken for the template and overwritten with no
+    prompt. A file that does not parse as a mapping is refused too: whatever it is, it is not
+    the template, and the only safe thing to do with it is leave it alone.
 
     The installer already never overwrites an existing profile (`install_standard.py`'s own rule);
     this is the same protection applied one step later, to the wizard that is much more likely to
@@ -119,9 +137,19 @@ def _refuse_if_already_adopted(repo: Path) -> None:
     path = repo / PROFILE_PATH
     if not path.is_file():
         return
-    text = path.read_text(encoding="utf-8")
-    if "replace-me" in text:
-        return  # the untouched template - fair game
+    import yaml
+
+    try:
+        document = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError:
+        document = None
+    if isinstance(document, dict):
+        for keys in _TEMPLATE_SCALARS:
+            node: object = document
+            for key in keys:
+                node = node.get(key) if isinstance(node, dict) else None
+            if isinstance(node, str) and node.strip() == "replace-me":
+                return  # the untouched template - fair game
     raise AlreadyAdopted(
         f"{PROFILE_PATH} already exists and does not look like the untouched template. "
         "Edit it directly, or move it aside before running `adopt` again."
