@@ -852,11 +852,16 @@ def propose(repo: Path, *, level: str | None = None) -> Proposed:
         answers.setdefault("create_missing_artefacts", NEEDS_HUMAN)
         notes.setdefault("create_missing_artefacts", "yes | no - whether to create the scaffolded files named above")
 
+    # `F103`: every proposal left standing is written as it stands; that is one human act for the
+    # document, as the review's approval is, and the record says so with one line a human sets.
+    header.append("# accept_proposals: set it to yes once you have read the proposed values below and are")
+    header.append("# content for every one you left unchanged to be written as it stands; nothing is written before.")
     record_out = {
         "format": ANSWERS_FORMAT,
         "framework_version": record.get("standard_version", ""),
         "framework_digest": record.get("framework_digest", ""),
         "level": answers.pop("level.conformance_level"),
+        "accept_proposals": NEEDS_HUMAN,
         "answers": answers,
     }
     if notes:
@@ -897,6 +902,8 @@ def replay(repo: Path, answers_path: Path) -> Path:
         if isinstance(key, str) and key.split(".")[1:2] and key.split(".")[1] in listed:
             record["answers"][key] = value
     pending = [key for key, value in record["answers"].items() if value == NEEDS_HUMAN]
+    if str(record.get("accept_proposals", NEEDS_HUMAN)).strip().lower() not in ("yes", "true", "y"):
+        pending.insert(0, "accept_proposals")  # `F103`: the proposals are accepted as one act, or not written
     if record.get("level") == NEEDS_HUMAN or not record.get("level"):
         pending.insert(0, "level")
     if pending:
