@@ -17,6 +17,7 @@ from typing import Callable
 
 from textual import work
 from textual.app import App
+from textual.binding import Binding
 
 from surfaceplate.adopt import flow as _flow
 from surfaceplate.adopt import plan, provenance
@@ -52,10 +53,20 @@ def _step_labels() -> dict[str, str]:
 _STEPS = _step_labels()
 
 
-class AdoptApp(App):
+# `F73`: `App.BINDINGS` in Textual 8.2.8 carries `Binding("ctrl+q", "quit", priority=True)`,
+# which fired before any screen saw the key, so every screen's `action_cancel` was dead code and
+# `push_screen_wait` never resolved. An empty `BINDINGS` on a subclass is MERGED with the base
+# class's (found by the test: the quit survived it), so both apps opt out of inheritance and
+# keep only Ctrl+C's "press Ctrl+Q to quit" notice. Every screen binds `ctrl+q` to its own
+# cancel; the outcome is the same sentinel, now reached through the code that says what it means.
+_APP_BINDINGS = [Binding("ctrl+c", "help_quit", "quit", show=False, priority=True)]
+
+
+class AdoptApp(App, inherit_bindings=False):
     """Shows one screen per stage of the flow, and hands each stage's answers back to it."""
 
     CSS_PATH = CSS_PATH
+    BINDINGS = _APP_BINDINGS
 
     def __init__(self, *, flow: _flow.Flow, on_progress: Callable[[], None]) -> None:
         super().__init__()
@@ -150,12 +161,13 @@ class AdoptApp(App):
                 self._on_progress()
 
 
-class OpeningApp(App):
+class OpeningApp(App, inherit_bindings=False):
     """The opening screen and, where a draft exists, the resume prompt - before the main app, so
     a draft is never resumed silently and the tool has introduced itself before asking anything
     (`DR-51` (2)). Returns `True` to begin, `False` to begin fresh, `None` when the human quit."""
 
     CSS_PATH = CSS_PATH
+    BINDINGS = _APP_BINDINGS
 
     def __init__(self, welcome: Welcome) -> None:
         super().__init__()

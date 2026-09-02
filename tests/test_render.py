@@ -151,6 +151,123 @@ def test_the_review_hint_names_the_way_forward_while_an_error_stands() -> None:
     check("the hint names Ctrl+E while an error stands", "[Ctrl+E]" in text, text[-300:])
     check("and says Ctrl+S writes once it is fixed", "Ctrl+S writes" in text.replace("\n", " ") and "fix it" in text, text[-300:])
 
+
+def test_the_level_options_are_all_on_screen_at_80x24() -> None:
+    """`F67`, the level fold: the recap and recommendation filled the frame and the three options
+    sat below it, so the recommended one was off screen. All three option heads and the caret
+    are on the 24 rows, with the recommendation still there above them."""
+    import tempfile
+
+    section = plan.level_plan(
+        Path(tempfile.mkdtemp(prefix="surfaceplate-level-")),
+        builds_ui=False, mode="simple",
+        recap=("No user interface.", "Data classification: internal."),
+        risk={"relied_on_outside_team": True, "material_quantitative_output": False},
+    )
+
+    async def _run() -> list[str]:
+        app = Host(LevelScreen(section, step="2 of 3 — ", recommended="standard"))
+        async with app.run_test(size=(80, 24)) as pilot:
+            await pilot.pause(); await pilot.pause()
+            return rendered(app)
+
+    text = screen_text(asyncio.run(_run()))
+    for needle in ("1  essential", "2  standard", "3  full", "▸"):
+        check(f"level screen at 80x24 shows {needle!r}", needle in text, text)
+    check("and still says which level the answers point at", "standard looks right" in text, text)
+
+
+def test_off_state_and_focus_are_told_apart_from_chosen() -> None:
+    """`F67`, contrast: an unpressed but focused radio was highlighted as if chosen. Focus now
+    reads as the accent colour on the label, the glyph alone says chosen, and an unfocused
+    unpressed radio's brackets are not the ground colour."""
+    from rich.color import Color
+    from textual.widgets import RadioSet
+
+    section = plan.risk_plan()
+
+    async def _run():
+        app = Host(FormScreen(section))
+        async with app.run_test(size=(120, 40)) as pilot:
+            await pilot.pause()
+            app.screen.query_one("#f-data_classification", RadioSet).focus()
+            await pilot.pause(); await pilot.pause()
+            strips = app.screen._compositor.render_strips()
+            rows = {i: list(s) for i, s in enumerate(strips)}
+            texts = [s.text for s in strips]
+            return rows, texts
+
+    rows, texts = asyncio.run(_run())
+    focused_row = next(i for i, line in enumerate(texts) if "( ) public" in line)
+    other_row = next(i for i, line in enumerate(texts) if "( ) internal" in line)
+
+    def label_styles(row):
+        return [seg.style for seg in rows[row] if seg.text.strip() and "(" not in seg.text and ")" not in seg.text and seg.style is not None]
+
+    focused = label_styles(focused_row)
+    other = label_styles(other_row)
+    blue_block = any(s.bgcolor is not None and s.bgcolor.triplet is not None and s.bgcolor.triplet.blue > 150 and s.bgcolor.triplet.red < 80 for s in focused)
+    check("the focused, unpressed option is not painted as a filled block", not blue_block, str([str(s) for s in focused][:3]))
+    amber = any(s.color is not None and s.color.triplet is not None and s.color.triplet.red > 180 and s.color.triplet.blue < 100 for s in focused)
+    check("focus reads as the accent colour on the label", amber, str([str(s) for s in focused][:3]))
+    bracket = next((seg for seg in rows[other_row] if seg.text.strip() == "(" and seg.style is not None), None)
+    check("an unfocused, unpressed radio's bracket is not the ground colour",
+          bracket is not None and bracket.style.color is not None and bracket.style.color.triplet is not None and sum(bracket.style.color.triplet) > 200, str(bracket))
+
+
+def test_every_classification_option_is_on_screen_and_a_text_area_shows_three_lines() -> None:
+    """`F67`: data classification showed two of four options, and a text area one line of a value."""
+    from textual.widgets import RadioSet, TextArea
+
+    section = plan.decisions_plan(Path("repo"), found=plan.discover.Discovered(), proposals={})
+
+    async def _run():
+        app = Host(FormScreen(section, step="1 of 3 — "))
+        async with app.run_test(size=(80, 24)) as pilot:
+            await pilot.pause()
+            app.screen.query_one("#f-risk--data_classification", RadioSet).focus()
+            await pilot.pause(); await pilot.pause()
+            first = screen_text(rendered(app))
+            area = app.screen.query_one("#f-wrap--release_route", TextArea)
+            area.text = "line one\nline two\nline three\nline four"
+            area.focus()
+            await pilot.pause(); await pilot.pause()
+            second = screen_text(rendered(app))
+            return first, second
+
+    first, second = asyncio.run(_run())
+    for option in ("( ) public", "( ) internal", "( ) confidential", "( ) restricted"):
+        check(f"all four classification options on screen at 80x24: {option!r}", option in first, first)
+    check("a text area shows at least three lines of its value", all(s in second for s in ("line one", "line two", "line three")), second)
+
+
+def test_an_above_floor_row_explains_itself_when_highlighted() -> None:
+    """`F67`: the above-floor labels ended in "…" at 80 columns. The row now carries the control
+    id and a short cue, and the full explanation appears beside the list for the highlighted row."""
+    from textual.widgets import SelectionList, Static
+
+    section = plan.controls_plan(level="essential", mode="simple")
+    spec = next(f for f in section.fields if f.id == "above_floor")
+    check("no above-floor label is cut with an ellipsis", not any("…" in label for _v, label in spec.choices), str([l for _v, l in spec.choices][:3]))
+    check("and every label fits 60 columns", all(len(label) <= 60 for _v, label in spec.choices), str(max(len(l) for _v, l in spec.choices)))
+
+    async def _run() -> str:
+        app = Host(FormScreen(section))
+        async with app.run_test(size=(80, 40)) as pilot:
+            await pilot.pause()
+            lst = app.screen.query_one("#f-above_floor", SelectionList)
+            lst.focus()
+            await pilot.pause()
+            lst.highlighted = 1
+            await pilot.pause(); await pilot.pause()
+            return str(app.screen.query_one("#help-above_floor", Static).content)
+
+    help_text = asyncio.run(_run())
+    highlighted = spec.choices[1][0]
+    from surfaceplate.adopt import explanations
+    check("the help beside the list explains the highlighted control in full",
+          highlighted in help_text and explanations.explain(highlighted, "simple")[:40] in help_text, help_text[:300])
+
 # ---------------------------------------------------------------------------------------------
 # 1 & 2 — the legends render the keys they name
 # ---------------------------------------------------------------------------------------------
@@ -822,6 +939,10 @@ def main() -> int:
     test_every_legend_renders_the_keys_it_names()
     test_the_opening_screen_names_the_tool_the_install_and_what_will_be_written()
     test_the_review_hint_names_the_way_forward_while_an_error_stands()
+    test_the_level_options_are_all_on_screen_at_80x24()
+    test_off_state_and_focus_are_told_apart_from_chosen()
+    test_every_classification_option_is_on_screen_and_a_text_area_shows_three_lines()
+    test_an_above_floor_row_explains_itself_when_highlighted()
 
     print("\nnothing is printed twice (F37 #3)")
     test_no_field_label_is_rendered_twice()

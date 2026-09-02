@@ -511,6 +511,7 @@ def _dotted(section_name: str, spec: plan.FieldSpec, default: object | None = No
         decides=spec.decides,
         wrong=spec.wrong,
         context=spec.context,
+        choice_help=spec.choice_help,
     )
 
 

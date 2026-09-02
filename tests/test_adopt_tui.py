@@ -246,6 +246,67 @@ def test_the_help_beside_a_field_states_what_it_decides_and_describes_the_chosen
     check("a gate's status row states what each status commits the team to",
           "required" in text and "deferred" in text and "not applicable" in text and "Decides:" in text, text[:400])
 
+
+def test_ctrl_q_reaches_the_screens_own_cancel() -> None:
+    """`F73`. Textual's `App.BINDINGS` carries a priority `ctrl+q -> quit`, so every screen's
+    `action_cancel` was dead code and the app simply ended with `None`. The apps now own that
+    key, so a screen's cancel runs - the resume prompt included, which had no binding for it."""
+    import tempfile
+
+    from surfaceplate.adopt.interview import DraftInfo, Welcome
+    from surfaceplate.adopt.tui.app import AdoptApp, OpeningApp
+    from surfaceplate.adopt.tui import screens as _screens
+
+    calls: list[str] = []
+    originals = {}
+    for cls in (_screens.FormScreen, _screens.ResumeScreen, _screens.WelcomeScreen):
+        originals[cls] = cls.action_cancel
+
+        def spy(self, _cls=cls):
+            calls.append(_cls.__name__)
+            return originals[_cls](self)
+
+        cls.action_cancel = spy  # type: ignore[method-assign]
+    try:
+        repo = Path(tempfile.mkdtemp(prefix="surfaceplate-cancel-")) / "repo"
+        repo.mkdir()
+        flow = _a_flow(repo, {})
+
+        async def in_adopt_app():
+            app = AdoptApp(flow=flow, on_progress=lambda: None)
+            async with app.run_test(size=(80, 24)) as pilot:
+                await pilot.pause(); await pilot.pause()
+                await pilot.press("ctrl+q")
+                await pilot.pause(); await pilot.pause()
+            return app.return_value
+
+        result = asyncio.run(in_adopt_app())
+        check("Ctrl+Q on the decisions form runs FormScreen.action_cancel", "FormScreen" in calls, str(calls))
+        check("and the app returns the cancel sentinel, which the wizard reads as Cancelled", result == _screens.CANCELLED, repr(result))
+
+        welcome = Welcome(repo="/r", tool_name="Surfaceplate", tool_version="0.16.0", tool_anchor="a" * 64, licence="Apache-2.0",
+                          publisher="P", homepage="h", tagline="t", installed_version="0.16.0", installed_anchor="a" * 64,
+                          installed_at="2026-09-02", profile_path="governance/application-profile.yaml",
+                          provenance_path="governance/application-profile.provenance.yaml",
+                          draft=DraftInfo(sections=("identity",), framework_version="0.16.0", framework_digest="a" * 64, matches=True))
+
+        async def at_the_prompt():
+            app = OpeningApp(welcome)
+            async with app.run_test(size=(80, 24)) as pilot:
+                await pilot.pause()
+                await pilot.press("enter")
+                await pilot.pause(); await pilot.pause()
+                await pilot.press("ctrl+q")
+                await pilot.pause(); await pilot.pause()
+            return app.return_value
+
+        result = asyncio.run(at_the_prompt())
+        check("Ctrl+Q at the resume prompt runs ResumeScreen.action_cancel", "ResumeScreen" in calls, str(calls))
+        check("and still means quit with the draft kept (None), as F68 requires", result is None, repr(result))
+    finally:
+        for cls, original in originals.items():
+            cls.action_cancel = original  # type: ignore[method-assign]
+
 # ---------------------------------------------------------------------------------------------
 # Highlight is not selection (mockup frame 02: "nothing is chosen yet")
 # ---------------------------------------------------------------------------------------------
@@ -1381,6 +1442,7 @@ def main() -> int:
     print("the join: screens render exactly what their plan declares")
     test_every_screen_renders_its_whole_plan()
     test_the_opening_app_returns_the_three_answers()
+    test_ctrl_q_reaches_the_screens_own_cancel()
     test_the_help_beside_a_field_states_what_it_decides_and_describes_the_chosen_file()
 
     print("\nconformance level (mockup frame 02)")

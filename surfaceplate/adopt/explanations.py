@@ -525,6 +525,22 @@ LEVEL_CHOICE: dict[str, str] = {
     ),
 }
 
+# `F67`: one short cue per level control, for a list row that has to fit beside a tick box at 80
+# columns. The full explanation is shown for the highlighted row; the cue only has to say which
+# control this is in words a first-time reader recognises. `tests/test_adopt.py` asserts every
+# level control has one and that none exceeds forty characters.
+CUES: dict[str, str] = {
+    "dependency_lock": "exact dependency versions, checked",
+    "deterministic_tests": "a CI test step that can fail, checked",
+    "contract_tests": "tests of what others rely on, checked",
+    "documentation_authority": "one map of which document wins",
+    "provenance": "trace a result back to its inputs",
+    "run_lineage": "reproduce a result from its run",
+    "method_registry": "a register of governed methods",
+    "overrides": "every manual adjustment on record",
+    "assurance_findings": "known limitations written down",
+}
+
 EXPLANATIONS: dict[str, dict[str, str]] = {**_BASELINE_CONTROLS, **_LEVEL_CONTROLS, **_GATES}
 
 

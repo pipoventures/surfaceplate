@@ -120,8 +120,10 @@ Input:focus, TextArea:focus {
     border-bottom: solid #d79a3c;
 }
 
+/* `F67`: three rows of a value, not one. A rationale is a paragraph; a box that showed one line
+   of it read as a one-line field. */
 TextArea {
-    height: 2;
+    height: 4;
 }
 
 Checkbox {
@@ -265,4 +267,20 @@ SelectionList {
 Checkbox > .toggle--button, RadioButton > .toggle--button {
     color: #6fae8a;
     background: #1c2226;
+}
+
+/* `F67`: Textual's focus on a toggle is a filled blue block on the label, which read as "chosen"
+   on an unpressed radio. Focus is the accent colour on the label, as it is on every other field;
+   the glyph alone says chosen. */
+Checkbox:focus > .toggle--label, RadioButton:focus > .toggle--label,
+RadioSet:focus > RadioButton.-selected > .toggle--label {
+    background: #12181b;
+    color: #d79a3c;
+    text-style: none;
+}
+
+/* And the same cursor button when the set is not focused: no blurred block either. */
+RadioSet:blur > RadioButton.-selected > .toggle--label {
+    background: #0e1316;
+    text-style: none;
 }
