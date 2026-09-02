@@ -6,7 +6,7 @@ a3e8cd32162e8dd71360be22c91b4d71ea3dca39034395b2da5b42bc11d7e98f  surfaceplate-0
 83b4142a39e5bd89f524b6bfffd58a070f34f70ee4d3503e242b0092d993796d  surfaceplate-0.16.0/.github/workflows/secret-scan.yml
 67d70033f4f4b130c8ab71e5061894616864bb4153f71ca784d65e41db05272b  surfaceplate-0.16.0/.github/workflows/standard-self-check.yml
 2ad298abff4d52674cdf18f5605a894758006a249dfc5c612b36d27e5c45a0e5  surfaceplate-0.16.0/AGENTS.md
-66bd74bf3a37969ab4b66467ea4a518a885113c407e1f227cb6880d9dd1ef7d2  surfaceplate-0.16.0/CHANGELOG.md
+f0128ed199a7cbc373d35345a43debffed83182428591f5d4d039ade5e5a4b6d  surfaceplate-0.16.0/CHANGELOG.md
 89c01bc6e86b6309a52bb72722937d52d081f10f0fd22e368459f930acdcf32c  surfaceplate-0.16.0/CLAUDE.md
 0e7d671b7653efcd90af28e64d2224e2e47d38e0faf07547284f431cf1e56e39  surfaceplate-0.16.0/CONTRIBUTING.md
 32e8d3038fc2e67e35d46dbfa7a700a682c4fcd7fd52a1f651f3f29ff633e8e0  surfaceplate-0.16.0/INSTALL.md
@@ -19,7 +19,7 @@ fddca9faf4e45a086446493a4bacbfbd8bc970247622f8d5995d8325a8901cf5  surfaceplate-0
 249a358aafebcc023be4ee9deee2b2a0dcf02ca064bc0432f34a377048068d7a  surfaceplate-0.16.0/RECONCILIATION.md
 f5cf1d77957a8ab382659820c5abf50ba6df486da1401925b3b719e58fc11a7b  surfaceplate-0.16.0/SECURITY.md
 76771cb7126318271869158e8b637d5d429c96a974057a07f90387fe73a2cf6e  surfaceplate-0.16.0/SETUP_GUIDE.md
-ae088db300e1d8f300831bda1c2f65e3369b6ba7b5eedafabe9b3640999a23c2  surfaceplate-0.16.0/activity/register.md
+e6489422232efb571e6dd47a20d373fad08219866616b72bd237eea756f48309  surfaceplate-0.16.0/activity/register.md
 91757193c63094f53ce7f7c1dd8c1c172065bf38a925a156cb293296f0456d12  surfaceplate-0.16.0/audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md
 cee78240d56cf753bae8cf9d2ff775a282542bac426ce19c11a15221d3d24b31  surfaceplate-0.16.0/audit/AUDIT_README.md
 688413d8784273806dfbb388262e0907ecdfbea23c3bc7c4555d0cb80b629780  surfaceplate-0.16.0/audit/AUDIT_SCOPE.md
