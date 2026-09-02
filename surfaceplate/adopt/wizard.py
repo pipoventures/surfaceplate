@@ -208,11 +208,15 @@ _TEMPLATE_SCALARS = (
 def _refuse_if_already_adopted(repo: Path) -> None:
     """Refuses on a REAL profile; the template, still carrying its placeholders, is fair game.
 
-    A profile is the template when one of its identifying scalars is still literally
+    A profile is the template when EVERY one of its identifying scalars is still literally
     `replace-me`. `F63`: this tested `"replace-me" in text` over the whole file, so a completed
     profile whose prose mentioned the token was mistaken for the template and overwritten with no
-    prompt. A file that does not parse as a mapping is refused too: whatever it is, it is not
-    the template, and the only safe thing to do with it is leave it alone.
+    prompt. `F107`: it then treated ANY one scalar still carrying the token as the template, so a
+    profile filled by hand bar one of the five was overwritten without a prompt - the loss `F63`
+    was closing. Anything short of the untouched template is refused, and the refusal names the
+    scalar that still carries the token so the human can finish it or move the file aside. A file
+    that does not parse as a mapping is refused too: whatever it is, it is not the template, and
+    the only safe thing to do with it is leave it alone.
 
     The installer already never overwrites an existing profile (`install_standard.py`'s own rule);
     this is the same protection applied one step later, to the wizard that is much more likely to
@@ -227,15 +231,24 @@ def _refuse_if_already_adopted(repo: Path) -> None:
         document = yaml.safe_load(path.read_text(encoding="utf-8"))
     except yaml.YAMLError:
         document = None
+    untouched: list[str] = []
     if isinstance(document, dict):
         for keys in _TEMPLATE_SCALARS:
             node: object = document
             for key in keys:
                 node = node.get(key) if isinstance(node, dict) else None
             if isinstance(node, str) and node.strip() == "replace-me":
-                return  # the untouched template - fair game
+                untouched.append(".".join(keys))
+        if len(untouched) == len(_TEMPLATE_SCALARS):
+            return  # the untouched template - fair game
+    partly = (
+        f" It still carries the template's token at {', '.join(untouched)}, so it looks half-completed: "
+        "finish it by hand, or move it aside to start again."
+        if untouched
+        else ""
+    )
     raise AlreadyAdopted(
-        f"{PROFILE_PATH} already exists and does not look like the untouched template. "
+        f"{PROFILE_PATH} already exists and does not look like the untouched template.{partly} "
         "Edit it directly, or move it aside before running `adopt` again."
     )
 

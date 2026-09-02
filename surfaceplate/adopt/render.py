@@ -193,6 +193,8 @@ def render_profile(profile: dict, *, written_on: str = "") -> str:
     a = p["adoption"]
     bc = p["baseline_controls"]
     scanner = bc["secret_hygiene"]["scanner"]
+    # `F108`: the tool writes no note of its own; one a profile already carries is kept.
+    scanner_notes = f"      notes: {_block(scanner['notes'], 6)}\n" if scanner.get('notes') else ""
 
     controls_text = "\n".join(_render_control(cid, e) for cid, e in p["control_decisions"].items())
     gates_text = "\n".join(_render_gate(g) for g in p["prerequisites"])
@@ -264,8 +266,7 @@ baseline_controls:
     scanner:
       name: {_scalar(scanner['name'])}
       wired_in: {_flow_list(scanner['wired_in'])}
-      notes: {_block(scanner['notes'], 6)}
-
+{scanner_notes}
 control_decisions:
 {controls_text}
 
