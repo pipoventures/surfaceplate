@@ -1110,6 +1110,12 @@ blank; every tracked document is offered with the matches first, and the finding
 seed; `adopt --edit <path> <value> --because <reason>` changes one line after the write and records
 it beside the profile (`F86`, `F87`, `F88`).
 
+`ACT-053` (`DR-55`): the "create it" row wherever a seed can be honest - seven more gates (an options
+log, the risk classification with the standard's scale and this repository's meanings left to declare,
+the test conventions, a data-source register, an output-validation log, a dependency-review log, the
+release checklist) and the four record-directory controls, whose seed is a note in an otherwise empty
+directory. A `full` run choosing every row ends with the checker passing in full.
+
 ### `F58` closed: every agent now receives the skills, not only Copilot
 
 `AGENTS.md` tells every adopting repository that the skills' *"required inputs, gates and mandatory

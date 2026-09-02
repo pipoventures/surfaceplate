@@ -469,9 +469,8 @@ def test_only_gates_the_profile_will_require_are_offered() -> None:
     asked = {s.id for s in specs}
     seedable_but_unasked = [g for g in scaffold.SEEDABLE if g not in asked]
     check(
-        "at essential, three seedable gates are not asked about at all",
-        sorted(seedable_but_unasked)
-        == ["authority_map", "change_record_before_completion", "decision_before_implementation"],
+        "at essential, every seedable gate but work_registration is not asked about at all (ten since DR-55)",
+        sorted(seedable_but_unasked) == sorted(g for g in scaffold.SEEDABLE if g != "work_registration"),
         str(seedable_but_unasked),
     )
     check(
@@ -482,15 +481,54 @@ def test_only_gates_the_profile_will_require_are_offered() -> None:
 
 
 def test_only_honestly_seedable_gates_are_offered(tmp: Path) -> None:
-    """`full` requires eleven gates; only four can be created as a true statement. The rest are
-    left to a human who actually has one, which is the honest half of this feature."""
+    """`full` requires eleven gates; since `DR-55` eleven of the nineteen can be created as a true
+    statement. The rest - the interface gates, the regression suite, the equivalence protocol,
+    and the two that reuse the map and the register - are left to a human who actually has
+    one, which is the honest half of this feature."""
     repo = bare_repo(tmp)
-    offered = {o.gate_id for o in scaffold.offers(repo, ["work_registration", "equivalence_evidence"])}
+    offered = {o.gate_id for o in scaffold.offers(repo, ["work_registration", "equivalence_evidence", "options_before_build", "design_authority"])}
     check(
         "a gate with no honest seed is not offered one",
-        offered == {"work_registration"},
+        offered == {"work_registration", "options_before_build"},
         str(offered),
     )
+    check("exactly the eleven gates DR-55 names have a seed", set(scaffold.SEEDABLE) == {
+        "work_registration", "decision_before_implementation", "change_record_before_completion", "authority_map",
+        "options_before_build", "risk_classification", "test_convention", "data_source_lifecycle",
+        "output_validation_before_external_use", "dependency_output_delta", "records_before_release"}, str(sorted(scaffold.SEEDABLE)))
+
+
+def test_every_seed_is_true_on_creation_and_a_shared_directory_yields_one_note(tmp: Path) -> None:
+    """`DR-55` (2), (4). Every seed writes, carries no placeholder token, and says in its own text
+    that it holds nothing or that this repository has declared nothing yet. A record-directory
+    control's reference is the directory; the seed is a note inside it; two controls sharing the
+    directory create one note. After a commit, git considers the directory tracked."""
+    import subprocess
+
+    from surfaceplate import rules
+
+    repo = tmp / "every-seed-repo"
+    repo.mkdir()
+    for args in (["init", "-q"], ["config", "user.email", "h@example.invalid"], ["config", "user.name", "H"], ["config", "commit.gpgsign", "false"]):
+        subprocess.run(["git", "-C", str(repo), *args], check=True)
+    offers = scaffold.offers(repo, list(scaffold.SEEDABLE)) + scaffold.offers_for_controls(repo, list(scaffold.SEEDABLE_CONTROLS))
+    check("every gate and control with a seed is offered on a bare repository", len(offers) == len(scaffold.SEEDABLE) + len(scaffold.SEEDABLE_CONTROLS), str(len(offers)))
+    written, problems = scaffold.write(repo, offers)
+    check("no offer fails", not problems, str(problems))
+    check("the shared directory yields one note, so one fewer file than offers", len(written) == len(offers) - 1, f"{len(written)} of {len(offers)}")
+    for target in written:
+        text = target.read_text(encoding="utf-8")
+        rel = target.relative_to(repo).as_posix()
+        check(f"{rel} carries no placeholder token", not rules.PLACEHOLDER_PATTERN.search(text))
+        honest = any(s in text.lower() for s in ("not declared yet", "no ", "none yet", "nothing yet", "nothing recorded yet", "declares nothing"))
+        check(f"{rel} says what it does not hold", honest, text[:120])
+        check(f"{rel} says that existing is not the practice", "not the practice" in text, rel)
+    for control_id in ("method_registry", "overrides", "run_lineage", "provenance"):
+        reference = scaffold.SEEDABLE_CONTROLS[control_id][0]
+        check(f"{control_id}'s reference is a directory holding the note and no record", (repo / reference).is_dir() and (repo / reference / scaffold.DIRECTORY_NOTE).is_file() and not list((repo / reference).glob("*.y*ml")), reference)
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "seeds"], check=True, capture_output=True)
+    check("a seeded directory is tracked once committed", rules.is_tracked(repo, "governance/run-lineage"))
 
 
 def test_a_control_can_be_seeded_and_the_seed_is_true_on_creation(tmp: Path) -> None:
@@ -530,6 +568,7 @@ def main() -> int:
         test_only_honestly_seedable_gates_are_offered(tmp / "d")
         test_only_gates_the_profile_will_require_are_offered()
         test_a_control_can_be_seeded_and_the_seed_is_true_on_creation(tmp)
+        test_every_seed_is_true_on_creation_and_a_shared_directory_yields_one_note(tmp)
 
         print("\nand the ways an offer could go wrong (adversarial review)")
         test_a_dangling_symlink_is_not_an_empty_slot(tmp / "f")
