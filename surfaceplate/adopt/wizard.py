@@ -123,6 +123,22 @@ class Proposed:
         return f"{self.answers}" + (f" and {self.proposed}" if self.proposed else "")
 
 
+class PartialWrite(Exception):
+    """The profile could not be written after the scaffold had already created files. Carries
+    `created` and `problems`, so the failure names what is on disk rather than denying it
+    (the review's code item 7)."""
+
+    def __init__(self, cause: BaseException, created: list[Path], problems: list[str]) -> None:
+        names = ", ".join(str(p) for p in created) or "none"
+        super().__init__(
+            f"the profile could not be written ({type(cause).__name__}: {cause}); "
+            f"files already created by this run: {names}"
+        )
+        self.cause = cause
+        self.created = created
+        self.problems = problems
+
+
 class WriteRefused(Exception):
     """The assembled profile failed its own verification. Nothing was written. Carries `detail`."""
 
@@ -383,11 +399,14 @@ def run(repo: Path, interview: Interview) -> Path:
     created, scaffold_problems = scaffold.write(repo, flow.accepted_scaffold)
 
     target = repo / PROFILE_PATH
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(rendered, encoding="utf-8", newline="\n")
-    # `DR-47` (2): the machine-owned record beside the profile, every field's origin and the one
-    # document-level approval.
-    (repo / provenance.PROVENANCE_PATH).write_text(sidecar, encoding="utf-8", newline="\n")
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(rendered, encoding="utf-8", newline="\n")
+        # `DR-47` (2): the machine-owned record beside the profile, every field's origin and the
+        # one document-level approval.
+        (repo / provenance.PROVENANCE_PATH).write_text(sidecar, encoding="utf-8", newline="\n")
+    except Exception as exc:  # noqa: BLE001 - whatever failed, say what is already on disk
+        raise PartialWrite(exc, created, scaffold_problems) from exc
     _clear_draft(repo)  # a completed run leaves no draft behind - it exists only to protect one
     return Written(profile=target, created=created, problems=scaffold_problems)
 
