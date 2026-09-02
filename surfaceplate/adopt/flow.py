@@ -500,6 +500,9 @@ def _dotted(section_name: str, spec: plan.FieldSpec, default: object | None = No
         validate=spec.validate,
         depends_on=depends_on,
         suggestions=spec.suggestions,
+        decides=spec.decides,
+        wrong=spec.wrong,
+        context=spec.context,
     )
 
 

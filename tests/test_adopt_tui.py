@@ -167,6 +167,85 @@ def test_the_opening_app_returns_the_three_answers() -> None:
     check("with a draft, Enter then n starts fresh (False)", asyncio.run(drive(welcome(draft), ["enter", "n"])) is False)
     check("with a draft, Enter then Ctrl+Q quits (None)", asyncio.run(drive(welcome(draft), ["enter", "ctrl+q"])) is None)
 
+
+def test_the_help_beside_a_field_states_what_it_decides_and_describes_the_chosen_file() -> None:
+    """`F82` and `F80` / `DR-51` (3), (4). Beside the focused field: what is asked, what the
+    answer decides, what a wrong answer costs; and for a field answered by picking a file, what
+    that file is, as seen by discovery and judged by the checker's rules."""
+    import subprocess
+    import tempfile
+
+    from textual.widgets import Select, Static
+
+    repo = Path(tempfile.mkdtemp(prefix="surfaceplate-help-")) / "repo"
+    repo.mkdir()
+    for args in (["init", "-q"], ["config", "user.email", "h@example.invalid"], ["config", "user.name", "H"], ["config", "commit.gpgsign", "false"]):
+        subprocess.run(["git", "-C", str(repo), *args], check=True)
+    (repo / "docs").mkdir()
+    (repo / "docs" / "register.md").write_text("# Activity register\n\n| id | title |\n", encoding="utf-8")
+    (repo / "docs" / "notes.md").write_text("# Notes\n\nTODO tidy\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "fixture"], check=True, capture_output=True)
+    found = plan.discover.scan(repo)
+
+    section = plan.decisions_plan(repo, found=found, proposals={})
+
+    async def form() -> tuple[str, str]:
+        app = Host(FormScreen(section, repo=repo))
+        async with app.run_test(size=(120, 60)) as pilot:
+            await pilot.pause()
+            app.screen.query_one("#f-stack--builds_user_interface").focus()
+            await pilot.pause()
+            slot = app.screen.query_one("#help-stack--builds_user_interface", Static)
+            first = str(slot.content)
+            return first, ""
+
+    text, _ = asyncio.run(form())
+    check("the decisions form shows what the answer decides and what a wrong one costs",
+          "Decides:" in text and "If wrong:" in text and "interface gates" in text, text[:300])
+
+    specs = plan.gate_plan(level="essential", builds_ui=False, mode="simple", found=found)
+    gates = plan.gates_plan(level="essential", builds_ui=False, mode="simple", found=found)
+
+    async def gate() -> tuple[str, str, str]:
+        app = Host(GatesScreen(specs, gates, repo=repo))
+        async with app.run_test(size=(120, 60)) as pilot:
+            await pilot.pause()
+            select = app.screen.query_one("#f-work_registration--artefact", Select)
+            select.focus()
+            await pilot.pause()
+            before = str(app.screen.query_one("#help-work_registration--artefact", Static).content)
+            select.value = "docs/register.md"
+            await pilot.pause()
+            await pilot.pause()
+            chosen = str(app.screen.query_one("#help-work_registration--artefact", Static).content)
+            select.value = "docs/notes.md"
+            await pilot.pause()
+            await pilot.pause()
+            rejected = str(app.screen.query_one("#help-work_registration--artefact", Static).content)
+            return before, chosen, rejected
+
+    before, chosen, rejected = asyncio.run(gate())
+    check("a gate's artefact field states what it decides before anything is chosen", "Decides:" in before and "If wrong:" in before, before[:300])
+    check("choosing a file describes it: its heading and its match", "Activity register" in chosen and "matched" in chosen, chosen[:300])
+    check("choosing a file the checker would reject says so", "reject" in rejected and "placeholder" in rejected, rejected[:300])
+
+    specs_std = plan.gate_plan(level="standard", builds_ui=False, mode="simple", found=found)
+    gates_std = plan.gates_plan(level="standard", builds_ui=False, mode="simple", found=found)
+    first = next(s for s in specs_std if not s.mandatory and not s.auto_status)
+
+    async def status() -> str:
+        app = Host(GatesScreen(specs_std, gates_std, repo=repo))
+        async with app.run_test(size=(120, 60)) as pilot:
+            await pilot.pause()
+            app.screen.query_one(f"#f-{first.id}--status", RadioSet).focus()
+            await pilot.pause()
+            return str(app.screen.query_one(f"#help-{first.id}--status", Static).content)
+
+    text = asyncio.run(status())
+    check("a gate's status row states what each status commits the team to",
+          "required" in text and "deferred" in text and "not applicable" in text and "Decides:" in text, text[:400])
+
 # ---------------------------------------------------------------------------------------------
 # Highlight is not selection (mockup frame 02: "nothing is chosen yet")
 # ---------------------------------------------------------------------------------------------
@@ -1302,6 +1381,7 @@ def main() -> int:
     print("the join: screens render exactly what their plan declares")
     test_every_screen_renders_its_whole_plan()
     test_the_opening_app_returns_the_three_answers()
+    test_the_help_beside_a_field_states_what_it_decides_and_describes_the_chosen_file()
 
     print("\nconformance level (mockup frame 02)")
     test_highlighting_a_level_does_not_choose_it()

@@ -218,6 +218,13 @@ def answers_for(repo: Path, *, level: str, builds_ui: bool, mode: str, overrides
             return spec.choices[0][0]
         if spec.validate == "tracked_path":
             return real_file(key)
+        if spec.validate.startswith("scanner_workflow"):
+            scanner = spec.validate.partition(":")[2] or "gitleaks"
+            rel = ".github/workflows/fixture-secret-scan.yml"
+            target = repo / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(f"jobs:\n  scan:\n    steps:\n      - name: Run {scanner}\n        run: {scanner} detect\n", encoding="utf-8")
+            return rel
         if spec.validate == "ci_step":
             name = f"Step for {key.split('.')[-2]}"
             workflow_steps.append(name)
@@ -278,13 +285,24 @@ def seed_referenced_files(repo: Path, *, ci: bool = False) -> None:
             "jobs:\n  t:\n    steps:\n      - name: Run the tests\n        run: pytest\n",
             encoding="utf-8",
         )
+        # `DR-51` (5): a workflow where a step RUNS the scanner is what `scanner.wired_in` is
+        # proposed from; `ci.yml` above runs pytest and is rightly not it.
+        (repo / ".github" / "workflows" / "secret-scan.yml").write_text(
+            "jobs:\n  scan:\n    steps:\n      - name: Run gitleaks\n        run: gitleaks detect\n",
+            encoding="utf-8",
+        )
     (repo / "requirements.txt").write_text("PyYAML==6.0.3\n", encoding="utf-8")
     (repo / "docs").mkdir(exist_ok=True)
     (repo / "docs" / "DEVELOPMENT_REGISTER.md").write_text("# Register\n", encoding="utf-8")
     (repo / "docs" / "decisions").mkdir(exist_ok=True)
     (repo / "docs" / "decisions" / "README.md").write_text("# Decisions\n", encoding="utf-8")
     (repo / "workflows").mkdir(exist_ok=True)
-    (repo / "workflows" / "secret-scan.yml").write_text("name: scan\n", encoding="utf-8")
+    # A file the checker's SP046 accepts: it mentions the scanner and a step runs it. `DR-51` (5)
+    # made the field refuse what the checker refuses, so "name: scan" is no longer an answer.
+    (repo / "workflows" / "secret-scan.yml").write_text(
+        "name: scan\njobs:\n  scan:\n    steps:\n      - name: Run gitleaks\n        run: gitleaks detect\n",
+        encoding="utf-8",
+    )
     _commit_all(repo, "seed")
 
 
@@ -473,6 +491,11 @@ def test_tricky_characters_round_trip(tmp: Path) -> None:
         target = repo / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text("# real\n", encoding="utf-8")
+    # `DR-51` (5): the scanner field applies SP046's rule, so the awkwardly named workflow must
+    # also be one where a step runs the scanner. The property under test is unchanged.
+    (repo / "workflows" / "secret-scan.yml?raw=true").write_text(
+        "# real\njobs:\n  s:\n    steps:\n      - name: Run gitleaks\n        run: gitleaks detect\n", encoding="utf-8"
+    )
     (repo / "docs" / "decisions").mkdir(parents=True, exist_ok=True)
     (repo / "docs" / "decisions" / "README.md").write_text("# Decisions\n", encoding="utf-8")
     _commit_all(repo, "tricky names")
@@ -1140,6 +1163,52 @@ def test_quitting_at_the_resume_prompt_keeps_the_draft(tmp: Path) -> None:
           not draft.is_file() and len(second.resume_offers) == 1)
 
 
+def test_every_presented_field_states_what_it_decides_and_what_a_wrong_answer_costs(tmp: Path) -> None:
+    """`F82` / `DR-51` (3). The framework's author, running its wizard, could not always say what a
+    question was for. Every field the flow presents - at every level, with and without an
+    interface - and every field an edit on the review can reach carries three things: what is
+    asked (`help`), what the answer decides (`decides`) and what a wrong answer costs (`wrong`).
+    Presence is what this proves; the text is judged by reading it."""
+    from surfaceplate.adopt import flow as _flow
+
+    repo = make_installed_repo(tmp, "minimum-repo")
+    seed_referenced_files(repo, ci=True)
+    gaps: list[str] = []
+    seen: set[str] = set()
+
+    def look(where: str, spec: plan.FieldSpec) -> None:
+        seen.add(f"{where}:{spec.id}")
+        for attr in ("help", "decides", "wrong"):
+            if not getattr(spec, attr).strip():
+                gaps.append(f"{where}: {spec.id} has no {attr}")
+
+    for level in ("essential", "standard", "full"):
+        for ui in (False, True):
+            flow = _flow.Flow(repo, {"standard_version": "0.0.0", "framework_digest": "0"})
+            for spec in flow.decisions_plan().fields:
+                look("decisions", spec)
+            flow.answer_decisions({
+                "identity.application_id": "app", "identity.owner": "Owner", "stack.builds_user_interface": "yes" if ui else "no",
+                "risk.relied_on_outside_team": "no", "risk.material_quantitative_output": "no", "risk.data_classification": "internal",
+                "wrap.release_route": "manual", "risk.risk_profile": "",
+            })
+            for spec in flow.level_plan().fields:
+                look("level", spec)
+            flow.answer_level({"conformance_level": level})
+            for gate in flow.gate_specs():
+                for spec in gate.fields:
+                    look(f"gate:{gate.id}", spec)
+            flow.state["gates"] = {}
+            flow.done.append("gates")
+            for spec in flow.remainder_plan().fields:
+                look("remainder", spec)
+    for name in plan.SECTION_ORDER:
+        for spec in plan.section_plan(name, repo=repo, state={"identity": {"owner": "x"}, "stack": {"builds_user_interface": True}, "level": {"conformance_level": "full"}, "mode": {"mode": "simple"}}).fields:
+            look(name, spec)
+    check(f"every presented field carries help, decides and wrong ({len(seen)} field ids across three levels, both interface answers, and the review's edit path)",
+          not gaps, "; ".join(gaps[:8]) + (f" (and {len(gaps) - 8} more)" if len(gaps) > 8 else ""))
+
+
 def test_the_run_opens_with_the_tool_and_the_install_named(tmp: Path) -> None:
     """`F81` / `DR-51` (2). Before the first question the interview is handed what the opening
     screen shows: the tool's name, version, licence and publisher, the installed version and
@@ -1402,6 +1471,15 @@ def test_fields_presented_before_the_review_are_measured(tmp: Path) -> None:
                 key = f"{prefix}{spec.id}"
                 if key in interview.answers or spec.default or not spec.validate or spec.kind not in ("text", "textarea"):
                     continue  # a pre-filled proposal is submitted unchanged
+                if spec.validate.startswith("scanner_workflow"):
+                    # `DR-51` (5): the field applies SP046's rule, so the answer is a real
+                    # workflow where a step runs the scanner, committed.
+                    scan = repo / ".github" / "workflows" / "budget-scan.yml"
+                    scan.parent.mkdir(parents=True, exist_ok=True)
+                    scan.write_text("jobs:\n  s:\n    steps:\n      - name: Run gitleaks\n        run: gitleaks detect\n", encoding="utf-8")
+                    _commit_all(repo, "scan workflow")
+                    interview.answers[key] = ".github/workflows/budget-scan.yml"
+                    continue
                 interview.answers[key] = "main.py" if spec.validate == "tracked_path" else f"answer for {key}"
             return original(section, prefix)
 
@@ -1432,7 +1510,10 @@ def test_fields_presented_before_the_review_are_measured(tmp: Path) -> None:
     # `ACT-046` (plan item 3.2): the budget test asserts the MEASURED numbers, not an estimate.
     # Measured on 2026-09-02 on these two fixtures: 11 and 12, both within DR-47's eight to twelve.
     # A change to either is a change to what the wizard asks, and belongs in a decision record.
-    check("standard with things to discover: eleven fields before the review, as measured", n_std == 11, str(n_std))
+    # `DR-51` (5), the same day: the scanner workflow is asked when no workflow RUNS the scanner,
+    # not when none exists. The rich fixture's `ci.yml` runs pytest, not gitleaks, so it is now
+    # asked there too: 11 became 12 (re-measured; the bare fixture already asked it).
+    check("standard with things to discover: twelve fields before the review, as measured under DR-51 (5)", n_std == 12, str(n_std))
     check("essential on a bare repository: twelve fields before the review, as measured", n_ess == 12, str(n_ess))
 
 
@@ -1565,7 +1646,12 @@ def test_validators_refuse_what_the_checker_rejects(tmp: Path) -> None:
 
     repo = make_installed_repo(tmp, "parity-inputs-repo")
     (repo / "tracked.md").write_text("# tracked\n", encoding="utf-8")
-    subprocess.run(["git", "-C", str(repo), "add", "tracked.md"], check=True)
+    (repo / "empty.md").write_text("", encoding="utf-8")
+    (repo / "unfinished.md").write_text("# Register\n\nTODO: fill in\n", encoding="utf-8")
+    (repo / "ci.yml").write_text("jobs:\n  t:\n    steps:\n      - name: Tests\n        run: pytest\n", encoding="utf-8")
+    (repo / "comment.yml").write_text("# gitleaks runs elsewhere\njobs:\n  t:\n    steps:\n      - name: Tests\n        run: pytest\n", encoding="utf-8")
+    (repo / "scan.yml").write_text("jobs:\n  s:\n    steps:\n      - name: Run gitleaks\n        run: gitleaks detect\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "tracked.md", "empty.md", "unfinished.md", "ci.yml", "comment.yml", "scan.yml"], check=True)
     subprocess.run(["git", "-C", str(repo), "commit", "-qm", "tracked"], check=True)
     (repo / "untracked.md").write_text("# here, but not committed\n", encoding="utf-8")
 
@@ -1588,6 +1674,11 @@ def test_validators_refuse_what_the_checker_rejects(tmp: Path) -> None:
         ("nonempty", "please replace-me", "SP020: a placeholder inside prose"),
         ("tracked_path", "untracked.md", "SP051: exists but not tracked by git"),
         ("tracked_path", "missing.md", "SP032/SP051: does not exist"),
+        ("tracked_path", "empty.md", "SP032: exists but is empty"),
+        ("tracked_path", "unfinished.md", "SP032: still carries a placeholder"),
+        ("scanner_workflow:gitleaks", "ci.yml", "SP046: the workflow never mentions the scanner"),
+        ("scanner_workflow:gitleaks", "comment.yml", "SP046: mentioned in a comment, no step runs it"),
+        ("scanner_workflow:gitleaks", "untracked.md", "SP046: not tracked"),
     ]
     for name, value, why in refused:
         check(
@@ -1603,6 +1694,7 @@ def test_validators_refuse_what_the_checker_rejects(tmp: Path) -> None:
         ("application_id", "ab"),
         ("nonempty", "a real answer"),
         ("tracked_path", "tracked.md"),
+        ("scanner_workflow:gitleaks", "scan.yml"),
     ]
     for name, value in accepted:
         problem = validators.check(name, value, repo=repo)
@@ -1619,6 +1711,12 @@ def test_every_checker_code_has_a_validator_or_an_exemption(tmp: Path) -> None:
     from surfaceplate.adopt import validators
 
     repo = make_installed_repo(tmp, "parity-table-repo")
+    # `DR-51` (5): a tracked workflow that never mentions the scanner, and a tracked artefact
+    # that still carries a placeholder - each is what the checker rejects and the field now refuses.
+    (repo / ".github" / "workflows").mkdir(parents=True, exist_ok=True)
+    (repo / ".github" / "workflows" / "ci.yml").write_text("jobs:\n  t:\n    steps:\n      - name: Tests\n        run: pytest\n", encoding="utf-8")
+    (repo / "docs").mkdir(exist_ok=True)
+    (repo / "docs" / "unfinished.md").write_text("# Register\n\nTBD\n", encoding="utf-8")
     subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
     subprocess.run(["git", "-C", str(repo), "commit", "-qm", "install"], check=True)
     (repo / "untracked.md").write_text("x\n", encoding="utf-8")
@@ -1660,7 +1758,7 @@ def test_every_checker_code_has_a_validator_or_an_exemption(tmp: Path) -> None:
         "SP029": (X, "a level-mandatory gate is stated by the plan, never chosen"),
         "SP030": (X, "a level-mandatory gate is stated by the plan, never chosen"),
         "SP031": (V, "revisit_by", ""),
-        "SP032": (V, "tracked_path", "missing.md"),
+        "SP032": (V, "tracked_path", "docs/unfinished.md"),
         "SP033": (V, "effective_from", tomorrow),
         "SP034": (X, "history-only: compares against git history (DR-48)"),
         "SP035": (X, "history-only: compares against git history (DR-48)"),
@@ -1671,7 +1769,7 @@ def test_every_checker_code_has_a_validator_or_an_exemption(tmp: Path) -> None:
         "SP041": (X, "reads the staged snapshot, not the profile the wizard writes"),
         "SP042": (X, "a pathspec is validated by git at check time; the field offers discovered pathspecs"),
         "SP043": (X, "reads gate exception records, which the wizard does not write"),
-        "SP046": (V, "tracked_path", "untracked.md"),
+        "SP046": (V, "scanner_workflow:gitleaks", ".github/workflows/ci.yml"),
         "SP047": (X, "reads the workflow step's shell semantics, not a profile field"),
         "SP048": (X, "written from the install record, never asked"),
         "SP049": (X, "written from the install record, never asked"),
@@ -1777,6 +1875,7 @@ def main() -> int:
         test_the_draft_lives_under_standards_and_an_old_one_is_migrated(tmp)
 
         print("\nrefusals, and the guarantee itself")
+        test_every_presented_field_states_what_it_decides_and_what_a_wrong_answer_costs(tmp)
         test_the_run_opens_with_the_tool_and_the_install_named(tmp)
         test_refuses_when_the_tool_and_the_install_differ(tmp)
         test_package_metadata_agrees_with_pyproject()

@@ -37,6 +37,29 @@ from surfaceplate.adopt import catalogue, detect, discover, example_answers, exp
 # `core/CONFORMANCE_LEVELS.md`'s "The three baseline controls" section.
 BASELINE_CONTROL_IDS = ("agent_work_packets", "actual_diff_review", "secret_hygiene")
 
+# `DR-51` (3): what the checker does with each kind of implementation reference, and the cost of
+# naming the wrong thing. One sentence each, reused wherever the same rule applies.
+ARTEFACT_DECIDES = (
+    "the file the checker requires to exist, be non-empty, carry no placeholder and be tracked "
+    "by git (SP032), and to precede every change under the gated paths in history (SP035)"
+)
+ARTEFACT_WRONG = "a file that is not the artefact satisfies the check and guards nothing"
+PATTERN_A_DECIDES = "the file the checker requires to exist, be non-empty, carry no placeholder and be tracked (SP051)"
+PATTERN_B_DECIDES = "the workflow step the checker looks up by name and requires to be able to fail the job (SP053)"
+PATTERN_C_DECIDES = "the directory of records the checker validates against this control's schema (SP055, SP056)"
+CONTROL_WRONG = "the control fails on the next run, or something that is not the implementation passes for it"
+RATIONALE_DECIDES = "why the profile says this applies here; read by reviewers and auditors, never by the checker"
+RATIONALE_WRONG = "a reason nobody wrote is the framework's example standing under your name"
+SCANNER_WIRED_DECIDES = (
+    "the file the checker opens to confirm the named scanner runs there and can fail the build "
+    "(SP046, SP047) - the one baseline control that is actually checked"
+)
+SCANNER_WIRED_WRONG = "the checker reports the scanner absent on its next run"
+LOCK_DECIDES = PATTERN_A_DECIDES
+NOT_CHECKED_WRONG = "a misleading profile; the checker never reads this"
+RELEASE_ROUTE_DECIDES = "what the profile records as the human and platform controls between a merge and a release; not verified"
+RELEASE_ROUTE_WRONG = "a route nobody follows is a promise the profile makes on your behalf"
+
 TEMPLATE_PLACEHOLDER_HELP = (
     'Type an actual value. "TBD", "TODO" and similar are template placeholders this framework\'s '
     "own checker rejects (SP020) - writing one here would fail the profile you're about to produce."
@@ -66,6 +89,14 @@ class FieldSpec:
     # nothing. Empty means discovery found none - the field then behaves exactly as it did before
     # discovery existed, which is the honest fallback for a repository git cannot read.
     suggestions: tuple[str, ...] = ()
+    # `DR-51` (3): the stated minimum for a reader meeting the framework for the first time -
+    # what the answer decides, and what a wrong answer costs. Shown beside the focused field with
+    # `help`; `tests/test_adopt.py` fails on any presented field lacking either.
+    decides: str = ""
+    wrong: str = ""
+    # `DR-51` (4): how to describe a chosen value - `gate:<id>`, `scanner:<name>`, `lock`,
+    # `register`, `step` - so the help beside a dropdown can say what the chosen file is.
+    context: str = ""
 
     def applies(self, answers: dict) -> bool:
         """Whether this field is asked at all, given what has been answered so far in its section."""
@@ -142,11 +173,15 @@ def decisions_plan(repo: Path, *, found: discover.Discovered, proposals: dict) -
             help="short, stable, used in file paths and IDs - lowercase, digits, hyphen or underscore",
             default=str(proposals["identity.application_id"].value) if "identity.application_id" in proposals else "",
             validate="application_id",
+            decides="the id every record about this repository is filed under, and the name the checker reports",
+            wrong="renaming later means changing every reference; pick the stable one now",
         ),
         FieldSpec(
             id="identity.owner",
             label="owner",
             help="who is accountable for this application, not this adoption - a named human",
+            decides="who the framework holds accountable for this profile, and who reviewers look to",
+            wrong="accountability lands on nobody, and the checker cannot tell",
         ),
     ]
     if "stack.language" not in proposals:
@@ -155,6 +190,8 @@ def decisions_plan(repo: Path, *, found: discover.Discovered, proposals: dict) -
                 id="stack.language",
                 label="Language(s) / framework",
                 help="nothing recognisable was detected, so say what this is built in",
+                decides="what the profile records for its reader; the checker never reads it",
+                wrong=NOT_CHECKED_WRONG,
             )
         )
     fields += [
@@ -167,6 +204,8 @@ def decisions_plan(repo: Path, *, found: discover.Discovered, proposals: dict) -
                 "Decides whether the four interface gates are a floor at standard and full. "
                 "Answer for what this repository actually does, not what it might do later."
             ),
+            decides="whether the four interface gates (component library, design authority, options, screen state) are required at standard and full",
+            wrong="yes on a repository with no interface adds four gates it can never satisfy; no on one with screens leaves them unguarded",
         ),
         # `ACT-032`: the two questions the level recommendation reads, in the framework's own
         # words (`catalogue.LEVEL_BLURBS`), so the level is answerable before it is explained.
@@ -180,6 +219,8 @@ def decisions_plan(repo: Path, *, found: discover.Discovered, proposals: dict) -
                 "output. If it is a proof of concept or internal tooling nobody else depends "
                 "on, the answer is no."
             ),
+            decides="the level this tool recommends: standard exists for output someone outside the team depends on",
+            wrong="a recommendation pointing at the wrong level; the level itself is still yours to choose on the next screen",
         ),
         FieldSpec(
             id="risk.material_quantitative_output",
@@ -191,6 +232,8 @@ def decisions_plan(repo: Path, *, found: discover.Discovered, proposals: dict) -
                 "team consumes without re-deriving them. Not: logs, dashboards of your own "
                 "activity, or output a human always checks before it is used."
             ),
+            decides="the level this tool recommends: full exists for numbers or AI output that others treat as fact",
+            wrong="a recommendation pointing at the wrong level; the level itself is still yours to choose on the next screen",
         ),
         FieldSpec(
             id="risk.data_classification",
@@ -202,12 +245,17 @@ def decisions_plan(repo: Path, *, found: discover.Discovered, proposals: dict) -
                 ("confidential", "confidential - within the organisation"),
                 ("restricted", "restricted - the strictest tier"),
             ),
+            help="the most sensitive data this repository handles, in the organisation's own tiers",
+            decides="what the profile states about the data here; the repository classification is proposed from it",
+            wrong="a profile that understates or overstates the data's sensitivity to whoever relies on it",
         ),
         FieldSpec(
             id="wrap.release_route",
             label="Release route",
             kind="textarea",
             help="human and platform release controls, in your own words",
+            decides=RELEASE_ROUTE_DECIDES,
+            wrong=RELEASE_ROUTE_WRONG,
         ),
         FieldSpec(
             id="risk.risk_profile",
@@ -215,17 +263,23 @@ def decisions_plan(repo: Path, *, found: discover.Discovered, proposals: dict) -
             kind="textarea",
             help="optional - intended use, uncertainty, materiality. Left blank, the profile says so",
             validate="",
+            decides="the profile's own statement of what could go wrong and for whom",
+            wrong="left blank, the profile says \"Not stated at adoption\", which is honest; a vague sentence is worse than that",
         ),
     ]
     # One question per thing discovery could not find that every level needs. A field with no
     # honest source is asked (`DR-40`); discovery's job is to make this rare, not to invent.
-    if not any("workflow" in a for a in found.artefacts):
+    # `F83` / `DR-51` (5): asked when no workflow RUNS the scanner, not when none exists.
+    if not found.scanner_workflows:
         fields.append(
             FieldSpec(
                 id="controls.scanner.wired_in",
                 label="Scanner workflow file",
-                help="no workflow file was found; name the one that runs the secret scanner",
-                validate="tracked_path",
+                help=f"no workflow with a step that runs {discover.DEFAULT_SCANNER} was found; name the file where the secret scanner runs",
+                validate=f"scanner_workflow:{discover.DEFAULT_SCANNER}",
+                context=f"scanner:{discover.DEFAULT_SCANNER}",
+                decides=SCANNER_WIRED_DECIDES,
+                wrong=SCANNER_WIRED_WRONG,
             )
         )
     if not found.lock_files:
@@ -235,6 +289,9 @@ def decisions_plan(repo: Path, *, found: discover.Discovered, proposals: dict) -
                 label="Dependency lock file",
                 help="no lock file was found; name the file that pins this repository's dependencies",
                 validate="tracked_path",
+                context="lock",
+                decides=LOCK_DECIDES,
+                wrong=CONTROL_WRONG,
             )
         )
     return SectionPlan(
@@ -258,12 +315,20 @@ def identity_plan() -> SectionPlan:
                 label="application_id",
                 help="short, stable, used in file paths and IDs - lowercase, digits, hyphen or underscore",
                 validate="application_id",
+                decides="the id every record about this repository is filed under, and the name the checker reports",
+                wrong="renaming later means changing every reference; pick the stable one now",
             ),
-            FieldSpec(id="display_name", label="display_name", help="what humans call it"),
+            FieldSpec(
+                id="display_name", label="display_name", help="what humans call it",
+                decides="what the profile shows a reader as this application's name; not checked",
+                wrong=NOT_CHECKED_WRONG,
+            ),
             FieldSpec(
                 id="owner",
                 label="owner",
                 help="who is accountable for this application, not this adoption",
+                decides="who the framework holds accountable for this profile, and who reviewers look to",
+                wrong="accountability lands on nobody, and the checker cannot tell",
             ),
         ),
     )
@@ -293,6 +358,8 @@ def stack_plan(repo: Path) -> SectionPlan:
                 label="Language(s) / framework",
                 default=", ".join(languages) if languages else "",
                 help="shown above if detected - confirm or correct it",
+                decides="what the profile records for its reader; the checker never reads it",
+                wrong=NOT_CHECKED_WRONG,
             ),
             FieldSpec(
                 id="builds_user_interface",
@@ -304,6 +371,8 @@ def stack_plan(repo: Path) -> SectionPlan:
                     "might do later."
                 ),
                 validate="",
+                decides="whether the four interface gates are required at standard and full",
+                wrong="yes on a repository with no interface adds four gates it can never satisfy; no on one with screens leaves them unguarded",
             ),
         ),
     )
@@ -319,12 +388,16 @@ def risk_plan() -> SectionPlan:
                 label="Risk profile",
                 kind="textarea",
                 help="intended use, uncertainty, materiality - a sentence or two, in your own words",
+                decides="the profile's own statement of what could go wrong and for whom",
+                wrong="a vague sentence reads as a considered one; \"Not stated at adoption\" is the honest blank",
             ),
             FieldSpec(
                 id="materiality_definition",
                 label="Materiality definition",
                 kind="textarea",
                 help="which outputs or decisions are material - what would make a wrong one matter",
+                decides="what the profile counts as material, which is what every material-output rule in the standard refers back to",
+                wrong="too narrow and material outputs escape the controls; too wide and everything is material and nothing is",
             ),
             # `ACT-032`. Two plain questions about the adopter's world, asked BEFORE the level, so
             # the level becomes answerable by someone who has not yet learned what a "conformance
@@ -343,6 +416,8 @@ def risk_plan() -> SectionPlan:
                     "on, the answer is no."
                 ),
                 validate="",
+                decides="the level this tool recommends: standard exists for output someone outside the team depends on",
+                wrong="a recommendation pointing at the wrong level; the level itself is still yours to choose",
             ),
             FieldSpec(
                 id="material_quantitative_output",
@@ -354,6 +429,8 @@ def risk_plan() -> SectionPlan:
                     "activity, or output a human always checks before it is used."
                 ),
                 validate="",
+                decides="the level this tool recommends: full exists for numbers or AI output that others treat as fact",
+                wrong="a recommendation pointing at the wrong level; the level itself is still yours to choose",
             ),
             FieldSpec(
                 id="data_classification",
@@ -366,6 +443,9 @@ def risk_plan() -> SectionPlan:
                     ("confidential", "confidential - within the organisation"),
                     ("restricted", "restricted - the strictest tier"),
                 ),
+                help="the most sensitive data this repository handles, in the organisation's own tiers",
+                decides="what the profile states about the data here; the repository classification is proposed from it",
+                wrong="a profile that understates or overstates the data's sensitivity to whoever relies on it",
             ),
         ),
     )
@@ -494,6 +574,9 @@ def level_plan(
                 label="Conformance level - a floor, not a ceiling; you may require more than the level asks",
                 kind="choice",
                 choices=level_choices(builds_ui),
+                help="how strict this repository's own rules are; the counts beside each level are computed from the catalogue",
+                decides="the floor: which gates and controls the checker requires of this repository from now on",
+                wrong="too low leaves what others rely on unguarded; too high fails on gates the repository cannot yet meet",
             ),
         ),
     )
@@ -530,6 +613,11 @@ def _implementation_reference_field(
     if control_id not in labels:
         return None
     prefix, help_text = labels[control_id]
+    decides = {
+        **{c: PATTERN_A_DECIDES for c in catalogue.PATTERN_A_CONTROLS},
+        **{c: PATTERN_B_DECIDES for c in catalogue.PATTERN_B_CONTROLS},
+        **{c: PATTERN_C_DECIDES for c in catalogue.PATTERN_C_CONTROLS},
+    }[control_id]
     # Each pattern names a different kind of thing, and each is discoverable. The CI step in
     # particular is why this packet exists: "no example for CI step name... not sure how to proceed
     # on that one" is unanswerable from a canned example and trivial from the adopter's own
@@ -542,17 +630,21 @@ def _implementation_reference_field(
         # a repository with nothing else, whatever file it held first - the `F40` shape.
         if control_id == "dependency_lock":
             candidates = found.lock_files
+            context = "lock"
         else:
             candidates = tuple(
                 a for a in found.artefacts if any(w in a.lower() for w in ("finding", "assurance"))
             )
+            context = "artefact"
         validate = "tracked_path"
     elif control_id in catalogue.PATTERN_B_CONTROLS:
         candidates = found.ci_steps
         validate = "ci_step"
+        context = "step"
     else:
         candidates = found.register_dirs
         validate = "tracked_path"
+        context = "register"
     return _from_candidates(
         id=f"{control_id}.implementation_reference",
         label=f"{prefix} {control_id}",
@@ -560,11 +652,14 @@ def _implementation_reference_field(
         candidates=candidates,
         depends_on=None if at_floor else ("above_floor", (control_id,)),
         validate=validate,
+        context=context,
+        decides=decides,
+        wrong=CONTROL_WRONG,
     )
 
 
 def controls_plan(
-    *, level: str, mode: str, found: discover.Discovered | None = None
+    *, level: str, mode: str, found: discover.Discovered | None = None, scanner: str = discover.DEFAULT_SCANNER
 ) -> SectionPlan:
     """All nine controls are shown, not just the level's floor.
 
@@ -586,6 +681,8 @@ def controls_plan(
                 kind="textarea",
                 help=f"{explanations.explain(control_id, mode)}\n\n{TEMPLATE_PLACEHOLDER_HELP}",
                 default=example_answers.rationale_example(control_id),
+                decides=RATIONALE_DECIDES,
+                wrong=RATIONALE_WRONG,
             )
         )
 
@@ -593,17 +690,24 @@ def controls_plan(
         FieldSpec(
             id="scanner.name",
             label="Secret scanner",
-            default="gitleaks",
+            default=scanner,
             help="the tool that scans for secrets before they're committed",
+            decides="the word the checker looks for in the workflow file, and requires a step to run (SP046)",
+            wrong="the checker looks for the wrong word and reports the scanner absent",
         )
     )
+    # `F83` / `DR-51` (5): the candidates are the workflows where a step RUNS the scanner, and the
+    # field refuses any other file with the checker's own words.
     fields.append(
         _from_candidates(
             id="scanner.wired_in",
             label="Scanner workflow file",
-            help="a step naming this scanner must be able to fail the build",
-            candidates=tuple(a for a in found.artefacts if "workflow" in a),
-            validate="tracked_path",
+            help=f"the workflow where a step runs {scanner}; that step must be able to fail the build",
+            candidates=found.scanner_workflows,
+            validate=f"scanner_workflow:{scanner}",
+            context=f"scanner:{scanner}",
+            decides=SCANNER_WIRED_DECIDES,
+            wrong=SCANNER_WIRED_WRONG,
         )
     )
 
@@ -630,6 +734,8 @@ def controls_plan(
                 choices=tuple((c, f"{c} - {_first_line(explanations.explain(c, mode))}") for c in above_floor),
                 default="",
                 validate="",
+                decides="which controls beyond the floor this repository is held to; each ticked one asks for its rationale and reference and is then checked",
+                wrong="a ticked control with nothing behind it fails the checker; an unticked one is simply not claimed",
             )
         )
 
@@ -647,6 +753,8 @@ def controls_plan(
                 ),
                 default=example_answers.rationale_example(control_id),
                 depends_on=None if at_floor else ("above_floor", (control_id,)),
+                decides=RATIONALE_DECIDES,
+                wrong=RATIONALE_WRONG,
             )
         )
         reference = _implementation_reference_field(control_id, at_floor=at_floor, found=found)
@@ -678,7 +786,7 @@ def locked_controls(level: str) -> set[str]:
 
 def _from_candidates(
     *, id: str, label: str, help: str, candidates: tuple[str, ...], depends_on=None,
-    validate: str = "nonempty",
+    validate: str = "nonempty", context: str = "", decides: str = "", wrong: str = "",
 ) -> FieldSpec:
     """A field answered by picking, when there is anything to pick from.
 
@@ -698,6 +806,9 @@ def _from_candidates(
         suggestions=shown,
         validate=validate,
         depends_on=depends_on,
+        context=context,
+        decides=decides,
+        wrong=wrong,
     )
 
 
@@ -720,6 +831,14 @@ def _gate_fields(
                 label=gate_id,
                 kind="choice",
                 choices=_GATE_STATUS_CHOICES,
+                # Short on purpose: at 80x24 this sits under three radio rows and a three-row
+                # gate description, and a ten-row help pushed itself below the fold.
+                help="r, d or n on this row; the three meanings are below",
+                decides=(
+                    "whether the checker audits this gate. required: audited from effective_from; "
+                    "deferred: not until revisit_by, failing after it; not applicable: never, with the reason written"
+                ),
+                wrong="required without the practice fails every gated commit; not applicable where it applies hides the risk",
             )
         )
 
@@ -746,6 +865,9 @@ def _gate_fields(
             candidates=tuple(discover.rank_for_gate(found.artefacts, gate_id)),
             depends_on=None if mandatory else ("status", required_when),
             validate="tracked_path",
+            context=f"gate:{gate_id}",
+            decides=ARTEFACT_DECIDES,
+            wrong=ARTEFACT_WRONG,
         ),
         # `F51`: **`effective_from` is asked, and this is the one of the four that came back.**
         # `org/RELEASE_PLAN.md` names it: *"what `effective_from` should read ... is a human
@@ -767,6 +889,8 @@ def _gate_fields(
             default=_dt.date.today().isoformat(),
             validate="effective_from",
             depends_on=None if mandatory else ("status", required_when),
+            decides="how far back the audit looks: commits before this date are out of scope (SP033 to SP035)",
+            wrong="later than the artefact hides history the gate should have covered; earlier than it fails on history the artefact did not precede",
         ),
         # `ACT-032`: `precondition_description`, `gated_description` and `enforcement` remain
         # DERIVED in `sections.build_gate`. Each is
@@ -795,6 +919,8 @@ def _gate_fields(
             help="a git pathspec, e.g. src/** - what may not proceed until the artefact exists",
             suggestions=found.paths,
             depends_on=None if mandatory else ("status", required_when),
+            decides="which changes the gate applies to: every commit touching these paths after effective_from must come after the artefact",
+            wrong="too narrow and the gate guards nothing; too wide and unrelated commits fail the audit",
         ),
     ]
 
@@ -811,6 +937,9 @@ def _gate_fields(
                 label=f"Rationale for {gate_id} being not applicable",
                 kind="textarea",
                 default="This repository has no user interface.",
+                help="why this interface gate does not apply; the answer above already settled that it does not",
+                decides="why the profile says this gate does not apply; read by reviewers, never by the checker",
+                wrong=RATIONALE_WRONG,
             ),
         )
 
@@ -818,7 +947,10 @@ def _gate_fields(
         FieldSpec(
             id="owner",
             label="Owner",
+            help="who owns the deferral - a named human",
             depends_on=("status", ("deferred",)),
+            decides="who the deferral is filed under, and who is asked when revisit_by arrives",
+            wrong="a deferral nobody owns is never revisited",
         ),
         FieldSpec(
             id="revisit_by",
@@ -826,13 +958,18 @@ def _gate_fields(
             help="YYYY-MM-DD. The checker fails once this date passes",
             validate="revisit_by",
             depends_on=("status", ("deferred",)),
+            decides="the date the checker fails this gate unless it has been decided by then (SP054)",
+            wrong="too far and the deferral is a permanent exemption; too near and the check fails before the work is done",
         ),
         FieldSpec(
             id="rationale",
             label="Why this status",
             kind="textarea",
+            help="why this gate is deferred or does not apply here, in your own words",
             default=example_answers.rationale_example(gate_id),
             depends_on=("status", ("deferred", "not_applicable")),
+            decides="why the profile says this gate is deferred or does not apply; read by reviewers, never by the checker",
+            wrong=RATIONALE_WRONG,
         ),
     ]
     return tuple(fields)
@@ -909,6 +1046,9 @@ def gates_plan(
                     choices=f.choices,
                     validate=f.validate,
                     suggestions=f.suggestions,
+                    decides=f.decides,
+                    wrong=f.wrong,
+                    context=f.context,
                     depends_on=(
                         (f"{spec.id}.{f.depends_on[0]}", f.depends_on[1])
                         if f.depends_on is not None
@@ -945,18 +1085,29 @@ def adoption_plan(*, owner: str) -> SectionPlan:
                 default=(_dt.date.today() + _dt.timedelta(days=180)).isoformat(),
                 help="180 days is the suggested interval; the checker fails once this date passes",
                 validate="review_by",
+                decides="the date the checker fails this profile unless it has been reviewed by then (SP025), at most 400 days out (SP026)",
+                wrong="a profile that fails on a date nobody planned for, or one that is never reviewed",
             ),
             FieldSpec(
                 id="framework_maintainer",
                 label="Framework maintainer",
                 default=owner,
                 help="the change authority for the standard in this repository - often the same as owner",
+                decides="who may upgrade or change the standard's installation here",
+                wrong="upgrades with nobody accountable for them",
             ),
-            FieldSpec(id="repository_classification", label="Repository classification"),
+            FieldSpec(
+                id="repository_classification", label="Repository classification",
+                help="how this repository is classified in the organisation's own terms; proposed from the data classification",
+                decides="what the profile states about the repository; the checker never reads it",
+                wrong=NOT_CHECKED_WRONG,
+            ),
             FieldSpec(
                 id="decision_record_id",
                 label="Adoption decision record ID",
                 help="if none exists yet, this is the moment to name one - it does not need to be written yet",
+                decides="the record the profile cites for this adoption; the checker requires the id, not the record",
+                wrong="a citation to nothing",
             ),
             FieldSpec(
                 id="adoption_status",
@@ -968,23 +1119,35 @@ def adoption_plan(*, owner: str) -> SectionPlan:
                     ("blocked", "blocked"),
                     ("deferred", "deferred"),
                 ),
+                help="where this adoption stands today; blocked and deferred ask why",
+                decides="what the profile says about this adoption's state; nothing else follows from it",
+                wrong="complete before the checker passes is a claim the checker contradicts on its next run",
             ),
             FieldSpec(
                 id="status_rationale",
                 label="Why is adoption blocked/deferred?",
                 kind="textarea",
                 depends_on=("adoption_status", ("blocked", "deferred")),
+                help="what stands in the way, in your own words",
+                decides="why the profile says adoption is blocked or deferred; read by reviewers",
+                wrong="a state with no stated reason",
             ),
             FieldSpec(
                 id="needs_validator",
                 label="Does independent (Level 3) review apply to this adoption?",
                 kind="bool",
                 validate="",
+                help="whether someone independent of the team validates this adoption",
+                decides="whether an independent validator is named on the profile; the checker never reads it",
+                wrong="a named validator who never validated is a false claim on the record",
             ),
             FieldSpec(
                 id="independent_validator",
                 label="Independent validator",
                 depends_on=("needs_validator", (True,)),
+                help="who validates independently - a named human or body",
+                decides="who the profile names as the independent validator; not checked",
+                wrong="a named validator who never validated is a false claim on the record",
             ),
         ),
     )
@@ -1001,12 +1164,16 @@ def wrap_plan() -> SectionPlan:
                 kind="textarea",
                 help='e.g. "Maintainer - Jane Doe. Sole change authority."',
                 validate="",
+                decides="the roles the profile records for its reader; the checker never reads them",
+                wrong=NOT_CHECKED_WRONG,
             ),
             FieldSpec(
                 id="release_route",
                 label="Release route",
                 kind="textarea",
                 help="human and platform release controls, in your own words",
+                decides=RELEASE_ROUTE_DECIDES,
+                wrong=RELEASE_ROUTE_WRONG,
             ),
         ),
     )
@@ -1078,7 +1245,9 @@ def section_plan(
         # screen for it; plain English is the default and the only value the flow sets.
         return SectionPlan(name="mode", title="Explanations", fields=(
             FieldSpec(id="mode", label="register", kind="choice",
-                      choices=(("simple", "plain English"), ("advanced", "precise technical terms"))),
+                      choices=(("simple", "plain English"), ("advanced", "precise technical terms")),
+                      help="which register the explanations use", decides="only the wording of the explanations; never written",
+                      wrong="nothing: it is session state"),
         ))
     if name == "identity":
         return identity_plan()
@@ -1095,7 +1264,8 @@ def section_plan(
             risk=state.get("risk") or {},
         )
     if name == "controls":
-        return controls_plan(level=level, mode=mode, found=found)
+        scanner = str((state.get("controls") or {}).get("scanner.name") or discover.DEFAULT_SCANNER)
+        return controls_plan(level=level, mode=mode, found=found, scanner=scanner)
     if name == "gates":
         return gates_plan(level=level, builds_ui=builds_ui, mode=mode, found=found)
     if name == "adoption":

@@ -182,7 +182,8 @@ def propose_gates(
             continue
         # `F40`: MATCHED, not merely ranked - a proposal comes only from a candidate that matched
         # the gate. No match -> no proposal, and the field is asked.
-        matched = discover.matched_for_gate(found.artefacts, spec.id)
+        # `F84` / `DR-51` (5): and never one the checker's content rules would reject.
+        matched = [c for c in discover.matched_for_gate(found.artefacts, spec.id) if c not in found.rejected]
         if matched:
             out.append(
                 Proposal(

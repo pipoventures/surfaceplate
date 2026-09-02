@@ -51,6 +51,7 @@ from textual.widgets.option_list import Option, OptionDoesNotExist
 from textual.strip import Strip
 from rich.segment import Segment
 
+from surfaceplate.adopt import discover
 from surfaceplate.adopt import flow as _flow
 from surfaceplate.adopt import plan, scaffold, validators
 
@@ -289,6 +290,46 @@ def _widget_for(spec: plan.FieldSpec, value: object = None):
     )
 
 
+def help_text_for(spec: plan.FieldSpec, value: object, repo) -> str:
+    """The text beside a focused field (`DR-51` (3), (4)): what is asked, what the answer
+    decides, what a wrong answer costs, and - for a value picked from the repository - what the
+    chosen thing is, as discovery saw it and the checker's rules judge it."""
+    parts: list[str] = []
+    if spec.help:
+        parts.append(spec.help)
+    if spec.decides:
+        parts.append(f"Decides: {spec.decides}.")
+    if spec.wrong:
+        parts.append(f"If wrong: {spec.wrong}.")
+    if spec.context and repo is not None and isinstance(value, str) and value.strip():
+        kind, _, detail = spec.context.partition(":")
+        if kind == "gate":
+            parts.append("Chosen: " + discover.describe(repo, value.strip(), gate_id=detail))
+        elif kind == "scanner":
+            parts.append("Chosen: " + discover.describe(repo, value.strip(), scanner=detail))
+        elif kind in ("lock", "register", "artefact"):
+            parts.append("Chosen: " + discover.describe(repo, value.strip()))
+    return "\n".join(parts)
+
+
+def reveal(field, slot) -> None:
+    """Keep the focused field on screen with its help beneath it (`DR-51` (3)).
+
+    Focus scrolls the field into view and nothing else; the help under it fell below the fold at
+    80x24. Scrolling the help into view instead pushed the field's first rows off the top, which
+    `F59`'s regression test refuses, and deciding between the two from widget regions proved
+    unreliable at the moment the slot has just been shown. So the field goes to the top of its
+    scroll container, and the help takes the rows beneath: the thing being answered and what it
+    means, always together, whatever else has to scroll.
+    """
+    container = field.parent
+    while container is not None and not isinstance(container, VerticalScroll):
+        container = container.parent
+    if container is None:
+        return
+    container.scroll_to_widget(field, top=True, animate=False)
+
+
 def hint_line(*, keys: str, help_text: str = "", error: str = "") -> str:
     """One legend, assembled as literal text.
 
@@ -501,14 +542,18 @@ class FormScreen(_SectionScreenBase):
 
     def _show_help_for_focused(self) -> None:
         focused = self._focused_spec()
+        answers = self._answers() if focused is not None and focused.context else {}
         for spec in self.section.fields:
             try:
                 slot = self.query_one(f"#help-{spec.id.replace('.', '--')}", Static)
             except Exception:
                 continue
-            active = focused is not None and spec.id == focused.id and bool(spec.help)
-            slot.display = active
-            slot.update(spec.help if active else "")
+            active = focused is not None and spec.id == focused.id
+            text = help_text_for(spec, answers.get(spec.id), self.repo) if active else ""
+            slot.display = bool(text)
+            slot.update(text)
+            if text:
+                self.call_after_refresh(lambda f=self.focused, s=slot: reveal(f, s))
 
     def _answers(self) -> dict:
         answers: dict = {}
@@ -531,6 +576,12 @@ class FormScreen(_SectionScreenBase):
     @on(RadioSet.Changed)
     def _on_change(self, event: events.Event) -> None:
         self._refresh_visibility()
+
+    @on(Select.Changed)
+    def _on_select_changed(self, event: Select.Changed) -> None:
+        """A chosen file is described the moment it is chosen (`F80`)."""
+        self._refresh_visibility()
+        self._show_help_for_focused()
 
     def _focused_spec(self) -> plan.FieldSpec | None:
         """The `FieldSpec` behind whichever widget currently has focus, if any."""
@@ -821,6 +872,9 @@ class GatesScreen(_SectionScreenBase):
                     choices=field_spec.choices,
                     validate=field_spec.validate,
                     suggestions=field_spec.suggestions,
+                    decides=field_spec.decides,
+                    wrong=field_spec.wrong,
+                    context=field_spec.context,
                 )
                 seed = self.initial.get(key)
                 with HorizontalGroup(classes="followups", id=f"row-{key.replace('.', '--')}"):
@@ -852,10 +906,43 @@ class GatesScreen(_SectionScreenBase):
                         widget = _widget_for(prefixed, seed)
                         widget.add_class("field-widget")
                         yield widget
+                # `DR-51` (3), (4): beside the focused field, what it decides and what was chosen.
+                yield Static("", classes="field-help", id=f"help-{key.replace('.', '--')}")
 
     def on_mount(self) -> None:
         self._refresh_visibility()
         self._set_hint()
+
+    def _focused_key(self) -> str | None:
+        """`"<gate>.<field>"` for whichever field widget has focus, if any."""
+        node = self.focused
+        while node is not None:
+            node_id = getattr(node, "id", None) or ""
+            if node_id.startswith("f-"):
+                return node_id[2:].replace("--", ".")
+            node = node.parent
+        return None
+
+    def _show_help_for_focused(self) -> None:
+        focused = self._focused_key()
+        answers = self._answers() if focused else {}
+        for spec in self.specs:
+            for field_spec in spec.fields:
+                key = f"{spec.id}.{field_spec.id}"
+                try:
+                    slot = self.query_one(f"#help-{key.replace('.', '--')}", Static)
+                except Exception:
+                    continue
+                if key != focused:
+                    slot.display = False
+                    slot.update("")
+                    continue
+                prefixed = dataclasses.replace(field_spec, id=key)
+                text = help_text_for(prefixed, answers.get(key), self.repo)
+                slot.display = bool(text)
+                slot.update(text)
+                if text:
+                    self.call_after_refresh(lambda f=self.focused, s=slot: reveal(f, s))
 
     def _answers(self) -> dict:
         answers: dict = {}
@@ -961,8 +1048,15 @@ class GatesScreen(_SectionScreenBase):
     def _on_change(self, event: events.Event) -> None:
         self._set_hint()
 
+    @on(Select.Changed)
+    def _on_select_changed(self, event: Select.Changed) -> None:
+        """A chosen artefact is described the moment it is chosen (`F80`)."""
+        self._refresh_visibility()
+        self._show_help_for_focused()
+
     def on_descendant_focus(self, event: events.DescendantFocus) -> None:
         self._refresh_visibility()
+        self._show_help_for_focused()
 
     def on_descendant_blur(self, event: events.DescendantBlur) -> None:
         self._refresh_visibility()
@@ -1093,8 +1187,10 @@ class EditLineScreen(Screen):
     def compose(self) -> ComposeResult:
         with Frame(id="frame"):
             yield Static(f"[Change {self.path}]", classes="section-header", markup=False)
-            if self.spec is not None and self.spec.help:
-                yield Static(self.spec.help, classes="field-help", markup=False)
+            if self.spec is not None:
+                text = help_text_for(self.spec, None, None)
+                if text:
+                    yield Static(text, classes="field-help", markup=False)
             kind = self.spec.kind if self.spec is not None else "text"
             if kind == "bool":
                 current = "yes" if self.current else "no"
