@@ -121,6 +121,7 @@ an unknown number of releases with nothing noticing.
 | F54 | The review packet omitted the artefacts its own question depended on, and asked a text-only reviewer to compute a SHA-256 digest | medium | Closed — `ACT-038`; seeds attached, and the recomputation scoped to a reviewer that can execute |
 | F55 | Narrative docstrings can drift from the code beneath them, and twice did | low | Open — recorded as a habit rather than remedied by deletion |
 | F56 | Field labels were clipped at the design width with no ellipsis — 28 of them, including every control's rationale prompt | medium | Closed — `ACT-039`; labels wrap, and the property is asserted of the widget rather than the screen |
+| F57 | The README, `INSTALL.md` and the tool itself instruct an adopter to `pip install surfaceplate`, which 404s — and the README repeats the binding-rule claim `F51` proved false | high | Closed — `ACT-040`; every live instruction names a command that was run before it was written down |
 
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -1162,6 +1163,49 @@ with everyone else told to report an evidence gap in one line and explicitly tol
 
 **The transferable part: a review packet's defects are invisible until somebody uses it**, and both
 of these survived a rewrite made one day earlier specifically to bring it up to date.
+
+---
+
+## F57 — The first command an adopter runs cannot work
+
+**Severity: high. Closed.**
+
+Found during a bounded README pass, by checking a claim rather than reading it.
+
+`README.md`, `INSTALL.md` and **`cli.py` itself** tell an adopter to run
+`pip install surfaceplate[adopt]`. The package is not published:
+
+```
+https://pypi.org/pypi/surfaceplate/json  ->  HTTP 404
+```
+
+So the instruction fails for every reader, and the third instance is the worst: `cli.py` prints it
+as the **remedy** when `adopt` is run without the optional dependency. A tool that answers a missing
+dependency with a command that 404s has replaced one dead end with another — and that path is
+`F35`'s remedy, which exists precisely so a refusal names a route the reader can take.
+
+**A second false claim on the same page.** `README.md` still advertised the wizard as *"It never
+picks a level, invents a rationale, or sets a date for you"* — the wording `F51` proved false and
+`DR-46` formally amended one day earlier. The correction had been made in `org/RELEASE_PLAN.md` and
+not on the public front door, so the repository was publishing a claim its own findings register had
+already retracted.
+
+**Remedy** (`ACT-040`): every live instruction now names
+`pip install git+https://github.com/pipoventures/surfaceplate@main`, **which was run into a clean
+virtualenv before being written down** — it installs, the console script works, and the payload
+arrives complete (`MANIFEST.sha256` present, four seeds). The rule claim is replaced with what
+`DR-46` actually says. Historical mentions in decision records and `CHANGELOG.md` are left alone:
+they are accurate records of what was decided when.
+
+**Publishing to PyPI is not done here.** It is a release decision with credentials attached, and an
+agent may not take it — recorded in `org/HUMAN_ACTIONS.md`. When it happens, the instruction becomes
+`pip install surfaceplate` and this finding is the reason the interim form exists.
+
+**The transferable part: a document's instructions are executable claims, and nobody had executed
+them.** `F50` was the same shape one layer out — a hand-off command naming a deleted file. Both
+survived because a document is read for sense rather than run, and both were found the moment
+somebody ran it. Every check in this repository verifies what the code does; nothing verified what
+the documentation tells a stranger to do.
 
 ---
 
