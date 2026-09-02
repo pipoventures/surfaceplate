@@ -1065,6 +1065,10 @@ scheduled sweep, so previously there was no way to scan history at all.
 
 ## Unreleased
 
+### The name reserved on PyPI (`ACT-058`, `DR-61`)
+
+A manual-dispatch workflow publishes the current version by trusted publishing, so no token is stored; the package is classified alpha and every instruction keeps naming the git form until 1.0. Dispatching it is the maintainer's (`H8`).
+
 ### Every reachable decision of `adopt`, run and recorded (`ACT-057`, `DR-58`, `DR-59`)
 
 Before launch the maintainer asked for every combination of the wizard's parameters and choices to
