@@ -40,7 +40,7 @@ combinations at `standard` are named and not run.
 | T6 | routes: propose then replay, resume after every stage, edit per leaf class, cancel at every point, every refusal class | 41 |
 | T7 | the screens driven headlessly through a full run at every configuration, compared with the scripted run | 6 |
 
-**208 cases, 45257 checks.** Coverage self-check: no gaps.
+**208 cases, 45266 checks.** Coverage self-check: no gaps.
 
 ## Environment
 
@@ -223,15 +223,15 @@ assurance record, not here.
 | `T5-159` | standard | no | bare | statuses all-deferred; artefacts found; revisit-by-past | refused at the review: “in the past” | 2 | — |
 | `T5-160` | standard | no | bare | statuses all-required; artefacts found; effective-from-future | refused at the review: “in the future” | 2 | — |
 | `T5-161` | essential | no | bare | artefacts found; seed-parent-is-a-file | findings SP032 | 92 | computed 23, discovered 1, example 5, fact of record 4, scaffolded 2, typed 10 |
-| `T6-162` | essential | no | bare | propose-replay | PASS, no findings | 96 | computed 23, discovered 1, example 5, fact of record 4, scaffolded 2, typed 10 |
-| `T6-163` | essential | no | rich | propose-replay | PASS, no findings | 94 | computed 24, discovered 5, example 5, fact of record 3, typed 8 |
-| `T6-164` | essential | no | mixed | propose-replay | PASS, no findings | 96 | computed 23, discovered 2, example 5, fact of record 4, scaffolded 2, typed 9 |
-| `T6-165` | standard | no | bare | propose-replay | PASS, no findings | 305 | computed 116, discovered 15, example 8, fact of record 13, scaffolded 11, typed 28 |
-| `T6-166` | standard | no | rich | propose-replay | PASS, no findings | 294 | computed 126, discovered 35, example 8, fact of record 3, typed 19 |
-| `T6-167` | standard | no | mixed | propose-replay | PASS, no findings | 304 | computed 117, discovered 19, example 8, fact of record 12, scaffolded 10, typed 25 |
-| `T6-168` | full | no | bare | propose-replay | PASS, no findings | 339 | computed 128, discovered 15, example 13, fact of record 13, scaffolded 16, typed 21 |
-| `T6-169` | full | no | rich | propose-replay | PASS, no findings | 324 | computed 138, discovered 40, example 13, fact of record 3, typed 12 |
-| `T6-170` | full | no | mixed | propose-replay | PASS, no findings | 338 | computed 129, discovered 19, example 13, fact of record 12, scaffolded 15, typed 18 |
+| `T6-162` | essential | no | bare | propose-replay | PASS, no findings | 97 | computed 23, discovered 1, example 5, fact of record 4, scaffolded 2, typed 10 |
+| `T6-163` | essential | no | rich | propose-replay | PASS, no findings | 95 | computed 24, discovered 5, example 5, fact of record 3, typed 8 |
+| `T6-164` | essential | no | mixed | propose-replay | PASS, no findings | 97 | computed 23, discovered 2, example 5, fact of record 4, scaffolded 2, typed 9 |
+| `T6-165` | standard | no | bare | propose-replay | PASS, no findings | 306 | computed 116, discovered 15, example 8, fact of record 13, scaffolded 11, typed 28 |
+| `T6-166` | standard | no | rich | propose-replay | PASS, no findings | 295 | computed 126, discovered 35, example 8, fact of record 3, typed 19 |
+| `T6-167` | standard | no | mixed | propose-replay | PASS, no findings | 305 | computed 117, discovered 19, example 8, fact of record 12, scaffolded 10, typed 25 |
+| `T6-168` | full | no | bare | propose-replay | PASS, no findings | 340 | computed 128, discovered 15, example 13, fact of record 13, scaffolded 16, typed 21 |
+| `T6-169` | full | no | rich | propose-replay | PASS, no findings | 325 | computed 138, discovered 40, example 13, fact of record 3, typed 12 |
+| `T6-170` | full | no | mixed | propose-replay | PASS, no findings | 339 | computed 129, discovered 19, example 13, fact of record 12, scaffolded 15, typed 18 |
 | `T6-171` | standard | no | rich | propose-no-level | refused or cancelled, nothing written | 2 | — |
 | `T6-172` | essential | yes | bare | propose-ui-refused | PASS, no findings | 2 | — |
 | `T6-173` | essential | yes | rich | propose-ui-refused | PASS, no findings | 2 | — |

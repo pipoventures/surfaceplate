@@ -1452,6 +1452,7 @@ def test_propose_does_not_demand_rationales_for_controls_nobody_declared(tmp: Pa
     for key in needs:
         record["answers"][key] = human.get(key, "not_applicable" if key.endswith(".status") else f"answer for {key}")
     record["answers"]["controls.above_floor"] = ["provenance"]
+    record["accept_proposals"] = "yes"  # `F103`
     completed = repo / "answers-completed.yaml"
     completed.write_text(yaml.safe_dump(record, sort_keys=False), encoding="utf-8")
     try:
@@ -1603,6 +1604,38 @@ def test_a_failed_write_removes_the_seeds_this_run_created(tmp: Path) -> None:
     check("the draft is kept, so the run can be resumed", (repo / wizard.DRAFT_FILENAME).is_file())
     written = wizard.run(repo, ScriptedInterview(answers=answers))
     check("the same run then completes and creates the seeds", written.is_file() and (repo / "activity" / "register.md").is_file())
+
+
+def test_replay_writes_nothing_until_the_proposals_are_accepted_as_one_act(tmp: Path) -> None:
+    """`F103` (pass-2 MAT-01). A record completed by filling only its needs-human lines wrote every
+    proposal left standing. The record now carries `accept_proposals: needs-human`; a human sets
+    it to yes - one act for the document, as the review's approval is - and until then replay
+    refuses, naming it."""
+    repo = make_installed_repo(tmp, "accept-proposals-repo")
+    seed_referenced_files(repo, ci=True)
+    proposed = wizard.propose(repo, level="essential")
+    record = yaml.safe_load(proposed.answers.read_text(encoding="utf-8"))
+    check("the record carries the acceptance line as needs-human", record.get("accept_proposals") == wizard.NEEDS_HUMAN, str(record.get("accept_proposals")))
+    check("and the header says what it means", "accept_proposals" in proposed.answers.read_text(encoding="utf-8").split("format:")[0])
+    human = {"identity.owner": "Owner Person", "stack.builds_user_interface": "no", "risk.relied_on_outside_team": "no",
+             "risk.material_quantitative_output": "no", "risk.data_classification": "internal", "wrap.release_route": "Manual.",
+             "adoption.decision_record_id": "DR-1", "create_missing_artefacts": "no", "controls.above_floor": []}
+    for key, value in record["answers"].items():
+        if value == wizard.NEEDS_HUMAN:
+            record["answers"][key] = human.get(key, "not_applicable" if key.endswith(".status") else f"answer for {key}")
+    completed = repo / "answers-completed.yaml"
+    completed.write_text(yaml.safe_dump(record, sort_keys=False), encoding="utf-8")
+    try:
+        wizard.replay(repo, completed)
+        outcome = "wrote"
+    except wizard.NeedsHuman as exc:
+        outcome = str(exc)
+    check("every line filled but the proposals not accepted: replay refuses, naming the line", outcome != "wrote" and "accept_proposals" in outcome, outcome[:200])
+    check("and nothing was written", not (repo / "governance" / "application-profile.provenance.yaml").exists())
+    record["accept_proposals"] = "yes"
+    completed.write_text(yaml.safe_dump(record, sort_keys=False), encoding="utf-8")
+    written = wizard.replay(repo, completed)
+    check("accepted as one act, it writes", written.is_file())
 
 
 def test_a_full_run_choosing_every_create_it_row_passes_the_checker(tmp: Path) -> None:
@@ -2081,6 +2114,7 @@ def test_answers_replays_a_completed_record_through_the_same_code(tmp: Path) -> 
             else:
                 record["answers"][key] = f"answer for {key}"
     record["level"] = "standard"
+    record["accept_proposals"] = "yes"  # `F103`: the proposals are accepted as one act
     completed = repo / "answers-completed.yaml"
     completed.write_text(yaml.safe_dump(record, sort_keys=False, allow_unicode=True), encoding="utf-8")
     written = wizard.replay(repo, completed)
@@ -2167,7 +2201,10 @@ def test_validators_refuse_what_the_checker_rejects(tmp: Path) -> None:
         )
     accepted = [
         ("effective_from", today.isoformat()),
-        ("effective_from", f"{today.isoformat()}T00:00:00+00:00"),
+        # `F113`: this was "today at midnight UTC", which is in the future between midnight and
+        # one in the morning on a UTC+1 machine - the `F48` shape, found when the clock crossed
+        # midnight mid-session. An instant one minute ago is in the past wherever it is run.
+        ("effective_from", (_dt.datetime.now().astimezone().replace(microsecond=0) - _dt.timedelta(minutes=1)).isoformat()),
         ("review_by", near),
         ("revisit_by", near),
         ("date", today.isoformat()),
@@ -2381,6 +2418,7 @@ def main() -> int:
         test_a_half_completed_profile_is_not_the_template(tmp)
         test_the_tool_writes_no_note_about_the_adopters_scanner(tmp)
         test_a_failed_write_removes_the_seeds_this_run_created(tmp)
+        test_replay_writes_nothing_until_the_proposals_are_accepted_as_one_act(tmp)
 
         print("\nDR-47: proposing writes what typing writes; the budget, measured")
         test_proposing_writes_the_same_profile_as_typing_the_same_values(tmp)
