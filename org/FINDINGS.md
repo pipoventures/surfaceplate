@@ -138,7 +138,7 @@ an unknown number of releases with nothing noticing.
 | F70 | The front door: two incompatible install paths, a stale version line, two dead links, a pointer to an uninstalled file, and a global hooks path that stops the first command undocumented | medium | Open — `ACT-045` (`org/REMEDIATION_PLAN.md`) |
 | F71 | The standard's documents contradict themselves on what is checked, which principle limits a tool, whether Actions is enabled, how many gates are asked, and which evidence labels to use | medium | Open — `ACT-045` (`org/REMEDIATION_PLAN.md`) |
 | F72 | Ten findings say Open in the body and Closed in the index, and `check_code_registers.py` never compares status | low | Open — `ACT-046` (`org/REMEDIATION_PLAN.md`) |
-| F73 | Every `action_cancel` is unreachable: Textual's priority quit binding fires first | low | Open — `ACT-043` (`org/REMEDIATION_PLAN.md`) |
+| F73 | Every `action_cancel` is unreachable: Textual's priority quit binding fires first | low | Open — recorded against `ACT-043`, but phase 0 carries no item for it; the maintainer decides which activity closes it (`org/REMEDIATION_PLAN.md`) |
 | F74 | A validation error is erased by the focus move that reports it | medium | Closed — `ACT-043`; the error is held on the screen until the next commit and re-shown on every focus move, asserted after six pauses in `tests/test_adopt_tui.py` |
 | F75 | Candidates are capped at 200 before any gate ranking, so a large `docs/` pushes the register out; the comment says the opposite | high | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
 | F76 | Resuming a draft that chose the defaults route never offers defaults again | medium | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
@@ -1237,6 +1237,12 @@ image re-taken: before, the legend alone; after, the error above it.
 Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, the adversarial product review of 2026-09-02, authorised by the maintainer in the review session (https://claude.ai/code/session_01X1MZfNScrJjgD5e2AGBjvs). Closes by `ACT-043`; see `org/REMEDIATION_PLAN.md`.
 
 `App.BINDINGS` in Textual 8.2.8 carries `Binding('ctrl+q', 'quit', priority=True)`, so after `Ctrl+Q` on any screen `push_screen_wait` never resolves and `_SectionScreenBase.action_cancel`, `ReviewScreen.action_cancel`, `ScaffoldScreen.action_cancel` and `DefaultsScreen.action_cancel` are dead code. The net effect is still a cancel (`run()` returns `None`), so it costs nothing today except that "keeping your draft" on the review hint is true by accident of the CLI's exception handling.
+
+**Not closed by `ACT-043` (2026-09-02).** This finding is recorded as closing by `ACT-043`, but
+`org/REMEDIATION_PLAN.md` §4 phase 0 has no item for it: its eight items do not touch
+`action_cancel` reachability. Item 0.6 handled one consequence of the same binding - a quit at
+the resume prompt no longer deletes the draft - and nothing else. Left open rather than fixed
+unplanned; the maintainer decides which activity closes it.
 
 ## F72 — Ten findings say Open in the body and Closed in the index, and `check_code_registers.py` never compares status
 
