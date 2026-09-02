@@ -429,7 +429,7 @@ class FormScreen(_SectionScreenBase):
 
     def compose(self) -> ComposeResult:
         with Frame(id="frame"):
-            yield Static(f"[{self.step}{self.section.title}]", classes="section-header")
+            yield Static(f"[{self.step}{self.section.title}]", classes="section-header", markup=False)
             if self.section.intro:
                 yield Static(self.section.intro, classes="intro")
             for line in self.section.recap:
@@ -592,7 +592,7 @@ class LevelScreen(_SectionScreenBase):
 
     def compose(self) -> ComposeResult:
         with Frame(id="frame"):
-            yield Static(f"[{self.step}{self.section.title}]", classes="section-header")
+            yield Static(f"[{self.step}{self.section.title}]", classes="section-header", markup=False)
             if self.section.recap:
                 yield Static("You told us:", classes="recap")
                 for line in self.section.recap:
@@ -741,7 +741,7 @@ class GatesScreen(_SectionScreenBase):
 
     def compose(self) -> ComposeResult:
         with Frame(id="frame"):
-            yield Static(f"[{self.step}{self.section.title}]", classes="section-header")
+            yield Static(f"[{self.step}{self.section.title}]", classes="section-header", markup=False)
             yield Static(self.section.intro, classes="intro")
             with VerticalScroll(id="gate-list"):
                 current_section = ""
@@ -1049,7 +1049,7 @@ class ResumeScreen(Screen):
 
     def compose(self) -> ComposeResult:
         with Frame(id="frame"):
-            yield Static("[A saved draft was found]", classes="section-header")
+            yield Static("[A saved draft was found]", classes="section-header", markup=False)
             yield Static(
                 f"It has answers for: {', '.join(self.info.sections)}.", classes="intro"
             )

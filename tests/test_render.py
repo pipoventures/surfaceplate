@@ -283,6 +283,52 @@ def test_a_gate_status_radio_set_renders_its_options() -> None:
     asyncio.run(_run())
 
 
+def test_a_bracketed_heading_is_rendered_not_parsed() -> None:
+    """`F68`, second half. `"[A saved draft was found]"` was consumed as markup because that
+    `Static` lacked `markup=False`, so the resume prompt opened with no heading at all. The
+    section headers survive only where their step prefix happens to defeat the parser - a
+    screen shown with no step (`mode`, and every screen hosted without one) loses its title too.
+    `F37 #1` on the screens it did not reach."""
+
+    async def _run() -> None:
+        cases = [
+            (
+                "resume offer",
+                ResumeScreen(DraftInfo(sections=("mode",), framework_version="0.16.0",
+                                       framework_digest="abc", matches=True)),
+                "A saved draft was found",
+            ),
+            ("mode form, no step prefix", FormScreen(plan.mode_plan()), plan.mode_plan().title),
+            (
+                "conformance level, no step prefix",
+                LevelScreen(plan.level_plan(ROOT, builds_ui=False, mode="simple")),
+                plan.level_plan(ROOT, builds_ui=False, mode="simple").title,
+            ),
+            (
+                "gate catalogue, no step prefix",
+                GatesScreen(
+                    plan.gate_plan(level="standard", builds_ui=False, mode="simple"),
+                    plan.gates_plan(level="standard", builds_ui=False, mode="simple"),
+                ),
+                plan.gates_plan(level="standard", builds_ui=False, mode="simple").title,
+            ),
+        ]
+        for label, screen, heading in cases:
+            app = Host(screen)
+            async with app.run_test(size=(80, 24)) as pilot:
+                await pilot.pause()
+                # The frame's own box-drawing rows are not content.
+                lines = [line for line in rendered(app) if line.strip("│╭╮╰╯─ ")]
+            first = lines[0] if lines else ""
+            check(
+                f"{label}: the first rendered line is the heading [{heading}]",
+                f"[{heading}]" in first,
+                f"first line: {first.strip()!r}",
+            )
+
+    asyncio.run(_run())
+
+
 # ---------------------------------------------------------------------------------------------
 # The level screen's own structure
 # ---------------------------------------------------------------------------------------------
@@ -603,6 +649,9 @@ def main() -> int:
 
     print("\nF59: the status radios are visible")
     test_a_gate_status_radio_set_renders_its_options()
+
+    print("\nF68: a bracketed heading is rendered, not parsed")
+    test_a_bracketed_heading_is_rendered_not_parsed()
 
     print("\nthe level screen reads as a choice")
     test_level_screen_numbers_its_options_and_marks_the_highlight()

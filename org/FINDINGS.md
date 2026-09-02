@@ -133,7 +133,7 @@ an unknown number of releases with nothing noticing.
 | F65 | A placeholder is accepted at the field and refused at the review, where nothing but cancel works, and a resumed draft lands on the same refusal | medium | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
 | F66 | The wizard accepts dates and paths the checker rejects, so a profile can pass the wizard and fail its first check | medium | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
 | F67 | The 80×24 pass looked at the wrong screens: the level options below the fold, help text unstyled and flush, off-state controls near-invisible, labels and text areas clipped | medium | Open — `ACT-043`, `ACT-044` (`org/REMEDIATION_PLAN.md`) |
-| F68 | Quitting at the resume prompt deletes the draft, and the prompt's heading is swallowed as markup | medium | Open — `ACT-043` (`org/REMEDIATION_PLAN.md`) |
+| F68 | Quitting at the resume prompt deletes the draft, and the prompt's heading is swallowed as markup | medium | Closed — `ACT-043`; a quit cancels the run with the draft kept, and the four bracketed headings are `markup=False`, both asserted in `tests/test_adopt.py` and `tests/test_render.py` |
 | F69 | The route screen says the rest is four gates while the next screen says all nineteen | low | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
 | F70 | The front door: two incompatible install paths, a stale version line, two dead links, a pointer to an uninstalled file, and a global hooks path that stops the first command undocumented | medium | Open — `ACT-045` (`org/REMEDIATION_PLAN.md`) |
 | F71 | The standard's documents contradict themselves on what is checked, which principle limits a tool, whether Actions is enabled, how many gates are asked, and which evidence labels to use | medium | Open — `ACT-045` (`org/REMEDIATION_PLAN.md`) |
@@ -1272,7 +1272,7 @@ Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, 
 
 ## F68 — Quitting at the resume prompt deletes the draft, and the prompt's heading is swallowed as markup
 
-**Severity: medium. Open.**
+**Severity: medium. Closed.**
 
 Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, the adversarial product review of 2026-09-02, authorised by the maintainer in the review session (https://claude.ai/code/session_01X1MZfNScrJjgD5e2AGBjvs). Closes by `ACT-043`; see `org/REMEDIATION_PLAN.md`.
 
@@ -1288,6 +1288,17 @@ answers: seen to fail before (`ADOPT_CONFORMANCE=FAIL (3 failed, 93 passed)`: th
 and the draft was gone) and to pass after (`ADOPT_CONFORMANCE=PASS (96 checks)`). The real prompt
 driven under `run_test` with `y`, `n` and `ctrl+q` returned `True`, `False`, `None`; the draft
 existed before and after `y` and `ctrl+q`, and before but not after `n`.
+
+**Second half closed by `ACT-043`, item 0.7 (2026-09-02).** The resume heading and the three
+step-prefixed section headers (`FormScreen`, `LevelScreen`, `GatesScreen`) are `markup=False`.
+`tests/test_render.py::test_a_bracketed_heading_is_rendered_not_parsed` hosts each at 80×24 with
+no step prefix and asserts the first content line is the bracketed heading: seen to fail before
+(`RENDER=FAIL (3 failed, 22 passed)` - the resume, level and gates headings absent; the mode title
+survived only because its question mark defeats the parser) and to pass after (`RENDER=PASS (25
+checks)`). Image at 80×24: before, the prompt opens on "It has answers for"; after, on
+"[A saved draft was found]". Observed and left alone, being outside the plan's item: the
+`ReviewScreen`, `ScaffoldScreen` and `DefaultsScreen` headings are bracketed without
+`markup=False` too, and survive today only by their wording.
 
 ## F67 — The 80×24 pass looked at the wrong screens: the level options below the fold, help text unstyled and flush, off-state controls near-invisible, labels and text areas clipped
 
