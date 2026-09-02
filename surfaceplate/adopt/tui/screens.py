@@ -350,14 +350,22 @@ def reveal(field, slot) -> None:
 
     Focus scrolls the field into view and nothing else; the help under it fell below the fold at
     80x24. Scrolling the help into view instead pushed the field's first rows off the top, which
-    `F59`'s regression test refuses, and deciding between the two from widget regions proved
-    unreliable at the moment the slot has just been shown. So the field goes to the top of
-    whatever scrolls, and the help takes the rows beneath. `F90`: this asked one chosen ancestor
-    to scroll; on the CI runner that was not the one holding the overflow, so nothing moved.
-    `scroll_visible` walks every scrolling ancestor.
+    `F59`'s regression test refuses. So the field goes to the top of whatever scrolls, and the
+    help takes the rows beneath.
+
+    `F90`, and the runner's screen that explained it: the first scroll can run against a layout
+    in which the field's rows are not yet measured - on the CI runner it scrolled past the radio
+    set by exactly its height, leaving its help at the top and the options above the fold. So a
+    second pass runs after the next refresh: a no-op when the first was right, the correction
+    when it was not.
     """
     del slot  # the field alone decides the position; the slot follows it in layout
-    field.scroll_visible(top=True, animate=False, force=True)
+
+    def once() -> None:
+        field.scroll_visible(top=True, animate=False, force=True)
+
+    once()
+    field.call_after_refresh(once)
 
 
 def hint_line(*, keys: str, help_text: str = "", error: str = "") -> str:
