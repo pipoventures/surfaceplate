@@ -97,6 +97,9 @@ class FieldSpec:
     # `DR-51` (4): how to describe a chosen value - `gate:<id>`, `scanner:<name>`, `lock`,
     # `register`, `step` - so the help beside a dropdown can say what the chosen file is.
     context: str = ""
+    # `F67`: a list whose labels must fit a row keeps each choice's full explanation here, shown
+    # beside the list for the highlighted row, keyed by the choice's value.
+    choice_help: tuple[tuple[str, str], ...] = ()
 
     def applies(self, answers: dict) -> bool:
         """Whether this field is asked at all, given what has been answered so far in its section."""
@@ -552,10 +555,11 @@ def level_plan(
     notes = []
     if risk:
         level, because = recommended_level(risk)
+        # Two rows at 80 columns, not four: `F67` found the recap and this note filling the
+        # frame with the three options below the fold.
         notes.append(
-            f"From your answers, {level} looks right - {because}. "
-            "It is a recommendation, not a decision: this one is yours to make, because how much "
-            "your output is relied on is something only you can judge."
+            f"From your answers, {level} looks right: {because}. "
+            "A recommendation, not a decision; the choice is yours."
         )
     if present:
         notes.append(f"You appear to have: {'; '.join(present)}.")
@@ -731,7 +735,10 @@ def controls_plan(
                     "anyway - a level is a floor, not a ceiling. Leaving them all unticked is a "
                     "complete answer."
                 ),
-                choices=tuple((c, f"{c} - {_first_line(explanations.explain(c, mode))}") for c in above_floor),
+                # `F67`: a row is the id and a short cue that fits 60 columns; the full explanation
+                # of the highlighted row is shown beside the list (`choice_help`).
+                choices=tuple((c, f"{c} - {explanations.CUES[c]}") for c in above_floor),
+                choice_help=tuple((c, explanations.explain(c, mode)) for c in above_floor),
                 default="",
                 validate="",
                 decides="which controls beyond the floor this repository is held to; each ticked one asks for its rationale and reference and is then checked",
@@ -1049,6 +1056,7 @@ def gates_plan(
                     decides=f.decides,
                     wrong=f.wrong,
                     context=f.context,
+                    choice_help=f.choice_help,
                     depends_on=(
                         (f"{spec.id}.{f.depends_on[0]}", f.depends_on[1])
                         if f.depends_on is not None

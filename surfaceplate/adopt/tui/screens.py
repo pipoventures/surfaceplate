@@ -85,6 +85,10 @@ class Frame(VerticalScroll):
         self.call_after_refresh(lambda: self.scroll_home(animate=False))
 
 
+# The muted ink of the stylesheet, for the brackets of a control (`F67`).
+SIDE_INK = "#7a827e"
+
+
 class _StatefulToggle:
     """Mixin: draw a DIFFERENT character for on and off.
 
@@ -124,6 +128,24 @@ class _StatefulToggle:
         self.BUTTON_LEFT = self.LEFT
         self.BUTTON_RIGHT = self.RIGHT
         self.BUTTON_INNER = self.ON if self.value else self.OFF
+
+    @property
+    def _button(self):  # type: ignore[override]
+        """`F67`: Textual's `_button` paints the two side characters in the button's *background*
+        colour, to fake half-block edges; with real brackets that made an unpressed control dark
+        brackets on a black ground. The brackets are painted in the muted ink instead, and the
+        inner glyph keeps the component style, so on and off differ in shape and both are visible."""
+        from textual.color import Color as _Color
+        from textual.content import Content
+        from textual.style import Style as _Style
+
+        button_style = self.get_visual_style("toggle--button")
+        side_style = _Style(foreground=_Color.parse(SIDE_INK), background=self.background_colors[1])
+        return Content.assemble(
+            (self.LEFT, side_style),
+            (self.ON if self.value else self.OFF, button_style),
+            (self.RIGHT, side_style),
+        )
 
 
 class VisibleCheckbox(_StatefulToggle, Checkbox):
@@ -171,10 +193,16 @@ class VisibleSelectionList(SelectionList):
             # The base class returns the bare prompt for these rows and draws no button, so there
             # is nothing here to correct.
             return strip
+        from rich.style import Style
+
         ticked = selection.value in self._selected
-        segments[0] = Segment(self.LEFT, style=segments[0].style)
+        # `F67`: the side characters in the muted ink, not the button's background colour.
+        side = Style(color=SIDE_INK)
+        if segments[0].style is not None and segments[0].style.bgcolor is not None:
+            side = Style(color=SIDE_INK, bgcolor=segments[0].style.bgcolor)
+        segments[0] = Segment(self.LEFT, style=side)
         segments[1] = Segment(self.ON if ticked else self.OFF, style=segments[1].style)
-        segments[2] = Segment(self.RIGHT, style=segments[2].style)
+        segments[2] = Segment(self.RIGHT, style=side)
         return Strip(segments)
 
 
@@ -290,7 +318,7 @@ def _widget_for(spec: plan.FieldSpec, value: object = None):
     )
 
 
-def help_text_for(spec: plan.FieldSpec, value: object, repo) -> str:
+def help_text_for(spec: plan.FieldSpec, value: object, repo, highlighted: str | None = None) -> str:
     """The text beside a focused field (`DR-51` (3), (4)): what is asked, what the answer
     decides, what a wrong answer costs, and - for a value picked from the repository - what the
     chosen thing is, as discovery saw it and the checker's rules judge it."""
@@ -301,6 +329,11 @@ def help_text_for(spec: plan.FieldSpec, value: object, repo) -> str:
         parts.append(f"Decides: {spec.decides}.")
     if spec.wrong:
         parts.append(f"If wrong: {spec.wrong}.")
+    if highlighted is not None and spec.choice_help:
+        # `F67`: the full explanation of the highlighted row of a list whose labels had to fit.
+        full = dict(spec.choice_help).get(highlighted)
+        if full:
+            parts.append(f"{highlighted}: {full}")
     if spec.context and repo is not None and isinstance(value, str) and value.strip():
         kind, _, detail = spec.context.partition(":")
         if kind == "gate":
@@ -540,6 +573,22 @@ class FormScreen(_SectionScreenBase):
         self._show_help_for_focused()
         self._set_hint(getattr(self, "_pending_error", ""))
 
+    def _highlighted_choice(self, spec: plan.FieldSpec) -> str | None:
+        """The value of the highlighted row of a `multiselect`, for `choice_help`."""
+        if not spec.choice_help:
+            return None
+        try:
+            widget = self.query_one(f"#f-{spec.id.replace('.', '--')}", SelectionList)
+        except Exception:
+            return None
+        index = widget.highlighted
+        if index is None:
+            return None
+        try:
+            return str(widget.get_option_at_index(index).value)
+        except OptionDoesNotExist:
+            return None
+
     def _show_help_for_focused(self) -> None:
         focused = self._focused_spec()
         answers = self._answers() if focused is not None and focused.context else {}
@@ -549,7 +598,7 @@ class FormScreen(_SectionScreenBase):
             except Exception:
                 continue
             active = focused is not None and spec.id == focused.id
-            text = help_text_for(spec, answers.get(spec.id), self.repo) if active else ""
+            text = help_text_for(spec, answers.get(spec.id), self.repo, self._highlighted_choice(spec)) if active else ""
             slot.display = bool(text)
             slot.update(text)
             if text:
@@ -581,6 +630,11 @@ class FormScreen(_SectionScreenBase):
     def _on_select_changed(self, event: Select.Changed) -> None:
         """A chosen file is described the moment it is chosen (`F80`)."""
         self._refresh_visibility()
+        self._show_help_for_focused()
+
+    @on(SelectionList.SelectionHighlighted)
+    def _on_selection_highlighted(self, event: SelectionList.SelectionHighlighted) -> None:
+        """The highlighted row of a list explains itself beside the list (`F67`)."""
         self._show_help_for_focused()
 
     def _focused_spec(self) -> plan.FieldSpec | None:
@@ -660,13 +714,11 @@ class LevelScreen(_SectionScreenBase):
     def compose(self) -> ComposeResult:
         with Frame(id="frame"):
             yield Static(f"[{self.step}{self.section.title}]", classes="section-header", markup=False)
+            # `F67`: one row for the recap and no rule row, so the three options fit 24 rows.
             if self.section.recap:
-                yield Static("You told us:", classes="recap")
-                for line in self.section.recap:
-                    yield Static(f"  {line}", classes="recap")
-            yield Static("─" * 60, classes="rule")
+                yield Static("You told us: " + " ".join(self.section.recap), classes="recap", markup=False)
             for note in self.section.notes:
-                yield Static(f"  {note}", classes="note")
+                yield Static(f"  {note}", classes="note", markup=False)
             widget = OptionList(*self._options(self._start), id=f"f-{self.spec.id}")
             widget.add_class("field-widget")
             widget.highlighted = self._start
@@ -1419,6 +1471,8 @@ class WelcomeScreen(Screen):
                     classes="note",
                     markup=False,
                 )
+            elif w.draft_note:
+                yield Static(f"  {w.draft_note}", classes="error", markup=False)
         yield Static("[Enter] begin  [Ctrl+Q] quit, nothing is written", id="hint", markup=False)
 
     def action_begin(self) -> None:
@@ -1434,6 +1488,9 @@ class ResumeScreen(Screen):
     BINDINGS = [
         Binding("y", "resume", "resume", show=True),
         Binding("n", "fresh", "start fresh", show=True),
+        # `F73`: the apps no longer carry Textual's priority quit, so this screen answers the key
+        # itself - and `None` still means "quit, draft kept" (`F68`).
+        Binding("ctrl+q", "cancel", "quit, keeping the draft", show=True),
     ]
 
     def __init__(self, info) -> None:
@@ -1459,7 +1516,8 @@ class ResumeScreen(Screen):
                     classes="error",
                 )
         yield Static(
-            "[y] resume it  [n] start fresh (the draft is discarded)", id="hint", markup=False
+            "[y] resume it  [n] start fresh (the draft is discarded)  [Ctrl+Q] quit, keeping it",
+            id="hint", markup=False,
         )
 
     def action_resume(self) -> None:
@@ -1467,6 +1525,9 @@ class ResumeScreen(Screen):
 
     def action_fresh(self) -> None:
         self.dismiss(False)
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
 
 
 class ScaffoldScreen(Screen):

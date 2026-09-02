@@ -1093,6 +1093,13 @@ The maintainer's first run of the rebuilt wizard against a real repository then 
 - A refusal on the review names the profile line and the keys; the closing report states the
   checker's verdict as the checker gave it, rather than "passes" on a graced WARN.
 
+`ACT-049` then closed what an agent could close before 1.0: the level options fit 24 rows, an
+unpressed control's brackets are visible and focus no longer reads as chosen, a text area shows
+three rows, the above-floor rows explain themselves when highlighted (`F67`); Ctrl+Q reaches each
+screen's own cancel (`F73`); the profile is written atomically and a draft with stale ids starts a
+fresh run rather than a crash (`F77`). `DR-52` records that release-plan item 5 is met with one
+adopter, Plutos, and that Plyego is deliberately left alone.
+
 Recorded and not yet addressed: a hand edit to the profile after the write leaves the provenance
 record asserting the old origin (`F86`).
 

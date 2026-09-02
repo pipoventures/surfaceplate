@@ -317,6 +317,23 @@ def _describe_schema_error(error) -> tuple[str, str | None]:
     return f"the line `{where}`: {error.message}", (parent or None)
 
 
+def _write_atomically(target: Path, text: str) -> None:
+    """Write `text` to a temporary file in `target`'s directory and move it over `target`. The
+    move is atomic on POSIX and on NTFS; the temporary file is removed if anything fails."""
+    import os
+    import tempfile
+
+    handle, temp_name = tempfile.mkstemp(prefix=f".{target.name}.", suffix=".tmp", dir=str(target.parent))
+    temp = Path(temp_name)
+    try:
+        with os.fdopen(handle, "w", encoding="utf-8", newline="\n") as out:
+            out.write(text)
+        os.replace(temp, target)
+    except BaseException:
+        temp.unlink(missing_ok=True)
+        raise
+
+
 def _draft_path(repo: Path) -> Path:
     return repo / DRAFT_FILENAME
 
@@ -362,7 +379,24 @@ def _clear_draft(repo: Path) -> None:
     _legacy_draft_path(repo).unlink(missing_ok=True)
 
 
-def _draft_offer(repo: Path, record: dict) -> tuple[dict, DraftInfo | None]:
+def _stale_ids(draft: dict) -> str:
+    """Why a draft cannot be honoured by this catalogue, or `""`. `F77`: a draft naming a level or a
+    gate no longer in the catalogue resumed and failed later with a bare KeyError."""
+    from surfaceplate.adopt import catalogue
+
+    sections = draft.get("sections") or {}
+    if any(not isinstance(v, dict) for v in sections.values()):
+        return "its sections are not answer maps"
+    level = (sections.get("level") or {}).get("conformance_level")
+    if level is not None and level not in catalogue.CONFORMANCE_LEVELS:
+        return f"it names a conformance level this catalogue does not have ({level!r})"
+    unknown = sorted({k.partition(".")[0] for k in (sections.get("gates") or {})} - set(catalogue.GATE_CATALOGUE))
+    if unknown:
+        return f"it names gate(s) this catalogue does not have ({', '.join(unknown)})"
+    return ""
+
+
+def _draft_offer(repo: Path, record: dict) -> tuple[dict, DraftInfo | None, str]:
     """The resumable draft, if any, and what the human is told about it. A version/digest mismatch
     is flagged - shown, and the human decides - rather than trusted or refused outright.
 
@@ -373,9 +407,12 @@ def _draft_offer(repo: Path, record: dict) -> tuple[dict, DraftInfo | None]:
     """
     draft = _load_draft(repo)
     if draft is None:
-        return {}, None
+        return {}, None, ""
     if draft.get("format") != DRAFT_FORMAT or not isinstance(draft.get("sections"), dict):
-        return {}, None
+        return {}, None, f"A draft at {DRAFT_FILENAME} is in an older shape and is not offered; the first completed stage overwrites it."
+    why = _stale_ids(draft)
+    if why:
+        return {}, None, f"A draft at {DRAFT_FILENAME} is not offered because {why}; it is left in place and this run starts fresh."
     matches = draft.get("framework_version") == record.get(
         "standard_version", ""
     ) and draft.get("framework_digest") == record.get("framework_digest", "")
@@ -385,10 +422,10 @@ def _draft_offer(repo: Path, record: dict) -> tuple[dict, DraftInfo | None]:
         framework_digest=str(draft.get("framework_digest", "")),
         matches=matches,
     )
-    return draft, info
+    return draft, info, ""
 
 
-def _welcome(repo: Path, record: dict, draft: DraftInfo | None) -> Welcome:
+def _welcome(repo: Path, record: dict, draft: DraftInfo | None, note: str = "") -> Welcome:
     return Welcome(
         repo=str(repo),
         tool_name=about.NAME,
@@ -404,6 +441,7 @@ def _welcome(repo: Path, record: dict, draft: DraftInfo | None) -> Welcome:
         profile_path=PROFILE_PATH,
         provenance_path=provenance.PROVENANCE_PATH,
         draft=draft,
+        draft_note=note,
     )
 
 
@@ -411,8 +449,8 @@ def _open(repo: Path, record: dict, interview: Interview) -> dict:
     """The opening screen, and the resume prompt where a draft exists. Never resumes silently.
     Three answers: `True` begins (resuming any draft), an explicit `False` deletes the draft and
     begins fresh, and quitting (`None`) cancels the run with the draft kept (`F68`)."""
-    draft, info = _draft_offer(repo, record)
-    answer = interview.open(_welcome(repo, record, info))
+    draft, info, note = _draft_offer(repo, record)
+    answer = interview.open(_welcome(repo, record, info, note))
     if answer is None:
         raise Cancelled()
     if info is None:
@@ -496,10 +534,14 @@ def run(repo: Path, interview: Interview) -> Path:
     target = repo / PROFILE_PATH
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(rendered, encoding="utf-8", newline="\n")
+        # `F77`: atomically - to a temporary file beside the target, then moved into place - so
+        # a failure mid-write leaves the target absent or complete, never truncated (a truncated
+        # profile then failed `_refuse_if_already_adopted` forever). The record second, for the
+        # same reason the scaffold went first: nothing claims what is not yet on disk.
+        _write_atomically(target, rendered)
         # `DR-47` (2): the machine-owned record beside the profile, every field's origin and the
         # one document-level approval.
-        (repo / provenance.PROVENANCE_PATH).write_text(sidecar, encoding="utf-8", newline="\n")
+        _write_atomically(repo / provenance.PROVENANCE_PATH, sidecar)
     except Exception as exc:  # noqa: BLE001 - whatever failed, say what is already on disk
         raise PartialWrite(exc, created, scaffold_problems) from exc
     _clear_draft(repo)  # a completed run leaves no draft behind - it exists only to protect one

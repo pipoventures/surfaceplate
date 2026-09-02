@@ -1238,6 +1238,68 @@ def test_a_schema_refusal_names_the_profile_line(tmp: Path) -> None:
     check("which is the risk block's first line", line.strip().startswith("risk:") or "relied_on_outside_team" in line, line)
 
 
+def test_the_profile_is_written_atomically(tmp: Path) -> None:
+    """`F77`, the non-atomic write. A failure between opening the profile and finishing it left
+    a truncated file that `_refuse_if_already_adopted` then refused forever. The profile and its
+    record are written to a temporary file beside the target and moved into place, so the target
+    is either absent or complete."""
+    import os
+
+    repo = make_installed_repo(tmp, "atomic-repo")
+    seed_referenced_files(repo)
+    template = (repo / wizard.PROFILE_PATH).read_bytes()
+    real_replace = os.replace
+
+    def failing_replace(src, dst):
+        if str(dst).endswith("application-profile.yaml"):
+            raise OSError(28, "No space left on device")
+        return real_replace(src, dst)
+
+    os.replace = failing_replace
+    try:
+        try:
+            wizard.run(repo, ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS)))
+            outcome = "wrote"
+        except wizard.PartialWrite as exc:
+            outcome = f"partial: {exc}"
+    finally:
+        os.replace = real_replace
+    check("a failure at the move is reported, not swallowed", outcome.startswith("partial") and "No space left" in outcome, outcome[:160])
+    check("the target is untouched: still the template, byte for byte", (repo / wizard.PROFILE_PATH).read_bytes() == template)
+    leftovers = [p.name for p in (repo / "governance").iterdir() if p.name not in ("application-profile.yaml",)]
+    check("and no temporary file is left beside it", not leftovers, str(leftovers))
+    wizard.run(repo, ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS)))
+    check("the same run then completes", (repo / wizard.PROFILE_PATH).is_file() and (repo / "governance" / "application-profile.provenance.yaml").is_file())
+
+
+def test_a_draft_with_stale_ids_is_not_resumed_into_a_crash(tmp: Path) -> None:
+    """`F77`, a draft with stale ids. A draft naming a level or a gate no longer in the catalogue
+    resumed and failed later with a bare KeyError (exit 4). It is now checked on load against
+    the catalogue: a draft the flow cannot honour is not offered, is left in place, and the run
+    starts fresh and says so."""
+    repo = make_installed_repo(tmp, "stale-draft-repo")
+    seed_referenced_files(repo)
+    draft = repo / wizard.DRAFT_FILENAME
+    draft.parent.mkdir(parents=True, exist_ok=True)
+    record = json.loads((repo / wizard.INSTALL_RECORD).read_text(encoding="utf-8"))
+    stale = {
+        "format": 3, "framework_version": record["standard_version"], "framework_digest": record["framework_digest"],
+        "sections": {"identity": {"owner": "O"}, "level": {"conformance_level": "extreme"}, "gates": {"no_such_gate.status": "required"}},
+        "origins": {}, "done": ["decisions", "level"], "bulk": [],
+    }
+    draft.write_text(json.dumps(stale), encoding="utf-8")
+    interview = ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS))
+    try:
+        wizard.run(repo, interview)
+        outcome = "completed"
+    except Exception as exc:  # noqa: BLE001 - the whole point is that nothing escapes
+        outcome = f"{type(exc).__name__}: {exc}"
+    check("the run completes rather than dying on a KeyError", outcome == "completed", outcome[:200])
+    check("the stale draft was not offered", not interview.resume_offers and interview.welcomes and interview.welcomes[0].draft is None)
+    check("and the opening screen was told why", interview.welcomes and "extreme" in (interview.welcomes[0].draft_note or ""), getattr(interview.welcomes[0], "draft_note", None))
+    check("the written profile carries the fixture's level, not the stale one", yaml.safe_load((repo / wizard.PROFILE_PATH).read_text(encoding="utf-8"))["conformance_level"] == "essential")
+
+
 def test_the_run_opens_with_the_tool_and_the_install_named(tmp: Path) -> None:
     """`F81` / `DR-51` (2). Before the first question the interview is handed what the opening
     screen shows: the tool's name, version, licence and publisher, the installed version and
@@ -1906,6 +1968,8 @@ def main() -> int:
         print("\nrefusals, and the guarantee itself")
         test_every_presented_field_states_what_it_decides_and_what_a_wrong_answer_costs(tmp)
         test_a_schema_refusal_names_the_profile_line(tmp)
+        test_the_profile_is_written_atomically(tmp)
+        test_a_draft_with_stale_ids_is_not_resumed_into_a_crash(tmp)
         test_the_run_opens_with_the_tool_and_the_install_named(tmp)
         test_refuses_when_the_tool_and_the_install_differ(tmp)
         test_package_metadata_agrees_with_pyproject()

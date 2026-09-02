@@ -72,6 +72,8 @@ class Welcome:
     profile_path: str
     provenance_path: str
     draft: DraftInfo | None = None
+    # Why a draft found on disk is not offered (`F77`): left in place, and said out loud.
+    draft_note: str = ""
 
 
 class Interview(Protocol):
