@@ -28,6 +28,9 @@ description = "A governance framework that installs into a repository and checks
 requires-python = ">=3.9"
 license = "Apache-2.0"
 authors = [{ name = "Pipo Ventures Ltd" }]
+# `DR-61`: the name is reserved on PyPI before 1.0, and the index says so beside it. The
+# classifier moves to Production/Stable only with the release that item 10 authorises.
+classifiers = ["Development Status :: 3 - Alpha"]
 
 # Exact pins, deliberately. `>=` would reintroduce the exposure this file closes: a breaking
 # release would reach every adopting repository at once, with no record of which version worked.

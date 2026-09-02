@@ -1076,6 +1076,9 @@ as seeded on every run, the seeds travelling with the checker; `effective_from`'
 seconds and `complete` explains itself (`DR-63`); this repository's own profile lost a contradiction
 and two duplicate deferrals and gained the checked/declared labels. The reviewer's view of the
 narrative docstrings was recorded and the practice kept.
+### The name reserved on PyPI (`ACT-058`, `DR-61`)
+
+A manual-dispatch workflow publishes the current version by trusted publishing, so no token is stored; the package is classified alpha and every instruction keeps naming the git form until 1.0. Dispatching it is the maintainer's (`H8`).
 
 ### Every reachable decision of `adopt`, run and recorded (`ACT-057`, `DR-58`, `DR-59`)
 

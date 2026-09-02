@@ -1,0 +1,73 @@
+name: Publish to PyPI
+
+# `DR-61` / `ACT-058`: reserve the package name on PyPI with the current version, by hand, from
+# this workflow and nowhere else. It is dispatched by the maintainer (H8) and never runs on a
+# push or a tag, because a release is a human decision and `org/decisions/README.md` reserves
+# release authority. No token is stored anywhere: PyPI's trusted publishing accepts the OIDC
+# identity of this workflow (`id-token: write`) for the project the maintainer registered it
+# against, with the GitHub environment named below.
+#
+# The instructions in README.md, INSTALL.md and the tool keep naming the git form until 1.0
+# (`DR-61`); publishing here reserves the name and states the status, nothing more.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type the version in surfaceplate/VERSION to confirm the publish"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build the distributions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Refuse unless the typed version is the version
+        run: |
+          set -euo pipefail
+          version="$(cat surfaceplate/VERSION)"
+          if [ "${{ github.event.inputs.confirm }}" != "$version" ]; then
+            echo "typed '${{ github.event.inputs.confirm }}', but surfaceplate/VERSION holds '$version'"; exit 1
+          fi
+      - name: Verify the release manifest is current
+        run: python scripts/build_release.py --verify-manifest
+      - name: Build the sdist and the wheel
+        run: |
+          python -m pip install --disable-pip-version-check build==1.2.2
+          python -m build
+      - name: Install the wheel into a clean environment and run the tool
+        run: |
+          python -m venv /tmp/clean
+          /tmp/clean/bin/pip install --disable-pip-version-check --quiet dist/*.whl
+          /tmp/clean/bin/surfaceplate --version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: distributions
+          path: |
+            dist/*.tar.gz
+            dist/*.whl
+          if-no-files-found: error
+
+  publish:
+    name: Publish (trusted publishing, no token)
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: distributions
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
