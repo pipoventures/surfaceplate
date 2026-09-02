@@ -75,7 +75,7 @@ adoption:
   # .standards/INSTALL.json. SP049 fails loudly if it is not, which is the intended
   # behaviour. An adopter meets the same step only on upgrade, where re-pinning is exactly
   # what should happen because the framework has changed.
-  framework_digest: de6e9d90f36e2af7007a7084c44d4eb0ad69bf86992823597dcf8949e943d83a
+  framework_digest: c725241d2767e0c37bd6ff59b1736bf2b221ecf89e00841f1f01459b6765bb9b
   adoption_date: "2026-08-31"
   review_by: "2027-02-27"
   framework_maintainer: Mario Pipo

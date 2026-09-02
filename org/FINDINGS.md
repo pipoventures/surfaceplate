@@ -121,6 +121,7 @@ an unknown number of releases with nothing noticing.
 | F54 | The review packet omitted the artefacts its own question depended on, and asked a text-only reviewer to compute a SHA-256 digest | medium | Closed — `ACT-038`; seeds attached, and the recomputation scoped to a reviewer that can execute |
 | F55 | Narrative docstrings can drift from the code beneath them, and twice did | low | Open — recorded as a habit rather than remedied by deletion |
 | F56 | Field labels were clipped at the design width with no ellipsis — 28 of them, including every control's rationale prompt | medium | Closed — `ACT-039`; labels wrap, and the property is asserted of the widget rather than the screen |
+| F58 | Seven skill documents install only to `.github/skills/`. `AGENTS.md` calls their gates "not optional" — and Claude Code loads `.claude/skills/`, which no adopter received | high | Closed — `ACT-041`; `DR-30`'s emitter pattern applied to the half it had missed |
 | F57 | The README, `INSTALL.md` and the tool itself instruct an adopter to `pip install surfaceplate`, which 404s — and the README repeats the binding-rule claim `F51` proved false | high | Closed — `ACT-040`; every live instruction names a command that was run before it was written down |
 
 Closed entries are indexed here and left in their original records; they are not restated.
@@ -1163,6 +1164,61 @@ with everyone else told to report an evidence gap in one line and explicitly tol
 
 **The transferable part: a review packet's defects are invisible until somebody uses it**, and both
 of these survived a rewrite made one day earlier specifically to bring it up to date.
+
+---
+
+## F58 — `F29` again, in the half `DR-30` did not finish
+
+**Severity: high. Closed.**
+
+Found while researching `H7` (forge neutrality) — counting which installed files assume GitHub, not
+looking for this.
+
+`AGENTS.md` is installed into every adopting repository and tells every agent, in its binding-rules
+block:
+
+> `.github/skills/` defines the workflow for each kind of task. Use the matching skill. Its required
+> inputs, gates and mandatory stops are not optional.
+
+The payload wrote those seven skills to `.github/skills/` **only**. Claude Code loads
+`.claude/skills/`, which did not exist in the payload, in this repository, or in any adopter:
+
+```
+$ ls .claude/
+rules  scheduled_tasks.lock
+```
+
+So an adopter running Claude Code was told a set of gates was mandatory and handed them in a
+directory their agent does not read. **No Claude Code session in this repository has ever loaded a
+SKILL** — including every packet from `ACT-032` onward, all of which were performed by an agent
+working from instructions it had, under a workflow it did not.
+
+**This is `F29` exactly, one layer along.** `F29` recorded 501 lines of agent instruction sitting in
+a location Claude Code does not load. `DR-30`'s remedy was *one body, several emitters* — and it was
+applied to the six **instruction** documents and stopped there. The seven **skills** were left with
+a single emitter, and nothing noticed, because every test asked whether the skills installed
+correctly rather than whether the agent reading `AGENTS.md` could find them.
+
+**Remedy** (`ACT-041`): `build_payload` emits each `SKILL.md` to both paths. No transformation is
+needed, unlike the instructions — a `SKILL.md` already carries the `name` and `description` front
+matter both agents want, so the body stays one file with two destinations. The conformance block's
+prose is corrected in the same change: it named one directory and now names the pattern, matching
+how it already describes the instructions.
+
+**Seen to fail, and calibrated on a *partial* break.** With the fix reverted the assertions reported
+*"0 under `.claude/skills/` against 7 under `.github/skills/`"*; with one skill deliberately withheld
+they named it — *"claude=[... missing `release`]"*. A total break would have passed any check that
+merely asked whether the directory existed, which is the weakness `tests/check_audit_packet.py`
+already records about globs that tolerate a missing member.
+
+**The transferable part: a remedy applied to one instance of a class is not applied to the class.**
+`DR-30` fixed the emitter problem for the artefact that had failed and did not ask what else shipped
+on the same assumption. The check that would have caught it is not "did the skills install" but
+**"can the agent this document addresses reach every file this document calls mandatory"** — a
+question asked from the reader's chair, which is the same move that produced `F53`.
+
+**The remaining half of `H7` is untouched.** The conformance workflow is still the one genuinely
+forge-specific installed file, and that is a scope decision, not a defect.
 
 ---
 
