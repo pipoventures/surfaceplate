@@ -91,36 +91,26 @@ adoption:
     the repository: F5, F9, F11, F12, F13 and F16 remain open in org/FINDINGS.md, and
     ACT-002, ACT-003 and ACT-005 remain live work.
   independent_validator: null
-  deferrals:
-    - control_id: x-surfaceplate-work-contract-gate
-      rationale: >-
-        Work packets arrive through an operator conversation and are not committed to this
-        repository, so the work_contract gate has no artefact to check. Committing packets
-        is a real option and is not rejected — it is simply not decided.
-      owner: Mario Pipo
-      revisit_by: "2027-02-27"
-    - control_id: x-surfaceplate-risk-classification-gate
-      rationale: >-
-        Decision records carry a risk level; ordinary changes do not. Requiring the gate
-        today would fail honestly rather than pass, because most commits carry no
-        classification artefact.
-      owner: Mario Pipo
-      revisit_by: "2027-02-27"
+  # F109: the two gate deferrals once mirrored here as x-…-gate control deferrals are
+  # recorded once, under prerequisites, where a gate's deferral belongs.
+  deferrals: []
 
 # These three cannot be excluded, deferred, or omitted at any conformance level.
 baseline_controls:
-  agent_work_packets:
+  agent_work_packets:  # DECLARED ONLY - nothing checks this; it is a stated obligation
     decision: required
     rationale: >-
-      All work in this repository arrives as a bounded packet with stated done-criteria.
-      This is how the repository has actually operated; the register now records it.
-  actual_diff_review:
+      Every change arrives as a bounded packet with stated done-criteria, given in the
+      operator conversation that authorises it; the packets are not committed, so this
+      control is declared and not checked, and the work_contract gate is deferred until
+      they are. The activity register records each packet's outcome.
+  actual_diff_review:  # DECLARED ONLY - nothing checks this; it is a stated obligation
     decision: required
     rationale: >-
       Every change lands as a reviewed diff. core/CONTROL_PRINCIPLES.md principle 9
       requires it and the framework performs it on nobody's behalf — it checks that a
       repository declares it, never that a diff was read well.
-  secret_hygiene:
+  secret_hygiene:  # checked against this repository by the conformance checker
     decision: required
     rationale: >-
       Required at every level. This declaration stood for a while with nothing behind it —
@@ -141,7 +131,7 @@ baseline_controls:
 
 control_decisions:
   # `standard` floor
-  dependency_lock:
+  dependency_lock:  # checked against this repository by the conformance checker
     decision: required
     implementation_reference: pyproject.toml
     rationale: >-
@@ -152,21 +142,21 @@ control_decisions:
       resolution, so a green run could not say which jsonschema had validated the schemas.
       Recorded as F21. pyproject.toml now pins both runtime dependencies to exact versions,
       resolved in a clean environment with all five suites run against them before pinning.
-  deterministic_tests:
+  deterministic_tests:  # checked against this repository by the conformance checker
     decision: required
     implementation_reference: Test the installer and the conformance checker end to end
     rationale: >-
       tests/validate_contracts.py and tests/test_install_and_check.py both report an
       executed-check count on success, so "everything passed" is distinguishable from
       "nothing ran" — the defect recorded as F3 and fixed at 0.13.0.
-  contract_tests:
+  contract_tests:  # checked against this repository by the conformance checker
     decision: required
     implementation_reference: Validate the control contracts
     rationale: >-
       The schemas are the contract adopters validate against. tests/validate_contracts.py
       asserts positive and negative cases, and derives the namespace from NAMESPACE.md
       rather than restating it, so document and schemas cannot drift silently (DR-6).
-  documentation_authority:
+  documentation_authority:  # checked against this repository by the conformance checker
     decision: required
     rationale: >-
       governance/authority-map.yaml states which document governs which path. Contradictory
@@ -174,7 +164,7 @@ control_decisions:
       with two authorities for one control would be an instance of it.
 
   # Above the floor, because it is already met
-  assurance_findings:
+  assurance_findings:  # checked against this repository by the conformance checker
     decision: required
     implementation_reference: org/FINDINGS.md
     rationale: >-

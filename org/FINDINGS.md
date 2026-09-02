@@ -171,11 +171,11 @@ an unknown number of releases with nothing noticing.
 | F103 | `--answers` writes every proposal the human left standing, so a record completed by filling only the needs-human lines carries the framework's example rationales under the adopter's name (pass-2 MAT-01) | medium | Open — a decision (`H13`): `DR-49` designed it so; an explicit acceptance line is the alternative |
 | F104 | The schema's `effective_from` pattern admits impossible dates and a fraction without seconds; the checker rejects them, so the pattern documents a form it does not enforce (pass-2 MAT-02) | low | Open — the pattern is a public contract; tightening it is a decision (`H13`). The same-day trap the reviewer describes is `F92`, kept by `DR-60` |
 | F105 | `adoption_status: complete` needs no rationale and no evidence reference to validate (pass-2 MAT-03) | low | Open — a schema decision (`H13`) |
-| F106 | This repository's own profile declares `agent_work_packets` required as a practice while deferring `work_contract` because the packets are not committed: two rationales that contradict each other (pass-2 MAT-04) | medium | Open — a wording the maintainer approves (`H13`); proposed text in the body |
+| F106 | This repository's own profile declares `agent_work_packets` required as a practice while deferring `work_contract` because the packets are not committed: two rationales that contradict each other (pass-2 MAT-04) | medium | Closed — `ACT-059`, 2026-09-02, approved by the maintainer (`H13`); see the body |
 | F107 | The template test treats a profile as the untouched template when any one identifying scalar is still `replace-me`, so a half-completed profile can be overwritten (pass-2 MIN-01) | medium | Closed — `ACT-059`, 2026-09-02, authorised by the maintainer (`H13`); see the body |
 | F108 | The wizard writes `notes: Blocking.` under the adopter's scanner without asking or verifying it (pass-2 MIN-02) | low | Open — a decision (`H13`): omit the note, or ask |
-| F109 | This repository's own profile mirrors two gate deferrals as `x-…-gate` control deferrals under `adoption.deferrals`, duplicating what `prerequisites` already records (pass-2 MIN-03) | low | Open — a profile edit the maintainer approves (`H13`) |
-| F110 | This repository's own hand-written profile carries none of the checked/declared labels the wizard writes since `F53`, so its reader cannot tell a verified control from a declared one (pass-2 §7) | low | Open — a profile edit the maintainer approves (`H13`) |
+| F109 | This repository's own profile mirrors two gate deferrals as `x-…-gate` control deferrals under `adoption.deferrals`, duplicating what `prerequisites` already records (pass-2 MIN-03) | low | Closed — `ACT-059`, 2026-09-02, approved by the maintainer (`H13`); see the body |
+| F110 | This repository's own hand-written profile carries none of the checked/declared labels the wizard writes since `F53`, so its reader cannot tell a verified control from a declared one (pass-2 §7) | low | Closed — `ACT-059`, 2026-09-02, approved by the maintainer (`H13`); see the body |
 | F111 | The reviewer holds the narrative docstrings and the size of the governance apparatus to be a maintenance risk and disproportionate for a CLI tool (pass-2 §9) | low | Open — a judgement for the maintainer (`H13`); the practice is `S1`'s, stated |
 | F112 | The matrix's `advanced` case compared two profiles assembled seconds apart without normalising the scaffolded instant, and failed on the runner once | low | Closed — `ACT-057` follow-up, 2026-09-02; see the body |
 Closed entries are indexed here and left in their original records; they are not restated.
@@ -1540,7 +1540,7 @@ weigh (`H13`); the recommendation is to keep the practice and record the choice.
 
 ## F110 — This repository's own hand-written profile carries none of the checked/declared labels the wizard writes since `F53`, so its reader cannot tell a verified control from a declared one (pass-2 §7)
 
-**Severity: low. Open.**
+**Severity: low. Closed.**
 
 Recorded on 2026-09-02 from the second cross-provider adversarial review (`audit/CROSS_PROVIDER_REVIEW_2026-09-02_PASS2.md`, `H3`, run by the maintainer with the curated prompt and reproduced verbatim there; provider and model as the maintainer states), assessed in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z) against the code and this repository's profile.
 
@@ -1550,9 +1550,11 @@ repository's profile predates that and was written by hand; it carries no such l
 reviewer's point holds for the one profile in the bundle. **Remedy proposed (`H13`):** add the same
 labels, from the same table, as comments beside each control in `governance/application-profile.yaml`.
 
+**Closed by `ACT-059`, 2026-09-02, approved by the maintainer (`H13`).** Every control in this repository's profile carries the label the wizard writes, produced by the same `render._assurance_note` from the checker's own `VERIFIED_CONTROLS`: six checked against this repository, two declared only.
+
 ## F109 — This repository's own profile mirrors two gate deferrals as `x-…-gate` control deferrals under `adoption.deferrals`, duplicating what `prerequisites` already records (pass-2 MIN-03)
 
-**Severity: low. Open.**
+**Severity: low. Closed.**
 
 Recorded on 2026-09-02 from the second cross-provider adversarial review (`audit/CROSS_PROVIDER_REVIEW_2026-09-02_PASS2.md`, `H3`, run by the maintainer with the curated prompt and reproduced verbatim there; provider and model as the maintainer states), assessed in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z) against the code and this repository's profile.
 
@@ -1561,6 +1563,8 @@ each restating a gate that `prerequisites` already records as `deferred` with an
 The schema's `deferral` is for a *control*; the `x-` prefix is the extension escape, used here to
 name a gate. Two records of one deferral is two places for them to disagree. **Remedy proposed
 (`H13`):** remove the two entries, leaving the gates' own deferrals as the record.
+
+**Closed by `ACT-059`, 2026-09-02, approved by the maintainer (`H13`).** The two `x-…-gate` entries are removed and `adoption.deferrals` is empty; each gate's deferral is recorded once, under `prerequisites`, with its owner and date. A comment at the field says why.
 
 ## F108 — The wizard writes `notes: Blocking.` under the adopter's scanner without asking or verifying it (pass-2 MIN-02)
 
@@ -1596,7 +1600,7 @@ checks; the matrix's refusal cases unchanged.
 
 ## F106 — This repository's own profile declares `agent_work_packets` required as a practice while deferring `work_contract` because the packets are not committed: two rationales that contradict each other (pass-2 MAT-04)
 
-**Severity: medium. Open.**
+**Severity: medium. Closed.**
 
 Recorded on 2026-09-02 from the second cross-provider adversarial review (`audit/CROSS_PROVIDER_REVIEW_2026-09-02_PASS2.md`, `H3`, run by the maintainer with the curated prompt and reproduced verbatim there; provider and model as the maintainer states), assessed in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z) against the code and this repository's profile.
 
@@ -1610,6 +1614,8 @@ lists the control as declared, not checked. **Proposed wording for the baseline 
 conversation that authorises it; the packets are not committed, so this control is declared and
 not checked, and the `work_contract` gate is deferred until they are. The activity register records
 each packet's outcome."*
+
+**Closed by `ACT-059`, 2026-09-02, the wording approved by the maintainer (`H13`).** The baseline rationale now says the packets are given in the operator conversation and not committed, that the control is declared and not checked, and that the gate is deferred until they are; the gate's rationale is unchanged and the two agree.
 
 ## F105 — `adoption_status: complete` needs no rationale and no evidence reference to validate (pass-2 MAT-03)
 
