@@ -143,6 +143,11 @@ an unknown number of releases with nothing noticing.
 | F75 | Candidates are capped at 200 before any gate ranking, so a large `docs/` pushes the register out; the comment says the opposite | high | Closed — `ACT-044`; the scan keeps everything and each field cuts to `SHOWN` after ranking, asserted with 300 documents ahead of the register in `tests/test_discover.py` |
 | F76 | Resuming a draft that chose the defaults route never offers defaults again | medium | Closed — `ACT-044`; the draft carries every answer with its origin and which stages are done, and a resumed run lands on the review with its proposals, asserted in `tests/test_adopt_tui.py` |
 | F77 | Hygiene: non-atomic profile write; a draft with the wrong shape or stale ids kills the run; non-UTF-8 paths quoted; `is_empty` never true; `human_roles: null` as `['None']`; unescaped enums; `KeyboardInterrupt` uncaught; `adopt` exits 0 on findings; the two reliance answers discarded | medium | Open — `ACT-044`, `ACT-045`, `ACT-046` (`org/REMEDIATION_PLAN.md`) |
+| F78 | `adopt` validates against the adopter's installed schema but writes the tool's own shape, and notices the mismatch only at the review, in the validator's words | high | Open — recorded at `ACT-047`; remedy needs `H11`'s decision |
+| F79 | A schema refusal on the review quotes the validator instead of naming the profile line and the key that writes | low | Open — recorded at `ACT-047`; remedy needs `H11`'s decision |
+| F80 | The gate artefact choices carry no explanation of what each file is, what adopting it costs or what it buys | high | Open — recorded at `ACT-047`; remedy needs `H11`'s decision |
+| F81 | No opening screen: the wizard starts at the first question with no name, version, owner or account of what it will do | low | Open — recorded at `ACT-047`; remedy needs `H11`'s decision |
+| F82 | The wizard explains its fields, not the framework: a reader who does not know Surfaceplate cannot adopt it from the wizard alone | high | Open — recorded at `ACT-047`; remedy needs `H11`'s decision |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1203,6 +1208,114 @@ with everyone else told to report an evidence gap in one line and explicitly tol
 of these survived a rewrite made one day earlier specifically to bring it up to date.
 
 ---
+
+## F78 — `adopt` validates against the adopter's installed schema but writes the tool's own shape, and notices the mismatch only at the review, in the validator's words
+
+**Severity: high. Open.**
+
+Recorded under `ACT-047` from the maintainer's first `H1` run of `adopt` against Plutos on 2026-09-02, in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z); the maintainer agreed the finding in the same session. Closes by the activity the maintainer authorises once `H11`'s decision is taken.
+
+Plutos was upgraded to `main` on the morning of 2 September, before phases 1 to 3 merged, so its
+`.standards/` carries digest `135c5b6d…` and a schema with no `risk` block. The wizard ran from
+this repository's virtualenv at `main` after phase 3 (`19799af0…`). It asked every question,
+assembled a profile carrying `risk` (`DR-50` (2)), and validated it at `wizard.py:233` against
+`<repo>/.standards/schemas/application-profile.schema.yaml`: the adopter's copy, not the tool's.
+The review's hint then read *"This cannot be written yet: the assembled profile does not satisfy
+its own schema: (root): Additional properties are not allowed ('risk' was unexpected)"*, and the
+maintainer read `risk` as the free-text risk profile he had just typed: *"the reason for the error
+seems odd as the risk field was free text"*.
+
+Nothing compares the tool's version and digest with the install record before the first
+question. `doctor`'s digest line compares the vendored manifest with its own install record
+(`doctor.py:113-130`), so it passes on exactly this state. The draft survives, which is why this
+is high and not critical: the interview is lost as an afternoon, not as answers.
+
+**Remedy hypothesis:** compare at start and refuse with the two versions and digests named and
+the upgrade command given; `doctor` reports the same comparison; the opening screen `F81` asks for
+is where both belong. Validating against the tool's own schema instead would write a profile the
+adopter's installed checker then rejects, so the comparison, not the schema choice, is the fix.
+
+## F79 — A schema refusal on the review quotes the validator instead of naming the profile line and the key that writes
+
+**Severity: low. Open.**
+
+Recorded under `ACT-047` from the maintainer's first `H1` run of `adopt` against Plutos on 2026-09-02, in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z); the maintainer agreed the finding in the same session. Closes by the activity the maintainer authorises once `H11`'s decision is taken.
+
+The refusal in `F78` is reported in the validator's vocabulary (`(root)`, `Additional
+properties`) rather than the review's own, which already annotates every line with its origin.
+`Ctrl+E` goes to the offending line, but the hint does not say so, and it does not name `Ctrl+S`
+as the key that writes once the refusal clears. The maintainer's screenshot ends above the footer
+and he reported *"I don't see a command to implement the configuration"*. Low because the footer
+carries both keys and the review is already correct in refusing; the cost is confusion, not a
+wrong profile.
+
+**Remedy hypothesis:** the hint names the line in the review's words and the key that goes to it,
+and the review's hint always names the key that writes.
+
+## F80 — The gate artefact choices carry no explanation of what each file is, what adopting it costs or what it buys
+
+**Severity: high. Open.**
+
+Recorded under `ACT-047` from the maintainer's first `H1` run of `adopt` against Plutos on 2026-09-02, in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z); the maintainer agreed the finding in the same session. Closes by the activity the maintainer authorises once `H11`'s decision is taken.
+
+The maintainer's words: *"when selecting the files from the dropdown list. Sometimes it's not
+clear what each file/parameter actually means or even better what is the actual benefit and cost
+of adopting it."* The gate list's per-field help (`F67`, help-text part, closed at `ACT-043`)
+explains the field; the choices themselves, the discovered candidate paths and the scaffold
+offers, are shown as bare paths. This answer shapes `prerequisites`, the profile's most
+consequential section: it decides what the checker audits and what a failed gate blocks. High
+because an answer given without knowing its cost is the kind of answer the provenance record was
+built to make visible, and it is invisible here at the moment it is made.
+
+**Remedy hypothesis:** one sentence per choice: what the file is (for a discovered path, what
+was seen in it; for a scaffold, what the seed contains), what the gate then requires of the team,
+and what it buys (which check, which failure it prevents). Under `DR-47` a change to what is shown
+beside an asked value is a change to the interview and needs a decision record: `H11`.
+
+## F81 — No opening screen: the wizard starts at the first question with no name, version, owner or account of what it will do
+
+**Severity: low. Open.**
+
+Recorded under `ACT-047` from the maintainer's first `H1` run of `adopt` against Plutos on 2026-09-02, in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z); the maintainer agreed the finding in the same session. Closes by the activity the maintainer authorises once `H11`'s decision is taken.
+
+The maintainer's words: *"Maybe a logo or name of the software in terms of branding in the
+terminal at the top? Like a welcoming page or similar with the key package information, metadata,
+author, and owner"*. The first screen is the decisions form. Nothing before it says what the tool
+is, which version is running against which installed version (`F78`'s comparison has no home
+without it), who maintains the framework, what the run will write, that nothing is written before
+the review, or which keys move through it.
+
+**Remedy hypothesis:** one screen before the first question, drawn from `pyproject.toml` (name,
+version, licence, authors) and the install record (installed version, digest, maintainer), stating
+what will be written and where, and carrying the version comparison. Low on its own; it is the
+natural host for `F78` and the first page of `F82`.
+
+## F82 — The wizard explains its fields, not the framework: a reader who does not know Surfaceplate cannot adopt it from the wizard alone
+
+**Severity: high. Open.**
+
+Recorded under `ACT-047` from the maintainer's first `H1` run of `adopt` against Plutos on 2026-09-02, in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z); the maintainer agreed the finding in the same session. Closes by the activity the maintainer authorises once `H11`'s decision is taken.
+
+The maintainer's words, after calling the rebuilt wizard *"a massive improvement"*: *"I still feel
+that is missing something in terms of UX and UI but I'm not sure yet. It's just a feeling. Main
+issue is that I'm implementing a package that applies my own framework and I still don't know
+100% what everything is. Imagine someone new to it? I can help with package documentation, the
+surfaceplate.org website maybe, but I want someone going directly to the adoption to make it easy
+for them."*
+
+The framework's author, running its wizard against his own repository, could not always say what
+a question was for. The wizard is the path most adopters will take, and it presumes the reader
+has read `core/`: each screen states what it asks, and none states what the answer decides
+downstream (which controls, which gates, which check fails), what the default is and why, or what
+a wrong answer costs. `F80` and `F81` are two concrete instances. This finding holds the general
+defect so the remedy is designed once rather than screen by screen, and records the maintainer's
+unresolved feeling as an open hypothesis rather than smoothing it into the two concrete items.
+
+**Remedy hypothesis:** a stated minimum for every screen, for a reader meeting the framework for
+the first time: why this is asked, what it decides, the default and its reason, and what a wrong
+answer costs, drawn from the plain-English register in `explanations.py` so the wizard and the
+documentation say the same thing. Whether that minimum is met is then a snapshot question
+(`ACT-046`'s suite) rather than a feeling. A design decision, not a code fix: `H11`.
 
 ## F77 — Hygiene: non-atomic profile write; a draft with the wrong shape or stale ids kills the run; non-UTF-8 paths quoted; `is_empty` never true; `human_roles: null` as `['None']`; unescaped enums; `KeyboardInterrupt` uncaught; `adopt` exits 0 on findings; the two reliance answers discarded
 
