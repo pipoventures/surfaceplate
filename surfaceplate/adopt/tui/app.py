@@ -20,7 +20,7 @@ from textual.app import App
 
 from surfaceplate.adopt import flow as _flow
 from surfaceplate.adopt import plan, provenance
-from surfaceplate.adopt.interview import Cancelled, DraftInfo
+from surfaceplate.adopt.interview import Cancelled, Welcome
 from surfaceplate.adopt.tui.screens import (
     CANCELLED,
     EditLineScreen,
@@ -30,6 +30,7 @@ from surfaceplate.adopt.tui.screens import (
     ResumeScreen,
     ReviewScreen,
     ScaffoldScreen,
+    WelcomeScreen,
 )
 
 from pathlib import Path
@@ -149,31 +150,40 @@ class AdoptApp(App):
                 self._on_progress()
 
 
-class ConfirmResumeApp(App):
-    """A single question, asked before the main app so a draft is never resumed silently."""
+class OpeningApp(App):
+    """The opening screen and, where a draft exists, the resume prompt - before the main app, so
+    a draft is never resumed silently and the tool has introduced itself before asking anything
+    (`DR-51` (2)). Returns `True` to begin, `False` to begin fresh, `None` when the human quit."""
 
     CSS_PATH = CSS_PATH
 
-    def __init__(self, info: DraftInfo) -> None:
+    def __init__(self, welcome: Welcome) -> None:
         super().__init__()
-        self.info = info
+        self.welcome = welcome
 
     def on_mount(self) -> None:
         self._ask()
 
     @work
     async def _ask(self) -> None:
-        self.exit(await self.push_screen_wait(ResumeScreen(self.info)))
+        begin = await self.push_screen_wait(WelcomeScreen(self.welcome))
+        if begin is None:
+            self.exit(None)
+            return
+        if self.welcome.draft is None:
+            self.exit(True)
+            return
+        self.exit(await self.push_screen_wait(ResumeScreen(self.welcome.draft)))
 
 
 class TextualInterview:
     """The real `Interview`: runs the app, returns the approval it collected."""
 
-    def confirm_resume(self, info: DraftInfo) -> bool | None:
-        # `True` on `y`, `False` on `n`, and `None` when the app ended without either - `Ctrl+Q`
-        # is Textual's own priority quit binding and returns `None` from `run()`. `F68`: wrapping
-        # this in `bool()` turned a quit into "start fresh", and the draft was deleted.
-        return ConfirmResumeApp(info).run()
+    def open(self, welcome: Welcome) -> bool | None:
+        # `True` to begin, `False` on `n` at the resume prompt, and `None` when the app ended
+        # without either - `Ctrl+Q` is Textual's own priority quit binding and returns `None`
+        # from `run()`. `F68`: wrapping this in `bool()` turned a quit into "start fresh".
+        return OpeningApp(welcome).run()
 
     def collect(self, flow: _flow.Flow, *, on_progress: Callable[[], None]) -> str:
         app = AdoptApp(flow=flow, on_progress=on_progress)

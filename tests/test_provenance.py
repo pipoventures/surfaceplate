@@ -238,6 +238,11 @@ def _installed_fixture(tmp: Path, *, discoverable: bool) -> Path:
             "jobs:\n  t:\n    steps:\n      - name: Run the tests\n        run: pytest\n",
             encoding="utf-8",
         )
+        # `DR-51` (5): the scanner's workflow is one where a step runs it; ci.yml is not.
+        (repo / ".github" / "workflows" / "secret-scan.yml").write_text(
+            "jobs:\n  scan:\n    steps:\n      - name: Run gitleaks\n        run: gitleaks detect\n",
+            encoding="utf-8",
+        )
     for args in (
         ["init", "-q"], ["config", "user.email", "h@example.invalid"],
         ["config", "user.name", "H"], ["config", "commit.gpgsign", "false"],
@@ -262,6 +267,20 @@ def _typed_with_sentinels(repo: Path, level: str) -> tuple:
         sentinels.add(value)
         return value
 
+    def scanner_workflow() -> str:
+        """`DR-51` (5): the scanner field applies SP046's rule, so the answer is a committed
+        workflow where a step runs the scanner, not any tracked file."""
+        import subprocess
+
+        rel = ".github/workflows/sentinel-scan.yml"
+        target = repo / rel
+        if not target.exists():
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("jobs:\n  s:\n    steps:\n      - name: Run gitleaks\n        run: gitleaks detect\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(repo), "add", rel], check=True)
+            subprocess.run(["git", "-C", str(repo), "commit", "-qm", "scan workflow"], check=True, capture_output=True)
+        return rel
+
     flow = _flow.Flow(repo, {"standard_version": FRAMEWORK_VERSION, "framework_digest": FRAMEWORK_DIGEST})
     answers: dict = {
         "identity.owner": token(),
@@ -278,6 +297,8 @@ def _typed_with_sentinels(repo: Path, level: str) -> tuple:
             continue  # a pre-filled proposal is submitted unchanged, and recorded as proposed
         if spec.validate == "tracked_path":
             answers[spec.id] = "main.py"
+        elif spec.validate.startswith("scanner_workflow"):
+            answers[spec.id] = scanner_workflow()
         elif spec.kind in ("text", "textarea") and spec.validate:
             answers[spec.id] = token()
     # A mandatory gate with nothing matched and nothing seedable needs a real tracked path.
@@ -294,7 +315,10 @@ def _typed_with_sentinels(repo: Path, level: str) -> tuple:
             key = f"{prefix}{spec.id}"
             if key in interview.answers or spec.default or not spec.validate or spec.kind not in ("text", "textarea"):
                 continue
-            interview.answers[key] = "main.py" if spec.validate in ("tracked_path",) else token()
+            if spec.validate.startswith("scanner_workflow"):
+                interview.answers[key] = scanner_workflow()
+            else:
+                interview.answers[key] = "main.py" if spec.validate in ("tracked_path",) else token()
         return original_answer(section, prefix)
 
     interview._answer = answer  # type: ignore[method-assign]
@@ -326,7 +350,7 @@ def test_the_record_carries_an_origin_for_every_value(level: str, discoverable: 
             if origin.kind == "typed" and isinstance(leaves[path], str) and not any(s in leaves[path] for s in sentinels)
             # a key pressed on the decisions form or the gate list is typed without being prose,
             # and a real tracked path the driver typed is typed without being a sentinel
-            and leaves[path] != "main.py"
+            and leaves[path] not in ("main.py", ".github/workflows/sentinel-scan.yml")
             and not (path in ("builds_user_interface", "data_classification", "conformance_level")
                      or path.endswith(".status") or path.startswith("adoption.decision_record_id"))
         ]

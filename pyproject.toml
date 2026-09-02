@@ -27,6 +27,7 @@ version = "0.16.0"
 description = "A governance framework that installs into a repository and checks it against the standard it publishes."
 requires-python = ">=3.9"
 license = "Apache-2.0"
+authors = [{ name = "Pipo Ventures Ltd" }]
 
 # Exact pins, deliberately. `>=` would reintroduce the exposure this file closes: a breaking
 # release would reach every adopting repository at once, with no record of which version worked.

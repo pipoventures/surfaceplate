@@ -35,7 +35,9 @@ from textual.app import App  # noqa: E402
 from surfaceplate.adopt import flow as _flow  # noqa: E402
 from surfaceplate.adopt import plan  # noqa: E402
 from surfaceplate.adopt.interview import DraftInfo  # noqa: E402
+from surfaceplate.adopt.interview import Welcome  # noqa: E402
 from surfaceplate.adopt.tui.screens import (  # noqa: E402
+    WelcomeScreen,
     FormScreen,
     GatesScreen,
     LevelScreen,
@@ -87,6 +89,67 @@ def rendered(app: App) -> list[str]:
 def screen_text(lines: list[str]) -> str:
     return "\n".join(lines)
 
+
+
+def a_welcome(draft=None) -> Welcome:
+    return Welcome(
+        repo="/home/someone/github/plutos", tool_name="Surfaceplate", tool_version="0.16.0",
+        tool_anchor="01cb1b5892379eef" + "0" * 48, licence="Apache-2.0", publisher="Pipo Ventures Ltd",
+        homepage="https://github.com/pipoventures/surfaceplate",
+        tagline="a software delivery standard that installs into a repository and checks it against what it publishes",
+        installed_version="0.16.0", installed_anchor="01cb1b5892379eef" + "0" * 48, installed_at="2026-09-02",
+        profile_path="governance/application-profile.yaml", provenance_path="governance/application-profile.provenance.yaml",
+        draft=draft,
+    )
+
+
+def test_the_opening_screen_names_the_tool_the_install_and_what_will_be_written() -> None:
+    """`F81` / `DR-51` (2), at 80x24: everything a stranger needs before the first question, on
+    one screen, with the keys."""
+    async def _run() -> list[str]:
+        app = Host(WelcomeScreen(a_welcome()))
+        async with app.run_test(size=(80, 24)) as pilot:
+            await pilot.pause()
+            return rendered(app)
+
+    lines = asyncio.run(_run())
+    text = screen_text(lines)
+    for needle in ("Surfaceplate 0.16.0", "Apache-2.0", "Pipo Ventures Ltd", "01cb1b5892…", "2026-09-02",
+                   "/home/someone/github/plutos", "application-profile.yaml", "provenance record",
+                   "Nothing is written", "[Enter] begin", "[Ctrl+Q] quit"):
+        check(f"the opening screen shows {needle!r}", needle in text, text[:400])
+    check("it fits: nothing is pushed off 24 rows", "[Enter] begin" in screen_text(lines[-4:]), screen_text(lines[-4:]))
+
+    draft = DraftInfo(sections=("decisions", "level"), framework_version="0.16.0", framework_digest="x", matches=True)
+
+    async def _with_draft() -> str:
+        app = Host(WelcomeScreen(a_welcome(draft)))
+        async with app.run_test(size=(80, 24)) as pilot:
+            await pilot.pause()
+            return screen_text(rendered(app))
+
+    text = asyncio.run(_with_draft())
+    check("with a draft, the screen says the next screen asks about it", "saved draft" in text and "next screen" in text, text[:600])
+
+
+def test_the_review_hint_names_the_way_forward_while_an_error_stands() -> None:
+    """`F79` / `DR-51` (6): with an error on the review, the hint names Ctrl+E to reach the line
+    and says Ctrl+S writes once it is fixed, so a reader whose footer is off screen still has a
+    way forward (the maintainer: "I don't see a command to implement the configuration")."""
+    from surfaceplate.adopt.tui.screens import ReviewScreen
+
+    review = _flow.Review(rendered="a: 1\nb: 2\n", lines=[_flow.ReviewLine(line=0, path="a", origin="typed", editable=True)],
+                          error="This cannot be written yet: a: the installed schema does not accept this line.", error_path="a")
+
+    async def _run() -> str:
+        app = Host(ReviewScreen(review))
+        async with app.run_test(size=(80, 24)) as pilot:
+            await pilot.pause()
+            return screen_text(rendered(app))
+
+    text = asyncio.run(_run())
+    check("the hint names Ctrl+E while an error stands", "[Ctrl+E]" in text, text[-300:])
+    check("and says Ctrl+S writes once it is fixed", "Ctrl+S writes" in text.replace("\n", " ") and "fix it" in text, text[-300:])
 
 # ---------------------------------------------------------------------------------------------
 # 1 & 2 — the legends render the keys they name
@@ -757,6 +820,8 @@ def test_an_empty_field_still_shows_where_to_type() -> None:
 def main() -> int:
     print("legends render the keys they name (F37 #1, #2)")
     test_every_legend_renders_the_keys_it_names()
+    test_the_opening_screen_names_the_tool_the_install_and_what_will_be_written()
+    test_the_review_hint_names_the_way_forward_while_an_error_stands()
 
     print("\nnothing is printed twice (F37 #3)")
     test_no_field_label_is_rendered_twice()

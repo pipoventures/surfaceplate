@@ -197,7 +197,9 @@ GATE_KEYWORDS: dict[str, tuple[str, ...]] = {
     "decision_before_implementation": ("decision", "adr"),
     "records_before_release": ("release", "checklist"),
     "change_record_before_completion": ("changelog", "change"),
-    "authority_map": ("authority", "source_of_truth", "inventory"),
+    # `F84`: "inventory" matched a work inventory and proposed it as the authority map. The seed's
+    # own path still matches on `source_of_truth`.
+    "authority_map": ("authority", "source_of_truth"),
     "authority_same_change": ("authority",),
     "test_convention": ("test", "convention"),
     "regression_before_merge": ("regression", "test"),
@@ -348,6 +350,136 @@ def candidate_ci_steps(repo: Path) -> list[str]:
     return _dedupe(sorted(dict.fromkeys(names)))
 
 
+# ---------------------------------------------------------------------------------------------
+# The checker's own rules, applied before proposing (`DR-51` (5)), and what a choice is
+# ---------------------------------------------------------------------------------------------
+
+
+def content_problem(target: Path) -> str:
+    """Why the checker would reject this file as an artefact, in a few words, or `""`. The same
+    two rules `SP032` and `SP051` apply after the path checks: non-empty, no placeholder token.
+    A directory has no content rule (a register may be empty)."""
+    from surfaceplate import rules
+
+    if not target.is_file():
+        return ""
+    try:
+        text = target.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return "cannot be read"
+    if not text.strip():
+        return "is empty"
+    if rules.PLACEHOLDER_PATTERN.search(text):
+        return "still contains a template placeholder (TBD, TODO or replace-me)"
+    return ""
+
+
+def scanner_step(target: Path, scanner: str) -> tuple[str, str]:
+    """`("runs", step name)` where a workflow step runs the scanner; `("mentions", "")` for a
+    non-workflow file that mentions it (the checker inspects those no further); `("comment", "")`
+    for a workflow that mentions it outside any step; `("absent", "")` otherwise. `SP046`'s rule."""
+    from surfaceplate.check_conformance import load_yaml, step_mentions
+
+    try:
+        text = target.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return "absent", ""
+    if scanner.lower() not in text.lower():
+        return "absent", ""
+    document, _ = load_yaml(target)
+    if not isinstance(document, dict) or not isinstance(document.get("jobs"), dict):
+        return "mentions", ""
+    for job in document["jobs"].values():
+        if not isinstance(job, dict):
+            continue
+        for step in job.get("steps") or []:
+            if isinstance(step, dict) and step_mentions(step, scanner):
+                return "runs", str(step.get("name") or step.get("uses") or step.get("id") or "the scan step")
+    return "comment", ""
+
+
+def scanner_workflows(repo: Path, scanner: str) -> list[str]:
+    """The adopter's workflows where a step runs the named scanner - what `scanner.wired_in`
+    offers and proposes. `F83`: the first workflow found was proposed, and the checker then
+    reported it never mentions the scanner."""
+    installed_files, _ = framework_paths(repo)
+    own = set(_adopters_own(repo))
+    out: list[str] = []
+    for directory in _CI_DIRS:
+        d = repo / directory
+        if not d.is_dir():
+            continue
+        for path in sorted(d.glob("*.y*ml")):
+            rel = path.relative_to(repo).as_posix()
+            if rel in installed_files or rel not in own:
+                continue
+            if scanner_step(path, scanner)[0] == "runs":
+                out.append(rel)
+    return _dedupe(out)
+
+
+def _title_of(target: Path) -> str:
+    """The first heading of a Markdown file, the first comment or key of a YAML file: what a
+    reader would take the file to be about, in its own words."""
+    try:
+        lines = target.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return ""
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith("#"):
+            return stripped.lstrip("#").strip()[:60]
+        return stripped[:60]
+    return ""
+
+
+def describe(
+    repo: Path,
+    path: str,
+    *,
+    gate_id: str = "",
+    scanner: str = "",
+    found: "Discovered | None" = None,
+) -> str:
+    """One line about a chosen path, for the help beside the field (`F80`, `DR-51` (4)): what
+    discovery saw in it, whether it matched the gate's words, and whether the checker's rules
+    would reject it. States what was read; decides nothing."""
+    target = repo / path
+    if not target.exists():
+        return f"{path}: nothing exists at that path in this repository."
+    if target.is_dir():
+        records = len([p for p in target.glob("*.y*ml")])
+        return f"{path}: a directory holding {records} YAML record(s); an empty register is a valid start."
+    parts: list[str] = []
+    title = _title_of(target)
+    parts.append(f'"{title}"' if title else "no heading or first line")
+    try:
+        count = len(target.read_text(encoding="utf-8", errors="replace").splitlines())
+        parts[-1] += f", {count} line(s)"
+    except OSError:
+        pass
+    if gate_id:
+        words = [w for w in GATE_KEYWORDS.get(gate_id, ()) if w in path.lower()]
+        parts.append(
+            f"matched this gate's words: {', '.join(words)}" if words
+            else f"did not match this gate's words ({', '.join(GATE_KEYWORDS.get(gate_id, ())) or 'none'}); it is simply a file found here"
+        )
+    if scanner:
+        state, step = scanner_step(target, scanner)
+        parts.append(
+            {"runs": f"step '{step}' runs {scanner}",
+             "mentions": f"mentions {scanner}; not a workflow, so the checker inspects it no further",
+             "comment": f"mentions {scanner} but no step runs it; the checker would reject it (SP046)",
+             "absent": f"never mentions {scanner}; the checker would reject it (SP046)"}[state]
+        )
+    problem = (found.rejected.get(path) if found is not None else None) or content_problem(target)
+    if problem:
+        parts.append(f"the checker would reject it: it {problem} (SP032)")
+    return f"{path}: " + "; ".join(parts) + "."
+
+
 @dataclass(frozen=True)
 class Discovered:
     """One scan of the repository, passed to `plan.py` so every section can offer real answers."""
@@ -357,6 +489,15 @@ class Discovered:
     lock_files: tuple[str, ...] = ()
     paths: tuple[str, ...] = ()
     ci_steps: tuple[str, ...] = ()
+    # `DR-51` (5): workflows where a step runs the scanner the examples name, and artefacts the
+    # checker's content rules would reject, with the reason. Rejected files stay in `artefacts`
+    # (the adopter chooses from everything found) and are never proposed.
+    scanner_workflows: tuple[str, ...] = ()
+    rejected: dict[str, str] = None  # type: ignore[assignment]
+
+    def __post_init__(self) -> None:
+        if self.rejected is None:
+            object.__setattr__(self, "rejected", {})
 
     def is_empty(self) -> bool:
         """True when nothing of the adopter's could be read - a tree git cannot answer for, or one
@@ -367,12 +508,25 @@ class Discovered:
         )
 
 
-def scan(repo: Path) -> Discovered:
+# The scanner the examples name; `scan` looks for its workflow, and the field's validator
+# re-checks against whatever name the profile ends up carrying.
+DEFAULT_SCANNER = "gitleaks"
+
+
+def scan(repo: Path, scanner: str = DEFAULT_SCANNER) -> Discovered:
     """Read the repository once. Cheap enough to do at startup; nothing here writes."""
+    artefacts = tuple(candidate_artefacts(repo))
+    rejected = {}
+    for rel in artefacts:
+        problem = content_problem(repo / rel)
+        if problem:
+            rejected[rel] = problem
     return Discovered(
-        artefacts=tuple(candidate_artefacts(repo)),
+        artefacts=artefacts,
         register_dirs=tuple(candidate_register_dirs(repo)),
         lock_files=tuple(candidate_lock_files(repo)),
         paths=tuple(candidate_paths(repo)),
         ci_steps=tuple(candidate_ci_steps(repo)),
+        scanner_workflows=tuple(scanner_workflows(repo, scanner)),
+        rejected=rejected,
     )

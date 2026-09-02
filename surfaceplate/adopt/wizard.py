@@ -17,9 +17,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from surfaceplate import about, install_standard
 from surfaceplate.adopt import flow as _flow
 from surfaceplate.adopt import provenance, render, scaffold, sections
-from surfaceplate.adopt.interview import DRAFT_FORMAT, Cancelled, DraftInfo, Interview
+from surfaceplate.adopt.interview import DRAFT_FORMAT, Cancelled, DraftInfo, Interview, Welcome
 
 PROFILE_PATH = "governance/application-profile.yaml"
 INSTALL_RECORD = ".standards/INSTALL.json"
@@ -103,6 +104,34 @@ class AlreadyAdopted(Exception):
     """A real (non-template) profile already exists - `adopt` will not overwrite it silently."""
 
 
+class InstallMismatch(Exception):
+    """The installed copy of the standard is not the one this tool ships (`F78`, `DR-51` (1)).
+
+    The wizard validates against the schema installed in the repository, because that is the copy
+    the repository's own checker reads; a profile written by a newer tool against an older install
+    fails at the review in the validator's words. So the comparison is made before the first
+    question, and the message carries the command that resolves it.
+    """
+
+    def __init__(self, repo: Path, record: dict) -> None:
+        installed_version = str(record.get("standard_version", "") or "unknown")
+        installed_anchor = str(record.get("framework_digest", "") or "")
+        hooks_declined = install_standard.HOOK_TARGET not in (record.get("files") or {})
+        self.command = about.upgrade_command(repo, no_hooks=hooks_declined)
+        super().__init__(
+            f"{repo.name} has {about.NAME} {installed_version} ({about.short(installed_anchor)}) "
+            f"installed; this tool is {about.version()} ({about.short(about.anchor())}). "
+            "Upgrade the installation first, so the profile this tool writes matches the checker "
+            f"that will read it:\n\n    {self.command}\n\n"
+            "Nothing was asked and nothing was written."
+        )
+
+
+def _refuse_if_mismatched(repo: Path, record: dict) -> None:
+    if str(record.get("framework_digest", "")) != about.anchor():
+        raise InstallMismatch(repo, record)
+
+
 class NeedsHuman(Exception):
     """An answers record still carries `needs-human` lines - nothing is written until a human
     has completed them. Carries the keys, so the message says which."""
@@ -144,11 +173,13 @@ class PartialWrite(Exception):
 
 
 class WriteRefused(Exception):
-    """The assembled profile failed its own verification. Nothing was written. Carries `detail`."""
+    """The assembled profile failed its own verification. Nothing was written. Carries `detail`
+    and, where the problem is one line of the profile, its `path` (`F79`, `DR-51` (6))."""
 
-    def __init__(self, detail: str) -> None:
+    def __init__(self, detail: str, path: str | None = None) -> None:
         super().__init__(detail)
         self.detail = detail
+        self.path = path
 
 
 def _read_install_record(repo: Path) -> dict:
@@ -239,10 +270,14 @@ def _verify(profile: dict, rendered: str, repo: Path) -> None:
     validator = jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker())
     errors = sorted(validator.iter_errors(reparsed), key=lambda e: list(e.path))
     if errors:
-        detail = "; ".join(
-            f"{'/'.join(str(p) for p in e.path) or '(root)'}: {e.message}" for e in errors[:8]
+        # `F79`: reported in the review's words, naming the profile line, not the validator's.
+        # The maintainer read "(root): Additional properties are not allowed ('risk' was
+        # unexpected)" as being about his free-text risk answer.
+        described = [_describe_schema_error(e) for e in errors[:8]]
+        raise WriteRefused(
+            "the schema installed here does not accept " + "; ".join(d for d, _p in described),
+            path=described[0][1],
         )
-        raise WriteRefused(f"the assembled profile does not satisfy its own schema: {detail}")
 
     from surfaceplate import check_conformance
 
@@ -256,6 +291,30 @@ def _verify(profile: dict, rendered: str, repo: Path) -> None:
             "an answer still contains a template placeholder token (TBD/TODO/replace-me/…) at: "
             + ", ".join(hits)
         )
+
+
+def _describe_schema_error(error) -> tuple[str, str | None]:
+    """`(sentence, profile path)` for one schema error. An unexpected property is named by the
+    property, since that is the line the review can go to; the reason says what an adopter can
+    do about it - an installed schema older than the tool is the case `F78` guards, and this
+    is the message for anything that gets past that guard."""
+    import re
+
+    parent = ".".join(str(p) for p in error.path)
+    unexpected = re.search(r"'([^']+)' was unexpected", error.message)
+    if error.validator == "additionalProperties" and unexpected:
+        path = f"{parent}.{unexpected.group(1)}" if parent else unexpected.group(1)
+        return (
+            f"the line `{path}`: it is not a field the installed schema knows, so the copy "
+            "installed here is probably older than this tool",
+            path,
+        )
+    if error.validator == "required":
+        missing = re.search(r"'([^']+)' is a required property", error.message)
+        path = f"{parent}.{missing.group(1)}" if parent and missing else (missing.group(1) if missing else parent)
+        return f"the line `{path or '(root)'}`: it is required and is missing", path or None
+    where = parent or "(root)"
+    return f"the line `{where}`: {error.message}", (parent or None)
 
 
 def _draft_path(repo: Path) -> Path:
@@ -303,11 +362,9 @@ def _clear_draft(repo: Path) -> None:
     _legacy_draft_path(repo).unlink(missing_ok=True)
 
 
-def _resume_or_start(repo: Path, record: dict, interview: Interview) -> dict:
-    """Never resumes silently. A version/digest mismatch is flagged - shown to the human, who
-    still decides - rather than either trusted or refused outright. Three answers: yes resumes,
-    an explicit no deletes the draft, and quitting at the prompt (`None`) cancels the run with
-    the draft kept.
+def _draft_offer(repo: Path, record: dict) -> tuple[dict, DraftInfo | None]:
+    """The resumable draft, if any, and what the human is told about it. A version/digest mismatch
+    is flagged - shown, and the human decides - rather than trusted or refused outright.
 
     A draft in an older `format` is a different case and is not offered at all: Phase 1 drafts hold
     built profile fragments where these hold raw answers, so resuming one as the other would produce
@@ -316,29 +373,50 @@ def _resume_or_start(repo: Path, record: dict, interview: Interview) -> dict:
     """
     draft = _load_draft(repo)
     if draft is None:
-        return {}
-
+        return {}, None
     if draft.get("format") != DRAFT_FORMAT or not isinstance(draft.get("sections"), dict):
-        # An older shape, or a JSON-valid file that is not a draft: not offered. Left in place
-        # rather than deleted; this run's first completed stage overwrites it.
-        return {}
-
+        return {}, None
     matches = draft.get("framework_version") == record.get(
         "standard_version", ""
     ) and draft.get("framework_digest") == record.get("framework_digest", "")
-
     info = DraftInfo(
         sections=tuple(draft.get("sections", {})),
         framework_version=str(draft.get("framework_version", "")),
         framework_digest=str(draft.get("framework_digest", "")),
         matches=matches,
     )
-    answer = interview.confirm_resume(info)
+    return draft, info
+
+
+def _welcome(repo: Path, record: dict, draft: DraftInfo | None) -> Welcome:
+    return Welcome(
+        repo=str(repo),
+        tool_name=about.NAME,
+        tool_version=about.version(),
+        tool_anchor=about.anchor(),
+        licence=about.LICENCE,
+        publisher=about.PUBLISHER,
+        homepage=about.HOMEPAGE,
+        tagline=about.TAGLINE,
+        installed_version=str(record.get("standard_version", "")),
+        installed_anchor=str(record.get("framework_digest", "")),
+        installed_at=str(record.get("installed_at", "")),
+        profile_path=PROFILE_PATH,
+        provenance_path=provenance.PROVENANCE_PATH,
+        draft=draft,
+    )
+
+
+def _open(repo: Path, record: dict, interview: Interview) -> dict:
+    """The opening screen, and the resume prompt where a draft exists. Never resumes silently.
+    Three answers: `True` begins (resuming any draft), an explicit `False` deletes the draft and
+    begins fresh, and quitting (`None`) cancels the run with the draft kept (`F68`)."""
+    draft, info = _draft_offer(repo, record)
+    answer = interview.open(_welcome(repo, record, info))
     if answer is None:
-        # `F68`: the human quit at the prompt - `Ctrl+Q`, or the terminal closed. That is neither
-        # "resume" nor "start fresh", and reading it as the latter deleted the draft the prompt
-        # existed to protect. The run is cancelled and the draft stays where it was.
         raise Cancelled()
+    if info is None:
+        return {}
     if not answer:
         _clear_draft(repo)  # an explicit "n": the human chose to discard it
         return {}
@@ -375,13 +453,14 @@ def assemble(state: dict, record: dict) -> dict:
 
 def run(repo: Path, interview: Interview) -> Path:
     """Runs the whole wizard. Returns the path written. Raises `Cancelled`, `NotInstalled`,
-    `AlreadyAdopted`, or `WriteRefused` - every one of them leaves the repository untouched, except
+    `AlreadyAdopted`, `InstallMismatch` or `WriteRefused` - every one of them leaves the repository untouched, except
     that `Cancelled` (and any other failure) may leave a resumable draft behind - see
     `_save_draft`. A completed write clears it (below)."""
     _refuse_if_already_adopted(repo)
     record = _read_install_record(repo)
+    _refuse_if_mismatched(repo, record)
 
-    draft = _resume_or_start(repo, record, interview)
+    draft = _open(repo, record, interview)
     flow = _flow.Flow(
         repo,
         record,
@@ -462,6 +541,7 @@ def propose(repo: Path, *, level: str | None = None) -> Proposed:
     from surfaceplate.adopt import provenance, scaffold
 
     record = _read_install_record(repo)
+    _refuse_if_mismatched(repo, record)
     flow = _flow.Flow(repo, record)
     answers: dict[str, object] = {}
     notes: dict[str, str] = {}

@@ -52,11 +52,34 @@ class DraftInfo:
     matches: bool
 
 
+@dataclass(frozen=True)
+class Welcome:
+    """What the opening screen shows before the first question (`F81`, `DR-51` (2)): the tool,
+    the install it is about to write against, where it will write, and the draft if one exists.
+    The version comparison has already passed by the time this is built (`wizard.InstallMismatch`)."""
+
+    repo: str
+    tool_name: str
+    tool_version: str
+    tool_anchor: str
+    licence: str
+    publisher: str
+    homepage: str
+    tagline: str
+    installed_version: str
+    installed_anchor: str
+    installed_at: str
+    profile_path: str
+    provenance_path: str
+    draft: DraftInfo | None = None
+
+
 class Interview(Protocol):
-    def confirm_resume(self, info: DraftInfo) -> bool | None:
-        """Whether to resume an unfinished run. Never answered on a human's behalf: a draft is
-        offered, never silently reloaded. `None` means the human quit at the prompt: the run is
-        cancelled and the draft is kept (`F68`)."""
+    def open(self, welcome: Welcome) -> bool | None:
+        """Show the opening screen and, where `welcome.draft` is set, the resume prompt. `True`
+        begins (resuming the draft if there is one); `False` discards the draft and begins fresh;
+        `None` means the human quit: the run is cancelled and any draft is kept (`F68`). A draft
+        is offered, never silently reloaded."""
         ...
 
     def collect(self, flow: _flow.Flow, *, on_progress: Callable[[], None]) -> str:
@@ -87,12 +110,16 @@ class ScriptedInterview:
     edits: dict[str, object] = field(default_factory=dict)  # review edits, by profile path
     asked: list[str] = field(default_factory=list)
     resume_offers: list[DraftInfo] = field(default_factory=list)
+    welcomes: list[Welcome] = field(default_factory=list)
     review: _flow.Review | None = None
     stages: list[str] = field(default_factory=list)
     flow: _flow.Flow | None = None
 
-    def confirm_resume(self, info: DraftInfo) -> bool | None:
-        self.resume_offers.append(info)
+    def open(self, welcome: Welcome) -> bool | None:
+        self.welcomes.append(welcome)
+        if welcome.draft is None:
+            return True
+        self.resume_offers.append(welcome.draft)
         return self.resume
 
     def collect(self, flow: _flow.Flow, *, on_progress: Callable[[], None]) -> str:

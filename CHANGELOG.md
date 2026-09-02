@@ -1065,6 +1065,37 @@ scheduled sweep, so previously there was no way to scan history at all.
 
 ## Unreleased
 
+### The adversarial product review of 2 September, and `adopt` rebuilt for a first-time reader (`ACT-042` to `ACT-048`)
+
+A cross-provider adversarial review of the product (`audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`)
+recorded nineteen findings (`F59` to `F77`) and four decisions (`DR-47` to `DR-50`), and four phases
+remediated them: the eight defects that made the wizard unfinishable or destructive (`ACT-043`);
+proposal-first adoption with a provenance record beside the profile, one gate list, validator parity
+with the checker, and discovery that excludes the framework's own files (`ACT-044`); non-interactive
+adoption with `--propose` and `--answers`, `doctor`, JSON and SARIF output, an exit-code contract,
+and a clean-machine front-door job (`ACT-045`); an 80×24 snapshot suite as golden files, register
+parity, the `risk` block in the schema, and the draft moved under `.standards/` (`ACT-046`).
+
+The maintainer's first run of the rebuilt wizard against a real repository then found eight more
+(`F78` to `F85`), recorded under `ACT-047` and answered by `DR-51` and `ACT-048`:
+
+- `adopt` refuses before the first question when the installed copy of the standard is not this
+  tool's release, naming both and the upgrade command; `doctor` reports the same comparison.
+- An opening screen: the tool's name, version, licence and publisher; the installed version and
+  digest; what will be written and where; that nothing is written before the review; the keys.
+- Every field carries what is asked, what the answer decides and what a wrong answer costs, beside
+  the focused field, and a test fails on any that lacks them.
+- Every file picked from the repository is described when chosen: what discovery saw in it,
+  whether it matched the gate, whether the checker would reject it, which step runs the scanner.
+- The wizard proposes nothing the checker rejects: scanner workflows only where a step runs the
+  scanner (`SP046`); no empty or placeholder-bearing artefact (`SP032`); `authority_map` no longer
+  matches on the word "inventory".
+- A refusal on the review names the profile line and the keys; the closing report states the
+  checker's verdict as the checker gave it, rather than "passes" on a graced WARN.
+
+Recorded and not yet addressed: a hand edit to the profile after the write leaves the provenance
+record asserting the old origin (`F86`).
+
 ### `F58` closed: every agent now receives the skills, not only Copilot
 
 `AGENTS.md` tells every adopting repository that the skills' *"required inputs, gates and mandatory

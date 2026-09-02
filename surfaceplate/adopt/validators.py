@@ -112,13 +112,16 @@ def enforcement(value: str) -> str | None:
 
 def tracked_path(value: str, repo: Path | None) -> str | None:
     """A path git tracks in this repository - `SP032` and `SP051` require tracked, not merely
-    present. Without a repository to ask, only blankness is checked and the reason is stated in
-    the parity table beside the codes that read this."""
+    present - and, for a file, one the checker's content rules accept: non-empty and carrying no
+    placeholder token (`DR-51` (5); `F84` is a placeholder-bearing file proposed and then
+    rejected). Without a repository to ask, only blankness is checked and the reason is stated
+    in the parity table beside the codes that read this."""
     if not value.strip():
         return BLANK
     if repo is None:
         return None
-    if not (repo / value.strip()).exists():
+    target = repo / value.strip()
+    if not target.exists():
         return "Nothing exists at that path in this repository."
     from surfaceplate.adopt import discover
 
@@ -130,6 +133,32 @@ def tracked_path(value: str, repo: Path | None) -> str | None:
         )
     if not rules.is_tracked(repo, value.strip()):
         return "That path exists but is not tracked by git. Commit it first - the checker only counts what git holds."
+    problem = discover.content_problem(target)
+    if problem:
+        return f"The checker would reject that file: it {problem} (SP032, SP051)."
+    return None
+
+
+def scanner_workflow(value: str, repo: Path | None, scanner: str) -> str | None:
+    """The file where the named scanner runs - `SP046`'s rule, applied at the field (`F83`): the
+    file exists, is tracked, mentions the scanner, and where it is a workflow a step runs it. A
+    mention in a comment is not an invocation."""
+    if not value.strip():
+        return BLANK
+    if repo is None:
+        return None
+    target = repo / value.strip()
+    if not target.is_file():
+        return "Nothing exists at that path in this repository."
+    if not rules.is_tracked(repo, value.strip()):
+        return "That path exists but is not tracked by git. Commit it first - the checker only counts what git holds."
+    from surfaceplate.adopt import discover
+
+    state, _step = discover.scanner_step(target, scanner)
+    if state == "absent":
+        return f"That file never mentions {scanner}. The checker reads it as where the scanner runs and would report it absent (SP046)."
+    if state == "comment":
+        return f"That workflow mentions {scanner} but no step runs it; a mention in a comment is not an invocation (SP046)."
     return None
 
 
@@ -155,6 +184,11 @@ _VALIDATORS = {
     "revisit_by": revisit_by,
     "enforcement": enforcement,
 }
+# Validators that take an argument from the field's `validate` name (`name:argument`).
+_ARGUMENT_VALIDATORS = {
+    "scanner_workflow": scanner_workflow,
+}
+
 _REPO_VALIDATORS = {
     "tracked_path": tracked_path,
     "ci_step": ci_step,
@@ -172,7 +206,10 @@ def check(name: str, value: object, *, repo: Path | None = None) -> str | None:
     """
     if not name:
         return None
-    if name not in _VALIDATORS and name not in _REPO_VALIDATORS:
+    # `name:argument` parameterises a validator - `scanner_workflow:gitleaks` is the rule for the
+    # scanner named on the same profile (`DR-51` (5)).
+    name, _, argument = name.partition(":")
+    if name not in _VALIDATORS and name not in _REPO_VALIDATORS and name not in _ARGUMENT_VALIDATORS:
         raise KeyError(f"unknown validator: {name!r}")
     if value is None:
         value = ""
@@ -180,6 +217,8 @@ def check(name: str, value: object, *, repo: Path | None = None) -> str | None:
         return None  # booleans and lists are constrained by their widget, not by a text rule
     if rules.PLACEHOLDER_PATTERN.search(value):
         return PLACEHOLDER
+    if name in _ARGUMENT_VALIDATORS:
+        return _ARGUMENT_VALIDATORS[name](value, repo, argument)
     if name in _REPO_VALIDATORS:
         return _REPO_VALIDATORS[name](value, repo)
     return _VALIDATORS[name](value)

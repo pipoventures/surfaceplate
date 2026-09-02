@@ -387,6 +387,69 @@ def test_the_cap_is_on_the_offer_not_on_the_answer(repo: Path) -> None:
     )
 
 
+def test_the_wizard_proposes_nothing_the_checker_rejects(tmp: Path) -> None:
+    """`F83`, `F84` / `DR-51` (5). Plutos's run wrote `ci.yml`, which never mentions gitleaks,
+    as the scanner's workflow, and a work inventory quoting `TODO` as the authority map. The
+    checker rejected both. Discovery now applies the checker's own rules before proposing."""
+    repo = tmp / "parity-repo"
+    repo.mkdir()
+    _init(repo)
+    (repo / ".github" / "workflows").mkdir(parents=True)
+    (repo / ".github" / "workflows" / "ci.yml").write_text(
+        "jobs:\n  t:\n    steps:\n      - name: Run the tests\n        run: pytest\n", encoding="utf-8")
+    (repo / ".github" / "workflows" / "secret-scan.yml").write_text(
+        "jobs:\n  scan:\n    steps:\n      - name: Run gitleaks (blocking)\n        run: gitleaks detect\n", encoding="utf-8")
+    (repo / ".github" / "workflows" / "mentions-only.yml").write_text(
+        "# gitleaks is configured elsewhere\njobs:\n  t:\n    steps:\n      - name: Lint\n        run: ruff\n", encoding="utf-8")
+    (repo / "docs" / "implementation").mkdir(parents=True)
+    (repo / "docs" / "implementation" / "owed_work_inventory_2026-08-24.md").write_text(
+        "# Owed work inventory\n\nSweep for TODO and TBD markers.\n", encoding="utf-8")
+    (repo / "docs" / "authority.md").write_text("# Authority map\n\nWhich document wins.\n", encoding="utf-8")
+    (repo / "docs" / "empty.md").write_text("", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "fixture")
+
+    found = discover.scan(repo)
+    check("scanner workflows are the ones where a step runs the scanner",
+          found.scanner_workflows == (".github/workflows/secret-scan.yml",), str(found.scanner_workflows))
+    check("a file the checker would reject is known, with the reason",
+          set(found.rejected) == {"docs/implementation/owed_work_inventory_2026-08-24.md", "docs/empty.md"}
+          and "placeholder" in found.rejected["docs/implementation/owed_work_inventory_2026-08-24.md"]
+          and "empty" in found.rejected["docs/empty.md"], str(found.rejected))
+    check("it is still offered (DR-38: the adopter chooses from everything found)",
+          "docs/implementation/owed_work_inventory_2026-08-24.md" in found.artefacts)
+    check("authority_map no longer matches on the word inventory",
+          "inventory" not in discover.GATE_KEYWORDS["authority_map"]
+          and discover.matched_for_gate(found.artefacts, "authority_map") == ["docs/authority.md"],
+          str(discover.matched_for_gate(found.artefacts, "authority_map")))
+    proposals = {p.field: p for p in defaults.propose_gates(level="standard", builds_ui=False, mode="simple", found=found, adoption_date="2026-09-02")}
+    check("the proposal for authority_map is the authority map",
+          proposals.get("gates.authority_map.artefact") is not None and proposals["gates.authority_map.artefact"].value == "docs/authority.md",
+          str(proposals.get("gates.authority_map.artefact")))
+    rejected_only = discover.Discovered(artefacts=("docs/implementation/owed_work_inventory_2026-08-24.md",), rejected={"docs/implementation/owed_work_inventory_2026-08-24.md": "contains a template placeholder"})
+    proposals = {p.field: p for p in defaults.propose_gates(level="standard", builds_ui=False, mode="simple", found=rejected_only, adoption_date="2026-09-02")}
+    check("a rejected file is never proposed, even when it is the only match",
+          "gates.work_registration.artefact" not in proposals and "gates.authority_map.artefact" not in proposals, str(list(proposals)))
+    controls = {p.field: p for p in defaults.propose_controls(level="essential", mode="simple", found=found)}
+    check("the scanner workflow proposed is the one that runs the scanner",
+          controls["controls.scanner.wired_in"].value == ".github/workflows/secret-scan.yml", str(controls.get("controls.scanner.wired_in")))
+
+    # `F80` / `DR-51` (4): every choice is described when selected.
+    d = discover.describe(repo, "docs/implementation/owed_work_inventory_2026-08-24.md", gate_id="authority_map", found=found)
+    check("an artefact is described by its heading, its match and the checker's verdict",
+          "Owed work inventory" in d and "did not match" in d and "reject" in d, d)
+    d = discover.describe(repo, "docs/authority.md", gate_id="authority_map", found=found)
+    check("a matching artefact says which word matched", "matched" in d and "authority" in d and "reject" not in d, d)
+    d = discover.describe(repo, ".github/workflows/ci.yml", scanner="gitleaks", found=found)
+    check("a workflow that never mentions the scanner says so", "never mentions gitleaks" in d, d)
+    d = discover.describe(repo, ".github/workflows/mentions-only.yml", scanner="gitleaks", found=found)
+    check("a workflow that mentions it in a comment says no step runs it", "no step runs" in d, d)
+    d = discover.describe(repo, ".github/workflows/secret-scan.yml", scanner="gitleaks", found=found)
+    check("a workflow that runs it names the step", "Run gitleaks (blocking)" in d, d)
+    d = discover.describe(repo, "docs/missing.md", gate_id="authority_map", found=found)
+    check("a path that is not there says so", "not" in d.lower() and "exist" in d.lower(), d)
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory() as tmp_str:
         tmp = Path(tmp_str)
@@ -410,6 +473,7 @@ def main() -> int:
 
         print("\nlist sizes")
         test_the_cap_is_on_the_offer_not_on_the_answer(repo)
+        test_the_wizard_proposes_nothing_the_checker_rejects(tmp)
 
     print()
     if FAILURES:
