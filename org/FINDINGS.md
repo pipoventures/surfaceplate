@@ -148,6 +148,10 @@ an unknown number of releases with nothing noticing.
 | F80 | The gate artefact choices carry no explanation of what each file is, what adopting it costs or what it buys | high | Open — recorded at `ACT-047`; remedy needs `H11`'s decision |
 | F81 | No opening screen: the wizard starts at the first question with no name, version, owner or account of what it will do | low | Open — recorded at `ACT-047`; remedy needs `H11`'s decision |
 | F82 | The wizard explains its fields, not the framework: a reader who does not know Surfaceplate cannot adopt it from the wizard alone | high | Open — recorded at `ACT-047`; remedy needs `H11`'s decision |
+| F83 | The scanner workflow is proposed without the checker's own test: discovery offered `ci.yml`, which never mentions gitleaks, while two workflows that run it were not proposed | high | Open — `ACT-048` (`DR-51` (5)) |
+| F84 | An artefact is proposed on a keyword match with no relevance floor and without the checker's content rules: a work inventory quoting `TODO` and `TBD` was proposed as the authority map | high | Open — `ACT-048` (`DR-51` (5)) |
+| F85 | The closing report says the checker "passes" on a graced WARN with findings | medium | Open — `ACT-048` (`DR-51` (6)) |
+| F86 | A hand edit to the profile after the write leaves the provenance record asserting the old origin; nothing records a post-write edit | low | Open — needs a decision; not in `DR-51` |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1289,6 +1293,86 @@ the review, or which keys move through it.
 version, licence, authors) and the install record (installed version, digest, maintainer), stating
 what will be written and where, and carrying the version comparison. Low on its own; it is the
 natural host for `F78` and the first page of `F82`.
+
+## F83 — The scanner workflow is proposed without the checker's own test: discovery offered `ci.yml`, which never mentions gitleaks, while two workflows that run it were not proposed
+
+**Severity: high. Open.**
+
+Recorded under `ACT-048` from the maintainer's completed `H1` run of `adopt` against Plutos on 2026-09-02, reported in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z). Closes by `ACT-048` under `DR-51`.
+
+The profile Plutos's run wrote carries `wired_in: [.github/workflows/ci.yml]`, recorded in the
+provenance sidecar as *discovered: found: .github/workflows/ci.yml*. The checker then reported
+`SP046`: *".github/workflows/ci.yml is named as where the scanner runs, but the file never
+references it."* Plutos has `secret-scan.yml` and `secret-scan-history.yml`, both with a step
+that runs gitleaks; neither was proposed. `plan.controls_plan` builds the candidates as every
+artefact whose path contains `workflow` (`plan.py:605`), `defaults.propose_controls` takes the
+first (`defaults.py:161-164`), and the field's validator is `tracked_path`, which never reads
+the file. `SP046`'s rule — the file mentions the scanner and a step runs it
+(`check_conformance.py:1847-1890`) — has no counterpart on the wizard's side, so the parity
+`DR-48` established is missing exactly where the maintainer's run failed. High because the
+value is proposed, shown as discovered, and accepted through a dropdown that says nothing about
+it (`F80`); the profile is then wrong about the repository's only checked baseline control.
+
+**Remedy (`DR-51` (5)):** candidates are the workflows where a step runs the named scanner;
+the field's validator refuses any other file with the checker's own words; the parity table's
+`SP046` row names it.
+
+## F84 — An artefact is proposed on a keyword match with no relevance floor and without the checker's content rules: a work inventory quoting `TODO` and `TBD` was proposed as the authority map
+
+**Severity: high. Open.**
+
+Recorded under `ACT-048` from the maintainer's completed `H1` run of `adopt` against Plutos on 2026-09-02, reported in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z). Closes by `ACT-048` under `DR-51`.
+
+The `authority_map` gate's artefact was written as
+`docs/implementation/owed_work_inventory_2026-08-24.md`, recorded as *discovered: the closest
+match in this repository*. The checker reported `SP032`: *"still contains template
+placeholders"* — the file discusses a grep for `TODO` and `TBD`. Two defects. The match was on
+the word `inventory` (`discover.GATE_KEYWORDS["authority_map"]`), which is a word in the seed's
+own path and in a work inventory alike, and Plutos has no authority map at all; a proposal was
+made where the honest answer was that nothing matched. And `matched_for_gate` never reads the
+candidate, so the checker's own rules for an artefact — non-empty, no placeholder token
+(`check_conformance.py:2960-3045`) — were not applied before proposing it. `F40` closed the
+"README as register" case by requiring a keyword match; this is the same shape one step on.
+High for the same reason as `F83`: proposed, shown as discovered, accepted without a way to
+know (`F80`), and the gate is mandatory at `standard`.
+
+**Remedy (`DR-51` (5)):** an artefact the checker would reject is never proposed and is
+described as such in the list; `tracked_path` refuses it with the checker's words; the
+`authority_map` words drop `inventory`.
+
+## F85 — The closing report says the checker "passes" on a graced WARN with findings
+
+**Severity: medium. Open.**
+
+Recorded under `ACT-048` from the maintainer's completed `H1` run of `adopt` against Plutos on 2026-09-02, reported in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z). Closes by `ACT-048` under `DR-51`.
+
+The run's closing lines, verbatim: *"WARN - adoption is incomplete, but grace expires
+2026-10-01 (29 day(s) remaining). ... The checker passes against what you just wrote."*
+`cli._report_written` prints the second sentence whenever the checker's exit code is 0
+(`cli.py:184-185`), and `DR-49` (2) gives 0 to both a pass and a graced WARN. Two findings
+stood on the screen above the word "passes". Medium: nothing is written wrongly, but the
+sentence contradicts the checker directly beneath it, in the tool that exists to stop that.
+
+**Remedy (`DR-51` (6)):** the report states the verdict as the checker gave it — a pass, or
+the count of graced findings and the date the grace ends — read from the report rather than
+inferred from the code.
+
+## F86 — A hand edit to the profile after the write leaves the provenance record asserting the old origin; nothing records a post-write edit
+
+**Severity: low. Open.**
+
+Recorded under `ACT-048` from the maintainer's completed `H1` run of `adopt` against Plutos on 2026-09-02, reported in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z). No closing activity yet; it needs a decision of its own.
+
+The closing report tells the adopter to *"edit application-profile.yaml directly from here"*,
+and Plutos's two checker findings are fixed exactly that way. The sidecar then still says
+`discovered` beside a value a human typed, and its header says it is machine-owned and not to be
+edited by hand. `DR-47` records origins for the wizard's write and is silent on what comes
+after. Low because the checker does not read the sidecar; it matters to whoever reads the record
+to know what was asked and what was typed, which is the record's only purpose.
+
+**Remedy hypothesis:** an `adopt --edit <path> <value>` that records the edit as typed with a
+timestamp, or a checker note when the profile is newer than its record. A decision, not
+`DR-51`'s.
 
 ## F82 — The wizard explains its fields, not the framework: a reader who does not know Surfaceplate cannot adopt it from the wizard alone
 
