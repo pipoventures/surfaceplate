@@ -53,7 +53,7 @@ def check(name: str, condition: bool, detail: str = "") -> None:
         print(f"  FAIL  {name}  {detail}")
 
 
-class Host(App):
+class Host(App, inherit_bindings=False):  # as the wizard's own apps (`F73`): Ctrl+Q is the screen's
     """Hosts one screen so it can be driven in isolation."""
 
     CSS_PATH = ROOT / "surfaceplate" / "adopt" / "tui" / "app.tcss"
@@ -349,6 +349,53 @@ def test_choosing_the_create_it_row_commits_without_a_refusal() -> None:
     section = plan.controls_plan(level="essential", mode="simple", found=found)
     ref = next(f for f in section.fields if f.id == "assurance_findings.implementation_reference")
     check("the control's reference is a dropdown whose first row is the seed", ref.kind == "select" and ref.choices[0][0] == ref.seed, str(ref.choices[:1]))
+
+
+def test_continuing_past_the_folded_gates_asks_once() -> None:
+    """`F96` / `DR-57`. With the floor complete and the gates beyond it folded and undecided,
+    Ctrl+S asks one question naming the count. `y` declares them all not applicable as one
+    recorded act and continues; `n` opens the fold on the first undecided gate; Ctrl+Q at the
+    question changes nothing."""
+    from surfaceplate.adopt.tui.screens import CANCELLED, GatesScreen
+
+    found = plan.discover.Discovered(artefacts=("activity/register.md",), paths=("src/**",))
+    specs = plan.gate_plan(level="standard", builds_ui=False, mode="simple", found=found)
+    section = plan.gates_plan(level="standard", builds_ui=False, mode="simple", found=found)
+    floor = {}
+    for spec in specs:
+        if spec.mandatory:
+            floor[f"{spec.id}.artefact"] = "activity/register.md"
+            floor[f"{spec.id}.paths"] = "src/**"
+            floor[f"{spec.id}.effective_from"] = "2026-09-01"
+    beyond = [s.id for s in specs if not s.mandatory and not s.auto_status]
+
+    async def drive(keys):
+        screen = GatesScreen(specs, section, initial=floor, level="standard")
+        app = Host(screen)
+        async with app.run_test(size=(80, 24)) as pilot:
+            await pilot.pause(); await pilot.pause()
+            await pilot.press("ctrl+s")
+            await pilot.pause(); await pilot.pause()
+            asked = type(app.screen).__name__, " ".join(s.text for s in app.screen._compositor.render_strips())
+            for key in keys:
+                await pilot.press(key)
+                await pilot.pause(); await pilot.pause()
+            state = (type(app.screen).__name__, getattr(screen, "_folded", None), screen._focused_gate_id(), set(screen.bulk_gates))
+        return asked, state, app.result
+
+    asked, state, result = asyncio.run(drive(["y"]))
+    check("Ctrl+S with folded undecided gates asks a question naming the count",
+          asked[0] == "FoldedUndecidedScreen" and f"{len(beyond)} gates" in asked[1] and "not applicable" in asked[1], asked[1][:300])
+    check("y declares them all not applicable as one act and continues",
+          isinstance(result, dict) and all(result.get(f"{g}.status") == "not_applicable" for g in beyond) and state[3] == set(beyond), repr(result)[:200])
+
+    asked, state, result = asyncio.run(drive(["n"]))
+    check("n opens the fold on the first undecided gate, nothing decided",
+          state[0] == "GatesScreen" and state[1] is False and state[2] == beyond[0] and not state[3] and result is None, str(state))
+
+    asked, state, result = asyncio.run(drive(["ctrl+q"]))
+    check("Ctrl+Q at the question changes nothing: the list is back, still folded, nothing decided",
+          state[0] == "GatesScreen" and state[1] is True and not state[3] and result is None, str(state))
 
 # ---------------------------------------------------------------------------------------------
 # Highlight is not selection (mockup frame 02: "nothing is chosen yet")
@@ -1487,6 +1534,7 @@ def main() -> int:
     test_the_opening_app_returns_the_three_answers()
     test_ctrl_q_reaches_the_screens_own_cancel()
     test_choosing_the_create_it_row_commits_without_a_refusal()
+    test_continuing_past_the_folded_gates_asks_once()
     test_the_help_beside_a_field_states_what_it_decides_and_describes_the_chosen_file()
 
     print("\nconformance level (mockup frame 02)")

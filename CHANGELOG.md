@@ -1126,6 +1126,9 @@ a forward move (`F92`).
 under one counted heading, so `standard` shows four gates and `full` eleven before anything is opened;
 the counter and the above-floor list name the floor (`F91`).
 
+`ACT-056` (`DR-57`): continuing past the folded gates asks once - declare them all not applicable as
+one recorded act, or open them - instead of refusing by naming a gate the reader could not see (`F96`).
+
 ### `F58` closed: every agent now receives the skills, not only Copilot
 
 `AGENTS.md` tells every adopting repository that the skills' *"required inputs, gates and mandatory

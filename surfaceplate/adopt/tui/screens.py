@@ -27,7 +27,7 @@ import dataclasses
 import textwrap
 from typing import Callable
 
-from textual import events, on
+from textual import events, on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, HorizontalGroup, Vertical, VerticalScroll
@@ -1233,6 +1233,37 @@ class GatesScreen(_SectionScreenBase):
             else "Nothing is undecided."
         )
 
+    @work
+    async def _ask_about_the_fold(self, count: int) -> None:
+        """The question, awaited so that it has been popped before this list acts on the answer
+        (a dismissal callback runs while the question is still active, and a dismissal of this
+        list from there was dropped). `y`: the bulk command, then continue; `n`: open the fold on
+        the first undecided gate; anything else: back to the list as it was."""
+        answer = await self.app.push_screen_wait(FoldedUndecidedScreen(self.level, count))
+        if answer == "all":
+            self.action_bulk_not_applicable()
+            # A radio set reports its pressed button through a message; until those have been
+            # handled the gates still read as undecided and the question would be asked twice.
+            import asyncio
+
+            for _ in range(50):
+                if not self._undecided_folded():
+                    break
+                await asyncio.sleep(0.01)
+            self.action_commit()
+            return
+        if answer == "open":
+            undecided = self._undecided_folded()
+            self._folded = False
+            self._refresh_visibility()
+            if undecided:
+                try:
+                    self.query_one(f"#f-{undecided[0].id}--status").focus()
+                except Exception:
+                    pass
+            return
+        self._set_hint()
+
     def action_jump_section(self) -> None:
         headings = [h for h in self.query(".section-subline") if h.display]
         if not headings:
@@ -1244,7 +1275,18 @@ class GatesScreen(_SectionScreenBase):
         self._jump_index = current
         scroll.scroll_to_widget(headings[current], top=True)
 
+    def _undecided_folded(self) -> list[plan.GateSpec]:
+        answers = self._answers()
+        beyond = {s.id for s in self.beyond}
+        return [s for s in self.specs if s.id in beyond and self._status_of(s, answers) is None] if self._folded else []
+
     def action_commit(self) -> None:
+        # `F96` / `DR-57`: with the fold closed and gates behind it undecided, refusing by naming
+        # one of them named something the reader could not see. Ask once, naming the count.
+        folded = self._undecided_folded()
+        if folded:
+            self._ask_about_the_fold(len(folded))
+            return
         answers = self._answers()
         for spec in self.specs:
             status = self._status_of(spec, answers)
@@ -1273,6 +1315,57 @@ class GatesScreen(_SectionScreenBase):
             if spec.mandatory or spec.auto_status:
                 answers.pop(f"{spec.id}.status", None)
         self.dismiss({k: v for k, v in answers.items() if v is not None})
+
+
+class FoldedUndecidedScreen(Screen):
+    """One question at Ctrl+S, when gates beyond the floor are folded and undecided (`DR-57`).
+
+    The bulk command of `DR-47` (4), put where the reader meets the need for it: declare them all
+    not applicable as one recorded act, or open them and decide each. The tool decides nothing;
+    quitting here leaves the list as it was.
+    """
+
+    BINDINGS = [
+        Binding("y", "all", "all not applicable", show=True),
+        Binding("n", "open", "open them", show=True),
+        Binding("ctrl+q", "back", "back to the list", show=True),
+    ]
+
+    def __init__(self, level: str, count: int) -> None:
+        super().__init__()
+        self.level = level
+        self.count = count
+
+    def compose(self) -> ComposeResult:
+        level = f"{self.level} " if self.level else ""
+        with Frame(id="frame"):
+            yield Static(f"[{self.count} gates beyond the {level}floor are undecided]", classes="section-header", markup=False)
+            yield Static(
+                "They are not required by the level, but a gate is not decided until you decide it: not "
+                "applicable is a decision, and a good one for a gate that does not apply here. Silence is not.",
+                classes="intro",
+                markup=False,
+            )
+            yield Static(
+                f"  [y]  declare all {self.count} not applicable now, recorded as one act of yours with its count",
+                classes="note", markup=False,
+            )
+            yield Static("  [n]  open them and decide each one", classes="note", markup=False)
+            yield Static(
+                "  Either way, every gate in the profile carries a status you gave it. A gate declared not "
+                "applicable is never audited; one left required is audited from its effective date.",
+                classes="recap", markup=False,
+            )
+        yield Static("[y] all not applicable  [n] open them  [Ctrl+Q] back to the list", id="hint", markup=False)
+
+    def action_all(self) -> None:
+        self.dismiss("all")
+
+    def action_open(self) -> None:
+        self.dismiss("open")
+
+    def action_back(self) -> None:
+        self.dismiss(None)
 
 
 class EditLineScreen(Screen):

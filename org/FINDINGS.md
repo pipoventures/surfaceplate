@@ -161,7 +161,7 @@ an unknown number of releases with nothing noticing.
 | F93 | A record-directory control's reference is proposed from any directory holding YAML: four controls were proposed `config/accounts` and the checker rejected every record in it | high | Closed — `ACT-054`; see the body |
 | F94 | An archived document is proposed as a gate's artefact on a keyword match: two gates were proposed files under `docs/archive/` | medium | Closed — `ACT-054`; see the body |
 | F95 | A focus-driven scroll is animated, and the scrollbar keeps a fractional thumb position from the animation's last frame, so a golden of a scrolled screen differed one run in four | low | Closed — `ACT-055`; see the body |
-| F96 | With the gates beyond the floor folded, Ctrl+S refused by naming a folded gate: an optional gate read as required | medium | Open — `ACT-056` (`DR-57`) |
+| F96 | With the gates beyond the floor folded, Ctrl+S refused by naming a folded gate: an optional gate read as required | medium | Closed — `ACT-056` (`DR-57`); see the body |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1491,7 +1491,7 @@ field is asked with its seed row first.
 
 ## F96 — With the gates beyond the floor folded, Ctrl+S refused by naming a folded gate: an optional gate read as required
 
-**Severity: medium. Open.**
+**Severity: medium. Closed.**
 
 Recorded under `ACT-056` from the maintainer's fourth run, at `standard` with a user interface,
 on 2026-09-02 in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z). Closes by `ACT-056` under `DR-57`.
@@ -1507,6 +1507,8 @@ requirement. Medium: the first thing a reader meets after the fold is a contradi
 
 **Remedy (`DR-57`):** at Ctrl+S with folded undecided gates, one question naming the count:
 declare them all not applicable as one recorded act, or open them and decide each.
+
+**Closed by `ACT-056` (`DR-57`), 2026-09-02.** Ctrl+S with the fold closed and gates behind it undecided pushes `FoldedUndecidedScreen`, which names the level and the count and offers two keys: `y` runs the bulk command (recorded as one act with its count, as before) and continues; `n` opens the fold on the first undecided gate; Ctrl+Q returns to the list unchanged. With the fold open an undecided gate still refuses by name, because the reader can see it. `tests/test_adopt_tui.py::test_continuing_past_the_folded_gates_asks_once`, seen to fail first on all three outcomes.
 
 ## F95 — A focus-driven scroll is animated, and the scrollbar keeps a fractional thumb position from the animation's last frame, so a golden of a scrolled screen differed one run in four
 
