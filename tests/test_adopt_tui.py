@@ -307,6 +307,48 @@ def test_ctrl_q_reaches_the_screens_own_cancel() -> None:
         for cls, original in originals.items():
             cls.action_cancel = original  # type: ignore[method-assign]
 
+
+def test_choosing_the_create_it_row_commits_without_a_refusal() -> None:
+    """`F87` / `DR-54` (1): on the gate list and on a form, the seed row is the first choice, its
+    help says what the seed contains, and choosing it commits - the offer follows, the field's
+    validator does not refuse a file that is about to be created."""
+    import tempfile
+
+    from textual.widgets import Select, Static
+
+    from surfaceplate.adopt import scaffold
+
+    repo = Path(tempfile.mkdtemp(prefix="surfaceplate-seed-")) / "repo"
+    repo.mkdir()
+    found = plan.discover.Discovered(free_seeds={"work_registration": scaffold.SEEDABLE["work_registration"][0]},
+                                     free_control_seeds={"assurance_findings": scaffold.SEEDABLE_CONTROLS["assurance_findings"][0]})
+    specs = plan.gate_plan(level="essential", builds_ui=False, mode="simple", found=found)
+    gates = plan.gates_plan(level="essential", builds_ui=False, mode="simple", found=found)
+
+    async def on_gates():
+        app = Host(GatesScreen(specs, gates, repo=repo))
+        async with app.run_test(size=(120, 60)) as pilot:
+            await pilot.pause()
+            select = app.screen.query_one("#f-work_registration--artefact", Select)
+            select.focus(); await pilot.pause()
+            first = [v for _l, v in select._options][0] if hasattr(select, "_options") else None
+            select.value = scaffold.SEEDABLE["work_registration"][0]
+            await pilot.pause(); await pilot.pause()
+            help_text = str(app.screen.query_one("#help-work_registration--artefact", Static).content)
+            app.screen.query_one("#f-work_registration--paths").value = "**"
+            await pilot.pause()
+            await pilot.press("ctrl+s")
+            await pilot.pause(); await pilot.pause()
+        return help_text, app.result
+
+    help_text, result = asyncio.run(on_gates())
+    check("the help says the seed will be created and what it contains", "create" in help_text.lower() and "register" in help_text.lower(), help_text[:300])
+    check("Ctrl+S commits with the seed chosen (the offer follows)", isinstance(result, dict) and result.get("work_registration.paths") == "**", repr(result)[:200])
+
+    section = plan.controls_plan(level="essential", mode="simple", found=found)
+    ref = next(f for f in section.fields if f.id == "assurance_findings.implementation_reference")
+    check("the control's reference is a dropdown whose first row is the seed", ref.kind == "select" and ref.choices[0][0] == ref.seed, str(ref.choices[:1]))
+
 # ---------------------------------------------------------------------------------------------
 # Highlight is not selection (mockup frame 02: "nothing is chosen yet")
 # ---------------------------------------------------------------------------------------------
@@ -1443,6 +1485,7 @@ def main() -> int:
     test_every_screen_renders_its_whole_plan()
     test_the_opening_app_returns_the_three_answers()
     test_ctrl_q_reaches_the_screens_own_cancel()
+    test_choosing_the_create_it_row_commits_without_a_refusal()
     test_the_help_beside_a_field_states_what_it_decides_and_describes_the_chosen_file()
 
     print("\nconformance level (mockup frame 02)")

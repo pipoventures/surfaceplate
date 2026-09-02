@@ -1300,6 +1300,88 @@ def test_a_draft_with_stale_ids_is_not_resumed_into_a_crash(tmp: Path) -> None:
     check("the written profile carries the fixture's level, not the stale one", yaml.safe_load((repo / wizard.PROFILE_PATH).read_text(encoding="utf-8"))["conformance_level"] == "essential")
 
 
+def test_the_create_it_row_leads_to_a_scaffold_for_gates_and_controls(tmp: Path) -> None:
+    """`F87`, `F88` / `DR-54` (1). A seedable field's dropdown opens with "create it from the
+    framework's seed"; choosing that row leads to the offer, and the value is recorded as
+    scaffolded and written by the run - for a gate and for the assurance_findings control."""
+    from surfaceplate.adopt import flow as _flow
+    from surfaceplate.adopt import scaffold
+
+    repo = make_installed_repo(tmp, "create-it-repo")
+    (repo / "main.py").write_text("x = 1\n", encoding="utf-8")
+    (repo / "requirements.txt").write_text("PyYAML==6.0.3\n", encoding="utf-8")
+    (repo / ".github" / "workflows").mkdir(parents=True, exist_ok=True)
+    (repo / ".github" / "workflows" / "scan.yml").write_text("jobs:\n  s:\n    steps:\n      - name: Run gitleaks\n        run: gitleaks detect\n", encoding="utf-8")
+    _commit_all(repo, "fixture")
+    flow = _flow.Flow(repo, {"standard_version": "0.16.0", "framework_digest": "x"})
+    flow.answer_decisions({"identity.application_id": "app", "identity.owner": "O", "stack.builds_user_interface": "no",
+                           "risk.relied_on_outside_team": "no", "risk.material_quantitative_output": "no",
+                           "risk.data_classification": "internal", "wrap.release_route": "manual", "risk.risk_profile": ""})
+    flow.answer_level({"conformance_level": "essential"})
+    gate = next(s for s in flow.gate_specs() if s.id == "work_registration")
+    artefact = next(f for f in gate.fields if f.id == "artefact")
+    seed_path = scaffold.SEEDABLE["work_registration"][0]
+    check("the gate's artefact field is a dropdown even with nothing to pick from", artefact.kind == "select", artefact.kind)
+    check("whose first row creates the seed", artefact.choices[0][0] == seed_path and "create it" in artefact.choices[0][1], str(artefact.choices[:1]))
+    check("and the field knows its seed", artefact.seed == seed_path, artefact.seed)
+    flow.answer_gates({"work_registration.artefact": seed_path, "work_registration.paths": "**", "work_registration.effective_from": "2026-09-01"})
+    remainder = flow.remainder_plan()
+    above = next(f for f in remainder.fields if f.id == "controls.above_floor")
+    answers = {f.id: (f.default if f.default else "") for f in remainder.fields}
+    answers["controls.above_floor"] = ["assurance_findings"]
+    ref = next(f for f in remainder.fields if f.id == "controls.assurance_findings.implementation_reference")
+    control_seed = scaffold.SEEDABLE_CONTROLS["assurance_findings"][0]
+    check("the control's reference dropdown opens with its seed", ref.kind == "select" and ref.choices[0][0] == control_seed and ref.seed == control_seed, str(ref.choices[:2]))
+    answers["controls.assurance_findings.implementation_reference"] = control_seed
+    answers["controls.assurance_findings.rationale"] = "Known limitations are written down."
+    for spec in remainder.fields:
+        if spec.validate and not answers.get(spec.id) and spec.kind in ("text", "textarea"):
+            answers[spec.id] = "an answer"
+    flow.answer_remainder(answers)
+    offers = flow.scaffold_offers()
+    check("both seeds are offered", {o.path for o in offers} >= {seed_path, control_seed}, str([o.path for o in offers]))
+    flow.accept_scaffold(offers)
+    check("the control's reference is recorded as scaffolded", flow.origins["controls.assurance_findings.implementation_reference"].kind == "scaffolded")
+    review = flow.review()
+    check("the review has nothing to refuse", not review.error, review.error)
+
+
+def test_adopt_edit_rewrites_one_line_and_records_it(tmp: Path) -> None:
+    """`F86` / `DR-54` (4). After the write, `adopt --edit <path> <value>` changes one line
+    through the same renderer and verification as the wizard, and the sidecar records it as
+    typed with a timestamp and the reason. A path the profile lacks is refused with the nearest
+    named; a line the review marks as not editable is refused."""
+    from surfaceplate import cli
+    from surfaceplate.adopt import provenance
+
+    repo = make_installed_repo(tmp, "edit-repo")
+    seed_referenced_files(repo)
+    wizard.run(repo, ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS)))
+    before = yaml.safe_load((repo / wizard.PROFILE_PATH).read_text(encoding="utf-8"))
+    written = wizard.edit(repo, "owner", "Platform Guild", because="the team was renamed")
+    after = yaml.safe_load(written.read_text(encoding="utf-8"))
+    check("the one line changed", after["owner"] == "Platform Guild" and before["owner"] != "Platform Guild")
+    after["owner"] = before["owner"]
+    check("and nothing else", after == before)
+    record = yaml.safe_load((repo / provenance.PROVENANCE_PATH).read_text(encoding="utf-8"))
+    entry = record["fields"]["owner"]
+    check("the sidecar records the edit as typed, with a timestamp and the reason",
+          entry["origin"] == "typed" and entry.get("typed_at") and "renamed" in entry.get("detail", ""), str(entry))
+    check("and keeps a history of edits", record.get("edits") and record["edits"][-1]["path"] == "owner", str(record.get("edits")))
+    wizard.edit(repo, "baseline_controls.secret_hygiene.scanner.wired_in[0]", "workflows/secret-scan.yml", because="same file, by index")
+    check("a list element is addressed by index", yaml.safe_load((repo / wizard.PROFILE_PATH).read_text(encoding="utf-8"))["baseline_controls"]["secret_hygiene"]["scanner"]["wired_in"] == ["workflows/secret-scan.yml"])
+    for path, value, why in (("ownr", "x", "a path the profile lacks"), ("conformance_level", "full", "a line the review marks not editable"), ("prerequisites[0].status", "deferred", "a gate's status")):
+        try:
+            wizard.edit(repo, path, value)
+            outcome = "edited"
+        except wizard.WriteRefused as exc:
+            outcome = exc.detail
+        check(f"refused: {why}", outcome != "edited" and (path.split(".")[-1].split("[")[0] in outcome or "owner" in outcome), outcome)
+    code = cli.main(["adopt", "--target", str(repo), "--edit", "display_name", "Billing", "--because", "shorter"])
+    check("the CLI flag exits 0 and applies", code == 0 and yaml.safe_load((repo / wizard.PROFILE_PATH).read_text(encoding="utf-8"))["display_name"] == "Billing", str(code))
+    check("the profile still passes the checker", _schema_ok(repo, repo / wizard.PROFILE_PATH))
+
+
 def test_the_run_opens_with_the_tool_and_the_install_named(tmp: Path) -> None:
     """`F81` / `DR-51` (2). Before the first question the interview is handed what the opening
     screen shows: the tool's name, version, licence and publisher, the installed version and
@@ -1970,6 +2052,8 @@ def main() -> int:
         test_a_schema_refusal_names_the_profile_line(tmp)
         test_the_profile_is_written_atomically(tmp)
         test_a_draft_with_stale_ids_is_not_resumed_into_a_crash(tmp)
+        test_the_create_it_row_leads_to_a_scaffold_for_gates_and_controls(tmp)
+        test_adopt_edit_rewrites_one_line_and_records_it(tmp)
         test_the_run_opens_with_the_tool_and_the_install_named(tmp)
         test_refuses_when_the_tool_and_the_install_differ(tmp)
         test_package_metadata_agrees_with_pyproject()

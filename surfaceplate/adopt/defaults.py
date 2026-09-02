@@ -151,17 +151,23 @@ def propose_controls(*, level: str, mode: str, found: discover.Discovered) -> li
                 )
             continue
         if spec.id.endswith(".implementation_reference"):
-            if spec.choices:
-                out.append(
-                    Proposal(key, spec.choices[0][0], provenance.DISCOVERED, f"found: {spec.choices[0][0]}")
-                )
+            # `DR-54` (1): the first row may be the seed's "create it"; a proposal comes only from
+            # something discovery found. With nothing found, the field is asked and the human
+            # may choose the row - the tool never proposes to create a file.
+            found_only = [v for v, _label in spec.choices if v != spec.seed and v not in found.rejected]
+            control_id = spec.id.rsplit(".", 1)[0]
+            if control_id in catalogue.PATTERN_A_CONTROLS and control_id != "dependency_lock":
+                # `F40`, `F84`: the offer ranks every artefact, but a proposal needs a match.
+                found_only = [v for v in found_only if any(w in v.lower() for w in plan.FINDINGS_WORDS)]
+            if found_only:
+                out.append(Proposal(key, found_only[0], provenance.DISCOVERED, f"found: {found_only[0]}"))
             continue
         if spec.id == "scanner.name":
             out.append(Proposal(key, spec.default, provenance.EXAMPLE, "the scanner the examples name"))
         elif spec.id == "scanner.wired_in" and spec.choices:
-            out.append(
-                Proposal(key, spec.choices[0][0], provenance.DISCOVERED, f"found: {spec.choices[0][0]}")
-            )
+            found_only = [v for v, _label in spec.choices if v != spec.seed]
+            if found_only:
+                out.append(Proposal(key, found_only[0], provenance.DISCOVERED, f"found: {found_only[0]}"))
     return out
 
 

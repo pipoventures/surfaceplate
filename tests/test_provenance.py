@@ -319,6 +319,12 @@ def _typed_with_sentinels(repo: Path, level: str) -> tuple:
                 interview.answers[key] = scanner_workflow()
             else:
                 interview.answers[key] = "main.py" if spec.validate in ("tracked_path",) else token()
+        for spec in section.fields:
+            # `DR-54` (1): a dropdown whose only row is "create it" - chosen, so the offer follows
+            # and the value is recorded as scaffolded, which is what this walk then checks.
+            key = f"{prefix}{spec.id}"
+            if key not in interview.answers and spec.kind == "select" and spec.seed:
+                interview.answers[key] = spec.seed
         return original_answer(section, prefix)
 
     interview._answer = answer  # type: ignore[method-assign]

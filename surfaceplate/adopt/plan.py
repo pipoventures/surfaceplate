@@ -60,6 +60,10 @@ NOT_CHECKED_WRONG = "a misleading profile; the checker never reads this"
 RELEASE_ROUTE_DECIDES = "what the profile records as the human and platform controls between a merge and a release; not verified"
 RELEASE_ROUTE_WRONG = "a route nobody follows is a promise the profile makes on your behalf"
 
+# Words that mark a file as a findings register, for ranking the offer and for proposing: a
+# proposal comes only from a match (`F40`'s rule, applied to controls at `DR-54` (2)).
+FINDINGS_WORDS = ("finding", "assurance")
+
 TEMPLATE_PLACEHOLDER_HELP = (
     'Type an actual value. "TBD", "TODO" and similar are template placeholders this framework\'s '
     "own checker rejects (SP020) - writing one here would fail the profile you're about to produce."
@@ -100,6 +104,9 @@ class FieldSpec:
     # `F67`: a list whose labels must fit a row keeps each choice's full explanation here, shown
     # beside the list for the highlighted row, keyed by the choice's value.
     choice_help: tuple[tuple[str, str], ...] = ()
+    # `DR-54` (1): the path of the seed this field's first row offers to create, where one is
+    # free; the value of that row is the path itself, and choosing it leads to the offer.
+    seed: str = ""
 
     def applies(self, answers: dict) -> bool:
         """Whether this field is asked at all, given what has been answered so far in its section."""
@@ -636,9 +643,10 @@ def _implementation_reference_field(
             candidates = found.lock_files
             context = "lock"
         else:
-            candidates = tuple(
-                a for a in found.artefacts if any(w in a.lower() for w in ("finding", "assurance"))
-            )
+            # `F88` / `DR-54` (2): every artefact, the name matches first - as the gates do -
+            # rather than only the matches, which left a register named otherwise unofferable.
+            hit = [a for a in found.artefacts if any(w in a.lower() for w in FINDINGS_WORDS)]
+            candidates = tuple(hit + [a for a in found.artefacts if a not in hit])
             context = "artefact"
         validate = "tracked_path"
     elif control_id in catalogue.PATTERN_B_CONTROLS:
@@ -659,6 +667,7 @@ def _implementation_reference_field(
         context=context,
         decides=decides,
         wrong=CONTROL_WRONG,
+        seed=found.free_control_seeds.get(control_id, ""),
     )
 
 
@@ -793,29 +802,40 @@ def locked_controls(level: str) -> set[str]:
 
 def _from_candidates(
     *, id: str, label: str, help: str, candidates: tuple[str, ...], depends_on=None,
-    validate: str = "nonempty", context: str = "", decides: str = "", wrong: str = "",
+    validate: str = "nonempty", context: str = "", decides: str = "", wrong: str = "", seed: str = "",
 ) -> FieldSpec:
     """A field answered by picking, when there is anything to pick from.
 
     `DR-38`'s rule: never offer something that isn't there. So when discovery found nothing - no
     git, an unusual layout - this degrades to the plain text field it always was, rather than
-    presenting an empty dropdown that cannot be answered.
+    presenting an empty dropdown that cannot be answered. `DR-54` (1): where a seed's path is
+    free, the first row offers to create it, and the field is a dropdown even with nothing else
+    to pick from - "create it" is something that is there.
     """
     # `F75`: the cap is here, per field, after the caller has ranked for the field at hand -
     # never on the scan.
     shown = tuple(candidates)[: discover.SHOWN]
+    choices = tuple((c, c) for c in shown)
+    if seed:
+        # Short enough for the dropdown's row at 80 columns, path included.
+        choices = ((seed, f"create it: {seed}"),) + choices
+        help = (
+            f"{help}. The first row creates one for you, from a complete and true seed" if shown
+            else f"nothing in this repository fits; the first row creates {seed} for you, from a complete and true seed"
+        )
     return FieldSpec(
         id=id,
         label=label,
-        kind="select" if shown else "text",
+        kind="select" if choices else "text",
         help=help,
-        choices=tuple((c, c) for c in shown),
+        choices=choices,
         suggestions=shown,
         validate=validate,
         depends_on=depends_on,
         context=context,
         decides=decides,
         wrong=wrong,
+        seed=seed,
     )
 
 
@@ -866,8 +886,8 @@ def _gate_fields(
             help=(
                 "what must exist before the gated paths may change"
                 if discover.matched_for_gate(found.artefacts, gate_id)
-                else "nothing in this repository matches this gate - these are simply the files "
-                "found here, so expect to create the artefact rather than pick one"
+                else "nothing in this repository matches this gate"
+                + (" - these are simply the files found here" if found.artefacts else "")
             ),
             candidates=tuple(discover.rank_for_gate(found.artefacts, gate_id)),
             depends_on=None if mandatory else ("status", required_when),
@@ -875,6 +895,7 @@ def _gate_fields(
             context=f"gate:{gate_id}",
             decides=ARTEFACT_DECIDES,
             wrong=ARTEFACT_WRONG,
+            seed=found.free_seeds.get(gate_id, ""),
         ),
         # `F51`: **`effective_from` is asked, and this is the one of the four that came back.**
         # `org/RELEASE_PLAN.md` names it: *"what `effective_from` should read ... is a human
@@ -1057,6 +1078,7 @@ def gates_plan(
                     wrong=f.wrong,
                     context=f.context,
                     choice_help=f.choice_help,
+                    seed=f.seed,
                     depends_on=(
                         (f"{spec.id}.{f.depends_on[0]}", f.depends_on[1])
                         if f.depends_on is not None

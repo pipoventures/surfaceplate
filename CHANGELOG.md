@@ -1105,8 +1105,10 @@ on its top face, generated from its geometry, chosen by the maintainer on render
 (`F89`, `DR-53`); and fixed a render test that read the screen before a deferred scroll had run
 and turned `main` red on the runner (`F90`).
 
-Recorded and not yet addressed: a hand edit to the profile after the write leaves the provenance
-record asserting the old origin (`F86`).
+`ACT-052` (`DR-54`): a field whose artefact has a seed opens with "create it" instead of a hidden
+blank; every tracked document is offered with the matches first, and the findings register gains a
+seed; `adopt --edit <path> <value> --because <reason>` changes one line after the write and records
+it beside the profile (`F86`, `F87`, `F88`).
 
 ### `F58` closed: every agent now receives the skills, not only Copilot
 

@@ -6,9 +6,9 @@ agent operating rules, an application-profile contract, conformance levels, prer
 a conformance checker that enforces all of it.
 
 **This is a narrower review than a full-archive audit, and that narrowing is disclosed rather than
-hidden.** The complete framework is roughly 170 files; attached here (`EVIDENCE_BUNDLE.md`) are 16,
+hidden.** The complete framework is roughly 170 files; attached here (`EVIDENCE_BUNDLE.md`) are 17,
 chosen as the minimum needed to test the claims below directly rather than from a description of
-them. Your coverage is genuinely partial — treat anything you cannot establish from these 16 files
+them. Your coverage is genuinely partial — treat anything you cannot establish from these 17 files
 as an `EVIDENCE GAP`, not as passing or failing by default. Do not extrapolate a verdict about a
 file you were not given.
 
@@ -27,7 +27,7 @@ file you were not given.
   `sections.py` assembles every value that reaches the profile, `defaults.py` **proposes** values,
   `scaffold.py` **creates files inside the adopting repository**, and `wizard.py` verifies the result
   before anything is written.
-- `surfaceplate/seeds/*` — **the five documents `scaffold.py` actually writes** (the fifth, the adoption decision record, since `ACT-044`). These are included
+- `surfaceplate/seeds/*` — **the six documents `scaffold.py` actually writes** (the fifth, the adoption decision record, since `ACT-044`; the sixth, the findings register, since `ACT-052`). These are included
   because the previous pass of this review asked whether creating an artefact makes a gate pass
   while the practice does not exist, and did **not** attach the artefacts. The reviewer reasonably
   inferred they were empty files. They are not, and the question cannot be answered without reading
@@ -66,7 +66,7 @@ production adoption. Three things this review is explicitly **not**:
 
 ## Required evidence handling
 
-1. Inspect `EVIDENCE_BUNDLE.md` in full — all 16 files, each under its own `## FILE:` heading. Do
+1. Inspect `EVIDENCE_BUNDLE.md` in full — all 17 files, each under its own `## FILE:` heading. Do
    not sample; a finding that cites "the package generally does X" without naming the exact file is
    not usable.
 2. **The manifest anchor — attempt this ONLY if you can execute code.** The previous pass of this
@@ -84,7 +84,7 @@ production adoption. Three things this review is explicitly **not**:
    integrity review is worse than an admitted gap, and this framework's own findings register exists
    because of failures of exactly that shape.
    **Report this as a fact, not a verdict.** Two cautions the maintainer would rather you had than
-   not: you cannot verify the rest of the archive from a 16-file subset, only this one value; and
+   not: you cannot verify the rest of the archive from a 17-file subset, only this one value; and
    this field is known to lag by one edit cycle, because the profile is itself inside the manifest
    it names the digest of. A mismatch here is expected and is not by itself a finding — **what is
    worth reporting is whether the framework's own documents disclose that property or quietly rely
@@ -99,7 +99,7 @@ production adoption. Three things this review is explicitly **not**:
    - `FACT FROM PACKAGE`: directly present in the bundle and internally verifiable;
    - `INFERENCE`: reasoned interpretation;
    - `RECOMMENDATION`: proposed improvement;
-   - `EVIDENCE GAP`: not established by the 16 files given — including anything that would need one
+   - `EVIDENCE GAP`: not established by the 17 files given — including anything that would need one
      of the excluded files above.
 5. Do not rely on summaries from the sender, including this prompt's own framing. Reach your own
    conclusions from the bundle.

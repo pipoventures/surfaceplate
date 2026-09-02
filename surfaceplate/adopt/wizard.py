@@ -15,6 +15,7 @@ put an unverified profile on disk, however convincing the screen looked.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from surfaceplate import about, install_standard
@@ -546,6 +547,92 @@ def run(repo: Path, interview: Interview) -> Path:
         raise PartialWrite(exc, created, scaffold_problems) from exc
     _clear_draft(repo)  # a completed run leaves no draft behind - it exists only to protect one
     return Written(profile=target, created=created, problems=scaffold_problems)
+
+
+# ---------------------------------------------------------------------------------------------
+# After the write: one line at a time (`F86`, `DR-54` (4))
+# ---------------------------------------------------------------------------------------------
+
+_INDEX = re.compile(r"^(.*?)\[(\d+)\]$")
+
+
+def _walk_to(profile: dict, path: str):
+    """`(container, key)` for a dotted path with `[i]` indices, or raises KeyError."""
+    node: object = profile
+    parts = path.split(".")
+    for depth, part in enumerate(parts):
+        m = _INDEX.match(part)
+        name, index = (m.group(1), int(m.group(2))) if m else (part, None)
+        last = depth == len(parts) - 1
+        if not isinstance(node, dict) or name not in node:
+            raise KeyError(path)
+        if index is None:
+            if last:
+                return node, name
+            node = node[name]
+            continue
+        seq = node[name]
+        if not isinstance(seq, list) or index >= len(seq):
+            raise KeyError(path)
+        if last:
+            return seq, index
+        node = seq[index]
+    raise KeyError(path)
+
+
+def edit(repo: Path, path: str, value: str, *, because: str = "") -> Path:
+    """Change one line of the written profile, through the same renderer and verification as
+    the wizard, and record it in the provenance sidecar as typed with a timestamp and the reason.
+    Refuses a path the profile lacks (naming the nearest), a line the review marks as not
+    editable (it changes which other lines exist), and anything the schema or the placeholder
+    scan refuses. Nothing is written unless everything verifies."""
+    import difflib
+
+    import yaml
+
+    from surfaceplate.adopt import render as _render
+
+    target = repo / PROFILE_PATH
+    if not target.is_file():
+        raise WriteRefused(f"{PROFILE_PATH} does not exist; run `surfaceplate adopt` first.")
+    profile = yaml.safe_load(target.read_text(encoding="utf-8"))
+    if not isinstance(profile, dict):
+        raise WriteRefused(f"{PROFILE_PATH} is not a profile this tool can edit.")
+    known = [p for p, _v in provenance.leaves(profile)]
+    if path in provenance.NOT_EDITABLE_ON_REVIEW or path.endswith(".status") and path.startswith("prerequisites["):
+        why = provenance.NOT_EDITABLE_ON_REVIEW.get(path, "a gate's status decides which other lines exist")
+        raise WriteRefused(f"{path} is not editable this way: {why}. Run `surfaceplate adopt` against a copy, or edit the file and its record by hand.", path=path)
+    try:
+        container, key = _walk_to(profile, path)
+    except KeyError:
+        near = difflib.get_close_matches(path, known, n=3, cutoff=0.5)
+        hint = f" Nearest: {', '.join(near)}." if near else ""
+        raise WriteRefused(f"the profile has no line at {path!r}.{hint}", path=path) from None
+    current = container[key]
+    if isinstance(current, bool):
+        new_value: object = str(value).strip().lower() in ("yes", "true", "y", "1")
+    elif isinstance(current, list):
+        raise WriteRefused(f"{path} is a list; address one element, for example {path}[0].", path=path)
+    elif isinstance(current, dict):
+        raise WriteRefused(f"{path} is a block, not a line; name one of its lines.", path=path)
+    else:
+        new_value = value
+    container[key] = new_value
+    written_on = str((profile.get("adoption") or {}).get("adoption_date") or "")
+    rendered = _render.render_profile(profile, written_on=written_on)
+    _verify(profile, rendered, repo)
+    record_path = repo / provenance.PROVENANCE_PATH
+    try:
+        record = yaml.safe_load(record_path.read_text(encoding="utf-8")) if record_path.is_file() else {}
+    except (OSError, yaml.YAMLError):
+        record = {}
+    if not isinstance(record, dict):
+        record = {}
+    at = provenance.now_iso()
+    provenance.record_edit(record, path, reason=because or "edited after the write with `surfaceplate adopt --edit`", at=at)
+    _write_atomically(target, rendered)
+    _write_atomically(record_path, provenance.render_record(record))
+    return target
 
 
 # ---------------------------------------------------------------------------------------------

@@ -450,6 +450,41 @@ def test_the_wizard_proposes_nothing_the_checker_rejects(tmp: Path) -> None:
     check("a path that is not there says so", "not" in d.lower() and "exist" in d.lower(), d)
 
 
+def test_every_artefact_is_offered_and_free_seeds_are_known(tmp: Path) -> None:
+    """`F88` / `DR-54` (2), (3). A findings register at `org/FINDINGS.md` was never offered,
+    because artefacts came only from a fixed list of directories; and a control with a seed had
+    no way to say so. Every tracked Markdown or YAML file of the adopter's is offered, ranked,
+    and discovery knows which seeds' paths are free."""
+    from surfaceplate.adopt import scaffold
+
+    repo = tmp / "wide-repo"
+    repo.mkdir()
+    _init(repo)
+    (repo / "org").mkdir(); (repo / "org" / "FINDINGS.md").write_text("# Findings\n\nnone yet\n", encoding="utf-8")
+    (repo / "notes").mkdir(); (repo / "notes" / "plan.md").write_text("# Plan\n", encoding="utf-8")
+    (repo / "docs").mkdir(); (repo / "docs" / "guide.md").write_text("# Guide\n", encoding="utf-8")
+    (repo / "CHANGELOG.md").write_text("# Changelog\n\n- something\n", encoding="utf-8")
+    (repo / "src").mkdir(); (repo / "src" / "app.py").write_text("x = 1\n", encoding="utf-8")
+    _git(repo, "add", "-A"); _git(repo, "commit", "-qm", "fixture")
+    found = discover.scan(repo)
+    check("a register outside the old directory list is offered", "org/FINDINGS.md" in found.artefacts, str(found.artefacts))
+    check("and so is a document in an unusual directory", "notes/plan.md" in found.artefacts, str(found.artefacts))
+    check("ranked: the governance directories first, then root documents, then the rest",
+          found.artefacts.index("docs/guide.md") < found.artefacts.index("CHANGELOG.md") < found.artefacts.index("notes/plan.md"), str(found.artefacts))
+    check("code is not an artefact", "src/app.py" not in found.artefacts)
+    check("seeds whose path is free are known, by gate",
+          set(found.free_seeds) == set(scaffold.SEEDABLE) - {"change_record_before_completion"} and found.free_seeds["work_registration"] == "activity/register.md",
+          str(found.free_seeds))
+    check("a seed whose path is taken is not free (the changelog exists)", "change_record_before_completion" not in found.free_seeds)
+    check("and the findings register's seed is free for its control, since docs/FINDINGS.md is not there",
+          found.free_control_seeds == {"assurance_findings": scaffold.SEEDABLE_CONTROLS["assurance_findings"][0]}, str(found.free_control_seeds))
+    repo2 = tmp / "bare-wide-repo"; repo2.mkdir(); _init(repo2)
+    (repo2 / "main.py").write_text("x=1\n", encoding="utf-8"); _git(repo2, "add", "-A"); _git(repo2, "commit", "-qm", "f")
+    found2 = discover.scan(repo2)
+    check("with no findings register, its seed is free for assurance_findings",
+          found2.free_control_seeds == {"assurance_findings": scaffold.SEEDABLE_CONTROLS["assurance_findings"][0]}, str(found2.free_control_seeds))
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory() as tmp_str:
         tmp = Path(tmp_str)
@@ -474,6 +509,7 @@ def main() -> int:
         print("\nlist sizes")
         test_the_cap_is_on_the_offer_not_on_the_answer(repo)
         test_the_wizard_proposes_nothing_the_checker_rejects(tmp)
+        test_every_artefact_is_offered_and_free_seeds_are_known(tmp)
 
     print()
     if FAILURES:
