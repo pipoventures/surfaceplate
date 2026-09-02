@@ -59,7 +59,7 @@ def check(name: str, condition: bool, detail: str = "") -> None:
         print(f"  FAIL  {name}  {detail}")
 
 
-class Host(App):
+class Host(App, inherit_bindings=False):  # as the wizard's own apps (`F73`): Ctrl+Q is the screen's
     CSS_PATH = ROOT / "surfaceplate" / "adopt" / "tui" / "app.tcss"
 
     def __init__(self, screen) -> None:

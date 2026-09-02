@@ -62,7 +62,7 @@ FOUND = plan.discover.Discovered(
 )
 
 
-class Host(App):
+class Host(App, inherit_bindings=False):  # as the wizard's own apps (`F73`): Ctrl+Q is the screen's
     """Hosts one screen so it can be photographed in isolation."""
 
     CSS_PATH = ROOT / "surfaceplate" / "adopt" / "tui" / "app.tcss"

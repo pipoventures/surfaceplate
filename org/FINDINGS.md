@@ -161,6 +161,7 @@ an unknown number of releases with nothing noticing.
 | F93 | A record-directory control's reference is proposed from any directory holding YAML: four controls were proposed `config/accounts` and the checker rejected every record in it | high | Closed — `ACT-054`; see the body |
 | F94 | An archived document is proposed as a gate's artefact on a keyword match: two gates were proposed files under `docs/archive/` | medium | Closed — `ACT-054`; see the body |
 | F95 | A focus-driven scroll is animated, and the scrollbar keeps a fractional thumb position from the animation's last frame, so a golden of a scrolled screen differed one run in four | low | Closed — `ACT-055`; see the body |
+| F96 | With the gates beyond the floor folded, Ctrl+S refused by naming a folded gate: an optional gate read as required | medium | Closed — `ACT-056` (`DR-57`); see the body |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1487,6 +1488,27 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F96 — With the gates beyond the floor folded, Ctrl+S refused by naming a folded gate: an optional gate read as required
+
+**Severity: medium. Closed.**
+
+Recorded under `ACT-056` from the maintainer's fourth run, at `standard` with a user interface,
+on 2026-09-02 in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z). Closes by `ACT-056` under `DR-57`.
+
+The maintainer's words, on the screenshot: *"work_contract is required to progress although it
+should be optional."* The screen showed the eight-gate floor complete and "Beyond the standard
+floor: 11 gates, not required · [Ctrl+O] open"; Ctrl+S answered "work_contract: choose a status
+before continuing." The rule is `DR-47` (4): a gate beyond the floor is undecided until a human
+declares it, singly or in one bulk act, and the key legend named the bulk command. But `DR-56`
+folded those gates away, so the refusal named something the reader could not see and read as a
+requirement. Medium: the first thing a reader meets after the fold is a contradiction between
+"not required" and "choose a status before continuing".
+
+**Remedy (`DR-57`):** at Ctrl+S with folded undecided gates, one question naming the count:
+declare them all not applicable as one recorded act, or open them and decide each.
+
+**Closed by `ACT-056` (`DR-57`), 2026-09-02.** Ctrl+S with the fold closed and gates behind it undecided pushes `FoldedUndecidedScreen`, which names the level and the count and offers two keys: `y` runs the bulk command (recorded as one act with its count, as before) and continues; `n` opens the fold on the first undecided gate; Ctrl+Q returns to the list unchanged. With the fold open an undecided gate still refuses by name, because the reader can see it. `tests/test_adopt_tui.py::test_continuing_past_the_folded_gates_asks_once`, seen to fail first on all three outcomes.
 
 ## F95 — A focus-driven scroll is animated, and the scrollbar keeps a fractional thumb position from the animation's last frame, so a golden of a scrolled screen differed one run in four
 
