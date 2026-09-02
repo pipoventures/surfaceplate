@@ -27,9 +27,12 @@ stated tool-neutrally so that it does not depend on any particular stack or repo
 The installed pre-commit hook reads the staged snapshot and blocks a gated change when its
 precondition is absent, empty or unfinished. It must be activated in each clone because
 `core.hooksPath` is local Git configuration. `git commit --no-verify` defeats any client-side
-hook; github.com does not offer pre-receive hooks; and GitHub Actions is disabled at organisation
-level, so no server-side check runs at all. Any document claiming the hook is unavoidable would be
-false.
+hook, and github.com does not offer pre-receive hooks. A server-side check exists only where the
+repository's owner configures one: the installed workflow runs the conformance check on every pull
+request where GitHub Actions is enabled, and it blocks a merge only where a branch ruleset requires
+that check to pass. This framework's own repository has both; an adopting repository has neither
+until its owner sets them, and nothing installed here can set them on the owner's behalf. Any
+document claiming the hook is unavoidable would be false.
 
 What *is* guaranteed is narrower in one respect and stronger in another:
 
