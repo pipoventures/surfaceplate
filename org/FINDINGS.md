@@ -124,7 +124,7 @@ an unknown number of releases with nothing noticing.
 | F58 | Seven skill documents install only to `.github/skills/`. `AGENTS.md` calls their gates "not optional" — and Claude Code loads `.claude/skills/`, which no adopter received | high | Closed — `ACT-041`; `DR-30`'s emitter pattern applied to the half it had missed |
 | F57 | The README, `INSTALL.md` and the tool itself instruct an adopter to `pip install surfaceplate`, which 404s — and the README repeats the binding-rule claim `F51` proved false | high | Closed — `ACT-040`; every live instruction names a command that was run before it was written down |
 
-| F59 | Every undecided gate's status radio is invisible at every terminal size: `.chip-row { height: 1 }` leaves no row for Textual's bordered `RadioSet` | high | Open — `ACT-043` (`org/REMEDIATION_PLAN.md`) |
+| F59 | Every undecided gate's status radio is invisible at every terminal size: `.chip-row { height: 1 }` leaves no row for Textual's bordered `RadioSet` | high | Closed — `ACT-043`; `.chip-row` is `height: auto` with no border or padding, and `tests/test_render.py` reads the three options off the screen at 80×24 |
 | F60 | The defaults route discards its gate proposals: `GatesScreen` is built without `initial`, and the "N more" count excludes what it will re-ask | high | Open — `ACT-043` (`org/REMEDIATION_PLAN.md`) |
 | F61 | Discovery proposes the framework's own installed files and CI step as the adopter's preconditions, and the checker passes them | high | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
 | F62 | The profile header asserts every value was typed by a human above canned rationales, computed dates and derived text | high | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
@@ -1332,11 +1332,20 @@ The proposals screen says "59 values proposed … 5 more can only be answered by
 
 ## F59 — Every undecided gate's status radio is invisible at every terminal size: `.chip-row { height: 1 }` leaves no row for Textual's bordered `RadioSet`
 
-**Severity: high. Open.**
+**Severity: high. Closed.**
 
 Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, the adversarial product review of 2026-09-02, authorised by the maintainer in the review session (https://claude.ai/code/session_01X1MZfNScrJjgD5e2AGBjvs). Closes by `ACT-043`; see `org/REMEDIATION_PLAN.md`.
 
 Driving standard/defaults on a copy of Plutos at 80×24, 100×30 and 120×40, the status row of every non-mandatory gate rendered as an empty blue-bordered box; choosing a status with the keyboard worked, but nothing showed the options or the choice (images `std-def-38-*` in the review's scratchpad, read). `surfaceplate/adopt/tui/app.tcss:185-188` forces `.chip-row { height: 1 }`; Textual 8.2.8's `RadioSet` default stylesheet draws a two-row `tall` border plus padding, so a one-row widget has no row left for its buttons. `tests/test_adopt_tui.py:188-201` sets `.value` on the buttons and reads it back; nothing renders the row — `F37`'s class again. The maintainer's first-attempt profile predates the radio rewrite (`96a2efe`) by 24 minutes and today's draft stops before the gates section; he has not got past that screen since. The spike proved `.chip-row { height: auto; border: none; padding: 0 }` renders the three radios in three rows.
+
+**Closed by `ACT-043`, item 0.1 (2026-09-02).** `surfaceplate/adopt/tui/app.tcss` now carries
+`.chip-row { height: auto; border: none; padding: 0; margin: 0 }`, and the dead `.chip` and
+`.chip-selected` rules are gone. `tests/test_render.py::test_a_gate_status_radio_set_renders_its_options`
+hosts a standard `GatesScreen` at 80×24, focuses the first undecided gate's status and asserts
+`( ) required`, `( ) deferred` and `( ) not applicable` are in the rendered text. Seen to fail
+before the change (`RENDER=FAIL (1 failed, 20 passed)`, all three options missing) and to pass
+after (`RENDER=PASS (21 checks)`). The image re-taken at 80×24 shows the three options in three
+rows under `work_contract`, matching the spike's `height_auto_compact.png`.
 
 ## F58 — `F29` again, in the half `DR-30` did not finish
 

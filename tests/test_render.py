@@ -248,6 +248,41 @@ def test_several_gates_are_visible_at_a_standard_terminal() -> None:
     asyncio.run(_run())
 
 
+def test_a_gate_status_radio_set_renders_its_options() -> None:
+    """`F59`. Every undecided gate's status radio was invisible at every terminal size.
+
+    `.chip-row { height: 1 }` left Textual's `RadioSet`, which draws a two-row `tall` border plus
+    padding, with no row for its buttons: the status row rendered as an empty bordered box, the
+    keyboard still changed a value nobody could see, and the maintainer did not get past the
+    gates screen again after the radio rewrite. `tests/test_adopt_tui.py` set `.value` on the
+    buttons and read it back, which is the class `F37` records - structurally verified, never
+    looked at. This reads the row as the terminal shows it, at the size the review used.
+    """
+
+    async def _run() -> None:
+        from textual.widgets import RadioSet
+
+        specs = plan.gate_plan(level="standard", builds_ui=False, mode="simple")
+        section = plan.gates_plan(level="standard", builds_ui=False, mode="simple")
+        first = next(s for s in specs if not s.mandatory and not s.auto_status)
+        app = Host(GatesScreen(specs, section))
+        async with app.run_test(size=(80, 24)) as pilot:
+            await pilot.pause()
+            app.screen.query_one(f"#f-{first.id}--status", RadioSet).focus()
+            await pilot.pause()
+            await pilot.pause()
+            text = screen_text(rendered(app))
+        expected = ["( ) required", "( ) deferred", "( ) not applicable"]
+        missing = [option for option in expected if option not in text]
+        check(
+            f"gates: the focused {first.id} status radio renders its three options at 80x24",
+            not missing,
+            f"not on screen: {missing}",
+        )
+
+    asyncio.run(_run())
+
+
 # ---------------------------------------------------------------------------------------------
 # The level screen's own structure
 # ---------------------------------------------------------------------------------------------
@@ -565,6 +600,9 @@ def main() -> int:
 
     print("\nseveral gates are visible (F37 #6)")
     test_several_gates_are_visible_at_a_standard_terminal()
+
+    print("\nF59: the status radios are visible")
+    test_a_gate_status_radio_set_renders_its_options()
 
     print("\nthe level screen reads as a choice")
     test_level_screen_numbers_its_options_and_marks_the_highlight()
