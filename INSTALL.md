@@ -221,6 +221,14 @@ Where a repository or its organisation has Actions **disabled**, the workflow is
 
 The workflow is installed either way, so that enablement is a switch rather than a migration.
 
+**On another forge.** The installed workflow is a GitHub Actions file and is inert anywhere else
+(`DR-62`: 1.0 supports GitHub; other forges are 1.x work, taken up when an adopter on one appears).
+Nothing else the standard installs assumes a forge: the hook, the local run and the checker itself
+are unchanged. To run the same check in GitLab CI or any other system, add a job that checks out
+the full history and runs the command above, `python .standards/check_conformance.py --repo .`,
+and require it to pass in whatever your forge offers as a merge rule. Leave the Actions file in
+place: the integrity check expects it, and it costs nothing where it never runs.
+
 **A workflow that runs is still not enforcement.** Even where Actions is enabled, the check is
 self-administered until an organisation ruleset requires its status check — a repository admin can
 edit or delete the workflow. Do not read the presence of the workflow file, or a green run, as
