@@ -26,7 +26,8 @@ scope: >-
   profile (schema, per-field value and origin), the provenance sidecar, the files created, and the
   real checker's verdict after committing.
 reference: >-
-  audit/validation/ADOPT_MATRIX.md (the generated report); tests/test_adopt_matrix.py,
+  audit/validation/ADOPT_MATRIX.md (the generated report);
+  audit/validation/ADOPT_MATRIX_FIRST_RUN.md (the preserved pre-fix output); tests/test_adopt_matrix.py,
   tests/adopt_matrix.py and tests/adopt_matrix_screens.py (the suite); the CI step `matrix` in
   .github/workflows/standard-self-check.yml; DR-58 and DR-59; findings F97 to F100.
 limitations:

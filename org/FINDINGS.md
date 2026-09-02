@@ -1513,7 +1513,8 @@ one line without a run, and it let them break the line the same way the run woul
 the profile's own level, interface answer and scanner name (`wizard._spec_behind`) and applies
 `validators.check` before rendering, refusing with the field's own words and the path. Regression:
 `tests/test_adopt.py::test_adopt_edit_applies_the_fields_own_validator`, seen to fail first on all
-four classes; the matrix's edit cases assert the refusal and an unchanged profile.
+four classes; the matrix's edit cases assert the refusal and an unchanged profile. The pre-fix output
+is preserved verbatim in `audit/validation/ADOPT_MATRIX_FIRST_RUN.md`.
 
 ## F99 — `--propose` marked every above-floor control's rationale and reference `needs-human`, so a human had to invent lines for controls they never declared before `--answers` would write
 
@@ -1537,7 +1538,7 @@ route never asks.
 `controls.above_floor`, and `replay` applies them to the listed controls and no other; a listed
 control's line left `needs-human` is refused by name. Regression:
 `tests/test_adopt.py::test_propose_does_not_demand_rationales_for_controls_nobody_declared`, seen
-to fail first.
+to fail first. The pre-fix output is preserved verbatim in `audit/validation/ADOPT_MATRIX_FIRST_RUN.md`.
 
 ## F98 — A run cancelled after the scaffold stage and resumed never created the adoption decision record: the profile named `DR-0001` and the sidecar said "created" for a file that did not exist
 
@@ -1559,7 +1560,8 @@ review and coming back - and the checker does not read the record, so nothing wo
 **Closed by `ACT-057`, 2026-09-02.** The offer stands while the id's recorded origin is
 `scaffolded` and the file is absent (`Flow.scaffold_offers`), as a gate's seed does. Regression:
 `tests/test_adopt.py::test_resuming_after_the_scaffold_stage_still_creates_the_decision_record`,
-seen to fail first; the matrix asserts the exact created-file set on every resume.
+seen to fail first; the matrix asserts the exact created-file set on every resume. The pre-fix output
+is preserved verbatim in `audit/validation/ADOPT_MATRIX_FIRST_RUN.md`.
 
 ## F97 — At `essential` the above-floor list offered `documentation_authority`, and a profile declaring it fails `SP052` on its first check
 
@@ -1582,7 +1584,8 @@ faults, which is the class `DR-48` exists to remove.
 not declare is withheld from the above-floor list (`plan.WITHHELD_ABOVE_FLOOR`) and the field's
 help names the gate and the code. Regression:
 `tests/test_adopt.py::test_a_control_verified_through_an_undeclared_gate_is_not_offered_above_the_floor`,
-seen to fail first; matrix tier T4 green at every level.
+seen to fail first; matrix tier T4 green at every level. The pre-fix output is preserved verbatim in
+`audit/validation/ADOPT_MATRIX_FIRST_RUN.md`.
 
 ## F96 — With the gates beyond the floor folded, Ctrl+S refused by naming a folded gate: an optional gate read as required
 
