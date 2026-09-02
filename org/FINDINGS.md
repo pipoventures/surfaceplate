@@ -143,14 +143,14 @@ an unknown number of releases with nothing noticing.
 | F75 | Candidates are capped at 200 before any gate ranking, so a large `docs/` pushes the register out; the comment says the opposite | high | Closed — `ACT-044`; the scan keeps everything and each field cuts to `SHOWN` after ranking, asserted with 300 documents ahead of the register in `tests/test_discover.py` |
 | F76 | Resuming a draft that chose the defaults route never offers defaults again | medium | Closed — `ACT-044`; the draft carries every answer with its origin and which stages are done, and a resumed run lands on the review with its proposals, asserted in `tests/test_adopt_tui.py` |
 | F77 | Hygiene: non-atomic profile write; a draft with the wrong shape or stale ids kills the run; non-UTF-8 paths quoted; `is_empty` never true; `human_roles: null` as `['None']`; unescaped enums; `KeyboardInterrupt` uncaught; `adopt` exits 0 on findings; the two reliance answers discarded | medium | Open — `ACT-044`, `ACT-045`, `ACT-046` (`org/REMEDIATION_PLAN.md`) |
-| F78 | `adopt` validates against the adopter's installed schema but writes the tool's own shape, and notices the mismatch only at the review, in the validator's words | high | Open — recorded at `ACT-047`; remedy needs `H11`'s decision |
-| F79 | A schema refusal on the review quotes the validator instead of naming the profile line and the key that writes | low | Open — recorded at `ACT-047`; remedy needs `H11`'s decision |
-| F80 | The gate artefact choices carry no explanation of what each file is, what adopting it costs or what it buys | high | Open — recorded at `ACT-047`; remedy needs `H11`'s decision |
-| F81 | No opening screen: the wizard starts at the first question with no name, version, owner or account of what it will do | low | Open — recorded at `ACT-047`; remedy needs `H11`'s decision |
-| F82 | The wizard explains its fields, not the framework: a reader who does not know Surfaceplate cannot adopt it from the wizard alone | high | Open — recorded at `ACT-047`; remedy needs `H11`'s decision |
-| F83 | The scanner workflow is proposed without the checker's own test: discovery offered `ci.yml`, which never mentions gitleaks, while two workflows that run it were not proposed | high | Open — `ACT-048` (`DR-51` (5)) |
-| F84 | An artefact is proposed on a keyword match with no relevance floor and without the checker's content rules: a work inventory quoting `TODO` and `TBD` was proposed as the authority map | high | Open — `ACT-048` (`DR-51` (5)) |
-| F85 | The closing report says the checker "passes" on a graced WARN with findings | medium | Open — `ACT-048` (`DR-51` (6)) |
+| F78 | `adopt` validates against the adopter's installed schema but writes the tool's own shape, and notices the mismatch only at the review, in the validator's words | high | Closed — `ACT-048` (`DR-51` (1)); see the body |
+| F79 | A schema refusal on the review quotes the validator instead of naming the profile line and the key that writes | low | Closed — `ACT-048` (`DR-51` (6)); see the body |
+| F80 | The gate artefact choices carry no explanation of what each file is, what adopting it costs or what it buys | high | Closed — `ACT-048` (`DR-51` (4)); see the body |
+| F81 | No opening screen: the wizard starts at the first question with no name, version, owner or account of what it will do | low | Closed — `ACT-048` (`DR-51` (2)); see the body |
+| F82 | The wizard explains its fields, not the framework: a reader who does not know Surfaceplate cannot adopt it from the wizard alone | high | Closed — `ACT-048` (`DR-51` (3)); see the body |
+| F83 | The scanner workflow is proposed without the checker's own test: discovery offered `ci.yml`, which never mentions gitleaks, while two workflows that run it were not proposed | high | Closed — `ACT-048` (`DR-51` (5)); see the body |
+| F84 | An artefact is proposed on a keyword match with no relevance floor and without the checker's content rules: a work inventory quoting `TODO` and `TBD` was proposed as the authority map | high | Closed — `ACT-048` (`DR-51` (5)); see the body |
+| F85 | The closing report says the checker "passes" on a graced WARN with findings | medium | Closed — `ACT-048` (`DR-51` (6)); see the body |
 | F86 | A hand edit to the profile after the write leaves the provenance record asserting the old origin; nothing records a post-write edit | low | Open — needs a decision; not in `DR-51` |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -1215,7 +1215,7 @@ of these survived a rewrite made one day earlier specifically to bring it up to 
 
 ## F78 — `adopt` validates against the adopter's installed schema but writes the tool's own shape, and notices the mismatch only at the review, in the validator's words
 
-**Severity: high. Open.**
+**Severity: high. Closed.**
 
 Recorded under `ACT-047` from the maintainer's first `H1` run of `adopt` against Plutos on 2026-09-02, in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z); the maintainer agreed the finding in the same session. Closes by the activity the maintainer authorises once `H11`'s decision is taken.
 
@@ -1239,9 +1239,11 @@ the upgrade command given; `doctor` reports the same comparison; the opening scr
 is where both belong. Validating against the tool's own schema instead would write a profile the
 adopter's installed checker then rejects, so the comparison, not the schema choice, is the fix.
 
+**Closed by `ACT-048` (`DR-51` (1)), 2026-09-02.** adopt refuses before the first question when the install is not this tool's release: `wizard._refuse_if_mismatched` compares the install record's anchor with `about.anchor()` and raises `InstallMismatch` naming both versions and digests and the upgrade command, for the interactive run, `--propose` and `--answers` alike; `doctor` gains a `tool vs installed` line that compares the install with the tool rather than with its own record. `tests/test_adopt.py::test_refuses_when_the_tool_and_the_install_differ` and `tests/test_install_and_check.py::test_doctor_reports_a_tool_that_differs_from_the_install`, both seen to fail first.
+
 ## F79 — A schema refusal on the review quotes the validator instead of naming the profile line and the key that writes
 
-**Severity: low. Open.**
+**Severity: low. Closed.**
 
 Recorded under `ACT-047` from the maintainer's first `H1` run of `adopt` against Plutos on 2026-09-02, in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z); the maintainer agreed the finding in the same session. Closes by the activity the maintainer authorises once `H11`'s decision is taken.
 
@@ -1256,9 +1258,11 @@ wrong profile.
 **Remedy hypothesis:** the hint names the line in the review's words and the key that goes to it,
 and the review's hint always names the key that writes.
 
+**Closed by `ACT-048` (`DR-51` (6)), 2026-09-02.** a schema refusal is reported in the review's words with the profile path it concerns (`wizard._describe_schema_error`), the review resolves that path to its first line so `Ctrl+E` reaches a block as well as a leaf, and the hint names `Ctrl+E` and says `Ctrl+S` writes once it is fixed. `tests/test_adopt.py::test_a_schema_refusal_names_the_profile_line` reproduces the maintainer's exact sentence by removing `risk` from a fixture's installed schema, and `tests/test_render.py::test_the_review_hint_names_the_way_forward_while_an_error_stands` holds the hint; both seen to fail first.
+
 ## F80 — The gate artefact choices carry no explanation of what each file is, what adopting it costs or what it buys
 
-**Severity: high. Open.**
+**Severity: high. Closed.**
 
 Recorded under `ACT-047` from the maintainer's first `H1` run of `adopt` against Plutos on 2026-09-02, in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z); the maintainer agreed the finding in the same session. Closes by the activity the maintainer authorises once `H11`'s decision is taken.
 
@@ -1276,9 +1280,11 @@ was seen in it; for a scaffold, what the seed contains), what the gate then requ
 and what it buys (which check, which failure it prevents). Under `DR-47` a change to what is shown
 beside an asked value is a change to the interview and needs a decision record: `H11`.
 
+**Closed by `ACT-048` (`DR-51` (4)), 2026-09-02.** every value picked from the repository is described the moment it is chosen (`discover.describe`): what discovery saw in the file, whether it matched the gate's words, whether the checker's rules would reject it, and for a workflow which step runs the scanner; a gate's status row states what each status commits the team to. `tests/test_discover.py::test_the_wizard_proposes_nothing_the_checker_rejects` (the descriptions) and `tests/test_adopt_tui.py::test_the_help_beside_a_field_states_what_it_decides_and_describes_the_chosen_file`, seen to fail first.
+
 ## F81 — No opening screen: the wizard starts at the first question with no name, version, owner or account of what it will do
 
-**Severity: low. Open.**
+**Severity: low. Closed.**
 
 Recorded under `ACT-047` from the maintainer's first `H1` run of `adopt` against Plutos on 2026-09-02, in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z); the maintainer agreed the finding in the same session. Closes by the activity the maintainer authorises once `H11`'s decision is taken.
 
@@ -1294,9 +1300,11 @@ version, licence, authors) and the install record (installed version, digest, ma
 what will be written and where, and carrying the version comparison. Low on its own; it is the
 natural host for `F78` and the first page of `F82`.
 
+**Closed by `ACT-048` (`DR-51` (2)), 2026-09-02.** an opening screen before the first question (`WelcomeScreen`, `OpeningApp`): the tool's name, version, anchor, licence and publisher from `about.py`, held to `pyproject.toml` by test; the installed version, anchor and date and whether they are the same release; the repository; what will be written; that nothing is written before the review; and the keys. The resume prompt folds into the opening app. `tests/test_adopt.py::test_the_run_opens_with_the_tool_and_the_install_named`, `tests/test_render.py::test_the_opening_screen_names_the_tool_the_install_and_what_will_be_written`, `tests/test_adopt_tui.py::test_the_opening_app_returns_the_three_answers` and the golden `test_welcome_screen.svg`, seen to fail first.
+
 ## F83 — The scanner workflow is proposed without the checker's own test: discovery offered `ci.yml`, which never mentions gitleaks, while two workflows that run it were not proposed
 
-**Severity: high. Open.**
+**Severity: high. Closed.**
 
 Recorded under `ACT-048` from the maintainer's completed `H1` run of `adopt` against Plutos on 2026-09-02, reported in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z). Closes by `ACT-048` under `DR-51`.
 
@@ -1317,9 +1325,11 @@ it (`F80`); the profile is then wrong about the repository's only checked baseli
 the field's validator refuses any other file with the checker's own words; the parity table's
 `SP046` row names it.
 
+**Closed by `ACT-048` (`DR-51` (5)), 2026-09-02.** `scanner.wired_in` is offered and proposed only from workflows where a step runs the named scanner (`discover.scanner_workflows`), the decisions form asks for it when no such workflow exists rather than when no workflow exists, and `validators.scanner_workflow:<name>` refuses any other file in `SP046`'s words. The parity table's `SP046` row names it. `tests/test_discover.py::test_the_wizard_proposes_nothing_the_checker_rejects` and the parity rows in `tests/test_adopt.py`, seen to fail first. The budget test's rich fixture re-measured at 12 (was 11) because its `ci.yml` runs pytest, not gitleaks, and the field is now asked there.
+
 ## F84 — An artefact is proposed on a keyword match with no relevance floor and without the checker's content rules: a work inventory quoting `TODO` and `TBD` was proposed as the authority map
 
-**Severity: high. Open.**
+**Severity: high. Closed.**
 
 Recorded under `ACT-048` from the maintainer's completed `H1` run of `adopt` against Plutos on 2026-09-02, reported in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z). Closes by `ACT-048` under `DR-51`.
 
@@ -1340,9 +1350,11 @@ know (`F80`), and the gate is mandatory at `standard`.
 described as such in the list; `tracked_path` refuses it with the checker's words; the
 `authority_map` words drop `inventory`.
 
+**Closed by `ACT-048` (`DR-51` (5)), 2026-09-02.** discovery records every artefact the checker's content rules would reject (`Discovered.rejected`, from `discover.content_problem`), never proposes one, describes it as such in the list, and `validators.tracked_path` refuses an empty file or one carrying a placeholder token in `SP032`'s words; `authority_map`'s words drop `inventory`. `tests/test_discover.py::test_the_wizard_proposes_nothing_the_checker_rejects` and the parity rows in `tests/test_adopt.py`, seen to fail first.
+
 ## F85 — The closing report says the checker "passes" on a graced WARN with findings
 
-**Severity: medium. Open.**
+**Severity: medium. Closed.**
 
 Recorded under `ACT-048` from the maintainer's completed `H1` run of `adopt` against Plutos on 2026-09-02, reported in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z). Closes by `ACT-048` under `DR-51`.
 
@@ -1356,6 +1368,8 @@ sentence contradicts the checker directly beneath it, in the tool that exists to
 **Remedy (`DR-51` (6)):** the report states the verdict as the checker gave it — a pass, or
 the count of graced findings and the date the grace ends — read from the report rather than
 inferred from the code.
+
+**Closed by `ACT-048` (`DR-51` (6)), 2026-09-02.** `cli._report_written` evaluates the checker and prints `cli.verdict_sentence`, read from the report: a pass with nothing outstanding, N findings under grace until the date the install record names, or the checker's own explanation of a failure. `tests/test_install_and_check.py::test_the_closing_report_states_the_checkers_verdict_as_given`, seen to fail first.
 
 ## F86 — A hand edit to the profile after the write leaves the provenance record asserting the old origin; nothing records a post-write edit
 
@@ -1376,7 +1390,7 @@ timestamp, or a checker note when the profile is newer than its record. A decisi
 
 ## F82 — The wizard explains its fields, not the framework: a reader who does not know Surfaceplate cannot adopt it from the wizard alone
 
-**Severity: high. Open.**
+**Severity: high. Closed.**
 
 Recorded under `ACT-047` from the maintainer's first `H1` run of `adopt` against Plutos on 2026-09-02, in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z); the maintainer agreed the finding in the same session. Closes by the activity the maintainer authorises once `H11`'s decision is taken.
 
@@ -1400,6 +1414,8 @@ the first time: why this is asked, what it decides, the default and its reason, 
 answer costs, drawn from the plain-English register in `explanations.py` so the wizard and the
 documentation say the same thing. Whether that minimum is met is then a snapshot question
 (`ACT-046`'s suite) rather than a feeling. A design decision, not a code fix: `H11`.
+
+**Closed by `ACT-048` (`DR-51` (3)), 2026-09-02.** every field the flow presents, at every level and both interface answers, and every field a review edit can reach, carries what is asked, what the answer decides and what a wrong answer costs (`FieldSpec.decides`, `FieldSpec.wrong`), shown beside the focused field with the field kept at the top of its scroll container so the two are always on screen together. `tests/test_adopt.py::test_every_presented_field_states_what_it_decides_and_what_a_wrong_answer_costs` fails on any presented field lacking either; seen to fail first on every field. Presence is what the test proves; the text is judged by reading it, which is the maintainer's review of the PR.
 
 ## F77 — Hygiene: non-atomic profile write; a draft with the wrong shape or stale ids kills the run; non-UTF-8 paths quoted; `is_empty` never true; `human_roles: null` as `['None']`; unescaped enums; `KeyboardInterrupt` uncaught; `adopt` exits 0 on findings; the two reliance answers discarded
 
