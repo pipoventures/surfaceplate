@@ -129,7 +129,7 @@ an unknown number of releases with nothing noticing.
 | F61 | Discovery proposes the framework's own installed files and CI step as the adopter's preconditions, and the checker passes them | high | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
 | F62 | The profile header asserts every value was typed by a human above canned rationales, computed dates and derived text | high | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
 | F63 | A real profile whose prose mentions "replace-me" is mistaken for the template and overwritten without a prompt | critical | Open — `ACT-043` (`org/REMEDIATION_PLAN.md`) |
-| F64 | `validators.check` passes any non-string, so an unpressed radio set and a blank dropdown commit; one path ends in a black screen, the other in an unactionable `KeyError` | high | Open — `ACT-043` (`org/REMEDIATION_PLAN.md`) |
+| F64 | `validators.check` passes any non-string, so an unpressed radio set and a blank dropdown commit; one path ends in a black screen, the other in an unactionable `KeyError` | high | Closed — `ACT-043`; `None` is blank in `validators.check`, a choice must be one of its choices at commit, and both paths are refused at the field in `tests/test_adopt_tui.py` |
 | F65 | A placeholder is accepted at the field and refused at the review, where nothing but cancel works, and a resumed draft lands on the same refusal | medium | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
 | F66 | The wizard accepts dates and paths the checker rejects, so a profile can pass the wizard and fail its first check | medium | Open — `ACT-044` (`org/REMEDIATION_PLAN.md`) |
 | F67 | The 80×24 pass looked at the wrong screens: the level options below the fold, help text unstyled and flush, off-state controls near-invisible, labels and text areas clipped | medium | Open — `ACT-043`, `ACT-044` (`org/REMEDIATION_PLAN.md`) |
@@ -1292,11 +1292,24 @@ Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, 
 
 ## F64 — `validators.check` passes any non-string, so an unpressed radio set and a blank dropdown commit; one path ends in a black screen, the other in an unactionable `KeyError`
 
-**Severity: high. Open.**
+**Severity: high. Closed.**
 
 Recorded under `ACT-042` from `audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md`, the adversarial product review of 2026-09-02, authorised by the maintainer in the review session (https://claude.ai/code/session_01X1MZfNScrJjgD5e2AGBjvs). Closes by `ACT-043`; see `org/REMEDIATION_PLAN.md`.
 
 `validators.check` returns `None` for any non-`str` (`surfaceplate/adopt/validators.py:111-113`). `_read_widget` returns `None` for an unpressed `RadioSet` and for an untouched `Select`. So `Ctrl+S` on the first screen with nothing chosen advances with `mode: None`, and three screens later `plan.py:998` looks up `LEVEL_CHOICE[None]` inside the `@work` worker: the terminal goes black with no message (image `nochoice-11`). On the gates screen the artefact dropdown left blank counts as answered ("1 of 1 answered"), commits, and the review shows `This cannot be written yet: 'artefact'` with no way back. Same hole for `scanner.wired_in` and every `implementation_reference`. The module's docstring says "an empty string is never a decision"; `None` is.
+
+**Closed by `ACT-043`, item 0.3 (2026-09-02).** `validators.check` now treats `None` as `""`
+before applying a named validator, so a blank dropdown fails `nonempty` where it is made and
+`GatesScreen._gate_is_complete` no longer counts it; and `FormScreen.action_commit` refuses a
+`choice` field whose answer is not one of its choices ("Choose one of the options."). Booleans
+and lists still pass, as before. `tests/test_adopt_tui.py::test_an_empty_choice_is_refused_at_the_field`
+and `::test_a_blank_dropdown_is_refused_at_the_field` drive both paths: seen to fail before
+(`ADOPT_TUI=FAIL (5 failed, 44 passed)`, the mode screen committing `{'mode': None}` and the
+gate committing without its artefact) and to pass after (`ADOPT_TUI=PASS (49 checks)`). The
+review's sequence re-driven on the real `AdoptApp`: `Ctrl+S` on the mode screen with nothing
+chosen now stays on that screen with the refusal in the hint line, where before it advanced to
+Identity. Taken out of the plan's order, before item 0.2, because 0.2's test of the gates hint
+could not pass while a blank dropdown still counted as answered.
 
 ## F63 — A real profile whose prose mentions "replace-me" is mistaken for the template and overwritten without a prompt
 

@@ -542,6 +542,12 @@ class FormScreen(_SectionScreenBase):
                 answers.pop(spec.id, None)
                 continue
             problem = validators.check(spec.validate, answers.get(spec.id, ""))
+            # `F64`: a choice field carries no text validator, and an unpressed radio set reads
+            # as `None`, so `mode: None` committed and the run died three screens later. A
+            # choice is an answer only when it is one of the choices.
+            if not problem and spec.kind == "choice":
+                if answers.get(spec.id) not in {value for value, _ in spec.choices}:
+                    problem = "Choose one of the options."
             if problem:
                 self._set_hint(f"{spec.label}: {problem}")
                 try:

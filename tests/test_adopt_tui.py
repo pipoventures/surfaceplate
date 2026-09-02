@@ -219,6 +219,86 @@ def test_gate_catalogue_behaviour() -> None:
     asyncio.run(_run())
 
 
+def test_an_empty_choice_is_refused_at_the_field() -> None:
+    """`F64`. `validators.check` returned `None` for any non-string, and an unpressed `RadioSet`
+    reads as `None` - so `Ctrl+S` on the first screen with nothing chosen advanced with
+    `mode: None`, and three screens later `plan.py` looked up `LEVEL_CHOICE[None]` inside the
+    worker: a black terminal with no message. The module's own docstring says an empty string is
+    never a decision; `None` was."""
+
+    async def _run() -> None:
+        section = plan.mode_plan()
+        app = Host(FormScreen(section))
+        async with app.run_test(size=(100, 34)) as pilot:
+            await pilot.pause()
+            await pilot.press("ctrl+s")
+            for _ in range(3):
+                await pilot.pause()
+            still_there = isinstance(app.screen, FormScreen) and app.result is None
+            hint = str(app.screen.query_one("#hint").content) if still_there else ""
+            check(
+                "mode: Ctrl+S with no option chosen does not leave the screen",
+                still_there,
+                f"the screen committed {app.result!r}",
+            )
+            check(
+                "and the hint says which field refused",
+                section.fields[0].label in hint,
+                f"hint: {hint!r}",
+            )
+            if still_there:
+                app.exit(None)
+                await pilot.pause()
+
+    asyncio.run(_run())
+
+
+def test_a_blank_dropdown_is_refused_at_the_field() -> None:
+    """`F64`, the other path. A blank `Select` reads as `None`, so a required gate whose artefact
+    was never chosen counted as answered, committed, and the review then showed
+    `This cannot be written yet: 'artefact'` - a `KeyError` with no way back."""
+
+    async def _run() -> None:
+        found = plan.discover.Discovered(artefacts=("activity/register.md",), paths=("src/**",))
+        specs = plan.gate_plan(level="essential", builds_ui=False, mode="simple", found=found)
+        section = plan.gates_plan(level="essential", builds_ui=False, mode="simple", found=found)
+        app = Host(GatesScreen(specs, section))
+        async with app.run_test(size=(100, 40)) as pilot:
+            await pilot.pause()
+            screen = app.screen
+            screen.query_one("#f-work_registration--paths").value = "src/**"
+            screen.query_one("#f-work_registration--effective_from").value = "2026-01-01"
+            await pilot.pause()
+            screen._set_hint()
+            await pilot.pause()
+            hint_before = str(screen.query_one("#hint").content)
+            await pilot.press("ctrl+s")
+            for _ in range(3):
+                await pilot.pause()
+            still_there = isinstance(app.screen, GatesScreen) and app.result is None
+            hint_after = str(app.screen.query_one("#hint").content) if still_there else ""
+            check(
+                "a gate whose artefact dropdown is blank is not counted as answered",
+                "0 of 1 answered" in hint_before,
+                hint_before.splitlines()[-2:],
+            )
+            check(
+                "and Ctrl+S with it blank does not leave the screen",
+                still_there,
+                f"the screen committed {app.result!r}",
+            )
+            check(
+                "and the hint names the artefact field",
+                "artefact" in hint_after.lower() and "blank" in hint_after.lower(),
+                f"hint: {hint_after!r}",
+            )
+            if still_there:
+                app.exit(None)
+                await pilot.pause()
+
+    asyncio.run(_run())
+
+
 def test_mandatory_and_masked_gates_are_stated_not_asked() -> None:
     async def _run() -> None:
         specs = plan.gate_plan(level="standard", builds_ui=False, mode="simple")
@@ -765,6 +845,10 @@ def main() -> int:
     print("\ngate catalogue (mockup frame 03)")
     test_gate_catalogue_behaviour()
     test_mandatory_and_masked_gates_are_stated_not_asked()
+
+    print("\nF64: an empty choice or dropdown is refused where it is made")
+    test_an_empty_choice_is_refused_at_the_field()
+    test_a_blank_dropdown_is_refused_at_the_field()
 
     print("\ndiscovery (DR-38)")
     test_discovered_candidates_are_offered_as_choices()
