@@ -201,6 +201,11 @@ architecture. It does not grant approval, independent validation, risk acceptanc
 readiness — no automated check can, and any tool claiming otherwise should be distrusted. It does
 not replace a repository's own Copilot instructions; it layers on top of them.
 
+It does not run its CI check on a forge other than GitHub by itself. The installed workflow is a
+GitHub Actions file; on another forge it is inert, and you add a job that runs
+`python .standards/check_conformance.py --repo .` yourself. 1.0 supports GitHub (`DR-62`); a
+per-forge emitter is 1.x work, taken up when an adopter on another forge appears.
+
 ---
 
 ## Working on the standard itself
