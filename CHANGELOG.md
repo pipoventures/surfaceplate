@@ -2156,3 +2156,4 @@ run no longer ends in silence: it states the path it wrote and runs the checker 
 ## Unreleased
 
 - 0.16.1 is on PyPI with its five project links (publish run 33734780614). Annotated tags `pypi/0.16.0` and `pypi/0.16.1` now point at the two published commits (`F115`); pushed by the agent, provisional until the maintainer ratifies them (`H14`).
+- The independent review packet regenerated for 0.16.1 from its published commit; its tag note now names the `pypi/` tags instead of asserting a stale `v` tag for every version.

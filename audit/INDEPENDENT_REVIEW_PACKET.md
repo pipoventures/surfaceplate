@@ -84,8 +84,9 @@ curl -sSL https://raw.githubusercontent.com/pipoventures/surfaceplate/{{commit}}
 - `tar` preserves bytes, so no line-ending conversion happens on extraction. If you clone with git
   on Windows instead, use `git -c core.autocrlf=false clone …`, or read the file with
   `git show {{commit}}:surfaceplate/MANIFEST.sha256`; the repository's `.gitattributes` forces LF anyway.
-- The published release is commit `{{commit}}`. **Do not use the `v{{version}}` tag**: it points at an
-  older tree and gives a different anchor (recorded as `F115`).
+- The published release is commit `{{commit}}`, tagged `pypi/{{version}}`. **Do not use a `v`-prefixed
+  tag**: `v0.16.0` points at a tree older than the one published as 0.16.0 and gives a different
+  anchor (recorded as `F115`); the `pypi/` tags are the ones that name published commits.
 - {{adopter_pin}}
 
 **What to write down.** The three values as you computed or read them, whether they agree, your
