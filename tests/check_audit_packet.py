@@ -99,7 +99,7 @@ def review_packet_checks() -> None:
 
     sys.path.insert(0, str(ROOT / "surfaceplate"))
     import install_standard  # noqa: E402
-    from surfaceplate import rules  # noqa: E402
+    import rules  # noqa: E402  (flat, beside install_standard: the runner has no installed package)
 
     check("the packet source exists", PACKET_SOURCE.is_file())
     text = PACKET_SOURCE.read_text(encoding="utf-8")
