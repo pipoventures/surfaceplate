@@ -1063,7 +1063,15 @@ corporate email domain is described rather than reproduced. `workflow_dispatch` 
 secret-scan workflow so a full-history sweep can be run on demand; this repository ships no
 scheduled sweep, so previously there was no way to scan history at all.
 
-## Unreleased
+## 0.16.1 - 2026-09-03 - the wizard proven across every reachable decision, the second review answered, the name reserved
+
+A patch release so that the package on the index carries the links and the front door as they now
+are, and the wizard as the second review left it. What changes for a repository running 0.16.0:
+the schema requires a rationale for `adoption_status: complete` and no longer admits a fraction
+without seconds in `effective_from` (`DR-63`); an artefact still byte-identical to a shipped seed
+earns an advisory; the scanner note the tool wrote is gone; `--edit` applies the field's rule; the
+answers record must be accepted as one act before `--answers` writes. Upgrade with `surfaceplate
+install` and re-pin the digest, as for every release.
 
 ### The package's links, and a front door that tells the truth (`ACT-061`)
 
@@ -2144,3 +2152,7 @@ Four interface faults from the same run: the tick that did not fit its box (`[X]
 dropdown that needed two clicks, and forty alphabetical candidates — now ranked per gate and cut to
 twelve **after** ranking, since capping first buried the register beneath `docs/archive/`. And the
 run no longer ends in silence: it states the path it wrote and runs the checker against it.
+
+## Unreleased
+
+Nothing yet.

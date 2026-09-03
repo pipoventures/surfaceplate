@@ -231,7 +231,7 @@ Namespace and versioning decisions, and how to reverse them: [`NAMESPACE.md`](NA
 
 ## Status and limitations
 
-- **Version 0.16.0.** See [`CHANGELOG.md`](CHANGELOG.md). The 0.6.0 pre-audit defects are
+- **Version 0.16.1.** See [`CHANGELOG.md`](CHANGELOG.md). The 0.6.0 pre-audit defects are
   remediated — [`audit/PRE_AUDIT_FINDINGS_0.6.0.md`](audit/PRE_AUDIT_FINDINGS_0.6.0.md).
 - **One adopting repository, and it is the owner's own.** Plutos, a private repository of the same
   maintainer, adopted on 2 September 2026 through `surfaceplate adopt` and was upgraded to the
