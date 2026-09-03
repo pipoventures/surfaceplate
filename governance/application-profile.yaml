@@ -52,7 +52,7 @@ data_classification: internal
 conformance_level: standard
 
 adoption:
-  framework_version: 0.16.0
+  framework_version: 0.16.1
   # DR-14's anchor, now implemented: sha256 of the MANIFEST.sha256 of the tree this
   # repository installed from. It replaces the release archive's digest, which could not
   # serve as a pin because build_release.py embeds file mtimes in the zip - so nobody,
@@ -75,7 +75,7 @@ adoption:
   # .standards/INSTALL.json. SP049 fails loudly if it is not, which is the intended
   # behaviour. An adopter meets the same step only on upgrade, where re-pinning is exactly
   # what should happen because the framework has changed.
-  framework_digest: 5f9e53e4d9be541ac4862d4e184e6456d71683ff61d40e3494681685bcbc78c9
+  framework_digest: fd879252679204185adab25d86ece38942115646da07cc8fe7a05b2b2842d5ec
   adoption_date: "2026-08-31"
   review_by: "2027-02-27"
   framework_maintainer: Mario Pipo
