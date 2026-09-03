@@ -32,15 +32,6 @@ authors = [{ name = "Pipo Ventures Ltd" }]
 # classifier moves to Production/Stable only with the release that item 10 authorises.
 classifiers = ["Development Status :: 3 - Alpha"]
 
-# `ACT-061`: the links PyPI renders beside the package. They appear on the index with the next
-# upload, not by editing this file; until then the README, which PyPI renders, carries them in prose.
-[project.urls]
-Homepage = "https://github.com/pipoventures/surfaceplate"
-Repository = "https://github.com/pipoventures/surfaceplate"
-Changelog = "https://github.com/pipoventures/surfaceplate/blob/main/CHANGELOG.md"
-Issues = "https://github.com/pipoventures/surfaceplate/issues"
-PyPI = "https://pypi.org/project/surfaceplate/"
-
 # Exact pins, deliberately. `>=` would reintroduce the exposure this file closes: a breaking
 # release would reach every adopting repository at once, with no record of which version worked.
 #
@@ -66,6 +57,15 @@ dependencies = [
 # than buried: `textual` brings seven transitive packages (`rich`, `markdown-it-py`,
 # `mdit-py-plugins`, `mdurl`, `linkify-it-py`, `platformdirs`, `pygments`) where `questionary`
 # brought two. That is a real increase, and it lands only on someone who installs the extra.
+# `ACT-061`: the links PyPI renders beside the package. They appear on the index with the next
+# upload, not by editing this file; until then the README, which PyPI renders, carries them in prose.
+[project.urls]
+Homepage = "https://github.com/pipoventures/surfaceplate"
+Repository = "https://github.com/pipoventures/surfaceplate"
+Changelog = "https://github.com/pipoventures/surfaceplate/blob/main/CHANGELOG.md"
+Issues = "https://github.com/pipoventures/surfaceplate/issues"
+PyPI = "https://pypi.org/project/surfaceplate/"
+
 [project.optional-dependencies]
 adopt = ["textual==8.2.8"]
 # `DR-50` (4): the snapshot suite's runner and plugin, and the plugin's own exact `syrupy` pin.
