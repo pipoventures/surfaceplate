@@ -180,7 +180,7 @@ an unknown number of releases with nothing noticing.
 | F112 | The matrix's `advanced` case compared two profiles assembled seconds apart without normalising the scaffolded instant, and failed on the runner once | low | Closed — `ACT-057` follow-up, 2026-09-02; see the body |
 | F113 | A validator check built "today at midnight UTC" and expected it to be in the past, which is false for the first hour of the day on a UTC+1 machine (the `F48` shape) | low | Closed — `ACT-059`, 2026-09-03; see the body |
 | F114 | The audit hand-off stated the bundle's file count in four places and only one was checked, so three read "15" after the bundle grew to 27, and the full prompt still said "five" suites | low | Closed — `ACT-060`, 2026-09-03; see the body |
-| F115 | The `v0.16.0` tag points at a tree 235 commits older than the commit published to PyPI as 0.16.0, with the manifest at a different path, so "check out the tag" yields a different framework anchor | medium | Open — the packet names the commit (`ACT-060`); tagging the published commit is `H14` |
+| F115 | The `v0.16.0` tag points at a tree 235 commits older than the commit published to PyPI as 0.16.0, with the manifest at a different path, so "check out the tag" yields a different framework anchor | medium | Open — the packet names the commit (`ACT-060`); `pypi/0.16.0` and `pypi/0.16.1` pushed 2026-09-03, provisional until the maintainer ratifies them (`H14`) |
 | F116 | The README's front door said "no adopting repositories" after Plutos had adopted, and "does not install its own standard on itself" weeks after it did and passed | medium | Closed — `ACT-061`, 2026-09-03; see the body |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -1544,9 +1544,13 @@ a mismatch that is not one, or worse, attest to a tree nobody shipped. Medium: t
 is the same on both trees, so nothing warns.
 
 **Remedy in `ACT-060`:** the packet names the published commit and says not to use the tag.
-**Open for `H14`:** tag the published commit (`pypi/0.16.0`; never move `v0.16.0`, which is a
-record of what it was), and consider a refusal in the publish workflow when the version's tag does
-not point at the commit being published.
+**State on 2026-09-03:** annotated tags `pypi/0.16.0` (at `b60cb5bbbe5e…`, run 33697386488) and
+`pypi/0.16.1` (at `3231f3a8851c…`, run 33734780614, the release that carries the PyPI links) are on
+`origin`, pushed by the agent after the 0.16.1 publish and verified with `git ls-remote --tags`.
+`v0.16.0` was not moved; it stays as a record of what it was. The push is provisional: `H14` now asks
+the maintainer to keep or delete the tags, and this finding closes when he keeps them. Still to
+consider: a refusal in the publish workflow when the version's tag does not point at the commit
+being published.
 
 ## F114 — The audit hand-off stated the bundle's file count in four places and only one was checked, so three read "15" after the bundle grew to 27, and the full prompt still said "five" suites
 

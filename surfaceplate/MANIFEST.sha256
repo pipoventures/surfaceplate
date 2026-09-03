@@ -6,7 +6,7 @@ a3e8cd32162e8dd71360be22c91b4d71ea3dca39034395b2da5b42bc11d7e98f  surfaceplate-0
 83b4142a39e5bd89f524b6bfffd58a070f34f70ee4d3503e242b0092d993796d  surfaceplate-0.16.1/.github/workflows/secret-scan.yml
 67d70033f4f4b130c8ab71e5061894616864bb4153f71ca784d65e41db05272b  surfaceplate-0.16.1/.github/workflows/standard-self-check.yml
 2ad298abff4d52674cdf18f5605a894758006a249dfc5c612b36d27e5c45a0e5  surfaceplate-0.16.1/AGENTS.md
-ae745c9fd4f755d589c37e7e7a91726b3b5b4c7ff41c939e42d16bf479d9263c  surfaceplate-0.16.1/CHANGELOG.md
+bdcebcb8457c5d23ad5ec770651f4cf9941cf2a6a04195721ea1338ee9733b16  surfaceplate-0.16.1/CHANGELOG.md
 89c01bc6e86b6309a52bb72722937d52d081f10f0fd22e368459f930acdcf32c  surfaceplate-0.16.1/CLAUDE.md
 0e7d671b7653efcd90af28e64d2224e2e47d38e0faf07547284f431cf1e56e39  surfaceplate-0.16.1/CONTRIBUTING.md
 32e8d3038fc2e67e35d46dbfa7a700a682c4fcd7fd52a1f651f3f29ff633e8e0  surfaceplate-0.16.1/INSTALL.md
@@ -39,8 +39,8 @@ e8243e926d32b7d1ec8aa22044ff71ca0e224e15bcf5db826f15d5157a1f34b4  surfaceplate-0
 186df1ad125c53ba2d04f7551ad8ae08fd10a23a4522ab52a9c0d4609a437036  surfaceplate-0.16.1/governance/authority-map.yaml
 7da15b47e2063567122fa6ebb800111ac2f393c53e69e77c41b05fc54ed8805c  surfaceplate-0.16.1/governance/exceptions/GX-0001.yaml
 57003cb9e388b664ae6c7ecb31bf042b4addf86b41c56d1ebd4069bed793d44f  surfaceplate-0.16.1/governance/exceptions/GX-0002.yaml
-328ddba2364bce1c793bba5affe115c14151c312b0732baf830178dbcffbcc12  surfaceplate-0.16.1/org/FINDINGS.md
-7fe92bf03b2d27170bcfa2df6c3eb021e63140d39612f1d4da91908f8f138320  surfaceplate-0.16.1/org/HUMAN_ACTIONS.md
+280ec3852a2679304e2aac405622a2b053eb553ce162553dd5efbb939f0c4ff8  surfaceplate-0.16.1/org/FINDINGS.md
+ef7f5f9a408160e4af7abbf3274247bec7d06893e32e2f4732f3554fe1688b65  surfaceplate-0.16.1/org/HUMAN_ACTIONS.md
 0928e067ae689f3c7110241cb8b7709ff9879bc342fec3a15ca3985327f43fdc  surfaceplate-0.16.1/org/RELEASE_PLAN.md
 8c1e504d3cf7ca63d836876d2e3cfdabdf325af4cd0d27e99200676f1f3958c6  surfaceplate-0.16.1/org/REMEDIATION_PLAN.md
 6e6a6b16f3193cf960b85ad18ba8f356f2916f83cd3b02b67a251fcd550721b1  surfaceplate-0.16.1/org/ROLLOUT_RUNBOOK.md
