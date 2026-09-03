@@ -3,7 +3,7 @@
 A single, installable definition of how software is built, reviewed, and released — and of how AI
 assistants are allowed to participate in that work.
 
-**Status: not independently audited; no adopting repositories; enforced server-side on this
+**Status: not independently audited; one adopting repository, the owner's own; enforced server-side on this
 repository only.** A branch ruleset on `main` requires all four status checks and a pull request,
 with no bypass actors — demonstrated to block a merge, not merely configured. That protects *this*
 repository. It says nothing about any adopting repository, which must apply its own. The installed
@@ -233,16 +233,17 @@ Namespace and versioning decisions, and how to reverse them: [`NAMESPACE.md`](NA
 
 - **Version 0.16.0.** See [`CHANGELOG.md`](CHANGELOG.md). The 0.6.0 pre-audit defects are
   remediated — [`audit/PRE_AUDIT_FINDINGS_0.6.0.md`](audit/PRE_AUDIT_FINDINGS_0.6.0.md).
-- **There are no adopting repositories.** The standard has never been installed anywhere but here.
-  Nothing below has been exercised against a real adopter, and no claim in this repository should be
-  read as evidence of use.
-- **This repository does not install its own standard on itself.** It runs its own test suite in
-  CI, but carries no application profile, no activity register, no conformance block and no
-  installed hook. It is not, at present, conformant to what it publishes. Closing this gap is
-  declared the last ungoverned work in this repository — see
-  [`org/decisions/DR-13.md`](org/decisions/DR-13.md) — and everything after it is ordered in
-  [`org/RELEASE_PLAN.md`](org/RELEASE_PLAN.md), which cites
-  [`org/decisions/DR-12.md`](org/decisions/DR-12.md) for the architecture it is ordered against.
+- **One adopting repository, and it is the owner's own.** Plutos, a private repository of the same
+  maintainer, adopted on 2 September 2026 through `surfaceplate adopt` and was upgraded to the
+  published 0.16.0 the next day; its check passes. That is real use by one party, not evidence of
+  use by anyone else, and no claim in this repository should be read as more.
+- **This repository installs its own standard on itself and passes its own check.** It carries an
+  application profile, an activity register, the conformance block and the installed hook, and the
+  conformance check runs on every pull request. That was not always so:
+  [`org/decisions/DR-13.md`](org/decisions/DR-13.md) declared closing the gap the last ungoverned
+  work here, and everything after it is ordered in [`org/RELEASE_PLAN.md`](org/RELEASE_PLAN.md),
+  which cites [`org/decisions/DR-12.md`](org/decisions/DR-12.md) for the architecture it is
+  ordered against. Passing its own check is what the check can establish, and no more.
 - **The remediation was performed by the same party that wrote the framework.** An independent
   review is a prerequisite for organisation-wide rollout, not a nice-to-have.
 - **No independent security review has been performed either.** See
