@@ -938,4 +938,18 @@ for record_path in records:
     assert record.get("reviewer_identity") not in ("", None, "replace-me"), f"{record_path.name}: no reviewer identity"
 CHECKS += len(records)
 
+# `F116`'s neighbour, found while placing `[project.urls]` (`ACT-061`): a TOML table captures every
+# key that follows it, so a table added after `classifiers` swallowed `dependencies` and the sweep
+# above, which reads the file as text, did not notice. The parsed document is what pip reads.
+import tomllib
+
+parsed_project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+assert parsed_project.get("dependencies") == ["PyYAML==6.0.3", "jsonschema==4.26.0"], (
+    f"pyproject.toml's parsed [project].dependencies is {parsed_project.get('dependencies')!r}; a table "
+    "placed above the dependencies line captures it, and pip would install nothing"
+)
+assert set(parsed_project.get("urls", {})) >= {"Homepage", "Repository", "Changelog", "Issues"}, "the PyPI links are missing"
+assert "dependencies" not in parsed_project.get("urls", {}), "[project.urls] swallowed the dependencies line"
+CHECKS += 3
+
 print(f"CONTRACT_CONFORMANCE=PASS  ({CHECKS} checks)")

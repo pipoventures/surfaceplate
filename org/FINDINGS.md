@@ -181,6 +181,7 @@ an unknown number of releases with nothing noticing.
 | F113 | A validator check built "today at midnight UTC" and expected it to be in the past, which is false for the first hour of the day on a UTC+1 machine (the `F48` shape) | low | Closed — `ACT-059`, 2026-09-03; see the body |
 | F114 | The audit hand-off stated the bundle's file count in four places and only one was checked, so three read "15" after the bundle grew to 27, and the full prompt still said "five" suites | low | Closed — `ACT-060`, 2026-09-03; see the body |
 | F115 | The `v0.16.0` tag points at a tree 235 commits older than the commit published to PyPI as 0.16.0, with the manifest at a different path, so "check out the tag" yields a different framework anchor | medium | Open — the packet names the commit (`ACT-060`); tagging the published commit is `H14` |
+| F116 | The README's front door said "no adopting repositories" after Plutos had adopted, and "does not install its own standard on itself" weeks after it did and passed | medium | Closed — `ACT-061`, 2026-09-03; see the body |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1511,6 +1512,25 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F116 — The README's front door said "no adopting repositories" after Plutos had adopted, and "does not install its own standard on itself" weeks after it did and passed
+
+**Severity: medium. Closed.**
+
+Recorded on 2026-09-03 in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z) while preparing the package's public links (`ACT-061`).
+The status line and two bullets under "Status and limitations" described a repository that no
+longer existed: no adopters (Plutos adopted on 2 September and was upgraded to the published
+release on 3 September), and a publisher not installed on itself (closed by `DR-13`'s work, checked
+on every pull request since). Both are the front door PyPI renders, and both understated in the
+direction that reads as modesty, which is why nobody caught them: a stale claim that flatters is
+found fast, one that undersells is left alone. Medium: the `F57`/`F70` shape on the most-read file.
+
+**Closed by `ACT-061`, 2026-09-03.** The status line says one adopting repository, the owner's own;
+the adopter bullet names Plutos and says what one owner's use is and is not evidence of; the
+self-installation bullet says what is true and what passing one's own check establishes.
+`tests/check_code_registers.py`'s front-door checks read the README and pass; the sentence about
+adopters is prose and stays a reading matter, recorded here so the next reader of this file knows
+the front door has been wrong twice.
 
 ## F115 — The `v0.16.0` tag points at a tree 235 commits older than the commit published to PyPI as 0.16.0, with the manifest at a different path, so "check out the tag" yields a different framework anchor
 
