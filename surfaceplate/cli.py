@@ -205,6 +205,10 @@ def _report_written(repo: Path, written) -> int:
     print("\n  " + verdict_sentence(report).replace("\n", "\n  "))
     if report.exit_code != 0:
         print(f"\n      surfaceplate check --repo {repo}\n")
+        from surfaceplate import about
+
+        print(f"  Looks wrong, not just unfinished? {about.ISSUES}")
+        print("  `surfaceplate doctor --report` assembles a paste-ready report, offline.\n")
     print(f"  Re-running `adopt` will not overwrite it; edit {written.name} directly from here.\n")
     return report.exit_code
 
@@ -230,7 +234,7 @@ _COMMANDS = {
     "install": (_cmd_install, "Install or upgrade the standard into a repository."),
     "check": (_cmd_check, "Check a repository against the standard (--format text|json|sarif)."),
     "adopt": (_cmd_adopt, "Fill in the application profile: interactively, or --propose then --answers."),
-    "doctor": (_cmd_doctor, "Report what would stop the first command on this machine."),
+    "doctor": (_cmd_doctor, "Report what would stop the first command on this machine; --report assembles a problem report to paste, offline."),
 }
 
 

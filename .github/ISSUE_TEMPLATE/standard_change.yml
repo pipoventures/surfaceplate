@@ -1,0 +1,39 @@
+name: A standard-owned file needs to change
+description: >-
+  The checker fails on something that looks correct, or a standard-owned file (a skill, an
+  instruction, a schema, the workflow) needs an edit the integrity check will not allow in place.
+title: "[standard] "
+labels: ["standard-change"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        `INSTALL.md`'s "Frequently asked" is explicit that a standard-owned file cannot be edited
+        in an adopting repository — the integrity check fails by design, so the change is raised
+        here instead, for every repository's benefit.
+  - type: input
+    id: finding_code
+    attributes:
+      label: Finding code, if the checker reported one
+      placeholder: "SP005"
+  - type: input
+    id: file
+    attributes:
+      label: Which file
+      placeholder: .github/workflows/standards-conformance.yml
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: What is wrong, and why a repository-specific workaround is not enough
+      description: >-
+        If this were only true for your repository, it would belong in your own
+        copilot-instructions.md or an instruction file the standard does not own. Say why it is not.
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: surfaceplate doctor --report output (optional, but helps)
+      render: text

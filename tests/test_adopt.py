@@ -1801,6 +1801,9 @@ def test_package_metadata_agrees_with_pyproject() -> None:
     check("about.PUBLISHER is pyproject's author", about.PUBLISHER in [a.get("name") for a in project.get("authors", [])], about.PUBLISHER)
     check("about.NAME is the package name, capitalised", about.NAME.lower() == project["name"], about.NAME)
     check("about.anchor() is the anchor the installer records", about.anchor() == wizard.install_standard.framework_anchor(about.PACKAGE_DIR))
+    urls = project.get("urls", {})
+    check("about.HOMEPAGE is pyproject's Homepage url", about.HOMEPAGE == urls.get("Homepage"), about.HOMEPAGE)
+    check("about.ISSUES is pyproject's Issues url", about.ISSUES == urls.get("Issues"), about.ISSUES)
 
 
 def test_refuses_without_install(tmp: Path) -> None:

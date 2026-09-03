@@ -1,0 +1,67 @@
+name: Bug report
+description: Something the installer, checker, wizard, or doctor gets wrong.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Run `surfaceplate doctor --report` first (see [`SUPPORT.md`](../../SUPPORT.md)) and paste
+        its output below. It is assembled entirely on your own machine and makes no network
+        requests — nothing is sent until you paste it here. It tells you what it redacted and
+        what it never collects at all, so read it before pasting.
+  - type: textarea
+    id: report
+    attributes:
+      label: surfaceplate doctor --report output
+      description: The full, unedited output of `surfaceplate doctor --report`.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: command
+    attributes:
+      label: The exact command you ran
+      placeholder: surfaceplate install --target /path/to/repo
+    validations:
+      required: true
+  - type: dropdown
+    id: exit_code
+    attributes:
+      label: Exit code
+      description: The documented contract is 0/1/2/3/4; 130 is Ctrl-C.
+      options:
+        - "0"
+        - "1"
+        - "2"
+        - "3"
+        - "4"
+        - "130"
+        - other / not sure
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce, if not obvious from the above
+  - type: checkboxes
+    id: disclosure
+    attributes:
+      label: Before you submit
+      options:
+        - label: >-
+            I have read the report above, including "What was redacted" and "Never collected at
+            all", and it contains nothing I do not want to be public.
+          required: true
