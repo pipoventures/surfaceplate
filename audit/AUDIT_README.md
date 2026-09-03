@@ -53,6 +53,12 @@ python scripts/build_review_packet.py --ref <published commit> --sdist-url <PyPI
     --zip dist/surfaceplate-<version>.zip
 ```
 
+**Order matters, and the generator enforces it.** Every run of `scripts/build_release.py` - the manifest
+rebuild that ends every packet - overwrites `dist/surfaceplate-<version>.zip` with the *current* tree's
+archive, which is not the published one. Build the archive from the published commit (a scratch
+worktree at that commit) as the last step before generating, and generate the page last; the generator
+refuses an archive whose inner manifest is not the published anchor, which is how this was found.
+
 Its source is `audit/INDEPENDENT_REVIEW_PACKET.md`; `tests/check_audit_packet.py` builds it on every
 run and checks its anchor, its rows and its guard. The generator refuses an archive whose inner
 manifest does not hash to the published commit's anchor, and prints the page's own SHA-256 to quote
