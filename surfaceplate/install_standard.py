@@ -811,6 +811,12 @@ def install(
         print("  6. Open a pull request.")
     if dry_run:
         print("\nDry run: nothing was written.")
+    try:
+        from surfaceplate import about
+    except ImportError:  # imported flat, with the payload directory itself on the path (CI)
+        import about  # type: ignore[no-redef]
+
+    print(f"\nSomething wrong, or a check looks wrong? {about.ISSUES}")
     return 0
 
 

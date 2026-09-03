@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Support routes (which form to use, and why)
+    url: https://github.com/pipoventures/surfaceplate/blob/main/SUPPORT.md
+    about: Read this first if you are not sure which form below fits.
+  - name: Report a vulnerability
+    url: https://github.com/pipoventures/surfaceplate/blob/main/SECURITY.md
+    about: Not a public issue. SECURITY.md states the current reporting route and its limitations.
