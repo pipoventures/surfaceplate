@@ -42,11 +42,28 @@ longer maintained. What an auditor should ask for instead:
 responsibility, and the statement that the audit gate is undischarged. Both are still true and are
 marked as such in that file.
 
+## The independent review packet (`H4`, `H6`; `ACT-060`, `DR-64`)
+
+For a reviewer who is a person with a shell - the party `F6` names and item 10 needs - the hand-off
+is one self-contained HTML page plus the release archive. The page is generated, never committed:
+
+```bash
+python scripts/build_review_packet.py --ref <published commit> --sdist-url <PyPI sdist URL> \
+    --sdist-sha256 <hex> --wheel-sha256 <hex> --publish-run <run id> --ci-run <run id> \
+    --zip dist/surfaceplate-<version>.zip
+```
+
+Its source is `audit/INDEPENDENT_REVIEW_PACKET.md`; `tests/check_audit_packet.py` builds it on every
+run and checks its anchor, its rows and its guard. The generator refuses an archive whose inner
+manifest does not hash to the published commit's anchor, and prints the page's own SHA-256 to quote
+in the message that carries it. What comes back is one or two assurance-evidence records for
+`governance/assurance/` and, if Part B was done, the report verbatim under `audit/`.
+
 ## If the reviewer's interface cannot ingest a ZIP archive
 
 Some chat interfaces reject an archive, or limit how many files a single message can carry.
 `GEMINI_ADVERSARIAL_REVIEW_PROMPT_CURATED.md` is the fallback for that case: a shorter prompt scoped
-to a **curated 15-file subset** rather than the complete archive, with the narrowing disclosed in the
+to a **curated 27-file subset** rather than the complete archive, with the narrowing disclosed in the
 prompt's own text — which files are included, which are deliberately left out, and which audit
 questions are softened or marked as expected evidence gaps because of it.
 

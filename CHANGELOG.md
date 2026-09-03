@@ -1065,6 +1065,10 @@ scheduled sweep, so previously there was no way to scan history at all.
 
 ## Unreleased
 
+### The independent review packet (`ACT-060`, `DR-64`)
+
+The two human actions that need an outside party - `F6`'s recomputation of the framework anchor and the independent audit - now travel as one self-contained page built from a tracked source: the commands, the three values that must agree, the audit prompt verbatim, one row per scope criterion, and a form that composes the assurance-evidence record. The generator refuses an archive built from the wrong tree, which today's was. Found on the way: four stale counts in the hand-off (`F114`, fixed) and a `v0.16.0` tag 235 commits behind the published commit (`F115`, `H14`).
+
 ### The second cross-provider review, and what it changed (`ACT-059`, `DR-63`)
 
 The maintainer ran the second cross-provider adversarial review (`audit/CROSS_PROVIDER_REVIEW_2026-09-02_PASS2.md`,
