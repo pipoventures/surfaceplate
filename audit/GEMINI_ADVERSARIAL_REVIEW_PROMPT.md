@@ -57,7 +57,7 @@ does not overclaim either by accident:
 6. **The ZIP contains no `.git` history and no CI run** — `scripts/build_release.py` excludes both
    deliberately. It cannot itself prove that a test suite ran, that a check passed on a real commit,
    or what the git history behind a claim looks like. `audit/AUDIT_README.md` (inside the archive)
-   names what to ask the sender for beyond the ZIP if you need it: the five test suites' own reported
+   names what to ask the sender for beyond the ZIP if you need it: the fourteen test suites' own reported
    check counts, `python scripts/build_release.py --verify-manifest`,
    `python surfaceplate/check_conformance.py --repo .`, and the CI run for the commit under review,
    read **per step** rather than by rollup status (a step that never ran reports `skipped`, which is

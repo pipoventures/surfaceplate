@@ -191,7 +191,7 @@ omitting them silently from your report.
 
 ## Over-engineering test
 
-Based only on what you were given: does anything in these 15 files look disproportionate to the
+Based only on what you were given: does anything in these 27 files look disproportionate to the
 problem it solves — more schema, more process, more code, or more explanatory prose than the stated
 risk justifies? Do not reward comprehensiveness by itself. **Comment specifically on the density of
 narrative comments in the Python files**: they carry real history, and they are also a maintenance
@@ -199,7 +199,7 @@ surface that can drift from the code beneath them.
 
 ## Required output
 
-1. **Verdict on the 15 files reviewed:** `PASS`, `PASS WITH REQUIRED CHANGES`, or `FAIL` — scoped
+1. **Verdict on the 27 files reviewed:** `PASS`, `PASS WITH REQUIRED CHANGES`, or `FAIL` — scoped
    explicitly to what was given, not to the framework as a whole.
 2. **Manifest recomputation result:** the digest you computed, the digest the profile declares,
    whether they match, and whether the framework's documents disclose the lag described above.

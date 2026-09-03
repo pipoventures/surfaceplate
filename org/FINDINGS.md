@@ -179,6 +179,8 @@ an unknown number of releases with nothing noticing.
 | F111 | The reviewer holds the narrative docstrings and the size of the governance apparatus to be a maintenance risk and disproportionate for a CLI tool (pass-2 §9) | low | Closed — 2026-09-03, the maintainer keeping the practice (`H13`); see the body |
 | F112 | The matrix's `advanced` case compared two profiles assembled seconds apart without normalising the scaffolded instant, and failed on the runner once | low | Closed — `ACT-057` follow-up, 2026-09-02; see the body |
 | F113 | A validator check built "today at midnight UTC" and expected it to be in the past, which is false for the first hour of the day on a UTC+1 machine (the `F48` shape) | low | Closed — `ACT-059`, 2026-09-03; see the body |
+| F114 | The audit hand-off stated the bundle's file count in four places and only one was checked, so three read "15" after the bundle grew to 27, and the full prompt still said "five" suites | low | Closed — `ACT-060`, 2026-09-03; see the body |
+| F115 | The `v0.16.0` tag points at a tree 235 commits older than the commit published to PyPI as 0.16.0, with the manifest at a different path, so "check out the tag" yields a different framework anchor | medium | Open — the packet names the commit (`ACT-060`); tagging the published commit is `H14` |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1509,6 +1511,37 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F115 — The `v0.16.0` tag points at a tree 235 commits older than the commit published to PyPI as 0.16.0, with the manifest at a different path, so "check out the tag" yields a different framework anchor
+
+**Severity: medium. Open.**
+
+Recorded on 2026-09-03 in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z) while designing the independent review packet
+(`ACT-060`). `git tag` puts `v0.16.0` at `1b0df98` (31 August); the release published to PyPI on
+2 September was built from `b60cb5bbbe5e…`, 235 commits later, and at the tag the manifest sat at
+the repository root. A reviewer told "check out the tag" would hash a different manifest and report
+a mismatch that is not one, or worse, attest to a tree nobody shipped. Medium: the version string
+is the same on both trees, so nothing warns.
+
+**Remedy in `ACT-060`:** the packet names the published commit and says not to use the tag.
+**Open for `H14`:** tag the published commit (`pypi/0.16.0`; never move `v0.16.0`, which is a
+record of what it was), and consider a refusal in the publish workflow when the version's tag does
+not point at the commit being published.
+
+## F114 — The audit hand-off stated the bundle's file count in four places and only one was checked, so three read "15" after the bundle grew to 27, and the full prompt still said "five" suites
+
+**Severity: low. Closed.**
+
+Recorded on 2026-09-03 in this session (https://claude.ai/code/session_01Bz6QZWcsg9tRFuH9gS331Z) while designing the independent review packet
+(`ACT-060`). `tests/check_audit_packet.py` checked the count in the one sentence it parsed; the
+README's "curated 15-file subset", the curated prompt's "these 15 files" and "Verdict on the 15
+files reviewed", and the full prompt's "the five test suites" were not read by anything and stayed
+where `ACT-052` and `DR-55` left them. The `F50` shape again: a document read for sense rather than
+run.
+
+**Closed by `ACT-060`, 2026-09-03.** All four corrected; the check now reads every place the file
+count is stated and holds each to the command's list, seen to fail first on three of them. The
+suite count in the full prompt is prose and stays a reading matter.
 
 ## F113 — A validator check built "today at midnight UTC" and expected it to be in the past, which is false for the first hour of the day on a UTC+1 machine (the `F48` shape)
 
