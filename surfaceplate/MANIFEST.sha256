@@ -61,7 +61,7 @@ e1cac8fb6762bda3a0da02dae6a6c730de4cd1f92f87e20e708cca9ffccd4afc  surfaceplate-0
 7ddaaa409fb3d5d266edddcb8f202bc23812b1325c9f737c524e61c545586d57  surfaceplate-0.17.0/org/decisions/DR-17.md
 44c887b4f26ac5af613a30398be46b653048e1fa9a0e06911a42df531e5d243d  surfaceplate-0.17.0/org/decisions/DR-18.md
 77cc38f25a32524e91ccb157c7c8411eecd1a77f3db57654b405ec9e76dcdeef  surfaceplate-0.17.0/org/decisions/DR-19.md
-0d488f86d9bac162f3303bc39ff3bd3b20a243d63f634a0d69c7cad098095e23  surfaceplate-0.17.0/org/decisions/DR-2.md
+1a5607c8d1f35d6236ce319e5118405d73eae3994d4347e81f6c3f9ba17f1a04  surfaceplate-0.17.0/org/decisions/DR-2.md
 c514dd9214a81f4d659fff17df419d995527da512427ce821fda970d5904a0a6  surfaceplate-0.17.0/org/decisions/DR-20.md
 b4c732bff5f637928b26d95490cf18c6ac3ab1c0cae393ccf888f46344522134  surfaceplate-0.17.0/org/decisions/DR-21.md
 088f92c3969a21a94fc45402a0019df2af2f5cf1c44c3e9d00a33798d218c948  surfaceplate-0.17.0/org/decisions/DR-22.md
@@ -117,6 +117,7 @@ c05a7dbcad0c31b4385b8fbf8a5826e4edac9d83b0b1c430b7d38b97d628003a  surfaceplate-0
 ce804168b2513e67850f99d2b38ae8cfe617e4685f3211a86142b83906c246a5  surfaceplate-0.17.0/org/decisions/DR-68.md
 d742872a3b708599b1d708fd4aa08eb3323b2d162d7072ca5c902e16d4ec33b2  surfaceplate-0.17.0/org/decisions/DR-69.md
 02f20963bce84f2d12b05e3addf15f47feeedf995b1bff913e6183b44e09c499  surfaceplate-0.17.0/org/decisions/DR-7.md
+419793d62554fd6f8a22eca67942b7a299e9940da538b26674e601c537f083ba  surfaceplate-0.17.0/org/decisions/DR-70.md
 ecb44b6d64643e519ae0e3761c5997efd058d466885f6a9a7b20067476194945  surfaceplate-0.17.0/org/decisions/DR-8.md
 932acc89e5c02b0306b7961150160c7f298452d7de7f2fe1332b8ce94de6de40  surfaceplate-0.17.0/org/decisions/DR-9.md
 1f1593da3bbc5650fd572998851f6dbf0603e7c64c1eaeb253b42118d419c50b  surfaceplate-0.17.0/org/decisions/README.md

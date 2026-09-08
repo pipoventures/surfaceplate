@@ -6,7 +6,11 @@
   about the framework, not an adopting application.
 - Decision owner: Mario Pipo (maintainer), per the decision-maker convention recorded in
   `org/decisions/README.md`.
-- Status: accepted (decision only — not implemented; see Limitations and follow-up)
+- Status: accepted, and **scope amended by `DR-70`, 2026-09-08** — the canon declaration below
+  binds this repository's own AI-assisted work only, never the standard's adopters. The decision
+  itself is unchanged and is not re-argued. Its stated follow-up (rewriting
+  `core/AI_OPERATING_MODEL.md` as a dated projection) was never done and is now moot: `ACT-068`
+  retired that document under `DR-69`. Read `DR-70` before relying on anything below about scope.
 - Risk level: 3 — a methodology decision, per the risk table in `core/REVIEW_AND_EVIDENCE.md`
   ("Methodology, material model or numerical output, material AI output/reasoning, security
   boundary, or externally relied-on output").
