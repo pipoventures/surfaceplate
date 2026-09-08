@@ -86,6 +86,35 @@ classification; AI provider or prompt behaviour; or a broad refactor.
 Increase review depth when a change is novel, hard to test, irreversible, externally reported, or
 difficult to reproduce.
 
+## When the same thing fails twice
+
+**On the second failure of the same component or the same approach, stop and question the
+approach.** Do not draft another patch on a foundation two attempts have already found wanting.
+
+A repeated failure is evidence that the **method** may be wrong, not merely that the
+implementation was. The third attempt made without that reconsideration is usually the fourth
+attempt as well.
+
+Before proposing another change, state three things: what you tried, what it was supposed to
+establish, and what actually happened. Where those three do not line up, the gap is the finding.
+
+This is not the same condition as *"validation fails and the next action is not mechanically
+determined"* below. That one is a single failure with an undetermined next step. This one is a
+determined next step that has already been taken twice.
+
+## Codify real repetition, not theoretical repetition
+
+**Do the thing by hand until it has genuinely recurred** — roughly three times in real work — and
+only then propose a skill, template, script, or abstraction for it.
+
+A tool built for a process observed once is a maintenance obligation bought against a guess, and it
+has to be kept correct by everyone who comes after whether or not the process ever recurs. Where
+the same multi-step process **has** been done repeatedly, say so and propose codifying it, rather
+than silently doing it by hand a fourth time.
+
+This is a different question from proportionality below, which asks how much control a given change
+needs. This one asks whether a repetition is real.
+
 ## Stop and ask
 
 Stop and put the decision to a human when:
@@ -97,6 +126,8 @@ Stop and put the decision to a human when:
 - a risk, waiver, or dependency/security exception is needed;
 - the work requires architecture beyond the authorised scope;
 - validation fails and the next action is not mechanically determined;
+- the same component or approach has failed twice and the next attempt would be another patch on
+  the same foundation;
 - release or production readiness is in question.
 
 Present the exact decision, the alternatives, the evidence, the risk, and the affected files. Do

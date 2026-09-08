@@ -135,7 +135,7 @@ framework's oldest open finding.
 | Directory | Contents |
 |---|---|
 | `surfaceplate/` | The installable package. Everything below is inside it — `install_standard.py` and `check_conformance.py` sit at its root, beside the payload they copy. Since `ACT-019` (`DR-31`), this is what `pip install`s, and what `git clone` gives you is this directory's parent. |
-| `surfaceplate/standard/agent-instructions/` | Six stack-neutral instruction files: AI workflow, authority, activity, provenance, tests, security. Emitted per agent at install — Claude Code's `.claude/rules/`, Copilot's `.github/instructions/` — from this one canonical source. |
+| `surfaceplate/standard/agent-instructions/` | Seven stack-neutral instruction files: AI workflow, authority, activity, provenance, tests, security, concurrency. Emitted per agent at install — Claude Code's `.claude/rules/`, Copilot's `.github/instructions/` — from this one canonical source. |
 | `surfaceplate/standard/.github/skills/` | Seven task workflows: `change`, `bug-fix`, `review`, `fix-ci`, `dependency-update`, `security-review`, `release`. Each states its required inputs, its gates, and its mandatory stops. |
 | `surfaceplate/standard/.github/workflows/` | The conformance workflow installed into adopting repositories. |
 | `surfaceplate/standard/.githooks/` | The pre-commit hook installed into adopting repositories. It checks the staged snapshot and runs the full conformance check before Git creates a commit. |

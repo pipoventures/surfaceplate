@@ -2545,10 +2545,25 @@ def main() -> int:
         install(emitted)
         rules = sorted((emitted / ".claude" / "rules").glob("surfaceplate-*.md"))
         copilot = sorted((emitted / ".github" / "instructions").glob("*.instructions.md"))
+        # Derived from the authored source rather than restated as a literal. This read
+        # `len(rules) == 6 and len(copilot) == 6` until `ACT-065` added a seventh document, and a
+        # hard-coded count fails on the one change it should be silent about - a new instruction -
+        # while staying silent on the one it should catch, an authored document that never
+        # reaches a channel. Counting the inputs and requiring every one to arrive at both
+        # destinations tests the property the emitter actually promises (`DR-30`: one body,
+        # several emitters), and needs no edit when the set changes again.
+        authored = sorted((PAYLOAD / "standard" / "agent-instructions").glob("*.md"))
         check(
-            "the instructions are emitted for Claude Code as well as Copilot",
-            len(rules) == 6 and len(copilot) == 6,
-            f"{len(rules)} rules, {len(copilot)} copilot files",
+            "every authored instruction is emitted for Claude Code as well as Copilot",
+            len(rules) == len(authored) and len(copilot) == len(authored),
+            f"{len(authored)} authored, {len(rules)} rules, {len(copilot)} copilot files",
+        )
+        check(
+            "and each is emitted under the name its agent looks for",
+            {p.stem.removeprefix("surfaceplate-") for p in rules}
+            == {p.stem for p in authored}
+            == {p.name.removesuffix(".instructions.md") for p in copilot},
+            f"authored={sorted(p.stem for p in authored)}",
         )
 
         def body_of(path: Path) -> str:

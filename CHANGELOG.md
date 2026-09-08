@@ -2161,7 +2161,15 @@ run no longer ends in silence: it states the path it wrote and runs the checker 
 - `surfaceplate doctor --report` assembles a paste-ready problem report locally - tool version and anchor, the installed standard's version and digest, Python and OS, optional-dependency availability, the checker's verdict - and states plainly that nothing is sent; refuses `--online`. `about.ISSUES` threaded to the installer's Next steps and the post-`adopt` failure output; `SUPPORT.md` and two GitHub issue forms added (`F119`, `ACT-062`).
 - The independent review packet is distributed for the first time: a GitHub Release on tag `pypi/0.16.1` carries the three packet files, and a "Reviewing this" section in `README.md` and `audit/REVIEW_INVITATION.md` give `H4`/`H6` an actual route to a reviewer (`ACT-062`, `DR-65`).
 
-## 0.17.0 - the hook chain becomes declarable, and verified
+## 0.17.0 - unreleased; one version for the whole adoption-readiness programme
+
+**Release discipline for this version, decided by the maintainer on 2026-09-08.** `0.17.0`
+accumulates every phase of the programme and is published **once**, at the end, rather than a
+version per phase. Nothing between `0.16.1` and this is published, so no adopter can observe an
+intermediate `0.17.0` that differs from the final one, and the version number therefore carries no
+claim that changes underneath it. The sections below are the phases as they land.
+
+### The hook chain becomes declarable, and verified
 
 `DR-1` was accepted on 2026-08-30 and left unimplemented through five releases. It anticipated a
 repository whose Git hooks already run from somewhere else, and said the installer should refuse by
@@ -2200,3 +2208,46 @@ default and let an adopter opt into chaining explicitly. This release builds it,
   its claim was about.
 
 Not approved, independently validated, or released by being written here.
+
+### Four rules the standard did not carry
+
+Established absent by search over both the authored source and the self-install, with a control
+term returning five files in each tree so the search was shown capable of finding what it looked
+for. Two near-equivalents were checked and rejected rather than assumed: `CONTROL_PRINCIPLES.md`
+principle 12 is a risk-justification rule, not a repetition rule, and `ai-workflow.md` §Stop and
+ask listed eight triggers with repeated failure not among them.
+
+- **`agent-instructions/concurrency.md`** — a new document, the one topic the standard had nothing
+  on. One writer per working tree; independence of *task* is not independence of *write path*; a
+  loaded editor buffer is a pending write whatever `git status` says; handoff is explicit; separate
+  checkouts are the remedy and are not free — worktrees isolate the index but **not** the hooks,
+  `core.hooksPath` can be set machine-wide outside every repository and **replaces** rather than
+  adds, and a generated tracked artefact reconciled badly **merges cleanly** and leaves the check
+  passing against the wrong set. Never infer what runs from a clean diff; read the resolved hooks
+  path and the common Git directory. Missing code is a stop condition, not a task.
+- **`authority.md` §Supersession** — the author-side rule. The existing §Contradictions governs
+  what to do on *encountering* superseded authority; nothing said how to *write* a correction.
+  Rewrite the passage in place; never leave two answers in one document; **a correction whose
+  validity depends on reading order is not a correction**, because a grep returns the old value as
+  readily as a full read returns the new one and nothing about a partial read announces itself.
+  Retained history is marked explicitly historical. Reconciled in the text with the append-only
+  rule beneath it, which governs a different object: a log records events and is never rewritten;
+  a document stating a current fact is corrected in place.
+- **`ai-workflow.md` §When the same thing fails twice** — the loop-breaker. On a second failure of
+  the same component or approach, question the approach rather than patching a foundation two
+  attempts have found wanting. Added as a ninth §Stop and ask trigger, and distinguished in the
+  text from *"validation fails and the next action is not mechanically determined"*, which is a
+  single failure with an undetermined next step.
+- **`ai-workflow.md` §Codify real repetition** — do it by hand until it has genuinely recurred.
+  A tool built for a process observed once is a maintenance obligation bought against a guess.
+
+The instruction set is now seven documents, and every place that stated six is corrected in the
+same change: the conformance block installed into `AGENTS.md` and `.github/copilot-instructions.md`,
+`README.md`, and `RECONCILIATION.md`. `DR-30`'s record is deliberately **not** edited — it is a log
+entry describing what that decision did, which the supersession rule above says is append-only.
+
+A hard-coded `6` in `tests/test_install_and_check.py` failed on the seventh document. It is
+**derived** now rather than bumped: the test counts the authored instructions and requires every
+one to arrive at both agent destinations. A literal count fails on the change it should be silent
+about and stays silent on the one it should catch — an authored document that never reaches a
+channel.

@@ -44,6 +44,35 @@ Stop. Resolve the conflict, or record the required human decision. Do not:
 - proceed on the assumption that the newer file wins;
 - silently prefer the code over the documentation, or the reverse.
 
+## Supersession — how to write a correction
+
+The rule above governs what to do when you **encounter** superseded authority. This one governs
+what to do when you **create** it, and it is the more commonly missed of the two.
+
+**Rewrite the passage that states the superseded value. Do not leave it standing under a
+correction.** When a value, a date, a count, a status, or a claim changes, edit the sentence that
+asserts it. Adding a banner at the top, a footnote, or a later paragraph that gives the right
+answer while the original text still asserts the old one is not a fix — it is two answers in one
+document, and which one a reader gets depends on where they happen to land.
+
+**A correction whose validity depends on reading order is not a correction.** A grep, a search
+hit, a link from another document, or a model reading one section returns the old value exactly as
+readily as a complete read returns the new one — and nothing about a partial read announces that
+it was partial. The reader who is misled is the one who had no way to know they should keep
+reading.
+
+**Where the old wording earns its keep, keep it — marked explicitly historical.** A record of what
+was believed, and when, is often worth more than the correction itself, particularly where the
+delay or the error is the thing a later reader needs to understand. Mark it as history in the text
+itself. Do not leave it as unmarked prose that the correction merely precedes.
+
+**This does not contradict the append-only rule below, because the two govern different objects.**
+A decision or change **log** records events: what was decided, by whom, when. You never rewrite an
+event, because the event happened. A document that states a **current fact** is not a log, and
+correcting it in place is the whole of its job. Where one record does both — a decision record
+with a status line, an activity entry with a state — the decision text is append-only and the
+status is corrected in place.
+
 ## Documentation impact
 
 For any output-affecting change, identify the affected methodology, architecture, data, design, or

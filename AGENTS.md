@@ -14,7 +14,7 @@ integrity-checked in CI. Do not edit anything under `.standards/`, `.claude/rule
 **Binding rules, in force for every task in this repository:**
 
 - **The standard's agent instructions are mandatory. Read them before acting.** Where anything in
-  this file contradicts them, they win. The same six documents are installed once per agent, each
+  this file contradicts them, they win. The same seven documents are installed once per agent, each
   in the location that agent actually loads: `.claude/rules/surfaceplate-*.md` for Claude Code,
   `.github/instructions/*.instructions.md` for Copilot. If your agent reads neither, the canonical
   copies are in `.standards/agent-instructions/` and you are responsible for loading them.
