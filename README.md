@@ -57,8 +57,12 @@ surfaceplate check --repo /path/to/your-repo
 
 If `surfaceplate install` stops with *"Git hooks for this repository already run from somewhere
 else"*, your machine sets `core.hooksPath` globally or at system level: `surfaceplate doctor` shows
-where, and `surfaceplate install --no-hooks` keeps your own hook system and records the choice in
-the install record, so every conformance check reports it.
+where. Two routes keep it: `surfaceplate install --no-hooks` installs no hook at all, and
+`surfaceplate install --chain` installs the gate for your own hook to call, leaving
+`core.hooksPath` untouched. Both record the choice in the install record, so every conformance
+check reports it. A chained install is verified rather than trusted: declare it under
+`adoption.hook_chain` and the check runs the hook Git will actually run and requires this
+standard's gate to answer (`DR-66`).
 
 **Not the instruction to follow yet: `pip install surfaceplate`.** The name is reserved on PyPI —
 `0.16.0` and `0.16.1` are both on the index, each carrying the `Development Status :: 3 - Alpha`
@@ -260,7 +264,7 @@ Namespace and versioning decisions, and how to reverse them: [`NAMESPACE.md`](NA
 
 ## Status and limitations
 
-- **Version 0.16.1.** See [`CHANGELOG.md`](CHANGELOG.md). The 0.6.0 pre-audit defects are
+- **Version 0.17.0.** See [`CHANGELOG.md`](CHANGELOG.md). The 0.6.0 pre-audit defects are
   remediated — [`audit/PRE_AUDIT_FINDINGS_0.6.0.md`](audit/PRE_AUDIT_FINDINGS_0.6.0.md).
 - **One adopting repository, and it is the owner's own.** Plutos, a private repository of the same
   maintainer, adopted on 2 September 2026 through `surfaceplate adopt` and was upgraded to the

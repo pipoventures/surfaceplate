@@ -2160,3 +2160,43 @@ run no longer ends in silence: it states the path it wrote and runs the checker 
 - Three stale self-descriptions corrected: `README.md` no longer claims the package is unpublished (`F117`), `SECURITY.md` no longer claims the repository is private (`F118`).
 - `surfaceplate doctor --report` assembles a paste-ready problem report locally - tool version and anchor, the installed standard's version and digest, Python and OS, optional-dependency availability, the checker's verdict - and states plainly that nothing is sent; refuses `--online`. `about.ISSUES` threaded to the installer's Next steps and the post-`adopt` failure output; `SUPPORT.md` and two GitHub issue forms added (`F119`, `ACT-062`).
 - The independent review packet is distributed for the first time: a GitHub Release on tag `pypi/0.16.1` carries the three packet files, and a "Reviewing this" section in `README.md` and `audit/REVIEW_INVITATION.md` give `H4`/`H6` an actual route to a reviewer (`ACT-062`, `DR-65`).
+
+## 0.17.0 - the hook chain becomes declarable, and verified
+
+`DR-1` was accepted on 2026-08-30 and left unimplemented through five releases. It anticipated a
+repository whose Git hooks already run from somewhere else, and said the installer should refuse by
+default and let an adopter opt into chaining explicitly. This release builds it, and adds the half
+`DR-1` did not specify: how the chain is *checked*.
+
+- **`surfaceplate install --chain`** installs `.githooks/pre-commit` and leaves `core.hooksPath`
+  exactly as it was, for a repository whose own hook will call the gate. Refusal remains the
+  default for an undeclared foreign hooks path; nothing is composed silently. The choice is
+  recorded as `hooks: "chained"` in `INSTALL.json`, beside `DR-29`'s `"declined"`. `--chain` and
+  `--no-hooks` are refused together.
+- **`adoption.hook_chain`** in the application profile, carrying `delegates_to` and a `rationale`.
+  Optional and additive: `schema_version` stays `"1.0"` and no existing profile migrates.
+- **`SP038` is verified by effect, not by reading.** Where the active hook is a different file from
+  the shipped gate — which is what every honest delegation looks like — and a chain is declared,
+  the checker runs the hook Git will actually run with `SURFACEPLATE_HOOK_PROBE` set; the gate
+  answers by exec'ing `check_conformance.py --probe`, which prints a token and exits without
+  checking, staging or writing anything. The token establishes that the path Git takes *arrives*
+  at this standard's gate.
+- **The cheaper answer was rejected and is now a test.** Confirming that the active hook's text
+  names the gate would have been `F28` one layer out — *"some hook exists"* becoming *"some hook
+  mentions the gate"*. `tests/test_install_and_check.py` carries that exact hook, one that names
+  `.githooks/pre-commit` in a comment and exits 0, as a scenario that must fail.
+- Reaching the gate is not enough: `delegates_to` must name the gate this standard installs, and
+  the gate's digest must still match the install record. Reaching an edited gate establishes
+  nothing. A chain that works but is undeclared still raises `SP038` — declaring is the claim.
+- **Its ceiling is stated rather than implied.** The probe detects a chain that does not reach the
+  gate. It does not detect an adopter who forges the token, and is not meant to: the token is a
+  constant in a public repository. `check_conformance.py` now executes a script where before it
+  only read files, which is why `DR-66` is a level-3 record and not an implementation detail.
+- This repository was its own first case. It reported `SP038` against itself for three days because
+  its hooks run through a machine-local delegating directory; it now declares the chain and returns
+  `PASS`, 22 days before the grace window closed.
+- Six findings raised from a portfolio operating-model review, each re-verified before recording
+  (`F120`-`F125`, `ACT-063`); two of them corrected, because what the review examined was not what
+  its claim was about.
+
+Not approved, independently validated, or released by being written here.

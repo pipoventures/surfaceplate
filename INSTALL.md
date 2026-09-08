@@ -24,7 +24,20 @@ No product file is touched. The installer also sets the repository-local Git con
 `core.hooksPath=.githooks`. If another hook path or a default pre-commit hook already exists, the
 installer stops before writing anything so the existing automation is not silently disabled.
 
-**If you have your own hook system and intend to keep it, install with `--no-hooks`.** The hook is
+**If you have your own hook system and intend to keep it, you have two routes: `--no-hooks` and `--chain`.** Take `--chain` if your hook can call this standard's gate, and `--no-hooks` if you want no gate at all.
+
+**`--chain`** installs `.githooks/pre-commit` and leaves `core.hooksPath` exactly as it was. Your own hook runs it and propagates its exit code; you then declare the arrangement in the profile:
+
+```yaml
+adoption:
+  hook_chain:
+    delegates_to: .githooks/pre-commit
+    rationale: why this repository keeps its own hook system
+```
+
+The declaration is what makes the claim checkable, not what excuses it. The conformance check runs the hook Git will actually run with `SURFACEPLATE_HOOK_PROBE` set and requires this standard's gate to answer, so a hook that merely *mentions* the gate, or reaches a gate that has been edited since install, still raises `SP038` (`DR-1`, `DR-66`). What it does not do is detect a hook that deliberately forges the answer — detection, not prevention, as everywhere else here.
+
+**`--no-hooks`.** The hook is
 one enforcement route of three: a profile whose gates declare `enforcement: [history_audit, review]`
 is fully conformant without it. `--no-hooks` writes no `.githooks/`, leaves `core.hooksPath` exactly
 as it was, and records the declination in `.standards/INSTALL.json` so every conformance check

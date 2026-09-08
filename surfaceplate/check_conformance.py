@@ -58,6 +58,28 @@ EXCEPTION_SCHEMA_PATH = f"{VENDOR_DIR}/schemas/gate-exception.schema.yaml"
 # actually run is THIS one, rather than merely whether some hook exists (F28).
 HOOK_TARGET = ".githooks/pre-commit"
 
+# DR-66. A repository whose hooks already run from somewhere else may declare a delegation
+# (`adoption.hook_chain`) and keep it. Comparing the active hook's digest against the shipped
+# gate cannot verify that: a correct delegating hook is a DIFFERENT file by construction, so
+# the digest test fails every honest chain and passes none.
+#
+# So the chain is verified BY EFFECT instead. The checker runs the hook Git will actually run
+# with PROBE_ENV set; the shipped gate, seeing it, execs the checker with `--probe`, which
+# prints PROBE_TOKEN and exits without checking anything. The token coming back establishes
+# that the path Git takes ARRIVES at this standard's gate - which is the property `local_hook`
+# claims, and the one a textual reference to the gate's path would not establish.
+#
+# Its ceiling, stated rather than implied: this detects a chain that does not REACH the gate.
+# It does not detect an adopter who deliberately echoes the token, and is not meant to - the
+# token is a constant in a public repository. That is the same ceiling the rest of this
+# framework declares: detection, not prevention. An adopter willing to forge the probe could
+# equally just not claim the gate.
+PROBE_ENV = "SURFACEPLATE_HOOK_PROBE"
+PROBE_TOKEN = "surfaceplate-hook-probe-ok"
+# A hook that hangs must not hang the conformance check. Generous enough for an interpreter
+# start on a cold cache, short enough that a wedged hook is a finding rather than a stall.
+PROBE_TIMEOUT_SECONDS = 30
+
 BLOCK_BEGIN = "<!-- BEGIN SURFACEPLATE -->"
 BLOCK_END = "<!-- END SURFACEPLATE -->"
 
@@ -2036,7 +2058,9 @@ def shallow_clone(repo: Path) -> bool:
     return code == 0 and out.strip() == "true"
 
 
-def active_pre_commit_hook(repo: Path, record: dict | None = None) -> tuple[bool, str]:
+def active_pre_commit_hook(
+    repo: Path, record: dict | None = None, chain: dict | None = None
+) -> tuple[bool, str]:
     """Return whether the STANDARD'S pre-commit hook is what Git will actually run.
 
     F28. This asked only whether an executable `pre-commit` existed in the active hooks
@@ -2063,7 +2087,9 @@ def active_pre_commit_hook(repo: Path, record: dict | None = None) -> tuple[bool
         present = hook.is_file() and (os.name == "nt" or os.access(hook, os.X_OK))
         if not present:
             return False, f"core.hooksPath={configured!r}, expected executable hook {hook}"
-        return standard_hook_installed(hook, record, f"core.hooksPath={configured!r}")
+        return standard_hook_installed(
+            hook, record, f"core.hooksPath={configured!r}", repo=repo, chain=chain
+        )
 
     code, default_hook = git(repo, "rev-parse", "--git-path", "hooks/pre-commit")
     if code != 0 or not default_hook:
@@ -2074,13 +2100,67 @@ def active_pre_commit_hook(repo: Path, record: dict | None = None) -> tuple[bool
     present = hook.is_file() and (os.name == "nt" or os.access(hook, os.X_OK))
     if not present:
         return False, f"default hooks path, expected executable hook {hook}"
-    return standard_hook_installed(hook, record, "default hooks path")
+    return standard_hook_installed(
+        hook, record, "default hooks path", repo=repo, chain=chain
+    )
+
+
+def probe_delegating_hook(repo: Path, hook: Path) -> tuple[bool, str]:
+    """Does the hook Git will actually run reach this standard's gate? (DR-66)
+
+    Verification by effect. The hook is executed with PROBE_ENV set, which the shipped gate
+    answers by printing PROBE_TOKEN and exiting 0 without checking anything, writing anything,
+    or reading the staged tree. A delegating chain that `exec`s or calls the gate passes the
+    variable down and the token comes back. A chain that merely NAMES the gate in a comment, or
+    reaches it only on a branch this invocation does not take, returns nothing - which is the
+    correct answer, because such a chain does not carry the gate either.
+
+    What this deliberately does not establish is stated in PROBE_TOKEN's own comment: it is not
+    proof against a hook that forges the token.
+    """
+    env = dict(os.environ)
+    env[PROBE_ENV] = "1"
+    try:
+        completed = subprocess.run(
+            [str(hook)],
+            cwd=str(repo),
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=PROBE_TIMEOUT_SECONDS,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        return False, (
+            f"the declared delegation did not answer the probe within "
+            f"{PROBE_TIMEOUT_SECONDS}s"
+        )
+    except OSError as exc:
+        return False, f"the declared delegation could not be run: {exc}"
+    if PROBE_TOKEN in (completed.stdout or ""):
+        return True, "the declared delegation reaches this standard's gate"
+    detail = (completed.stderr or completed.stdout or "").strip().splitlines()
+    tail = f"; it said {detail[-1]!r}" if detail else ""
+    return False, (
+        f"the declared delegation ran (exit {completed.returncode}) but did not reach this "
+        f"standard's gate{tail}"
+    )
 
 
 def standard_hook_installed(
-    hook: Path, record: dict | None, where: str
+    hook: Path,
+    record: dict | None,
+    where: str,
+    repo: Path | None = None,
+    chain: dict | None = None,
 ) -> tuple[bool, str]:
-    """Is the executable hook Git will run the one this standard shipped? (F28)"""
+    """Is the executable hook Git will run the one this standard shipped? (F28)
+
+    Or, where the profile declares a delegation (DR-66), does the hook Git will run REACH
+    the shipped gate? The digest comparison is tried first and is the stronger answer; the
+    probe is reached only when the active hook is a different file, which is what an honest
+    chain looks like.
+    """
     expected = (record or {}).get("files", {}).get(HOOK_TARGET)
     if not expected:
         declined = (record or {}).get("hooks") == "declined"
@@ -2095,6 +2175,30 @@ def standard_hook_installed(
     except (OSError, UnicodeDecodeError):
         actual = sha256_file(hook)
     if actual != expected:
+        # DR-66. A different file here is exactly what a correct delegation looks like, so
+        # before reporting the mismatch, ask whether the profile declared one - and if it did,
+        # whether it actually reaches the gate.
+        if chain and repo is not None:
+            target = str(chain.get("delegates_to") or "").strip()
+            if target != HOOK_TARGET:
+                return False, (
+                    f"{where}: adoption.hook_chain.delegates_to is {target!r}, but the gate "
+                    f"this standard installs is {HOOK_TARGET}"
+                )
+            gate = repo / HOOK_TARGET
+            if not gate.is_file():
+                return False, (
+                    f"{where}: a delegation to {HOOK_TARGET} is declared, but that file is not "
+                    f"present - re-run the installer"
+                )
+            gate_digest = sha256_text(normalise(gate.read_text(encoding="utf-8")))
+            if gate_digest != expected:
+                return False, (
+                    f"{where}: a delegation to {HOOK_TARGET} is declared, but that file has "
+                    f"been edited since install, so reaching it establishes nothing"
+                )
+            reached, why = probe_delegating_hook(repo, hook)
+            return reached, f"{where}: {hook}: {why}"
         return False, (
             f"{where}: {hook} is executable but is not the hook this standard installed, so "
             f"nothing establishes that it runs the conformance check"
@@ -2874,8 +2978,13 @@ def check_prerequisites(
         isinstance(gate, dict) and "local_hook" in (gate.get("enforcement") or [])
         for gate in gates_raw
     )
+    declared_chain = (profile.get("adoption") or {}).get("hook_chain")
     hook_active, hook_detail = (
-        active_pre_commit_hook(repo, install_record)
+        active_pre_commit_hook(
+            repo,
+            install_record,
+            chain=declared_chain if isinstance(declared_chain, dict) else None,
+        )
         if needs_hook_check
         else (True, "no gate claims local hook enforcement")
     )
@@ -2997,8 +3106,11 @@ def check_prerequisites(
                     f"Re-run the installer so {STANDARD_HOOKS_PATH}/pre-commit is installed and "
                     f"core.hooksPath is set to {STANDARD_HOOKS_PATH}, or remove the claim and "
                     "rely on the history audit. If this repository keeps its own hook system, "
-                    "that is a legitimate choice - install with --no-hooks and do not claim "
-                    "local_hook. Claiming an inactive control is worse than not having it.",
+                    "two routes stay open (DR-66): install with --chain, have your own hook run "
+                    f"{HOOK_TARGET}, and declare adoption.hook_chain - this check then verifies "
+                    "by effect that your chain reaches the gate; or install with --no-hooks and "
+                    "do not claim local_hook. Claiming an inactive control is worse than not "
+                    "having it.",
                     graceable=True,
                 )
             )
@@ -3636,7 +3748,20 @@ def main(argv: list[str] | None = None) -> int:
         default="text",
         help="Output format: text (default), json, or sarif (2.1.0).",
     )
+    parser.add_argument(
+        "--probe",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
     args = parser.parse_args(argv)
+
+    # DR-66. Answer the probe and stop. This must come before every other branch, including
+    # the --repo checks: the probe establishes that a delegating hook REACHES this checker,
+    # and a probe that could fail for an unrelated reason would not establish it. Nothing is
+    # read, nothing is checked, nothing is written.
+    if args.probe:
+        print(PROBE_TOKEN)
+        return 0
 
     repo = Path(args.repo).resolve()
     # Code item 13: a missing directory, a file, and an uninstalled repository each get their

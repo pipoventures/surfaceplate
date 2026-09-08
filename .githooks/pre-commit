@@ -12,17 +12,28 @@ if [ ! -f "$checker" ]; then
     exit 2
 fi
 
+# DR-66. A repository that keeps its own hook system may have its hook call this one and
+# declare the delegation in its profile. SURFACEPLATE_HOOK_PROBE is how the conformance check
+# asks, from outside, whether the hook Git will actually run arrives here - a question no
+# amount of reading the other hook's text can answer. The checker prints a token and exits;
+# nothing is checked, nothing is staged, nothing is written.
+if [ -n "${SURFACEPLATE_HOOK_PROBE:-}" ]; then
+    set -- --probe
+else
+    set -- --repo "$repo_root" --staged
+fi
+
 if command -v python3 >/dev/null 2>&1 \
     && python3 -c "import yaml, jsonschema" >/dev/null 2>&1; then
-    exec python3 "$checker" --repo "$repo_root" --staged
+    exec python3 "$checker" "$@"
 fi
 if command -v python >/dev/null 2>&1 \
     && python -c "import yaml, jsonschema" >/dev/null 2>&1; then
-    exec python "$checker" --repo "$repo_root" --staged
+    exec python "$checker" "$@"
 fi
 if command -v py >/dev/null 2>&1 \
     && py -3 -c "import yaml, jsonschema" >/dev/null 2>&1; then
-    exec py -3 "$checker" --repo "$repo_root" --staged
+    exec py -3 "$checker" "$@"
 fi
 
 echo "Surfaceplate: Python 3 with PyYAML and jsonschema is required." >&2

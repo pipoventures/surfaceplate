@@ -739,6 +739,158 @@ def test_the_problem_report_is_assembled_locally_and_discloses_what_it_collected
           result.returncode == 3 and "--report" in result.stderr, result.stderr)
 
 
+def test_a_declared_hook_chain_is_verified_by_effect(tmp: Path) -> None:
+    """`DR-66`. A repository that keeps its own hook system may declare a delegation, and the
+    check establishes BY EFFECT that the hook Git will actually run reaches this standard's gate.
+
+    Why by effect rather than by reading. A correct delegating hook is a DIFFERENT file from the
+    gate by construction, so the digest test `F28` introduced fails every honest chain. The
+    obvious cheaper answer - confirm the active hook's text names the gate - is `F28` repeating
+    one layer out: "some hook exists" would become "some hook mentions the gate". The second
+    scenario below is that exact hook, and it is the reason the probe exists rather than a
+    grep.
+
+    Every scenario runs against a real repository with `core.hooksPath` genuinely set, because
+    the condition being tested is what Git resolves, and a fixture that stubbed the resolution
+    would be testing the stub.
+    """
+    profile_source = read_example("application-profile.full.example.yaml")
+
+    def chained_repo(name: str, hook_body: str, chain: str | None) -> Path:
+        repo = make_git_repo(tmp, name)
+        # Install FIRST, while nothing is configured, then point Git elsewhere - the order an
+        # adopter with existing hooks reverses, and which `--chain` exists to serve.
+        result = install(repo)
+        check(f"{name}: installed", result.returncode == 0, result.stderr[-300:])
+        hooks = repo / ".other-hooks"
+        hooks.mkdir(exist_ok=True)
+        hook = hooks / "pre-commit"
+        hook.write_text(hook_body, encoding="utf-8")
+        hook.chmod(0o755)
+        subprocess.run(
+            ["git", "-C", str(repo), "config", "core.hooksPath", ".other-hooks"], check=True
+        )
+        text = profile_source
+        if chain is not None:
+            text = text.replace("\n  deferrals:", f"\n{chain}\n  deferrals:")
+        (repo / "governance" / "application-profile.yaml").write_text(text, encoding="utf-8")
+        seed_gate_artefacts(repo, profile_source)
+        return repo
+
+    DELEGATES = (
+        "#!/bin/sh\n"
+        'exec "$(git rev-parse --show-toplevel)/.githooks/pre-commit" "$@"\n'
+    )
+    DECLARED = (
+        "  hook_chain:\n"
+        "    delegates_to: .githooks/pre-commit\n"
+        "    rationale: this repository keeps its own hook system\n"
+    )
+
+    repo = chained_repo("chain-reaches", DELEGATES, DECLARED)
+    result = verify(repo)
+    check(
+        "a declared chain that reaches the gate satisfies local_hook",
+        "SP038" not in result.stdout,
+        result.stdout[-600:],
+    )
+
+    # THE scenario that separates verification by effect from verification by reading. This hook
+    # names the gate, in the gate's own words, and never runs it. A textual check passes it.
+    MENTIONS_ONLY = (
+        "#!/bin/sh\n"
+        "# This repository used to call .githooks/pre-commit here.\n"
+        "exit 0\n"
+    )
+    repo = chained_repo("chain-mentions-only", MENTIONS_ONLY, DECLARED)
+    result = verify(repo)
+    check(
+        "a chain that only NAMES the gate does not satisfy local_hook",
+        "SP038" in result.stdout,
+        result.stdout[-600:],
+    )
+    check(
+        "and says the delegation ran without reaching the gate",
+        "did not reach this standard's gate" in result.stdout,
+        result.stdout[-600:],
+    )
+
+    # A hook that runs a real conformance-shaped check that is not this standard's.
+    OTHER_GATE = (
+        "#!/bin/sh\n"
+        'echo "some other project gate"\n'
+        "exit 0\n"
+    )
+    repo = chained_repo("chain-other-gate", OTHER_GATE, DECLARED)
+    check(
+        "a chain reaching a different pre-commit does not satisfy local_hook",
+        "SP038" in verify(repo).stdout,
+    )
+
+    repo = chained_repo("chain-undeclared", DELEGATES, None)
+    check(
+        "a chain that works but is not declared still fails - declaring is the claim",
+        "SP038" in verify(repo).stdout,
+    )
+
+    WRONG_TARGET = (
+        "  hook_chain:\n"
+        "    delegates_to: .husky/pre-commit\n"
+        "    rationale: this repository keeps its own hook system\n"
+    )
+    repo = chained_repo("chain-wrong-target", DELEGATES, WRONG_TARGET)
+    result = verify(repo)
+    check(
+        "a delegation declared to something other than the shipped gate fails",
+        "SP038" in result.stdout and ".husky/pre-commit" in result.stdout,
+        result.stdout[-600:],
+    )
+
+    # The gate reached must also be unmodified: reaching an edited gate establishes nothing,
+    # and this is the half a probe alone would miss.
+    repo = chained_repo("chain-edited-gate", DELEGATES, DECLARED)
+    gate = repo / ".githooks" / "pre-commit"
+    gate.write_text(gate.read_text(encoding="utf-8") + "\n# edited\n", encoding="utf-8")
+    result = verify(repo)
+    check(
+        "a chain reaching an EDITED gate does not satisfy local_hook",
+        "SP038" in result.stdout,
+        result.stdout[-600:],
+    )
+
+    # And the installer's half of DR-1: refusal stays the default, opt-in is explicit.
+    foreign = make_git_repo(tmp, "foreign-hooks-path")
+    subprocess.run(
+        ["git", "-C", str(foreign), "config", "core.hooksPath", ".husky/_"], check=True
+    )
+    result = install(foreign)
+    check(
+        "an undeclared foreign hooks path still refuses by default",
+        result.returncode == 4 and not (foreign / ".standards").exists(),
+        result.stdout[-300:],
+    )
+    result = install(foreign, "--chain")
+    check(
+        "--chain installs into the same repository without refusing",
+        result.returncode == 0,
+        result.stdout[-400:],
+    )
+    check(
+        "and leaves core.hooksPath exactly as it was",
+        subprocess.run(
+            ["git", "-C", str(foreign), "config", "--get", "core.hooksPath"],
+            capture_output=True, text=True, check=False,
+        ).stdout.strip() == ".husky/_",
+    )
+    check("and records the chain rather than leaving it silent", read_record(foreign).get("hooks") == "chained")
+    result = install(make_git_repo(tmp, "chain-and-no-hooks"), "--chain", "--no-hooks")
+    check(
+        "--chain and --no-hooks are refused together",
+        result.returncode == 2 and "opposite answers" in result.stderr,
+        result.stderr[-300:],
+    )
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory() as raw:
         tmp = Path(raw)
@@ -890,6 +1042,9 @@ def main() -> int:
         result = install(existing, "--replace-existing")
         check("--replace-existing proceeds", result.returncode == 0, result.stderr[-300:])
         check("and replaces the file", "Our own" not in (target / "SKILL.md").read_text(encoding="utf-8"))
+
+        print("\na declared hook chain is verified by effect (DR-66)")
+        test_a_declared_hook_chain_is_verified_by_effect(tmp)
 
         print("\nhook configuration collision safety")
         hooked_elsewhere = make_git_repo(tmp, "hooked-elsewhere")
