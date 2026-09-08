@@ -1018,14 +1018,24 @@ def test_currency_is_reported_where_integrity_cannot_be(tmp: Path) -> None:
     """
     sys.path.insert(0, str(PAYLOAD))
     import doctor  # noqa: E402  - imported here so a missing payload fails this test, not the run
+    import rules  # noqa: E402
 
+    # `DR-72` moved the comparison into `rules.py` so `doctor` and `check_conformance` cannot
+    # answer it two different ways - `DR-48`'s reason for that module existing at all.
     check(
         "0.9.0 keyed sorts below 0.17.0, which a string comparison gets backwards",
-        doctor._version_key("0.9.0") < doctor._version_key("0.17.0") and not ("0.9.0" < "0.17.0"),
+        rules.version_key("0.9.0") < rules.version_key("0.17.0") and not ("0.9.0" < "0.17.0"),
     )
     check(
         "and equal versions key equal",
-        doctor._version_key("0.16.1") == doctor._version_key("0.16.1"),
+        rules.version_key("0.16.1") == rules.version_key("0.16.1"),
+    )
+    check("behind, ahead and current are three different answers, not two",
+          (rules.currency_state("0.9.0", "0.17.0"), rules.currency_state("0.17.0", "0.9.0"),
+           rules.currency_state("1.0.0", "1.0.0")) == ("behind", "ahead", "current"))
+    check(
+        "doctor holds no second copy of the comparison it used to own",
+        not hasattr(doctor, "_version_key"),
     )
 
     repo = make_git_repo(tmp, "currency")
@@ -1051,14 +1061,93 @@ def test_currency_is_reported_where_integrity_cannot_be(tmp: Path) -> None:
         doctor._installed_version(repo)[0] == read_record(repo)["standard_version"],
     )
 
-    # The offline checker must stay silent on currency, or the finding it is paired with would
-    # not exist. Asserted rather than assumed, because "the check says nothing about X" is the
-    # kind of claim that quietly stops being true.
+    # WITHOUT `--currency` the checker must stay silent and open no socket. This is the
+    # guarantee `DR-72` had to preserve to be acceptable at all: the pre-commit hook and a
+    # local `surfaceplate check` run exactly as they did before. Asserted rather than assumed,
+    # because "the check says nothing about X" is the kind of claim that quietly stops being
+    # true.
     out = verify(repo).stdout
     check(
-        "check_conformance.py reports no currency verdict of any kind",
-        "is the published version" not in out and "published " not in out,
+        "check_conformance.py reports no currency verdict of any kind by default",
+        "currency:" not in out and "is the published version" not in out,
         out[-400:],
+    )
+
+    # ---- DR-72: on by default in the installed workflow, declinable in the profile ----
+    #
+    # An unroutable proxy makes any real outbound request fail, loudly and immediately. That is
+    # what separates "made no request" from "made one and it failed" BY EFFECT - two states
+    # that a test asserting only the absence of a network could not tell apart.
+    blocked = {**os.environ, "https_proxy": "http://127.0.0.1:1", "http_proxy": "http://127.0.0.1:1"}
+    checker = [str(repo / ".standards" / "check_conformance.py"), "--repo", str(repo), "--currency"]
+
+    # The baseline is the SAME repository checked without `--currency`. Comparing against it,
+    # rather than against a literal "PASS", is the difference between testing the property and
+    # testing this fixture: it sits inside its grace window with a template profile, so its
+    # verdict is WARN for reasons that have nothing to do with currency. What must hold is that
+    # asking the currency question cannot change the answer.
+    baseline = run(checker[:-1])
+    unreachable = run(checker, env=blocked)
+    check(
+        "an unreachable index is reported as UNKNOWN, never as current",
+        "currency: UNKNOWN" in unreachable.stdout,
+        unreachable.stdout[-400:] + unreachable.stderr[-200:],
+    )
+    check(
+        "and it cannot change the verdict - a network the adopter does not control can never "
+        "turn their build red",
+        unreachable.returncode == baseline.returncode == 0,
+        f"with --currency rc={unreachable.returncode}, without rc={baseline.returncode}",
+    )
+
+    profile_path = repo / "governance" / "application-profile.yaml"
+    profile = profile_path.read_text(encoding="utf-8")
+    profile_path.write_text(
+        profile.replace(
+            "adoption:\n",
+            "adoption:\n  currency_check:\n    enabled: false\n"
+            "    rationale: this harness has no egress and asserts that none is attempted\n",
+            1,
+        ),
+        encoding="utf-8",
+    )
+    declined = run(checker, env=blocked)
+    check(
+        "a repository declaring currency_check.enabled: false is told currency was NOT checked",
+        "currency: not checked" in declined.stdout,
+        declined.stdout[-400:],
+    )
+    check(
+        "and no request was made - the unreachable-index wording never appears, which it would "
+        "have if one had been attempted through the blocked proxy",
+        "UNKNOWN" not in declined.stdout and "could not reach" not in declined.stdout,
+        declined.stdout[-400:],
+    )
+    check(
+        "the declared rationale is repeated back, so a reader sees WHY the call was declined "
+        "rather than only that it was",
+        "asserts that none is attempted" in declined.stdout,
+        declined.stdout[-400:],
+    )
+    check(
+        "declining does not change the verdict either",
+        declined.returncode == baseline.returncode,
+        f"declined rc={declined.returncode}, baseline rc={baseline.returncode}",
+    )
+    profile_path.write_text(profile, encoding="utf-8")
+
+    # The installed workflow is what turns the mechanism on, and it is integrity-checked, so
+    # the adopter cannot edit it - which is exactly why the opt-out had to live in the profile.
+    installed_workflow = (repo / ".github" / "workflows" / "standards-conformance.yml").read_text(
+        encoding="utf-8"
+    )
+    check(
+        "the installed workflow passes --currency, so the check runs without anyone opting in",
+        "check_conformance.py --repo . --currency" in installed_workflow,
+    )
+    check(
+        "and it tells the adopter, in the file itself, how to decline it",
+        "currency_check:" in installed_workflow and "enabled: false" in installed_workflow,
     )
 
 

@@ -103,6 +103,36 @@ properties:
       deferrals:
         type: array
         items: {$ref: '#/$defs/deferral'}
+      currency_check:
+        type: object
+        description: >-
+          DR-72, closing F124. The installed conformance workflow reports whether the standard
+          installed here is the published one - one request to pypi.org, on by default, purely
+          advisory and unable to fail the check. This key is how a repository declines that
+          call. It exists because the workflow is integrity-checked and therefore cannot be
+          edited by the adopter: without a key in this file, "on by default" would mean
+          "compulsory", which H20 refused. Absent means enabled, so a profile written before
+          this key existed behaves as intended and schema_version does not move (DR-50).
+          The rationale is required in BOTH directions: declaring the call on deliberately is
+          as much a decision as declining it, and an unexplained value here is the same
+          omission-wearing-a-decision's-clothes that SP031 objects to in an undated deferral.
+        additionalProperties: false
+        required: [enabled, rationale]
+        properties:
+          enabled:
+            type: boolean
+            description: >-
+              false suppresses the request entirely - nothing is sent, and the check reports
+              that currency was not established rather than that it passed. true is the
+              default behaviour stated explicitly.
+          rationale:
+            type: string
+            minLength: 1
+            description: >-
+              Why. For a decline, the usual reasons are an air-gapped or egress-restricted CI,
+              or a deliberate version pin; for an air-gapped runner the request would fail and
+              be reported as UNKNOWN anyway, so declaring it saves a timeout rather than
+              hiding a result.
       hook_chain:
         type: object
         description: >-

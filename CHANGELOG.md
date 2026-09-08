@@ -2492,3 +2492,100 @@ reader and for any agent not emitted for. Both now say "the repository's own age
 file", the first citing Topic 1 where the full form lives. No mechanism: whether prose names a vendor's
 file is a judgement, and a regex banning the string would fail on Topic 1's own deliberate naming of
 all three.
+
+### The dependency alert that could not be merged, and why nobody could tell (`ACT-074`)
+
+A Dependabot PR bumping `pytest` 8.4.2 → 9.0.3 for `CVE-2025-71176` sat open with thirteen green
+suites and one failure. Both halves of that picture were wrong.
+
+**`F130` — the same version is pinned in five places and nothing compared them.** `pyproject.toml`
+is the authority. The self-check workflow hard-codes all six pins on its install line;
+`standards-conformance.yml` hard-codes the two runtime ones; **the payload's copy of that workflow**
+hard-codes them into every adopting repository; and `INSTALL.md` names `textual` by version in a
+command it tells readers to run. Dependabot edited `pyproject.toml` and nothing else, so CI
+installed `pytest==8.4.2` from its own line and ran fourteen suites against the version that was
+*not* under review. **A dependency change was one merge away from being accepted on the evidence of
+a run that never installed it** — a right answer about the wrong object, which re-running the suite
+could never have exposed.
+
+The payload row is what makes this `high`: a runtime pin that moves in `pyproject.toml` and not in
+the installed workflow has every adopter's CI installing a set the package does not declare, and
+they cannot correct it, because editing an installed file fails their own conformance check.
+
+`dependency_pin_checks` now reads `pyproject.toml`'s exact pins — runtime and every extra — and
+requires every `name==version` written in any workflow (this repository's and the payload's),
+`INSTALL.md`, `README.md`, `CONTRIBUTING.md` or `scripts/front_door.sh` to agree, for any package
+`pyproject.toml` declares. The authority is read, never restated. Its limit is stated rather than
+implied: a pin for something `pyproject.toml` does not declare (`build` in `publish.yml`) has no
+authority to be compared against and is skipped. Verified by effect — Dependabot's exact change
+makes it fail, naming the file that disagrees; restored, it passes at 105 checks.
+
+**`F131` — the advisory has no satisfiable remedy, and the alert stays open.** Established by
+running the resolver, not by reading metadata:
+
+```
+$ pip install --dry-run pytest==9.0.3 pytest-textual-snapshot==1.1.0 syrupy==4.8.0
+ERROR: ResolutionImpossible
+```
+
+`pytest-textual-snapshot 1.1.0` — the latest, released 2025-01-23 — pins `syrupy==4.8.0` **exactly**,
+and that syrupy caps `pytest<9.0.0`. The fix exists only in 9.0.3. `syrupy 6.0.0` would allow it, so
+syrupy is not the obstacle; the plugin's exact pin on an old syrupy is. Dependabot's PR, forced past
+the resolver, yields an environment `pip check` rejects.
+
+`pytest` is a test-only extra no adopting repository installs, and the advisory needs a local
+unprivileged user racing `/tmp/pytest-of-{user}` on the same host — an ephemeral single-tenant
+runner, or the maintainer's own workstation. On that reading the practical exposure is very low,
+recorded as `INFERENCE`. Accepting the residual risk, granting a dependency exception, or silencing
+the alert in `.github/dependabot.yml` are reserved to a human by this standard's own Topic 9, so the
+finding stays **open** and the decision is `H21`, with all three routes costed and the accept-and-
+defer route recommended.
+
+### Currency stops being a question nobody asks (`ACT-075`, `DR-72`, closing `F124`)
+
+`F124` is the highest-severity finding this framework had raised against itself: *"a repository can
+sit an arbitrary number of versions behind, indefinitely, while its conformance check passes and
+says nothing."* `DR-68` built the mechanism four days ago and stopped, because the remaining step
+changes what runs in other people's infrastructure and was not an agent's to take. The maintainer
+has now answered `H20` and chosen **on by default, with an opt-out key in the profile**.
+
+- **`check_conformance.py --currency`** makes one request, to `pypi.org`, and reports *current*,
+  *ahead*, *behind* or *unknown* against `INSTALL.json`'s recorded version.
+- **It is an advisory and can never be a finding** — not blocking, and not graceable either, because
+  a graceable finding fails once the grace window ends and a check that eventually failed on this
+  would be telling adopters that pinning a version deliberately is a defect. It reports; the human
+  decides.
+- **The flag is off by default and only the installed workflow passes it.** A local
+  `surfaceplate check` and the pre-commit hook open no socket, exactly as before. That guarantee was
+  a condition of the change, not a side effect of it.
+- **`adoption.currency_check: {enabled: false, rationale: …}`** suppresses the request entirely.
+  Absent means enabled, so `schema_version` stays `"1.0"` and no existing profile is invalid.
+
+**Why the switch is in the profile and not the workflow.** The installed workflow is
+integrity-checked. An adopter who did not want the call could not delete the step without failing
+their own conformance check — so "on by default" would have meant *compulsory*, which is what made
+the unqualified version of this the intrusive option. The profile is the one file in the installed
+set that is theirs, so that is where a switch can honestly live. Same shape as `--no-hooks` and
+`--agents` before it: opinionated default, declared declination, and the check reports the
+declination on every run rather than going quiet.
+
+The rationale is required in both directions. Declaring the call on deliberately is as much a
+decision as declining it, and an unexplained boolean is the same omission-wearing-a-decision's-
+clothes that `SP031` objects to in an undated deferral.
+
+**The comparison moved to `rules.py`.** `doctor --online` asked this question first and held its own
+`_version_key`; the checker now asks it too. Two implementations of *"is 0.9.0 newer than 0.17.0"* —
+a comparison with a known wrong answer when written as a string comparison — is exactly the drift
+`DR-48` created that module to prevent. `doctor` keeps its behaviour and loses its copy.
+
+**Verified by effect, including the part that is hardest to test.** *"No request was made"* and
+*"a request was made and failed"* both look like an absence of network traffic, so the suite runs the
+checker behind an unroutable proxy: with the profile declining, the unreachable-index wording never
+appears; without it, `currency: UNKNOWN` does. The verdict is compared against the **same repository
+checked without `--currency`** rather than against a literal `PASS`, because that fixture sits inside
+its grace window and reports `WARN` for reasons that have nothing to do with currency — what must
+hold is that asking the question cannot change the answer. Run live against this repository:
+`currency: installed 0.17.0 is AHEAD of the published 0.16.1`.
+
+`DR-72` records what this does not establish: nothing verifies that the index's answer is genuine,
+and a fork publishing elsewhere would report its own installs as behind.

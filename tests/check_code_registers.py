@@ -56,6 +56,9 @@ CATALOGUE_BEGIN = "<!-- BEGIN GENERATED: finding codes (tests/check_code_registe
 CATALOGUE_END = "<!-- END GENERATED: finding codes -->"
 LINK = re.compile(r"\[[^\]]*\]\(([^)\s#]+)(?:#[^)]*)?\)")
 PATHISH = re.compile(r"`((?:\.standards|\.github|surfaceplate|org|audit|core|prompts|tests|scripts|docs)/[A-Za-z0-9_./*-]+)`")
+# `F130`: a `name==version` pin, wherever it is written. Anchored on a digit so that a comparison
+# written in prose or code ("x == y") cannot be read as a pin.
+PINNED = re.compile(r"([A-Za-z][A-Za-z0-9_.-]*)==([0-9][A-Za-z0-9_.]*)")
 # `F128`: the same treatment, applied to what the payload says about itself - see
 # `payload_pointer_checks`. Only pointers that name an installed destination are resolved.
 PAYLOAD_POINTER = re.compile(
@@ -223,6 +226,54 @@ def front_door_checks(checker_text: str, write: bool) -> None:
           present == expected, "run: python tests/check_code_registers.py --write")
 
 
+def dependency_pin_checks() -> None:
+    """`F130`: the same version is pinned in five places and nothing compared them.
+
+    `pyproject.toml` is the authority for what this package depends on. The self-check workflow
+    installs its own hard-coded copy of that list; `standards-conformance.yml` installs the two
+    runtime pins; the **payload's** copy of that workflow installs them into every adopting
+    repository; and `INSTALL.md` tells a reader to install `textual` by version. Five declarations
+    of one fact.
+
+    Found when Dependabot's pytest bump edited `pyproject.toml` alone and every suite passed:
+    CI had installed 8.4.2 from its own line and never saw the change under review. A dependency
+    change was about to be judged by a run that did not install it - and the payload copy makes the
+    same drift reach adopters, whose CI would install a set the package does not declare.
+
+    LIMIT, stated rather than implied: this compares versions for packages `pyproject.toml`
+    declares. A pin elsewhere for something it does not declare (`build` in `publish.yml`, a
+    publish-time tool) is not checked, because there is no authority here to compare it against.
+    """
+    import tomllib
+
+    data = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    project = data["project"]
+    declared: dict[str, str] = {}
+    groups = [project.get("dependencies", [])] + list(project.get("optional-dependencies", {}).values())
+    for group in groups:
+        for spec in group:
+            m = PINNED.fullmatch(spec.strip())
+            if m:
+                declared[m.group(1).lower().replace("_", "-")] = m.group(2)
+    check("pyproject.toml declares exactly-pinned dependencies to compare against", bool(declared))
+
+    files = sorted((ROOT / ".github" / "workflows").glob("*.yml"))
+    files += sorted((ROOT / "surfaceplate" / "standard" / ".github" / "workflows").glob("*.yml"))
+    files += [ROOT / "INSTALL.md", ROOT / "README.md", ROOT / "CONTRIBUTING.md", ROOT / "scripts" / "front_door.sh"]
+    for path in files:
+        if not path.exists():
+            continue
+        for name, version in PINNED.findall(path.read_text(encoding="utf-8")):
+            key = name.lower().replace("_", "-")
+            if key not in declared:
+                continue
+            check(
+                f"{path.relative_to(ROOT).as_posix()}: {name}=={version} matches pyproject.toml",
+                version == declared[key],
+                f"pyproject.toml pins {declared[key]}",
+            )
+
+
 def payload_pointer_checks(targets: set[str]) -> None:
     """`F128`: the front door is checked and the payload's own documents were not.
 
@@ -267,6 +318,7 @@ def main() -> int:
     checker_text = CHECKER.read_text(encoding="utf-8")
     front_door_checks(checker_text, write)
     payload_pointer_checks(_installed_targets())
+    dependency_pin_checks()
 
     # ---- SP codes: declaration against the code that emits them ----
     space = declared_space(findings_text)
