@@ -185,12 +185,12 @@ an unknown number of releases with nothing noticing.
 | F117 | `README.md` said "this is not published to PyPI yet" after `0.16.0` and `0.16.1` were both on the index | medium | Closed — `ACT-062`, 2026-09-03; see the body |
 | F118 | `SECURITY.md` said the repository "is currently private" and that private vulnerability reporting "cannot be enabled" for it, weeks after the repository was made public | medium | Closed — `ACT-062`, 2026-09-03; see the body |
 | F119 | Nowhere a user actually reads — the installer's Next steps, the post-`adopt` failure output, `INSTALL.md`'s two "Raise it" sentences, SP005's own remedy text — named an issue tracker, and no local, offline way to assemble a problem report existed | medium | Closed — `ACT-062`, 2026-09-03; see the body |
-| F120 | The agent instructions are not graded by conformance level, while every control is | medium | **Open** |
-| F121 | `owner_role` and `reviewer_role` are required of a solo adopter, for whom both are constant | medium | **Open** |
+| F120 | The agent instructions are not graded by conformance level, while every control is | medium | Closed — `ACT-068` (`DR-69`), 2026-09-08; see the body |
+| F121 | `owner_role` and `reviewer_role` are required of a solo adopter, for whom both are constant | medium | Closed — `ACT-068` (`DR-69`), 2026-09-08; see the body |
 | F122 | The installer creates a Copilot instruction channel unconditionally, including in repositories that do not use Copilot | low | Closed — `ACT-066` (`DR-67`), 2026-09-08; see the body |
 | F123 | `authority.md` names one vendor's file as the place the authority hierarchy must be stated | medium | Closed — `ACT-066` (`DR-67`), 2026-09-08; see the body |
 | F124 | The checker verifies that an install is unedited and has no notion of whether it is current | high | Open — narrowed by `ACT-067` (`DR-68`): the mechanism exists and nothing triggers it |
-| F125 | No adopter-facing precedence rule exists between this standard and a co-resident governance system | medium | **Open** |
+| F125 | No adopter-facing precedence rule exists between this standard and a co-resident governance system | medium | Closed — `ACT-068`/`ACT-069` (`DR-69`, `DR-71`), 2026-09-08; see the body |
 | F126 | `test_adopt_matrix.py`'s edit-route case (T6) intermittently fails SP033, reproducibly on a clean checkout, unrelated to any change in this session | medium | **Open** |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -1592,7 +1592,19 @@ disagrees with a separately-frozen test constant.
 
 ## F125 — No adopter-facing precedence rule exists between this standard and a co-resident governance system
 
-**Severity: medium. Open.**
+**Severity: medium. Closed — `ACT-068`/`ACT-069` (`DR-69`, `DR-71`), 2026-09-08.**
+
+**Remedy, in two halves, because the finding had two.** Topic 1 (Authority) now states the
+**default** in adopter-facing text: this standard governs the surfaces it specifies, the
+repository's own instructions govern the rest, and a contradiction on a surface this standard does
+specify is the blocking defect the same document already described. And `adopter_canon` in the
+application profile is the **mechanism** by which a repository declares a different order — binding
+the repository that declares it and no other, checked by `SP060` for existence and tracking so the
+declaration is verified rather than decorative.
+
+Both halves were needed. A rule with no mechanism would have been advice; a mechanism with no
+stated default would have left every repository that declares nothing in exactly the position this
+finding describes.
 
 Raised at `ACT-063` from a portfolio operating-model review outside this repository (`mnemosyne/reviews/2026-09-04_operating-model-plan-v3.md`, where it is numbered `SP-F6`). That review proposed it; it is recorded here only after being re-verified against this repository on 2026-09-08, and where the re-verification disagreed with the review the disagreement is stated rather than smoothed away. Nothing in `mnemosyne` is part of this standard or a condition of adopting it; it is the origin of the observation, not an authority over the remedy.
 
@@ -1737,7 +1749,19 @@ stranger cannot be expected to know which of the two per-agent channels they are
 
 ## F121 — `owner_role` and `reviewer_role` are required of a solo adopter, for whom both are constant
 
-**Severity: medium. Open.**
+**Severity: medium. Closed — `ACT-068` (`DR-69`), 2026-09-08.**
+
+**Remedy.** Topic 4 (Work tracking) grades the register by conformance level: at `essential`, a
+two-value status and a bare dependency pointer satisfy it, and `owner_role`/`reviewer_role` are
+declared once at the repository level rather than repeated per entry. The full field set is what
+`standard` and `full` ask for, where a named reviewer is doing real work.
+
+**This finding then earned its keep a second time, hours later, on a different surface.** `DR-69`
+had specified nesting the twelve controls under topics in the application profile. `DR-71` rejected
+that using *this finding's own reasoning* — a control's topic is decided by the framework, so
+nesting it into every adopter's file would restate a fact the framework owns, in a field that could
+only be redundant when right or wrong when not. "A constant column carries no information", one
+level up. The programme's only breaking change was removed on the strength of it.
 
 Raised at `ACT-063` from a portfolio operating-model review outside this repository (`mnemosyne/reviews/2026-09-04_operating-model-plan-v3.md`, where it is numbered `SP-F2`). That review proposed it; it is recorded here only after being re-verified against this repository on 2026-09-08, and where the re-verification disagreed with the review the disagreement is stated rather than smoothed away. Nothing in `mnemosyne` is part of this standard or a condition of adopting it; it is the origin of the observation, not an authority over the remedy.
 
@@ -1758,7 +1782,21 @@ rather than a per-entry field. Note what this must not do — it must not remove
 
 ## F120 — The agent instructions are not graded by conformance level, while every control is
 
-**Severity: medium. Open.**
+**Severity: medium. Closed — `ACT-068` (`DR-69`), 2026-09-08.**
+
+**Remedy, and it is narrower than the finding's own proposal.** The finding proposed grading every
+agent-instruction rule file by level. What shipped grades the instance that mattered: Topic 4
+(Work tracking) states what `essential` requires of a register versus what `standard` and `full`
+do, which is the case this finding named as its sharpest and the one that imposed a real cost on a
+small adopter.
+
+**The general mechanism landed with the restructure rather than as a separate control.** The topic
+axis is what makes grading expressible at all — class, audience and level become properties stated
+in a rule's own document rather than of the directory it sat in — and the topic documents state
+their floors in their own text. What is deliberately *not* built is a machine-checked per-rule
+level field: no check reads one, and inventing an enforcement mechanism for a documentation
+property would be a control with no reader, which `core/CONTROL_PRINCIPLES.md` principle 12
+declines.
 
 Raised at `ACT-063` from a portfolio operating-model review outside this repository (`mnemosyne/reviews/2026-09-04_operating-model-plan-v3.md`, where it is numbered `SP-F1`). That review proposed it; it is recorded here only after being re-verified against this repository on 2026-09-08, and where the re-verification disagreed with the review the disagreement is stated rather than smoothed away. Nothing in `mnemosyne` is part of this standard or a condition of adopting it; it is the origin of the observation, not an authority over the remedy.
 
