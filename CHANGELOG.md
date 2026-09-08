@@ -2395,3 +2395,41 @@ taxonomy.
   topics: nineteen do not divide cleanly across twelve, and `DR-69` kept that specification whole.
 - `SP060` is exempt from the wizard's SP-parity table **with its reason stated** — `adopter_canon`
   is written by hand, so there is no field at which the wizard could refuse it.
+
+### A recorded instant could sit ahead of the clock that judged it (`F126`)
+
+A gate created seconds ago could be reported as *dated in the future*. Found while doing unrelated
+work, root-caused by instrumentation after three code-reading hypotheses had each been killed by
+measurement.
+
+**What was measured.** Logging every verdict the checker reached caught six of this shape:
+
+```
+raw   = 2026-09-08T21:25:30+01:00     the effective_from as written
+clock = 2026-09-08T21:25:28.594430    the clock when the checker judged it
+```
+
+The recorded instant sat **1.4 seconds ahead of the clock that judged it** — impossible on a single
+monotonic clock, because `provenance.now_iso()` truncates microseconds *downward* and so cannot
+mint a value exceeding a later reading. `SP033` was arithmetically correct; the timestamp was wrong.
+
+**Cause recorded as inference, not dressed up as diagnosis.** That the instant led the clock is
+measured fact. *Why* the clock moved was never forced to reproduce: 20,000 tight write-then-check
+cycles were clean, an idle clock showed no drift, and a second full run produced no verdicts at
+all. NTP steps, VM suspend/resume and WSL2's resync against its host all move a wall clock backward
+by about this much, and the affected machine is WSL2 — stated as `INFERENCE`.
+
+**Remedy: robustness to the class, not repair of an unobserved cause.**
+`rules.FUTURE_INSTANT_TOLERANCE` (60 seconds), on the **instant branch only**. Nobody defers a gate
+by a minute, so the control keeps its meaning entirely, and `F47`/`DR-44`'s deliberate decision —
+*"an instant later today is genuinely in the future and must still be refused"* — survives
+untouched, because an instant later today is hours ahead, not seconds. The date branch is unchanged.
+Held in `rules.py`, so the wizard's validator and the checker move together (`DR-48`).
+
+Verified in four directions, plus a fifth assertion pinning the tolerance below five minutes so
+that widening it to hours — which would reverse `F47` by editing a constant rather than writing a
+record — fails the suite instead.
+
+**This reached adopters, not only this repository's test suite**, which is why the finding was
+retitled from its original symptom-shaped name. Anyone on WSL2 who scaffolded an artefact and
+immediately ran the checker could see a spurious `SP033` against a gate they had just created.

@@ -191,7 +191,7 @@ an unknown number of releases with nothing noticing.
 | F123 | `authority.md` names one vendor's file as the place the authority hierarchy must be stated | medium | Closed — `ACT-066` (`DR-67`), 2026-09-08; see the body |
 | F124 | The checker verifies that an install is unedited and has no notion of whether it is current | high | Open — narrowed by `ACT-067` (`DR-68`): the mechanism exists and nothing triggers it |
 | F125 | No adopter-facing precedence rule exists between this standard and a co-resident governance system | medium | Closed — `ACT-068`/`ACT-069` (`DR-69`, `DR-71`), 2026-09-08; see the body |
-| F126 | `test_adopt_matrix.py`'s edit-route case (T6) intermittently fails SP033, reproducibly on a clean checkout, unrelated to any change in this session | medium | **Open** |
+| F126 | A recorded `effective_from` instant can sit ahead of the clock the checker reads moments later, so a gate created seconds ago reads as dated in the future | medium | Closed — `ACT-070`, 2026-09-08; see the body |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1523,9 +1523,61 @@ field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
 
-## F126 — `test_adopt_matrix.py`'s edit-route case intermittently fails `SP033`, reproducibly on a clean checkout
+## F126 — A recorded `effective_from` instant can sit ahead of the clock that judges it
 
-**Severity: medium. Open.**
+**Severity: medium. Closed — `ACT-070`, 2026-09-08.**
+
+*Originally recorded under the title "`test_adopt_matrix.py`'s edit-route case intermittently fails
+`SP033`, reproducibly on a clean checkout". That named the symptom in the test suite. The finding
+is retitled to name the defect, which is in the shipped comparison and reaches adopters, not only
+this repository's own matrix.*
+
+**What was measured, and it is the whole finding.** An instrumented matrix run logged every call
+the checker made to `rules.effective_is_future`, capturing the raw field, the parsed day, the
+`today` it was given, and the real clock at the moment of the verdict. Six verdicts looked like
+this:
+
+```
+raw = 2026-09-08T21:25:30+01:00      the effective_from as written
+clock = 2026-09-08T21:25:28.594430   the clock when the checker judged it
+```
+
+**The recorded instant was ~1.4 seconds ahead of the clock that judged it.** That is impossible on
+a single monotonic clock: `provenance.now_iso()` truncates microseconds *downward*, so a value it
+mints can never exceed a later reading. `SP033` was arithmetically correct and the timestamp was
+wrong. A seventh verdict in the same run was the deliberate `effective-from-future` negative case
+(a date of tomorrow against a today), working exactly as designed.
+
+**`FACT` / `INFERENCE`, kept apart.** That the recorded instant led the checking clock is `FACT`,
+measured directly. *Why* the clock moved is `INFERENCE`: NTP steps, VM suspend/resume and WSL2's
+periodic resync against its Windows host all move the wall clock backward by roughly this much, and
+this machine is WSL2. It was never forced to reproduce — 20,000 tight write-then-check cycles were
+clean, an idle clock showed no drift over twelve seconds, and a second full matrix run produced
+zero future verdicts. Recorded as an inference rather than dressed up as a diagnosis.
+
+**Remedy: make the comparison robust to the class, rather than repair a cause not observed.**
+`rules.FUTURE_INSTANT_TOLERANCE` (60 seconds) applies to the **instant** branch only. Nobody defers
+a gate by a minute, so the control keeps its whole meaning: a gate genuinely dated in the future is
+hours or days out. `F47`/`DR-44`'s deliberate decision — *"an instant later today is genuinely in
+the future and must still be refused"* — survives untouched, because an instant later today is
+hours ahead, not seconds. The date branch is unchanged, where a one-day error needs a midnight
+crossing rather than a clock nudge, and where a tolerance would weaken the "dated tomorrow"
+refusal for nothing.
+
+Held in `rules.py` so the wizard's validator and the checker move together, per `DR-48`.
+
+**Verified in four directions** (`tests/test_adopt.py`): an instant two seconds ahead is no longer
+future; an instant an hour ahead still is; a date of tomorrow still is; an instant in the past is
+not. A fifth assertion pins the tolerance below five minutes, so that widening it to hours — which
+would silently reverse `F47` by editing a constant rather than by writing a record — fails the
+suite instead.
+
+**A second consequence this closes.** While open, this defect made `audit/validation/ADOPT_MATRIX.md`
+impossible to regenerate on the affected machine: `--write` embeds a *"N case(s) failed… must not be
+committed in that state"* guard. It also made the matrix's own report-comparison useless as
+evidence for anything else, because it reported "differs" whether or not the change under test had
+altered the report — a check returning the same answer for both outcomes it was being asked to
+distinguish.
 
 Found on 2026-09-08 during `ACT-068`'s Step 1 prototype, while running `test_adopt_matrix.py` as
 part of that step's own verification. Not caused by anything in this session's changes — isolated

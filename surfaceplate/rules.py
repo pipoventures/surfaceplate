@@ -136,6 +136,27 @@ def parse_effective_from(raw: object) -> tuple[_dt.date, str]:
     return day, text
 
 
+# `F126`. An instant is RECORDED at one moment and CHECKED against a live clock read later, and
+# those two readings are not guaranteed to agree. NTP steps, VM suspend/resume, and WSL2's periodic
+# resync against its host can all move the wall clock backward by around a second - which makes a
+# timestamp minted before the adjustment look like the future after it.
+#
+# Measured, not assumed: an instrumented matrix run caught six verdicts where the recorded
+# `effective_from` sat ~1.2s AHEAD of the clock the checker read moments later, with the write path
+# truncating microseconds DOWNWARD and so incapable of producing that gap on a monotonic clock. The
+# mechanism was never forced to reproduce and is recorded as INFERENCE; the effect is FACT.
+#
+# The tolerance is what makes the comparison robust to it. Sixty seconds is chosen because nobody
+# defers a gate by a minute: a gate genuinely "dated in the future" is hours or days out, and
+# `F47`/`DR-44`'s intent - that "an instant later today is genuinely in the future and must still
+# be refused" - survives untouched, because an instant later today is hours ahead, not seconds.
+#
+# Instants only. A date-valued `effective_from` is compared date-to-date, where a one-day error
+# needs a midnight crossing rather than a clock nudge, and where a tolerance would weaken the
+# deliberate "dated tomorrow" refusal for no gain.
+FUTURE_INSTANT_TOLERANCE = _dt.timedelta(seconds=60)
+
+
 def effective_is_future(raw: object, day: _dt.date, today: _dt.date) -> bool:
     """Whether this `effective_from` is still to come, compared as an instant when one is given."""
     text = str(raw).strip()
@@ -146,7 +167,7 @@ def effective_is_future(raw: object, day: _dt.date, today: _dt.date) -> bool:
     except ValueError:
         return day > today
     now = _dt.datetime.now(moment.tzinfo) if moment.tzinfo else _dt.datetime.now()
-    return moment > now
+    return moment > now + FUTURE_INSTANT_TOLERANCE
 
 
 def effective_from_state(raw: object, today: _dt.date | None = None) -> tuple[str, _dt.date | None]:
