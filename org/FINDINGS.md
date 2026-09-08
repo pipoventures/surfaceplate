@@ -195,6 +195,8 @@ an unknown number of releases with nothing noticing.
 | F127 | `SECURITY.md` went stale a second time about the same feature: it said private vulnerability reporting was *"not enabled today"*, citing an API check, after the setting had been turned on | medium | Closed — `ACT-070`, 2026-09-08; see the body |
 | F128 | A skill shipped to every adopter pointed at `activity.instructions.md`, a filename the twelve-topic restructure stopped writing and a Copilot-only emitted name before that; nothing checked what the payload says about itself | medium | Closed — `ACT-073`, 2026-09-08; see the body |
 | F129 | `F123`'s ruling was applied to the document it was found in and nowhere else: Topic 7 still told every agent that stack-specific commands and test areas belong in `copilot-instructions.md` | medium | Closed — `ACT-073`, 2026-09-08; see the body |
+| F130 | The same dependency version is pinned in five places — `pyproject.toml`, two workflows, the payload's copy of one of them, and `INSTALL.md` — and nothing compared them, so a dependency change was judged green by a CI run that installed the old version | high | Closed — `ACT-074`, 2026-09-08; see the body |
+| F131 | `CVE-2025-71176` in pytest cannot be remediated within the pinned test set: `pytest-textual-snapshot` pins `syrupy==4.8.0`, which caps `pytest<9.0.0`, and the fix is only in `9.0.3` | medium | Open — no satisfiable upgrade exists; the decision is `H21` |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1525,6 +1527,122 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F131 — A security advisory in a pinned test dependency has no satisfiable remedy, because a plugin pins the package that caps it
+
+**Severity: medium. Open — the decision is `H21`.**
+
+Recorded on 2026-09-08 in this session, from GitHub's Dependabot alert 1 on `main`.
+**`GHSA-6w46-j5rx-g56g` / `CVE-2025-71176`** — *"pytest through 9.0.2 on UNIX relies on directories
+with the `/tmp/pytest-of-{user}` name pattern, which allows local users to cause a denial of service
+or possibly gain privileges."* First patched version: **9.0.3**. This repository pins
+`pytest==8.4.2`.
+
+**There is no version of pytest that both fixes this and satisfies the rest of the set.** Verified
+by running the resolver rather than by reading metadata:
+
+```
+$ pip install --dry-run pytest==9.0.3 pytest-textual-snapshot==1.1.0 syrupy==4.8.0
+ERROR: Cannot install pytest-textual-snapshot==1.1.0, pytest==9.0.3 and syrupy==4.8.0
+       because these package versions have conflicting dependencies.
+ERROR: ResolutionImpossible
+```
+
+The chain, each link read from the installed distribution's own metadata:
+
+| Package | Declares |
+|---|---|
+| `pytest-textual-snapshot 1.1.0` (latest) | `syrupy == 4.8.0` — an **exact** pin |
+| `syrupy 4.8.0` | `pytest >= 7.0.0, < 9.0.0` |
+| `pytest 9.0.3` | the first version carrying the fix |
+
+`syrupy 6.0.0` exists and requires only `pytest >= 8.0.0`, so syrupy is not the obstacle — the
+plugin's exact pin on an old syrupy is. `pytest-textual-snapshot 1.1.0` was released **2025-01-23**
+and is the latest, so "wait for upstream" is not a plan with a date attached.
+
+**Dependabot's own PR (#83) does not work**, which is worth stating because it looked as though it
+did. It bumps `pytest` in `pyproject.toml` alone; every suite passed; and the reason they passed is
+`F130` below — CI installed 8.4.2 from its own hard-coded line and never saw the change. Applying
+that PR to a real environment produces the `ResolutionImpossible` above, or, forced past the
+resolver, an environment `pip check` rejects:
+
+```
+syrupy 4.8.0 requires pytest<9.0.0,>=7.0.0, but you have pytest 9.0.3 which is incompatible.
+```
+
+**Exposure, stated so the decision can be taken on facts.** `pytest` is in the `test` extra, which
+`pyproject.toml` already records as *"Test-only, so an extra: no adopter's CI installs these"* —
+**no adopting repository installs pytest because of this standard.** The advisory describes a
+**local** attack: it needs an unprivileged user with shell access on the same host, racing a
+predictable `/tmp/pytest-of-{user}` path while a test run is in progress. The two places this
+repository runs pytest are an ephemeral single-tenant GitHub-hosted runner and the maintainer's own
+workstation. `INFERENCE`, not `FACT`: on that reading the practical exposure is very low. It is
+still a real advisory and the reading is a judgement, which is why the decision is not an agent's.
+
+**Why this stays open rather than being fixed or dismissed here.** Three routes exist and all three
+are the maintainer's:
+
+1. **Accept and defer**, dismissing the alert as *"no fix available"* with a stated review trigger
+   (a `pytest-textual-snapshot` release that permits `syrupy >= 5`). Accepting a security risk is
+   explicitly reserved to a human by this standard's own Topic 9, and suppressing an alert in
+   `.github/dependabot.yml` is weakening a control — an agent may recommend it and may not do it.
+2. **Remove `pytest-textual-snapshot`** and drive `syrupy 6` directly, which frees `pytest 9`. That
+   deletes a dependency `DR-50` (4) chose deliberately and touches the golden-SVG comparison, so it
+   is a documented-control change, not a refactor.
+3. **Leave it open**, which is the same exposure as (1) with a permanently red security tab and an
+   alert that re-fires on every push.
+
+**Recommendation: (1)**, on the exposure reading above and on the absence of any upstream date. Not
+a decision this session can take. Recorded as **`H21`**.
+
+## F130 — The same dependency version is pinned in five places, and nothing compared them
+
+**Severity: high. Closed — `ACT-074`, 2026-09-08.**
+
+Recorded on 2026-09-08 in this session, found while establishing why Dependabot's pytest bump
+(PR #83) showed thirteen green suites and one failure.
+
+`pyproject.toml` is the authority for what this package depends on. The same versions are also
+written out, by hand, in four other places:
+
+| Where | What it pins |
+|---|---|
+| `pyproject.toml` | the authority — runtime, `adopt`, and `test` |
+| `.github/workflows/standard-self-check.yml` | all six, hard-coded on the install line |
+| `.github/workflows/standards-conformance.yml` | the two runtime pins |
+| **`surfaceplate/standard/.github/workflows/standards-conformance.yml`** | the same two, **in the payload** — installed into every adopting repository |
+| `INSTALL.md` | `textual`, in the command a reader is told to run |
+
+**Nothing compared any of them to the authority.** The consequence is not theoretical: PR #83
+edited `pyproject.toml` and *nothing else*, and the self-check workflow then installed
+`pytest==8.4.2` from its own line and ran fourteen suites against it. Thirteen reported green. **A
+dependency change was one merge away from being accepted on the evidence of a run that never
+installed it** — the working method's *wrong artefact* failure exactly: a right answer about the
+wrong object, which no amount of re-running the check would have exposed, because every re-run
+would have tested 8.4.2 again.
+
+The payload row is why this is `high` rather than `medium`. That workflow is installed into every
+adopting repository and is integrity-checked there, so a runtime pin that moves in `pyproject.toml`
+without moving in the payload copy has every adopter's CI installing a set the package does not
+declare — and the adopter cannot correct it, because editing an installed file fails their own
+conformance check.
+
+**Remedy, `ACT-074`.** `tests/check_code_registers.py` gains `dependency_pin_checks`: it reads
+`pyproject.toml`'s exact pins — runtime and every extra — and requires every `name==version` written
+in any workflow (this repository's and the payload's), `INSTALL.md`, `README.md`, `CONTRIBUTING.md`
+or `scripts/front_door.sh` to agree with it for any package `pyproject.toml` declares. The
+authority is read, never restated, so adding a dependency extends the check with no edit.
+
+**Its limit, stated rather than implied:** a pin for a package `pyproject.toml` does not declare
+(`build==1.2.2` in `publish.yml`, a publish-time tool) has no authority here to be compared
+against, and is skipped. Making `publish.yml`'s toolchain a declared extra would close that too and
+is not done here, because it changes what the package declares to the index for a build-time
+concern.
+
+**Verified by effect.** With Dependabot's exact change applied to `pyproject.toml` alone, the check
+fails — `.github/workflows/standard-self-check.yml: pytest==8.4.2 matches pyproject.toml:
+pyproject.toml pins 9.0.3` — exit 1. Restored, it passes at 105 checks. The failure names the file
+that disagrees, so the reader is not left to find which of the five is wrong.
 
 ## F129 — `F123`'s ruling was applied to the document it was found in, and to no other
 

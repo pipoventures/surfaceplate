@@ -2492,3 +2492,51 @@ reader and for any agent not emitted for. Both now say "the repository's own age
 file", the first citing Topic 1 where the full form lives. No mechanism: whether prose names a vendor's
 file is a judgement, and a regex banning the string would fail on Topic 1's own deliberate naming of
 all three.
+
+### The dependency alert that could not be merged, and why nobody could tell (`ACT-074`)
+
+A Dependabot PR bumping `pytest` 8.4.2 → 9.0.3 for `CVE-2025-71176` sat open with thirteen green
+suites and one failure. Both halves of that picture were wrong.
+
+**`F130` — the same version is pinned in five places and nothing compared them.** `pyproject.toml`
+is the authority. The self-check workflow hard-codes all six pins on its install line;
+`standards-conformance.yml` hard-codes the two runtime ones; **the payload's copy of that workflow**
+hard-codes them into every adopting repository; and `INSTALL.md` names `textual` by version in a
+command it tells readers to run. Dependabot edited `pyproject.toml` and nothing else, so CI
+installed `pytest==8.4.2` from its own line and ran fourteen suites against the version that was
+*not* under review. **A dependency change was one merge away from being accepted on the evidence of
+a run that never installed it** — a right answer about the wrong object, which re-running the suite
+could never have exposed.
+
+The payload row is what makes this `high`: a runtime pin that moves in `pyproject.toml` and not in
+the installed workflow has every adopter's CI installing a set the package does not declare, and
+they cannot correct it, because editing an installed file fails their own conformance check.
+
+`dependency_pin_checks` now reads `pyproject.toml`'s exact pins — runtime and every extra — and
+requires every `name==version` written in any workflow (this repository's and the payload's),
+`INSTALL.md`, `README.md`, `CONTRIBUTING.md` or `scripts/front_door.sh` to agree, for any package
+`pyproject.toml` declares. The authority is read, never restated. Its limit is stated rather than
+implied: a pin for something `pyproject.toml` does not declare (`build` in `publish.yml`) has no
+authority to be compared against and is skipped. Verified by effect — Dependabot's exact change
+makes it fail, naming the file that disagrees; restored, it passes at 105 checks.
+
+**`F131` — the advisory has no satisfiable remedy, and the alert stays open.** Established by
+running the resolver, not by reading metadata:
+
+```
+$ pip install --dry-run pytest==9.0.3 pytest-textual-snapshot==1.1.0 syrupy==4.8.0
+ERROR: ResolutionImpossible
+```
+
+`pytest-textual-snapshot 1.1.0` — the latest, released 2025-01-23 — pins `syrupy==4.8.0` **exactly**,
+and that syrupy caps `pytest<9.0.0`. The fix exists only in 9.0.3. `syrupy 6.0.0` would allow it, so
+syrupy is not the obstacle; the plugin's exact pin on an old syrupy is. Dependabot's PR, forced past
+the resolver, yields an environment `pip check` rejects.
+
+`pytest` is a test-only extra no adopting repository installs, and the advisory needs a local
+unprivileged user racing `/tmp/pytest-of-{user}` on the same host — an ephemeral single-tenant
+runner, or the maintainer's own workstation. On that reading the practical exposure is very low,
+recorded as `INFERENCE`. Accepting the residual risk, granting a dependency exception, or silencing
+the alert in `.github/dependabot.yml` are reserved to a human by this standard's own Topic 9, so the
+finding stays **open** and the decision is `H21`, with all three routes costed and the accept-and-
+defer route recommended.
