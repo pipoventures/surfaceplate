@@ -12,14 +12,23 @@ Offline by default. Whether GitHub Actions is enabled for a repository is a fact
 API can answer and it needs a token, so it sits behind `--online` and `GITHUB_TOKEN`: the token is
 read from the environment, sent only to `api.github.com` over HTTPS in an `Authorization` header,
 and never printed. That request is the one trust boundary in this module.
+
+`--report` assembles a problem report for a human to paste into an issue by hand: everything in
+this module already reads local, non-identifying facts, so the report is the same facts, rendered
+once more and redacted. **It never sends anything and is deliberately incompatible with
+`--online`** - the whole point is that this path stays on the opposite side of the module's one
+network call from it. See `_collect_report` for what is included, `_redact` for what never leaves
+the repository verbatim, and `_never_collected` for what is not gathered in the first place.
 """
 
 from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.metadata
 import importlib.util
 import os
+import platform
 import subprocess
 import sys
 from pathlib import Path
@@ -216,6 +225,176 @@ def diagnose(repo: Path, *, online: bool) -> list[Line]:
     return lines
 
 
+_OPTIONAL_MODULES = ("pip", "yaml", "jsonschema", "textual")
+_DIST_NAMES = {"yaml": "PyYAML"}  # the importable name and the distribution name differ here
+
+
+def _dependency_lines() -> list[str]:
+    lines = []
+    for module in _OPTIONAL_MODULES:
+        if importlib.util.find_spec(module) is None:
+            lines.append(f"  {module:<11} missing")
+            continue
+        try:
+            version = importlib.metadata.version(_DIST_NAMES.get(module, module))
+        except importlib.metadata.PackageNotFoundError:
+            version = "unknown"
+        lines.append(f"  {module:<11} importable ({version})")
+    return lines
+
+
+def _installed_standard_lines(repo: Path) -> tuple[list[str], dict | None]:
+    """The facts `.standards/INSTALL.json` already holds, none of them identifying. Returns the
+    rendered lines and the parsed record (`None` when nothing is installed here)."""
+    record_path = repo / ".standards" / "INSTALL.json"
+    if not record_path.is_file():
+        return ["  not installed in this repository"], None
+    import json
+
+    try:
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return [f"  the install record is unreadable: {exc}"], None
+    try:
+        from surfaceplate import install_standard
+    except ImportError:  # imported flat, with the payload directory itself on the path (CI)
+        import install_standard  # type: ignore[no-redef]
+
+    hooks = "declined (--no-hooks)" if install_standard.HOOK_TARGET not in (record.get("files") or {}) else "installed"
+    lines = [
+        f"  standard_version    {record.get('standard_version', '(unknown)')}",
+        f"  framework_digest    {record.get('framework_digest', '(unknown)')}",
+        f"  first_installed_at  {record.get('first_installed_at', '(unknown)')}",
+        f"  installed_at        {record.get('installed_at', '(unknown)')}",
+        f"  grace_expires       {record.get('grace_expires', '(unknown)')}",
+        f"  hooks               {hooks}",
+    ]
+    return lines, record
+
+
+def _conformance_lines(repo: Path, installed: bool) -> list[str]:
+    """The checker's own verdict, plus - verbatim, because these are standard-owned and identical
+    in every adopting repository - which of its own files fail integrity (`SP004`/`SP005`). Every
+    other finding is named by code and count only: its `detail` may quote the adopter's own
+    artefacts, which this report does not disclose."""
+    if not installed:
+        return ["  skipped: not installed in this repository"]
+    import datetime as _dt
+
+    try:
+        from surfaceplate import check_conformance
+    except ImportError:  # imported flat, with the payload directory itself on the path (CI)
+        import check_conformance  # type: ignore[no-redef]
+
+    try:
+        report = check_conformance.evaluate(repo, _dt.date.today(), False, False)
+    except Exception as exc:  # noqa: BLE001 - a report must not crash on a broken repository
+        return [f"  could not evaluate: {type(exc).__name__}: {exc}"]
+    lines = [f"  verdict    {report.verdict}", f"  exit_code  {report.exit_code}"]
+    by_code: dict[str, int] = {}
+    for finding in report.findings:
+        by_code[finding.code] = by_code.get(finding.code, 0) + 1
+    if by_code:
+        counts = ", ".join(f"{code}×{n}" for code, n in sorted(by_code.items()))
+        lines.append(f"  findings   {counts}")
+    else:
+        lines.append("  findings   none")
+    integrity_paths = [
+        f.detail for f in report.findings if f.code in ("SP004", "SP005") and f.detail
+    ]
+    if integrity_paths:
+        lines.append("  standard-owned files failing integrity (safe to share verbatim):")
+        for detail in integrity_paths:
+            for rel in detail.split("; "):
+                lines.append(f"    {rel}")
+    return lines
+
+
+def _never_collected() -> list[str]:
+    return [
+        "  - git remotes or branch names",
+        "  - governance/application-profile.yaml (it names an owner and contacts)",
+        "  - this repository's directory name",
+        "  - environment variables",
+        "  - the full list of standard-owned files (`.standards/INSTALL.json`'s `files` map);",
+        "    only the ones actually failing integrity, above, and only their paths",
+    ]
+
+
+def _redact(text: str, repo: Path) -> str:
+    """One choke point, applied to the whole rendered report, so no collector above can bypass
+    it and there is exactly one thing to test. Longest source first, so a shorter one (e.g. the
+    home directory) cannot eat part of a longer one (e.g. a repo path nested inside it)."""
+    substitutions = [
+        (str(repo.resolve()), "<repo>"),
+        (str(Path.home()), "<home>"),
+        (sys.prefix, "<venv>"),
+    ]
+    for var in ("USER", "USERNAME", "LOGNAME"):
+        value = os.environ.get(var, "")
+        if value:
+            substitutions.append((value, "<user>"))
+    substitutions.sort(key=lambda pair: len(pair[0]), reverse=True)
+    for source, placeholder in substitutions:
+        if source:
+            text = text.replace(source, placeholder)
+    return text
+
+
+def _collect_report(repo: Path) -> tuple[str, list[Line]]:
+    try:
+        from surfaceplate import about
+    except ImportError:  # imported flat, with the payload directory itself on the path (CI)
+        import about  # type: ignore[no-redef]
+
+    lines = diagnose(repo, online=False)
+    installed_lines, record = _installed_standard_lines(repo)
+
+    sections = [
+        "# surfaceplate problem report",
+        "",
+        "Nothing here was sent anywhere - this command makes no network requests. Read the whole",
+        "report before pasting it; see \"What was redacted\" at the end for exactly what this",
+        "leaves out and why.",
+        "",
+        "## Tool",
+        f"  version  {about.version()}",
+        f"  anchor   {about.anchor()}",
+        "",
+        "## Python",
+        f"  {platform.python_implementation()} {'.'.join(str(n) for n in sys.version_info[:3])}",
+        "",
+        "## OS",
+        f"  {platform.system()} {platform.release()} ({platform.machine()})",
+        "",
+        "## Optional dependencies",
+        *_dependency_lines(),
+        "",
+        "## Installed standard (.standards/INSTALL.json)",
+        *installed_lines,
+        "",
+        "## doctor",
+        *[line.render() for line in lines],
+        "",
+        "## Conformance check",
+        *_conformance_lines(repo, record is not None),
+        "",
+        "## What was redacted",
+        "  <repo>  this repository's absolute path",
+        "  <home>  your home directory",
+        "  <venv>  the active Python environment's location",
+        "  <user>  your OS username",
+        "",
+        "Never collected at all:",
+        *_never_collected(),
+        "",
+        "---",
+        "Read the report above. If you are happy for it to be public, paste it into:",
+        f"  {about.ISSUES}",
+    ]
+    return _redact("\n".join(sections) + "\n", repo), lines
+
+
 class _Parser(argparse.ArgumentParser):
     def error(self, message: str) -> None:  # type: ignore[override]
         self.print_usage(sys.stderr)
@@ -227,8 +406,25 @@ def main(argv: list[str] | None = None) -> int:
     parser = _Parser(prog="surfaceplate doctor", description="Check this machine and repository for what stops the first command.")
     parser.add_argument("--repo", default=".", help="Repository to look at (default: current directory).")
     parser.add_argument("--online", action="store_true", help="Also ask api.github.com whether Actions is enabled; needs GITHUB_TOKEN.")
+    parser.add_argument("--report", action="store_true", help="Assemble a paste-ready problem report and print it. Offline, always; nothing is sent.")
+    parser.add_argument("--report-file", metavar="PATH", help="Also write the report to PATH (with --report). Never a default path; never overwrites silently.")
     args = parser.parse_args(argv)
     repo = Path(args.repo).resolve()
+
+    if args.report:
+        if args.online:
+            parser.error("--online is not available with --report: a problem report is assembled offline and nothing is ever sent")
+        text, lines = _collect_report(repo)
+        if args.report_file:
+            target = Path(args.report_file)
+            if target.exists():
+                parser.error(f"{target} already exists; choose a different path rather than overwrite it silently")
+            target.write_text(text, encoding="utf-8")
+        print(text, end="")
+        return 1 if any(line.status == FAIL for line in lines) else 0
+    if args.report_file and not args.report:
+        parser.error("--report-file needs --report")
+
     lines = diagnose(repo, online=args.online)
     print("Surfaceplate - doctor")
     print(f"repository: {repo}")

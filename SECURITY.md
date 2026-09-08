@@ -6,11 +6,16 @@ Use [GitHub private vulnerability reporting](https://docs.github.com/en/code-sec
 via this repository's Security tab: **Security → Report a vulnerability**. This keeps the report
 private between you and the maintainer until a fix, if one is needed, is ready.
 
-**This repository is currently private.** Private vulnerability reporting is a GitHub feature for
-public repositories and cannot be enabled while it stays private — verified directly against
-GitHub's own API and documentation, not assumed. It is not enabled today. Enabling it is a required
-step at the point this repository is made public; until then, this route does not yet work, and
-this document says so rather than pretending otherwise.
+**This repository is now public** (it was private when this paragraph was first written; that
+statement went stale the moment the repository's visibility changed, and is corrected here rather
+than left standing beside a later note). Private vulnerability reporting is therefore available to
+enable, but **is not enabled today** — verified directly against GitHub's API
+(`GET /repos/pipoventures/surfaceplate/private-vulnerability-reporting` currently answers
+`enabled: false`), not assumed. Enabling it is listed in
+[`org/HUMAN_ACTIONS.md`](org/HUMAN_ACTIONS.md). Until it is, there is no confidential channel here:
+a genuinely sensitive report should hold back specifics and ask, via
+[GitHub Issues](https://github.com/pipoventures/surfaceplate/issues), for a private way to send them
+rather than posting them in the open.
 
 ## What happens after a report
 

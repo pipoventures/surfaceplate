@@ -23,6 +23,7 @@ surfaceplate --help >/dev/null
 surfaceplate doctor --repo "$target" || true            # warnings are allowed; a failure would exit 1
 surfaceplate install --target "$target" --dry-run --no-hooks
 surfaceplate install --target "$target" --no-hooks
+surfaceplate doctor --report --repo "$target" >/dev/null || true   # offline; must not need the network this script disabled
 set +e
 surfaceplate check --repo "$target"; code=$?
 set -e

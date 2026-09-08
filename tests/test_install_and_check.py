@@ -666,6 +666,79 @@ def test_doctor_reports_the_facts_that_stopped_the_stranger_install(tmp: Path) -
     )
 
 
+def test_the_problem_report_is_assembled_locally_and_discloses_what_it_collected(tmp: Path) -> None:
+    """`doctor --report`: everything shown is collected locally, redacted once, and never sent.
+    `_collect_report` is called directly so the assertions are against the actual text rather
+    than a subprocess's stdout, except where the CLI-level behaviour (`--report-file`, the
+    `--online` refusal, the exit code) can only be observed that way."""
+    import about  # flat, like every payload module this suite imports
+    import doctor
+
+    repo = make_repo(tmp, "report-redaction")
+    install(repo, "--no-hooks")
+    record = read_record(repo)
+
+    text, lines = doctor._collect_report(repo)
+    check("the report never names the repository's real path", str(repo.resolve()) not in text, text[:300])
+    check("the report never names the real home directory", str(Path.home()) not in text, text[:300])
+    check("the report redacts to <repo>", "<repo>" in text, text[:300])
+    check("the report names the tool version and anchor", about.version() in text and about.anchor() in text)
+    check("the report names the installed standard_version and framework_digest",
+          record["standard_version"] in text and record["framework_digest"] in text)
+    check("the report names the issues URL", about.ISSUES in text, text[-200:])
+    check("the report states nothing is sent", "no network requests" in text, text[:300])
+    check("the report discloses what it never collects", "governance/application-profile.yaml" in text, text[-400:])
+
+    # No network: the collector must not even attempt one, not merely "happen not to" on a
+    # healthy run - so the socket layer itself is booby-trapped for the duration of the call.
+    import socket
+
+    original_socket = socket.socket
+
+    def _refuse(*_a: object, **_k: object) -> None:
+        raise AssertionError("doctor --report must never open a socket")
+
+    socket.socket = _refuse  # type: ignore[assignment]
+    try:
+        text_offline, _ = doctor._collect_report(repo)
+    finally:
+        socket.socket = original_socket
+    check("the report completes with the socket layer booby-trapped", bool(text_offline))
+
+    # A repository with nothing installed: degrades, does not raise.
+    bare = tmp / "report-bare"
+    bare.mkdir()
+    (bare / ".git").mkdir()
+    text_bare, _ = doctor._collect_report(bare)
+    check("an uninstalled repository still produces a report rather than raising", "not installed" in text_bare.lower(), text_bare[:400])
+
+    env = {**os.environ, "PYTHONPATH": str(ROOT)}
+    env.pop("GITHUB_TOKEN", None)
+    cli = [sys.executable, "-m", "surfaceplate.cli", "doctor"]
+
+    out_file = tmp / "report-output.md"
+    result = subprocess.run(
+        [*cli, "--repo", str(repo), "--report", "--report-file", str(out_file)],
+        capture_output=True, text=True, env=env, cwd=str(ROOT),
+    )
+    check("--report-file writes exactly what stdout printed",
+          out_file.is_file() and out_file.read_text(encoding="utf-8") == result.stdout, result.stdout[-200:])
+
+    result = subprocess.run(
+        [*cli, "--repo", str(repo), "--report", "--online"],
+        capture_output=True, text=True, env=env, cwd=str(ROOT),
+    )
+    check("--report refuses --online rather than silently ignoring it",
+          result.returncode == 3 and "not available" in result.stderr.lower(), result.stderr)
+
+    result = subprocess.run(
+        [*cli, "--repo", str(repo), "--report-file", str(tmp / "unused.md")],
+        capture_output=True, text=True, env=env, cwd=str(ROOT),
+    )
+    check("--report-file without --report is refused, not silently ignored",
+          result.returncode == 3 and "--report" in result.stderr, result.stderr)
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory() as raw:
         tmp = Path(raw)
@@ -685,6 +758,7 @@ def main() -> int:
         test_exit_codes_and_formats(tmp)
         test_doctor_reports_the_facts_that_stopped_the_stranger_install(tmp)
         test_doctor_reports_a_tool_that_differs_from_the_install(tmp)
+        test_the_problem_report_is_assembled_locally_and_discloses_what_it_collected(tmp)
         test_the_closing_report_states_the_checkers_verdict_as_given(tmp)
 
         print("\nevery agent receives the skills (F58)")

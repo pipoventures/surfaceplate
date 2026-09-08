@@ -1,7 +1,8 @@
 """What this tool is: the identity the opening screen shows and the anchor `adopt` compares.
 
-`DR-51` (2). Held in one module so the opening screen, the version-parity refusal and `doctor`
-say the same thing, and `tests/test_adopt.py` holds it to `pyproject.toml` so it cannot drift.
+`DR-51` (2). Held in one module so the opening screen, the version-parity refusal, `doctor` and
+where to report a problem all say the same thing, and `tests/test_adopt.py` holds it to
+`pyproject.toml` so it cannot drift.
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ NAME = "Surfaceplate"
 PUBLISHER = "Pipo Ventures Ltd"
 LICENCE = "Apache-2.0"
 HOMEPAGE = "https://github.com/pipoventures/surfaceplate"
+ISSUES = f"{HOMEPAGE}/issues"
 TAGLINE = (
     "a software delivery standard that installs into a repository and checks it against what it "
     "publishes"

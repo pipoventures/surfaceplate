@@ -48,3 +48,11 @@ approval of any kind; those remain separate, human steps.
 Read `README.md` and `core/` for what this project is and how it is controlled. There is one
 maintainer; see `org/decisions/README.md` for what that does and does not mean for review and
 approval.
+
+## Reporting a problem, not proposing a fix
+
+Found a bug, a defect in the standard itself, or something the checker gets wrong?
+[Open an issue](https://github.com/pipoventures/surfaceplate/issues) — see `SUPPORT.md` for which
+form to use. You do not need a fix in hand; a clear reproduction is enough, and is more useful to a
+part-time maintainer than a large unreviewed patch. A vulnerability report follows `SECURITY.md`
+instead, not this route.

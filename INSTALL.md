@@ -269,13 +269,14 @@ No. Copilot reads `.github/instructions/*.instructions.md` *in addition to*
 stating the precedence rules.
 
 **Can I edit a skill to suit our repository?**
-Not in place — the integrity check will fail, by design. If a change is genuinely needed, raise it
-against the standard so every repository benefits. If it is truly repository-specific, put it in
-your own `copilot-instructions.md` or in an instruction file the standard does not own.
+Not in place — the integrity check will fail, by design. If a change is genuinely needed,
+[raise it against the standard](https://github.com/pipoventures/surfaceplate/issues) so every
+repository benefits. If it is truly repository-specific, put it in your own
+`copilot-instructions.md` or in an instruction file the standard does not own.
 
 **What if the check is wrong?**
-Then the checker has a defect and it should be fixed here, not worked around there. Raise it. Do
-not delete the workflow.
+Then the checker has a defect and it should be fixed here, not worked around there.
+[Raise it](https://github.com/pipoventures/surfaceplate/issues). Do not delete the workflow.
 
 **Can I bypass the pre-commit hook?**
 Git permits `git commit --no-verify`; a client-side hook cannot prevent that. The history audit is

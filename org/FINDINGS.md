@@ -182,6 +182,9 @@ an unknown number of releases with nothing noticing.
 | F114 | The audit hand-off stated the bundle's file count in four places and only one was checked, so three read "15" after the bundle grew to 27, and the full prompt still said "five" suites | low | Closed — `ACT-060`, 2026-09-03; see the body |
 | F115 | The `v0.16.0` tag points at a tree 235 commits older than the commit published to PyPI as 0.16.0, with the manifest at a different path, so "check out the tag" yields a different framework anchor | medium | Closed — `H14` taken 2026-09-03: the `pypi/0.16.0` and `pypi/0.16.1` tags ratified; see the body |
 | F116 | The README's front door said "no adopting repositories" after Plutos had adopted, and "does not install its own standard on itself" weeks after it did and passed | medium | Closed — `ACT-061`, 2026-09-03; see the body |
+| F117 | `README.md` said "this is not published to PyPI yet" after `0.16.0` and `0.16.1` were both on the index | medium | Closed — `ACT-062`, 2026-09-03; see the body |
+| F118 | `SECURITY.md` said the repository "is currently private" and that private vulnerability reporting "cannot be enabled" for it, weeks after the repository was made public | medium | Closed — `ACT-062`, 2026-09-03; see the body |
+| F119 | Nowhere a user actually reads — the installer's Next steps, the post-`adopt` failure output, `INSTALL.md`'s two "Raise it" sentences, SP005's own remedy text — named an issue tracker, and no local, offline way to assemble a problem report existed | medium | Closed — `ACT-062`, 2026-09-03; see the body |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1512,6 +1515,71 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F119 — Nowhere a user actually reads named an issue tracker, and no offline way to assemble a problem report existed
+
+**Severity: medium. Closed.**
+
+Recorded on 2026-09-03 in this session (https://claude.ai/code/session_01QAovBCSt2UGXo3KZn3WtFW)
+while designing a feedback surface for adopters (`ACT-062`). The installer's "Next steps:" block
+(`install_standard.py`), the post-`adopt` failure branch (`cli._report_written`), `INSTALL.md`'s two
+"Raise it against the standard" / "Raise it" sentences, and SP005's own remedy text ("raise it
+against the standard so every repository gets it") all told a user to raise something without ever
+saying where. `CONTRIBUTING.md` covered DCO sign-off only. `SUPPORT.md` and
+`.github/ISSUE_TEMPLATE/` did not exist. Discussions were disabled. The practical effect: an
+adopter who hit a defect and wanted to report it had to find the GitHub repository and its Issues
+tab unassisted, and one who wanted to report it *without* first finding and reading several source
+files by hand had no way to state what version, digest, or environment they were on.
+
+**Remedy in `ACT-062`:** `about.ISSUES` added beside `about.HOMEPAGE` (`DR-51` (2)'s single-module
+convention) and threaded to the installer's Next steps, `cli._report_written`'s failure branch,
+`INSTALL.md`'s two sentences, `CONTRIBUTING.md`, and `README.md`'s Maintenance section.
+`surfaceplate doctor --report` assembles a paste-ready report entirely on the caller's own machine —
+tool version and anchor, the installed standard's version and digest, Python and OS, which optional
+dependencies import, and the checker's verdict — and states plainly that nothing is sent; it is
+explicitly incompatible with `--online` so the one network-capable path in this module and the
+one that must never open a socket stay provably disjoint. `SUPPORT.md` and two issue forms route a
+report to the right place. Repository settings this remedy could not itself touch (enabling
+Discussions, enabling private vulnerability reporting) are listed in `org/HUMAN_ACTIONS.md`.
+
+## F118 — `SECURITY.md` said the repository was private and private vulnerability reporting could not be enabled, weeks after the repository was made public
+
+**Severity: medium. Closed.**
+
+Recorded on 2026-09-03 in this session (https://claude.ai/code/session_01QAovBCSt2UGXo3KZn3WtFW).
+`SECURITY.md` asserted *"This repository is currently private. Private vulnerability reporting is a
+GitHub feature for public repositories and cannot be enabled while it stays private — verified
+directly against GitHub's own API and documentation, not assumed."* That was true when written; the
+repository has since been made public (see `F116`, the same session's front-door fix, for the same
+underlying change of state). The document's own claimed verification made the error worse, not
+better — a stale fact stated as freshly checked reads as more reliable than it is. This is exactly
+the failure mode the working-method's supersession rule names: a statement that was true when
+written and became false is left standing rather than corrected, distinguished from the current
+state only by a reader noticing the date.
+
+**Remedy in `ACT-062`:** the paragraph rewritten to state the repository is now public, that private
+vulnerability reporting is therefore available to enable but is verified — via
+`GET /repos/pipoventures/surfaceplate/private-vulnerability-reporting`, which currently answers
+`enabled: false` — not enabled today, with enabling it listed in `org/HUMAN_ACTIONS.md`, and that
+until it is, there is no confidential channel here.
+
+## F117 — `README.md` said the package was not published to PyPI after `0.16.0` and `0.16.1` were both on the index
+
+**Severity: medium. Closed.**
+
+Recorded on 2026-09-03 in this session (https://claude.ai/code/session_01QAovBCSt2UGXo3KZn3WtFW).
+`README.md:63` read *"Not `pip install surfaceplate` — this is not published to PyPI yet."*
+`DR-61`/`H8` record that `0.16.0` was uploaded on 2026-09-03 by the maintainer's own dispatch of
+*Publish to PyPI*, and `0.16.1` followed the same day; the sentence had been true when written and
+was overtaken by that action without being revisited — the same supersession shape as `F118`, found
+in the same pass because the two documents make opposite-direction mistakes about the same
+underlying fact (one claims public when it was private; this one claims unpublished when it is
+published).
+
+**Remedy in `ACT-062`:** the sentence rewritten to state that the name is reserved and both
+versions are on the index, each carrying the `Development Status :: 3 - Alpha` classifier, while
+preserving `DR-61`'s actual intent — every instruction here still names the git form until 1.0, so
+"not independently audited" is not contradicted by anything an adopter is told to run.
 
 ## F116 — The README's front door said "no adopting repositories" after Plutos had adopted, and "does not install its own standard on itself" weeks after it did and passed
 

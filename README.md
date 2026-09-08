@@ -60,10 +60,14 @@ else"*, your machine sets `core.hooksPath` globally or at system level: `surface
 where, and `surfaceplate install --no-hooks` keeps your own hook system and records the choice in
 the install record, so every conformance check reports it.
 
-**Not `pip install surfaceplate` — this is not published to PyPI yet.** The git form above is what
-works today; it was run into a clean virtualenv before being written here, which is more than could
-be said for the instruction it replaced (`F57`). Publishing is a release decision and is listed in
-[`org/HUMAN_ACTIONS.md`](org/HUMAN_ACTIONS.md).
+**Not the instruction to follow yet: `pip install surfaceplate`.** The name is reserved on PyPI —
+`0.16.0` and `0.16.1` are both on the index, each carrying the `Development Status :: 3 - Alpha`
+classifier — but every instruction here keeps naming the git form until 1.0
+([`DR-61`](org/decisions/DR-61.md)). The PyPI upload is a reservation, not the install route: "not
+independently audited" should not be contradicted by anything an adopter is told to run. The git
+form was run into a clean virtualenv before being written here, which is more than could be said for
+the instruction it replaced (`F57`). Publishing it as the install route is a release decision and is
+listed in [`org/HUMAN_ACTIONS.md`](org/HUMAN_ACTIONS.md).
 
 Working from a clone instead? `python surfaceplate/install_standard.py --target ...` does the same
 thing without installing anything.
@@ -94,6 +98,31 @@ the origin of every value in `governance/application-profile.provenance.yaml` be
 
 Full instructions: **[INSTALL.md](INSTALL.md)**.
 If the installer stops because of existing files: **[RECONCILIATION.md](RECONCILIATION.md)**.
+
+---
+
+## Reviewing this
+
+**No independent reviewer has looked at this yet — that is what the status line above is stating,
+not a formality.** Every finding on record was found by the party who maintains it
+([`org/FINDINGS.md`](org/FINDINGS.md) says so in its own closing section). If you have thirty
+minutes or a few hours and owe this project nothing, that is exactly the review it needs.
+
+The [release for `pypi/0.16.1`](https://github.com/pipoventures/surfaceplate/releases/tag/pypi%2F0.16.1)
+carries a self-contained review packet
+(`INDEPENDENT_REVIEW_PACKET-0.16.1.html`, sha256 `59bd0a33352d…`) with two independent asks:
+
+- **Part A (~30 minutes, no context needed):** recompute one SHA-256 from the published PyPI
+  package and check it against the anchor this framework publishes. Two independent ways to reach
+  the same number are given, so nothing here needs to be taken on trust.
+- **Part B (a few hours, wants judgement):** a scoped audit against
+  [`audit/AUDIT_SCOPE.md`](audit/AUDIT_SCOPE.md)'s ten criteria, with a stated time-boxed minimum
+  and an explicit claim-labelling convention (`FACT FROM PACKAGE` / `INFERENCE` / `RECOMMENDATION`
+  / `EVIDENCE GAP`) — "I could not establish this" is a legitimate answer.
+
+Either return is recorded as a named, dated assurance record under `governance/assurance/`, never
+folded silently into "validated." See `org/decisions/DR-64.md` for exactly what closes `F6`, this
+framework's oldest open finding.
 
 ---
 
@@ -302,6 +331,10 @@ reviewed promptly, if at all, given the time actually available. A pull request 
 already permanently ruled out by [`DR-12`](org/decisions/DR-12.md) — hosting, a certification
 service, vulnerability scanning, and the rest of that list — will not be accepted regardless of how
 well it is written.
+
+**Something wrong, or something you expected and did not get?** See [`SUPPORT.md`](SUPPORT.md).
+`surfaceplate doctor --report` assembles a paste-ready report on your own machine — nothing is sent
+anywhere until you post it — and names what it collected and what it never gathers at all.
 
 **Every pull request needs a DCO sign-off** (see [`CONTRIBUTING.md`](CONTRIBUTING.md)) before it is
 looked at — that is a mechanical prerequisite, checked automatically, and is unrelated to
