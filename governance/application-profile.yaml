@@ -75,7 +75,7 @@ adoption:
   # .standards/INSTALL.json. SP049 fails loudly if it is not, which is the intended
   # behaviour. An adopter meets the same step only on upgrade, where re-pinning is exactly
   # what should happen because the framework has changed.
-  framework_digest: 99d9a25bb40232a796d947ac29e059d0d4aac0b403708872f820d7e91fe1dada
+  framework_digest: aae6d810b65184525bd8f485d5d5f11594a363ec4913bec07f4d832f811f284d
   adoption_date: "2026-08-31"
   review_by: "2027-02-27"
   framework_maintainer: Mario Pipo
@@ -250,7 +250,8 @@ prerequisites:
   - id: risk_classification
     status: deferred
     rationale: >-
-      Decision records carry a risk level against core/REVIEW_AND_EVIDENCE.md's table, but
+      Decision records carry a risk level against the table in Topic 6
+      (standard/topics/06-evidence-and-completion.md), but
       ordinary commits do not. core/PREREQUISITE_GATES.md warns this gate is the one most
       often satisfied on paper while violated in spirit; declaring it required today would
       be exactly that.
@@ -312,7 +313,11 @@ prerequisites:
     status: required
     effective_from: "2026-08-31"
     precondition:
-      artefacts: [surfaceplate/standard/agent-instructions/tests.md]
+      # Third rename in this artefact's history, by the topic restructure (DR-69, ACT-068):
+      # agent-instructions/tests.md -> standard/topics/07-testing.md. No exception filed - F30's
+      # remedy (ACT-030) follows renames through git automatically; GX-0001 and GX-0002 are
+      # superseded records of the first two renames, kept as history, covering nothing now.
+      artefacts: [surfaceplate/standard/topics/07-testing.md]
       description: >-
         The declared naming and location standard new tests must follow. This repository
         publishes it and is bound by it.

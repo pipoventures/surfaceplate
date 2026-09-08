@@ -9,10 +9,10 @@ integrity-checked in CI. Do not edit anything under `.standards/`, `.claude/rule
 **Binding rules, in force for every task in this repository:**
 
 - **The standard's agent instructions are mandatory. Read them before acting.** Where anything in
-  this file contradicts them, they win. The same six documents are installed once per agent, each
+  this file contradicts them, they win. Twelve topic documents are installed once per agent, each
   in the location that agent actually loads: `.claude/rules/surfaceplate-*.md` for Claude Code,
   `.github/instructions/*.instructions.md` for Copilot. If your agent reads neither, the canonical
-  copies are in `.standards/agent-instructions/` and you are responsible for loading them.
+  copies are in `.standards/topics/` and you are responsible for loading them.
 - **The skills define the workflow for each kind of task. Use the matching skill.** Its required
   inputs, gates and mandatory stops are not optional. The same seven skills are installed once per
   agent, in the location that agent actually loads: `.claude/skills/*/SKILL.md` for Claude Code,

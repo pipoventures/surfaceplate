@@ -14,7 +14,7 @@ Two commands. Then one file to fill in.
 | `.githooks/pre-commit` | The standard | The local commit-time check. The installer activates it with `core.hooksPath=.githooks`. |
 | `.claude/rules/surfaceplate-*.md` | The standard | The agent instructions, in the form Claude Code loads. |
 | `.github/instructions/*.instructions.md` | The standard | The same instructions, in the form GitHub Copilot loads. |
-| `.standards/agent-instructions/*.md` | The standard | The canonical copies. If your agent reads neither form above, point it here. |
+| `.standards/topics/*.md` | The standard | The canonical copies, each carrying its full normative and imperative content. If your agent reads neither form above, point it here. |
 | `AGENTS.md` | **You**, apart from the marked block | The installer inserts a conformance block and preserves everything outside it. Your own content is never touched. |
 | `.standards/` | The standard | A pinned copy of the standard, the schemas, and the checker. Machine-managed. Do not edit. |
 | `.github/copilot-instructions.md` | **You** | Your own guidance. The installer appends a marked block; everything outside the markers is untouched. |
@@ -23,6 +23,29 @@ Two commands. Then one file to fill in.
 No product file is touched. The installer also sets the repository-local Git configuration
 `core.hooksPath=.githooks`. If another hook path or a default pre-commit hook already exists, the
 installer stops before writing anything so the existing automation is not silently disabled.
+
+**If your repository already has its own governing document, declare it.** Optional, in the
+profile:
+
+```yaml
+adopter_canon:
+  - artefact: docs/engineering-policy.md
+    rationale: predates this standard and governs our release process
+```
+
+It means: where that artefact and this standard disagree, that artefact governs **in this
+repository**. It binds yours and no one else's — nothing outside this standard's own published
+documents is ever a condition of adopting it, and one adopter's declaration is never citable to
+another. `SP060` checks the artefact exists and is tracked; it cannot check that it says anything
+about precedence, or that anyone honours it. Declare nothing and the default in Topic 1 applies:
+this standard governs the surfaces it specifies, your own instructions govern the rest (`DR-71`).
+
+**If you use one agent and not the other, install only its channel.** `--agents claude`,
+`--agents copilot`, or both (the default). A channel is seven instruction files and seven skills,
+plus — for Copilot — a created `.github/copilot-instructions.md`. Declining one writes none of
+them. `AGENTS.md` is written either way, because it is agent-neutral. The choice is recorded in
+`.standards/INSTALL.json` and reported by every conformance check, so a repository that declined a
+channel is never mistaken for one whose agent is reading rules it was never given (`DR-67`).
 
 **If you have your own hook system and intend to keep it, you have two routes: `--no-hooks` and `--chain`.** Take `--chain` if your hook can call this standard's gate, and `--no-hooks` if you want no gate at all.
 

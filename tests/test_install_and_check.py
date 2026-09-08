@@ -891,6 +891,227 @@ def test_a_declared_hook_chain_is_verified_by_effect(tmp: Path) -> None:
     )
 
 
+def test_an_agent_channel_can_be_declined_and_the_declining_is_never_silent(tmp: Path) -> None:
+    """`DR-67` (`F122`). A repository using one agent need not carry the other's files.
+
+    The finding asked for the COPILOT channel to become opt-in. It is deliberately not built that
+    way: making one vendor's channel opt-in while the other stays default is the same neutrality
+    breach one layer along, and `DR-30` exists to stop this framework privileging the agent its
+    author happens to use. Both channels are selectable, both default on, and the symmetry is
+    asserted below rather than assumed - each case is run in both directions.
+
+    The half that is easy to miss, and the reason `F122`'s first recording was wrong: TWO
+    mechanisms write into an adopting repository. The payload writes `.github/instructions/` and
+    `.github/skills/`; the conformance-block upsert CREATES `.github/copilot-instructions.md`
+    outside the payload entirely. Filtering the payload alone would have left the one Copilot
+    artefact an adopter most notices, so that file is asserted absent here specifically.
+    """
+    channels = {
+        "claude": (".claude/rules", ".claude/skills"),
+        "copilot": (".github/instructions", ".github/skills", ".github/copilot-instructions.md"),
+    }
+    # Both baselines are DERIVED, and the first draft of this test got the arithmetic wrong by
+    # not doing so: it compared a `--no-hooks` install against the full payload count and was out
+    # by the two `.githooks/` files. The number was wrong, not the installer. So the baseline is
+    # a real `--no-hooks` install of everything, and the per-channel size is counted off the
+    # payload rather than written down - either literal would have to be re-derived by hand every
+    # time the set changes, which is the defect `check_vendored_current.py` avoids the same way.
+    baseline = make_git_repo(tmp, "agents-default")
+    install(baseline, "--no-hooks")
+    baseline_files = len(read_record(baseline)["files"])
+    payload = _installer.build_payload(PAYLOAD)
+    per_channel = {
+        name: sum(1 for rel in payload if rel.startswith(prefixes))
+        for name, prefixes in _installer.AGENT_CHANNELS.items()
+    }
+    check(
+        "each agent channel is the same size, so declining either costs the same",
+        len(set(per_channel.values())) == 1,
+        str(per_channel),
+    )
+
+    for chosen, other in (("claude", "copilot"), ("copilot", "claude")):
+        repo = make_git_repo(tmp, f"agents-{chosen}")
+        result = install(repo, "--agents", chosen, "--no-hooks")
+        check(f"--agents {chosen}: installs", result.returncode == 0, result.stderr[-300:])
+        check(
+            f"--agents {chosen}: none of {other}'s artefacts are written",
+            not any((repo / rel).exists() for rel in channels[other]),
+            ", ".join(rel for rel in channels[other] if (repo / rel).exists()),
+        )
+        check(
+            f"--agents {chosen}: its own artefacts ARE written",
+            all((repo / rel).exists() for rel in channels[chosen]),
+            ", ".join(rel for rel in channels[chosen] if not (repo / rel).exists()),
+        )
+        check(
+            f"--agents {chosen}: AGENTS.md is written either way - it is agent-neutral",
+            (repo / "AGENTS.md").is_file(),
+        )
+        check(
+            f"--agents {chosen}: the choice is recorded, not silent",
+            read_record(repo).get("agents") == [chosen],
+            str(read_record(repo).get("agents")),
+        )
+        check(
+            f"--agents {chosen}: exactly {other}'s payload paths are the ones missing",
+            len(read_record(repo)["files"]) == baseline_files - per_channel[other],
+            f"{len(read_record(repo)['files'])} installed, {baseline_files} at the same "
+            f"options with every channel, {other} contributes {per_channel[other]}",
+        )
+        out = verify(repo).stdout
+        check(
+            f"--agents {chosen}: the check reports the declined channel on every run",
+            f"agent channels declined at install: {other}" in out,
+            out[-500:],
+        )
+        check(
+            f"--agents {chosen}: and does not demand the file it was told not to write",
+            "SP006" not in out and "SP007" not in out,
+            out[-500:],
+        )
+
+    # The positive control. Without this, every assertion above would still pass against an
+    # installer that had simply stopped writing agent files at all.
+    check(
+        "a default install still writes both channels",
+        all((baseline / rel).exists() for pair in channels.values() for rel in pair),
+    )
+    check(
+        "and records no narrowing, so an existing adopter's record is unchanged",
+        "agents" not in read_record(baseline),
+    )
+    explicit = make_git_repo(tmp, "agents-explicit-both")
+    install(explicit, "--agents", "claude,copilot", "--no-hooks")
+    check(
+        "naming every channel explicitly is the same as naming none",
+        "agents" not in read_record(explicit),
+    )
+
+    result = install(make_git_repo(tmp, "agents-unknown"), "--agents", "cursor", "--no-hooks")
+    check(
+        "an unknown channel is refused rather than silently ignored",
+        result.returncode == 2 and "unknown agent channel" in result.stderr,
+        result.stderr[-300:],
+    )
+    result = install(make_git_repo(tmp, "agents-empty"), "--agents", ",", "--no-hooks")
+    check(
+        "an empty channel list is refused",
+        result.returncode == 2 and "at least one channel" in result.stderr,
+        result.stderr[-300:],
+    )
+
+
+def test_currency_is_reported_where_integrity_cannot_be(tmp: Path) -> None:
+    """`DR-68` (`F124`). Integrity is checked; currency is not, and cannot be, offline.
+
+    `check_conformance.py` establishes that an install is UNEDITED and has no notion of whether it
+    is CURRENT - it runs inside the adopting repository with no network, and `DR-45` says the
+    anchor "records the manifest of the tree installed FROM, which is a historical fact, not a
+    live invariant". So a repository can sit any number of versions behind while its check passes
+    and says nothing.
+
+    The comparison is tested here without a network. The live three-direction run against
+    `pypi.org` is recorded in `DR-68`; what a suite can own is the part that must be right when
+    the network answers, and `_version_key` is where this would go wrong silently: `0.9.0` sorts
+    ABOVE `0.17.0` as text, so a string comparison reports a two-releases-old install as ahead.
+    """
+    sys.path.insert(0, str(PAYLOAD))
+    import doctor  # noqa: E402  - imported here so a missing payload fails this test, not the run
+
+    check(
+        "0.9.0 keyed sorts below 0.17.0, which a string comparison gets backwards",
+        doctor._version_key("0.9.0") < doctor._version_key("0.17.0") and not ("0.9.0" < "0.17.0"),
+    )
+    check(
+        "and equal versions key equal",
+        doctor._version_key("0.16.1") == doctor._version_key("0.16.1"),
+    )
+
+    repo = make_git_repo(tmp, "currency")
+    install(repo, "--no-hooks")
+    check(
+        "offline, currency is SKIPPED rather than reported ok - an unasked question is not a "
+        "passing one",
+        doctor.check_standard_currency(repo, online=False).status == doctor.SKIP,
+    )
+    check(
+        "and it names the installed version even when it cannot compare it",
+        read_record(repo)["standard_version"]
+        in doctor.check_standard_currency(repo, online=False).detail,
+    )
+    bare = make_git_repo(tmp, "currency-uninstalled")
+    check(
+        "a repository with no standard installed is skipped, not warned about",
+        doctor.check_standard_currency(bare, online=False).status == doctor.SKIP,
+    )
+    check(
+        "the installed version is read from the install record, not from .standards/VERSION",
+        # SP049 anchors the record; a hand-edited VERSION must not get to answer this.
+        doctor._installed_version(repo)[0] == read_record(repo)["standard_version"],
+    )
+
+    # The offline checker must stay silent on currency, or the finding it is paired with would
+    # not exist. Asserted rather than assumed, because "the check says nothing about X" is the
+    # kind of claim that quietly stops being true.
+    out = verify(repo).stdout
+    check(
+        "check_conformance.py reports no currency verdict of any kind",
+        "is the published version" not in out and "published " not in out,
+        out[-400:],
+    )
+
+
+def test_a_declared_canon_artefact_is_checked_for_existence_and_tracking(tmp: Path) -> None:
+    """`WI-2` / `DR-71`. What an adopter declares governs their repository, verified not trusted.
+
+    Three directions, because two would not be evidence. A check that fired on a missing file but
+    also on a present one would be indistinguishable from a check that fires on everything, and
+    the tracked/untracked distinction is the half most likely to be dropped as an implementation
+    detail - an untracked file is one a reviewer never sees in a diff and a fresh clone does not
+    have, so a governing document that is untracked governs nothing in any shared sense.
+    """
+    repo = make_git_repo(tmp, "canon")
+    install(repo, "--no-hooks")
+    profile = repo / "governance" / "application-profile.yaml"
+    profile.write_text(
+        profile.read_text(encoding="utf-8")
+        + "\nadopter_canon:\n  - artefact: docs/house-policy.md\n"
+          "    rationale: our own engineering policy predates this standard\n",
+        encoding="utf-8",
+    )
+
+    check("a declared artefact that does not exist raises SP060", "SP060" in verify(repo).stdout)
+
+    (repo / "docs").mkdir(exist_ok=True)
+    (repo / "docs" / "house-policy.md").write_text("# House policy\n", encoding="utf-8")
+    check(
+        "and one that exists but is UNTRACKED still raises it",
+        "SP060" in verify(repo).stdout,
+        "an untracked governing document is not one anyone else can read",
+    )
+
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "policy"], check=True)
+    out = verify(repo).stdout
+    check("a tracked artefact raises nothing", "SP060" not in out, out[-400:])
+    check(
+        "and is reported as an advisory on every run, with its ceiling stated",
+        "adopter_canon: docs/house-policy.md is declared to govern" in out
+        and "not that it says anything about precedence" in out,
+        out[-500:],
+    )
+
+    # The positive control. Without it, every assertion above would pass against a checker that
+    # had simply stopped reading `adopter_canon` at all.
+    bare = make_git_repo(tmp, "canon-undeclared")
+    install(bare, "--no-hooks")
+    check(
+        "a profile declaring no canon says nothing about it",
+        "adopter_canon" not in verify(bare).stdout,
+    )
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory() as raw:
         tmp = Path(raw)
@@ -985,7 +1206,11 @@ def main() -> int:
         check("reported as modification", "SP005" in result.stdout)
         check("never graced", "never graced" in result.stdout)
 
-        (repo / ".github/instructions/security.instructions.md").unlink()
+        # Derived rather than a hard-coded filename: `security.instructions.md` stopped existing
+        # once `DR-69` (`ACT-068`) split its content across two topic documents, and any one
+        # installed instruction file exercises the same tamper-evidence mechanism.
+        deletable = sorted((PAYLOAD / "standard" / "topics").glob("*.md"))[0].stem
+        (repo / f".github/instructions/{deletable}.instructions.md").unlink()
         result = verify(repo)
         check("deleted instruction fails", result.returncode == 1)
         check("reported as deletion", "SP004" in result.stdout)
@@ -1042,6 +1267,15 @@ def main() -> int:
         result = install(existing, "--replace-existing")
         check("--replace-existing proceeds", result.returncode == 0, result.stderr[-300:])
         check("and replaces the file", "Our own" not in (target / "SKILL.md").read_text(encoding="utf-8"))
+
+        print("\na declared canon artefact is checked, not trusted (DR-71, WI-2)")
+        test_a_declared_canon_artefact_is_checked_for_existence_and_tracking(tmp)
+
+        print("\ncurrency is reported where integrity cannot be (DR-68, F124)")
+        test_currency_is_reported_where_integrity_cannot_be(tmp)
+
+        print("\nan agent channel can be declined (DR-67, F122)")
+        test_an_agent_channel_can_be_declined_and_the_declining_is_never_silent(tmp)
 
         print("\na declared hook chain is verified by effect (DR-66)")
         test_a_declared_hook_chain_is_verified_by_effect(tmp)
@@ -2545,10 +2779,25 @@ def main() -> int:
         install(emitted)
         rules = sorted((emitted / ".claude" / "rules").glob("surfaceplate-*.md"))
         copilot = sorted((emitted / ".github" / "instructions").glob("*.instructions.md"))
+        # Derived from the authored source rather than restated as a literal. This read
+        # `len(rules) == 6 and len(copilot) == 6` until `ACT-065` added a seventh document, and a
+        # hard-coded count fails on the one change it should be silent about - a new instruction -
+        # while staying silent on the one it should catch, an authored document that never
+        # reaches a channel. Counting the inputs and requiring every one to arrive at both
+        # destinations tests the property the emitter actually promises (`DR-30`: one body,
+        # several emitters), and needs no edit when the set changes again.
+        authored = sorted((PAYLOAD / "standard" / "topics").glob("*.md"))
         check(
-            "the instructions are emitted for Claude Code as well as Copilot",
-            len(rules) == 6 and len(copilot) == 6,
-            f"{len(rules)} rules, {len(copilot)} copilot files",
+            "every authored instruction is emitted for Claude Code as well as Copilot",
+            len(rules) == len(authored) and len(copilot) == len(authored),
+            f"{len(authored)} authored, {len(rules)} rules, {len(copilot)} copilot files",
+        )
+        check(
+            "and each is emitted under the name its agent looks for",
+            {p.stem.removeprefix("surfaceplate-") for p in rules}
+            == {p.stem for p in authored}
+            == {p.name.removesuffix(".instructions.md") for p in copilot},
+            f"authored={sorted(p.stem for p in authored)}",
         )
 
         def body_of(path: Path) -> str:

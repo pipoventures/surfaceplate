@@ -11,7 +11,14 @@ the install record.
 Offline by default. Whether GitHub Actions is enabled for a repository is a fact only the GitHub
 API can answer and it needs a token, so it sits behind `--online` and `GITHUB_TOKEN`: the token is
 read from the environment, sent only to `api.github.com` over HTTPS in an `Authorization` header,
-and never printed. That request is the one trust boundary in this module.
+and never printed.
+
+**Two outbound requests exist, both behind `--online`, and this list is the whole of them:**
+`api.github.com` for the Actions permission above, and `pypi.org` for the published version of the
+standard (`F124`, `DR-68`). The second needs no credential and sends none - it is a GET of a public
+JSON document, and it exists because currency is a fact no check running inside an adopting
+repository can establish. This paragraph is the module's own claim about its network surface; a
+third request added without amending it would be the drift `F55` records.
 
 `--report` assembles a problem report for a human to paste into an issue by hand: everything in
 this module already reads local, non-identifying facts, so the report is the same facts, rendered
@@ -206,6 +213,105 @@ def check_actions_enabled(repo: Path, online: bool) -> Line:
     return Line(OK if enabled else FAIL, "GitHub Actions enabled", f"{enabled} for {slug} (allowed_actions: {data.get('allowed_actions')})")
 
 
+PYPI_JSON = "https://pypi.org/pypi/surfaceplate/json"
+
+
+def check_standard_currency(repo: Path, online: bool) -> Line:
+    """Is the installed standard the published one? (`F124`, `DR-68`)
+
+    `check_conformance.py` establishes that an install is **unedited** - `MANIFEST.sha256` and
+    `SP049`'s recomputation of the anchor - and has no notion of whether it is **current**.
+    It cannot have one: it runs inside the adopting repository with no network, deliberately, and
+    `DR-45` states plainly that the anchor "records the manifest of the tree installed FROM, which
+    is a historical fact, not a live invariant". So a repository can sit any number of versions
+    behind, indefinitely, while its conformance check passes and says nothing.
+
+    This is the half that runs where the network is. It is an **advisory and never a failure**:
+    pinning a version is a legitimate decision, and a check that failed on it would be telling
+    adopters that deliberate version control is a defect. It reports; the human decides.
+
+    Being behind is `warn`, not `FAIL`, for the same reason. Unreachable is `warn` too - an
+    unanswered question is not a passing one, and reporting `ok` because the network was down is
+    exactly the false green this framework exists to find.
+    """
+    name = "standard is current"
+    installed, _ = _installed_version(repo)
+    if installed is None:
+        return Line(SKIP, name, "skipped: no standard installed here")
+    if not online:
+        return Line(SKIP, name, f"skipped (offline); installed {installed}, run with --online")
+
+    import json
+    import urllib.error
+    import urllib.request
+
+    request = urllib.request.Request(
+        PYPI_JSON, headers={"Accept": "application/json", "User-Agent": "surfaceplate-doctor"}
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:  # noqa: S310 - fixed https host
+            latest = json.loads(response.read().decode("utf-8")).get("info", {}).get("version")
+    except urllib.error.HTTPError as exc:
+        return Line(WARN, name, f"pypi.org answered {exc.code}; installed {installed}")
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        return Line(WARN, name, f"could not reach pypi.org: {exc}; installed {installed}")
+    if not isinstance(latest, str) or not latest:
+        return Line(WARN, name, f"pypi.org named no version; installed {installed}")
+    if latest == installed:
+        return Line(OK, name, f"{installed} is the published version")
+    # Ahead is a different fact from behind and must not be reported as the same one. The
+    # publisher's own repository is always ahead by construction - it installs from its working
+    # tree - and telling it to "upgrade" to an older version would be advice that is simply
+    # wrong. Found by running this against this repository before shipping it.
+    if _version_key(installed) > _version_key(latest):
+        return Line(
+            OK,
+            name,
+            f"installed {installed} is AHEAD of the published {latest} - a pre-release, or this "
+            "is the repository that publishes the standard",
+        )
+    return Line(
+        WARN,
+        name,
+        f"installed {installed}, published {latest}. Integrity is checked and currency is not - "
+        "upgrade, or pin deliberately; this is an advisory, not a defect",
+    )
+
+
+def _version_key(version: str) -> tuple:
+    """Order two version strings without taking a dependency to do it.
+
+    Numeric segments compare as numbers so 0.9.0 sorts below 0.17.0, which a string comparison
+    gets backwards - the case this repository would have hit first. Anything unparseable falls
+    back to comparing as text, which is wrong in general and never worse than not answering: the
+    only consequence is an advisory phrased as "behind" when it is "ahead".
+    """
+    parts = []
+    for segment in str(version).replace("-", ".").split("."):
+        parts.append((0, int(segment)) if segment.isdigit() else (1, segment))
+    return tuple(parts)
+
+
+def _installed_version(repo: Path) -> tuple[str | None, dict | None]:
+    """The standard's version as installed here, read from the install record.
+
+    Read from `INSTALL.json` rather than `.standards/VERSION` on purpose: the record is the file
+    `SP049` already anchors, so a tree whose VERSION was edited by hand does not get to answer
+    this question with the edit.
+    """
+    import json
+
+    record_path = repo / ".standards" / "INSTALL.json"
+    if not record_path.is_file():
+        return None, None
+    try:
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None, None
+    version = record.get("standard_version")
+    return (version if isinstance(version, str) and version else None), record
+
+
 def _github_slug(origin: str) -> str:
     for prefix in ("git@github.com:", "https://github.com/", "ssh://git@github.com/"):
         if origin.startswith(prefix):
@@ -222,6 +328,7 @@ def diagnose(repo: Path, *, online: bool) -> list[Line]:
     lines.append(check_vendored_digest(repo))
     lines.append(check_tool_matches_install(repo))
     lines.append(check_actions_enabled(repo, online))
+    lines.append(check_standard_currency(repo, online))
     return lines
 
 

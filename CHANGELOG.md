@@ -2161,7 +2161,15 @@ run no longer ends in silence: it states the path it wrote and runs the checker 
 - `surfaceplate doctor --report` assembles a paste-ready problem report locally - tool version and anchor, the installed standard's version and digest, Python and OS, optional-dependency availability, the checker's verdict - and states plainly that nothing is sent; refuses `--online`. `about.ISSUES` threaded to the installer's Next steps and the post-`adopt` failure output; `SUPPORT.md` and two GitHub issue forms added (`F119`, `ACT-062`).
 - The independent review packet is distributed for the first time: a GitHub Release on tag `pypi/0.16.1` carries the three packet files, and a "Reviewing this" section in `README.md` and `audit/REVIEW_INVITATION.md` give `H4`/`H6` an actual route to a reviewer (`ACT-062`, `DR-65`).
 
-## 0.17.0 - the hook chain becomes declarable, and verified
+## 0.17.0 - unreleased; one version for the whole adoption-readiness programme
+
+**Release discipline for this version, decided by the maintainer on 2026-09-08.** `0.17.0`
+accumulates every phase of the programme and is published **once**, at the end, rather than a
+version per phase. Nothing between `0.16.1` and this is published, so no adopter can observe an
+intermediate `0.17.0` that differs from the final one, and the version number therefore carries no
+claim that changes underneath it. The sections below are the phases as they land.
+
+### The hook chain becomes declarable, and verified
 
 `DR-1` was accepted on 2026-08-30 and left unimplemented through five releases. It anticipated a
 repository whose Git hooks already run from somewhere else, and said the installer should refuse by
@@ -2200,3 +2208,190 @@ default and let an adopter opt into chaining explicitly. This release builds it,
   its claim was about.
 
 Not approved, independently validated, or released by being written here.
+
+### Four rules the standard did not carry
+
+Established absent by search over both the authored source and the self-install, with a control
+term returning five files in each tree so the search was shown capable of finding what it looked
+for. Two near-equivalents were checked and rejected rather than assumed: `CONTROL_PRINCIPLES.md`
+principle 12 is a risk-justification rule, not a repetition rule, and `ai-workflow.md` §Stop and
+ask listed eight triggers with repeated failure not among them.
+
+- **`agent-instructions/concurrency.md`** — a new document, the one topic the standard had nothing
+  on. One writer per working tree; independence of *task* is not independence of *write path*; a
+  loaded editor buffer is a pending write whatever `git status` says; handoff is explicit; separate
+  checkouts are the remedy and are not free — worktrees isolate the index but **not** the hooks,
+  `core.hooksPath` can be set machine-wide outside every repository and **replaces** rather than
+  adds, and a generated tracked artefact reconciled badly **merges cleanly** and leaves the check
+  passing against the wrong set. Never infer what runs from a clean diff; read the resolved hooks
+  path and the common Git directory. Missing code is a stop condition, not a task.
+- **`authority.md` §Supersession** — the author-side rule. The existing §Contradictions governs
+  what to do on *encountering* superseded authority; nothing said how to *write* a correction.
+  Rewrite the passage in place; never leave two answers in one document; **a correction whose
+  validity depends on reading order is not a correction**, because a grep returns the old value as
+  readily as a full read returns the new one and nothing about a partial read announces itself.
+  Retained history is marked explicitly historical. Reconciled in the text with the append-only
+  rule beneath it, which governs a different object: a log records events and is never rewritten;
+  a document stating a current fact is corrected in place.
+- **`ai-workflow.md` §When the same thing fails twice** — the loop-breaker. On a second failure of
+  the same component or approach, question the approach rather than patching a foundation two
+  attempts have found wanting. Added as a ninth §Stop and ask trigger, and distinguished in the
+  text from *"validation fails and the next action is not mechanically determined"*, which is a
+  single failure with an undetermined next step.
+- **`ai-workflow.md` §Codify real repetition** — do it by hand until it has genuinely recurred.
+  A tool built for a process observed once is a maintenance obligation bought against a guess.
+
+The instruction set is now seven documents, and every place that stated six is corrected in the
+same change: the conformance block installed into `AGENTS.md` and `.github/copilot-instructions.md`,
+`README.md`, and `RECONCILIATION.md`. `DR-30`'s record is deliberately **not** edited — it is a log
+entry describing what that decision did, which the supersession rule above says is append-only.
+
+A hard-coded `6` in `tests/test_install_and_check.py` failed on the seventh document. It is
+**derived** now rather than bumped: the test counts the authored instructions and requires every
+one to arrive at both agent destinations. A literal count fails on the change it should be silent
+about and stays silent on the one it should catch — an authored document that never reaches a
+channel.
+
+### Agent channels are selectable, and the authority pointer stops naming a vendor
+
+- **`surfaceplate install --agents claude,copilot`.** A repository using one agent need not carry
+  the other's seven instruction files and seven skills. Omitting the flag installs every channel,
+  so **no existing adopter's install changes**, and naming every channel is identical to naming
+  none. `AGENTS.md` is written either way — it is agent-neutral; the vendor-specific file is
+  `.github/copilot-instructions.md`.
+- **`F122` asked for something narrower and `DR-67` deliberately does not build it.** The finding
+  proposed making the *Copilot* channel opt-in. Doing that literally would leave one vendor's
+  channel opt-in while the other stayed default — the same neutrality breach one layer along, in a
+  framework whose `DR-30` exists to prevent it — and would have been a breaking change for every
+  existing adopter, where this is not.
+- The choice is recorded in `INSTALL.json` and reported on **every** conformance run, in the shape
+  of `DR-29`'s declined-hook note. The checker does not then demand a file it was told not to
+  write.
+- **Two mechanisms write into an adopting repository, and this nearly missed one.**
+  `.github/copilot-instructions.md` is created by the **conformance-block upsert**, not by the
+  payload, so filtering the payload alone would have left the one Copilot artefact an adopter most
+  notices. `F122` was first recorded here claiming the installer does not write that file, on a
+  comment that is true of the payload and not of the installer; that entry is corrected in place,
+  and the test asserts the file's absence by name.
+- **`F123`:** `authority.md` no longer instructs every agent that the repository's
+  `copilot-instructions.md` *"must state the ordered authority hierarchy"*. It names the
+  repository's own agent instruction file — whichever the repository has told the agent to read —
+  in a document that is otherwise agent-neutral and is emitted to four destinations.
+- `rules.py` gains the channel table, because the checker needs the same set and cannot import the
+  installer. Restating it in two places is the drift `DR-48` created that module to stop.
+
+### Currency is reported where integrity cannot be
+
+`check_conformance.py` establishes that an install is **unedited** and has no notion of whether it
+is **current**. It cannot have one: it runs inside the adopting repository with no network, and
+`DR-45` says plainly that the anchor *"records the manifest of the tree installed FROM, which is a
+historical fact, not a live invariant"*. A repository can sit any number of versions behind,
+indefinitely, while its check passes and says nothing (`F124`).
+
+- **`surfaceplate doctor --online`** now reports installed-versus-published, as an **advisory,
+  never a failure** — pinning a version is a legitimate decision, and a check that failed on it
+  would be telling adopters that deliberate version control is a defect.
+- **Verified by effect against the live index in all three directions.** `0.16.0` against a
+  published `0.16.1` warns — the case `F124` names, reproduced exactly. `0.16.1` against `0.16.1`
+  reports `ok` and **produces no signal**, which is what makes the first row worth anything.
+  `0.17.0` against `0.16.1` reports *ahead*, not an instruction to upgrade — the publisher's own
+  repository is always ahead by construction, and that case was found by running the check against
+  this repository before shipping it.
+- Unreachable is `warn`, not `ok`. An unanswered question is not a passing one, and reporting `ok`
+  because the network was down is the false green this framework exists to find.
+- The comparison is numeric per segment: `0.9.0` sorts **above** `0.17.0` as text, so a string
+  comparison would report a two-releases-old install as ahead. Asserted directly in the suite.
+- **`check_conformance.py` is untouched.** Its offline behaviour is what makes a conformance result
+  reproducible from the repository alone, and a flag that could reach the network would have to be
+  reasoned about by every adopter reading it, to buy a fact a second command answers. `doctor.py`'s
+  docstring is amended in the same change to name **both** of its outbound requests as the whole of
+  its network surface.
+
+**`F124` is narrowed, not closed, and `DR-68` says so.** The mechanism exists and nothing triggers
+it: an adopter who never runs `doctor --online` is in exactly the position the finding describes.
+The obvious trigger — a step in the installed conformance workflow — would make every adopting
+repository's CI call `pypi.org` on every run, and would be uneditable by the adopter because that
+workflow is integrity-checked. That is a decision about someone else's infrastructure, recorded as
+`H20` rather than taken.
+
+### The topic restructure — documents surface (`ACT-068`, `DR-69`)
+
+The largest single change this project has made. `core/` ÷ `agent-instructions/` — the split that
+stated the same rule twice by design, because it encoded audience rather than subject — is retired
+in favour of a single **twelve-topic axis**. Full reasoning in `DR-69`, measured before the change
+was designed: 13 documents, 1,423 lines, 43% of it in two files, three headings word-for-word
+identical between `AI_OPERATING_MODEL.md` and `ai-workflow.md`.
+
+- **Twelve topic documents** at `standard/topics/`, each carrying a normative part (kept for the
+  canonical, human-facing copy at `.standards/topics/`) and an imperative part, marked
+  `## For agents — <Topic>`, that the emitter ships alone to `.claude/rules/` and
+  `.github/instructions/` — proven first on Topic 11 (Concurrency) alone, in isolation from every
+  content-migration decision, before the other eleven were authored against the mechanism.
+- **`core/CONFORMANCE_LEVELS.md` and `core/PREREQUISITE_GATES.md` survive as specifications**,
+  cited by the topic documents rather than dissolved into them — folding 43% of the corpus into
+  twelve files would have scattered one coherent specification and made the checker's own data
+  structures answerable to twelve documents instead of two. `core/CONTROL_PRINCIPLES.md` also
+  survives unchanged, cited the same way.
+- **`F120` addressed in Topic 4** (Work tracking): at `essential`, a two-value status and a bare
+  dependency pointer satisfy the register, rather than the full `standard`/`full` field set this
+  repository's own reference register once demanded of every row regardless of level.
+- **`F125` addressed in Topic 1** (Authority): a stated default for what governs when this standard
+  and an adopter's own instructions disagree, and how an adopter may declare a different order —
+  binding only the repository that declares it, never citable elsewhere.
+- **No finding renumbered, no `SP` code renumbered.**
+- **A rename this repository had to get right about itself.** `governance/application-profile.yaml`
+  declares `standard/topics/07-testing.md` as the `test_convention` gate's precondition artefact —
+  a third rename in that artefact's history. No exception filed: `ACT-030`'s remedy for `F30`
+  follows renames through git automatically once committed; `GX-0001` and `GX-0002` are superseded
+  records of the first two renames, covering nothing now.
+- **The curated independent-review bundle changed shape, deliberately, not silently.**
+  `core/AI_OPERATING_MODEL.md` is replaced in the 27-file evidence bundle by
+  `standard/topics/02-decision-authority-and-escalation.md` — the topic that now states the
+  human/agent authority boundary the bundle was including it for — keeping the count at 27 rather
+  than expanding it, and the "What is deliberately not included" list is corrected to name what is
+  now actually excluded (eleven further topic documents) rather than the retired filenames.
+- Every live cross-reference updated in the same change: `README.md`, `INSTALL.md`,
+  `RECONCILIATION.md`, `SETUP_GUIDE.md`, `governance/authority-map.yaml`, both seed templates, the
+  Copilot implementation-assistant prompt, and the checker's and `CONFORMANCE_LEVELS.md`'s own
+  cross-references to the documents that moved.
+
+A genuine, pre-existing defect surfaced and recorded rather than silently absorbed: `F126`,
+`test_adopt_matrix.py`'s edit-route case intermittently failing `SP033` on a clock-dependent
+condition unrelated to this session's changes — isolated by reproducing it against `main` before
+any prototype file existed.
+
+### The application-profile surface — and the breaking change that turned out not to be needed
+
+`DR-69` specified this surface as *"per-topic decisions replace the flat control list"*, and it was
+the whole programme's only breaking change. **`DR-71` rejected the nesting on its merits and the
+break is gone.** `schema_version` stays `"1.0"`; no profile migrates.
+
+The reasoning, because it generalises: **a control's topic is decided by this framework, not by the
+adopter.** Nested, every adopter's file would restate a fact the framework already owns — where it
+can only be redundant when right, or wrong when not. If the checker rejected a mismatched
+placement, the adopter's placement would carry no information; if it accepted one, the framework's
+own taxonomy would stop being authoritative. That is **`F121`'s defect one level up** — *"a
+constant column carries no information"* — the shape this framework had removed from its own
+activity register hours earlier, in the same session.
+
+What the rejected option was *for* is kept in full: an adopter who answered twelve topic-shaped
+questions should open the file and read the same twelve topics. **Layout delivers that; storage was
+never the part a reader experiences.** `rules.CONTROL_TOPICS` and `TOPIC_NAMES` hold the map once,
+where the checker and the wizard both read it (`DR-48`), and `render.py` groups `control_decisions`
+under generated topic headings. Because there is one source, the layout cannot disagree with the
+taxonomy.
+
+- **`WI-2` — `adopter_canon`**, an optional array of `{artefact, rationale}`. Declaring an artefact
+  means: where it and this standard disagree, it governs **in this repository** — binding the
+  repository that declares it and no other. **`SP060`** checks the artefact exists **and is
+  tracked**: an untracked governing document is one no reviewer sees in a diff and no fresh clone
+  has. Verified in all three directions — missing fires, present-but-untracked still fires, tracked
+  is silent and reported as an advisory carrying its own ceiling.
+- **`WI-1` — `DR-70`** narrows `DR-2`'s scope. It had declared a private doctrine bundle *"sole
+  behavioural canon for AI-assisted work under this standard"* — which, read literally, bound every
+  adopter to a bundle they cannot read. `DR-4` had already required the opposite eight days
+  earlier; the two accepted records are now made to agree, and `DR-2`'s substance is untouched.
+- Prerequisite gates keep their six-group catalogue order and are **not** re-cut across twelve
+  topics: nineteen do not divide cleanly across twelve, and `DR-69` kept that specification whole.
+- `SP060` is exempt from the wizard's SP-parity table **with its reason stated** — `adopter_canon`
+  is written by hand, so there is no field at which the wizard could refuse it.

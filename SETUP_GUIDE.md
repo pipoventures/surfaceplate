@@ -218,7 +218,11 @@ High/material or calculation/output-impacting overrides must route through appro
 
 ## Step 9: Install the AI operating model
 
-Copy or adapt `core/AI_OPERATING_MODEL.md`, `core/CONTROL_PRINCIPLES.md`, and `core/REVIEW_AND_EVIDENCE.md` into the repository's developer/governance documentation.
+Copy or adapt `standard/topics/02-decision-authority-and-escalation.md`,
+`standard/topics/03-work-definition.md`, `standard/topics/05-risk-and-proportionality.md`,
+`standard/topics/06-evidence-and-completion.md`, and `core/CONTROL_PRINCIPLES.md` (the twelve
+cross-application principles these topics implement) into the repository's developer/governance
+documentation.
 
 Make the work-packet template mandatory for coding-agent tasks. Every task must identify:
 
@@ -236,7 +240,9 @@ Agents may implement and report evidence. They may not approve methodology, acce
 
 ## Step 10: Add security and confidentiality controls
 
-Adopt `core/SECURITY_BASELINE.md` and bind each requirement to the receiving repository's approved tools.
+Adopt `standard/topics/08-confidentiality-and-data-boundaries.md` and
+`standard/topics/09-dependencies-and-supply-chain.md`, and bind each requirement to the receiving
+repository's approved tools.
 
 At minimum implement:
 

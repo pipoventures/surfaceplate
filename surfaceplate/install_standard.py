@@ -40,9 +40,24 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import check_conformance  # noqa: E402  (needs the sys.path insert above)
+import rules  # noqa: E402  (DR-48: the set both this file and the checker reason about)
 
 VENDOR_DIR = ".standards"
 PROFILE_PATH = "governance/application-profile.yaml"
+# DR-67 (F122, F123). The agents this standard emits for, held once in `rules.py` and imported
+# by both this file and the checker.
+#
+# Every install wrote BOTH channels, so a repository using one agent received the other's entire
+# set - 14 artefacts each, counting the `.github/copilot-instructions.md` the block upsert creates
+# outside the payload.
+#
+# The finding that raised this asked for the COPILOT channel to become opt-in. Deliberately not
+# done that way: making one vendor's channel opt-in while the other stays default is the same
+# neutrality breach one layer along, and `DR-30` exists precisely to stop this framework
+# privileging the agent its author happens to use. Both channels are selectable, both are on by
+# default, and no existing adopter's install changes.
+AGENT_CHANNELS = rules.AGENT_CHANNELS
+
 COPILOT_INSTRUCTIONS = ".github/copilot-instructions.md"
 # The neutral canonical instruction file DR-12 committed to and never built. Read by Codex,
 # Cursor and others; Claude Code reads CLAUDE.md, so an adopter using it imports @AGENTS.md.
@@ -89,6 +104,26 @@ def split_front_matter(text: str) -> tuple[dict[str, str], str]:
             key, _, value = line.partition(":")
             front[key.strip()] = value.strip()
     return front, match.group(2)
+
+
+# DR-69 (ACT-068). A topic document may carry a normative part (context and reasoning, for
+# the human reading the canonical copy) and an imperative part (the directives an agent needs
+# every turn), in one file, marked by this heading. Only the imperative part reaches
+# `.claude/rules/` and `.github/instructions/` - the destinations an agent loads every turn -
+# which is the other direction F29 can fail in: shipping a whole reasoning-rich document into a
+# file loaded every turn is the same waste in a new shape.
+IMPERATIVE_MARKER = re.compile(r"^## For agents\b", re.MULTILINE)
+
+
+def extract_imperative(body: str) -> str:
+    """The imperative part of an instruction body, or the whole body where none is marked.
+
+    A document not yet restructured under the topic axis has no marker, and is emitted whole,
+    unchanged - this is every agent-instruction document until Step 2 (`ACT-068`) migrates it,
+    and it is why this function is additive rather than a rewrite of the emission loop.
+    """
+    match = IMPERATIVE_MARKER.search(body)
+    return body[match.start():] if match else body
 
 
 def payload_text(src: "Path | str") -> str:
@@ -167,27 +202,34 @@ def framework_anchor(source: Path) -> str | None:
     return sha256_text(normalise(manifest.read_text(encoding="utf-8")))
 
 
-def build_payload(source: Path) -> dict[str, Path]:
+def build_payload(source: Path, agents: tuple[str, ...] | None = None) -> dict[str, Path]:
     """Map target-relative path -> source file. This is the complete set of files the
-    standard owns in an adopting repository."""
+    standard owns in an adopting repository.
+
+    `agents` narrows the per-agent destinations to the channels named (DR-67). `None` means
+    every channel, which is the default and what every caller outside the installer passes -
+    the drift guard, the release manifest and the code-register check all reason about the
+    complete set, not about one adopter's choice.
+    """
     payload: dict[str, Path] = {}
 
     # ONE BODY, SEVERAL EMITTERS (F29, DR-30). The instructions live once, agent-neutrally, in
-    # standard/agent-instructions/. Each agent then receives them in the file IT ACTUALLY READS,
-    # with that agent's own front-matter key for path scoping.
+    # standard/topics/. Each agent then receives the IMPERATIVE part in the file it actually
+    # reads (DR-69, ACT-068), with that agent's own front-matter key for path scoping.
     #
     # This was six Copilot-format files and nothing else, so every adopter using Claude Code
     # received 501 lines of governance instruction that were never loaded - and so did this
     # repository, for its entire development. The destination is the whole point; the content
     # was never the problem.
-    for path in sorted((source / "standard" / "agent-instructions").glob("*.md")):
+    for path in sorted((source / "standard" / "topics").glob("*.md")):
         name = path.stem
         front, body = split_front_matter(path.read_text(encoding="utf-8"))
+        imperative = extract_imperative(body)
         scope = front.get("scope", '"**"')
         description = front.get("description", "")
         # GitHub Copilot: .github/instructions/*.instructions.md, scoped with `applyTo`.
         payload[f".github/instructions/{name}.instructions.md"] = (
-            f"---\napplyTo: {scope}\ndescription: {description}\n---\n{body}"
+            f"---\napplyTo: {scope}\ndescription: {description}\n---\n{imperative}"
         )
         # Claude Code: .claude/rules/*.md, scoped with `paths`. Additive by design - it cannot
         # collide with an adopter's own CLAUDE.md the way writing that file would, and rules
@@ -196,7 +238,7 @@ def build_payload(source: Path) -> dict[str, Path]:
             "" if scope.strip('"\' ') == "**" else f"paths:\n  - {scope}\n"
         )
         payload[f".claude/rules/surfaceplate-{name}.md"] = (
-            f"---\n{paths_block}description: {description}\n---\n{body}"
+            f"---\n{paths_block}description: {description}\n---\n{imperative}"
         )
 
     # The skills get the same treatment as the instructions above, and `F58` is why they did not
@@ -232,10 +274,11 @@ def build_payload(source: Path) -> dict[str, Path]:
     payload[f"{VENDOR_DIR}/VERSION"] = source / "VERSION"
     payload[f"{VENDOR_DIR}/conformance-block.md"] = source / "standard" / "conformance-block.md"
 
-    # The canonical, agent-neutral copies travel too. An agent this framework has never heard of
-    # can be pointed at one location instead of being told to guess which emitted form applies.
-    for path in sorted((source / "standard" / "agent-instructions").glob("*.md")):
-        payload[f"{VENDOR_DIR}/agent-instructions/{path.name}"] = path
+    # The canonical, agent-neutral copies travel too, both normative and imperative parts
+    # together. An agent this framework has never heard of can be pointed at one location
+    # instead of being told to guess which emitted form applies.
+    for path in sorted((source / "standard" / "topics").glob("*.md")):
+        payload[f"{VENDOR_DIR}/topics/{path.name}"] = path
 
     for schema in sorted((source / "schemas").glob("*.yaml")):
         payload[f"{VENDOR_DIR}/schemas/{schema.name}"] = schema
@@ -275,6 +318,22 @@ def build_payload(source: Path) -> dict[str, Path]:
     manifest = source / "MANIFEST.sha256"
     if manifest.is_file():
         payload[".standards/MANIFEST.sha256"] = manifest
+
+    if agents is not None:
+        # Applied once, here at the end, over the assembled set rather than threaded through the
+        # emission loops. A filter that has to be remembered at each site is a filter that will be
+        # forgotten at the next one, which is F58's shape exactly: DR-30's per-agent pattern was
+        # applied to the instructions and not to the skills, and nobody noticed for five releases.
+        declined = tuple(
+            prefix
+            for name, prefixes in AGENT_CHANNELS.items()
+            if name not in agents
+            for prefix in prefixes
+        )
+        if declined:
+            payload = {
+                rel: src for rel, src in payload.items() if not rel.startswith(declined)
+            }
 
     return payload
 
@@ -589,8 +648,9 @@ def install(
     replace_existing: bool,
     no_hooks: bool = False,
     chain: bool = False,
+    agents: tuple[str, ...] | None = None,
 ) -> int:
-    payload = build_payload(source)
+    payload = build_payload(source, agents=agents)
     # F27. The hook is one enforcement route of three, and SP038 fires only when a gate
     # actually claims `local_hook` - so the standard has always permitted a repository with no
     # surfaceplate hook while the installer refused to produce one. Declining removes the hook
@@ -722,8 +782,14 @@ def install(
                 path.unlink()
 
     block = (source / "standard" / "conformance-block.md").read_text(encoding="utf-8")
-    for rel, title in ((COPILOT_INSTRUCTIONS, "Copilot instructions"),
-                       (AGENTS_FILE, "Agent instructions")):
+    # AGENTS.md is agent-neutral and always written. `.github/copilot-instructions.md` is
+    # Copilot's own file and is created by this upsert rather than by the payload (F122), so
+    # declining that channel has to skip it here as well - filtering the payload alone would
+    # have left the one Copilot artefact an adopter most notices.
+    block_targets = [(AGENTS_FILE, "Agent instructions")]
+    if agents is None or "copilot" in agents:
+        block_targets.insert(0, (COPILOT_INSTRUCTIONS, "Copilot instructions"))
+    for rel, title in block_targets:
         action = upsert_conformance_block(target, block, dry_run, rel=rel, header_title=title)
         print(f"  {action:<7} {rel}")
 
@@ -772,6 +838,11 @@ def install(
     # this framework exists to catch: the check would pass and nothing would distinguish "staged
     # changes are gated" from "nothing gates them". Absent means installed, so every record
     # written before 0.17.0 reads correctly without migration.
+    # DR-67. Recorded when narrowed, for the reason every other choice here is recorded: a
+    # narrowed install and a full one otherwise leave identical records, and the checker cannot
+    # tell a declined channel from a deleted one without being told which was chosen.
+    if agents is not None and set(agents) != set(AGENT_CHANNELS):
+        record["agents"] = sorted(agents)
     if no_hooks:
         record["hooks"] = "declined"
     # DR-66. Recorded for the same reason declining is: a chained install and a normal one
@@ -884,6 +955,17 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument(
+        "--agents",
+        default=None,
+        help=(
+            "Comma-separated agent channels to install, from: "
+            + ", ".join(sorted(AGENT_CHANNELS))
+            + ". Default: all of them. A repository that uses one agent need not carry the "
+            "other's instruction and skill files. The choice is recorded in INSTALL.json and "
+            "reported by every conformance check."
+        ),
+    )
+    parser.add_argument(
         "--chain",
         action="store_true",
         help=(
@@ -894,6 +976,25 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     args = parser.parse_args(argv)
+
+    agents: tuple[str, ...] | None = None
+    if args.agents is not None:
+        agents = tuple(dict.fromkeys(a.strip() for a in args.agents.split(",") if a.strip()))
+        unknown = [a for a in agents if a not in AGENT_CHANNELS]
+        if unknown:
+            print(
+                f"error: unknown agent channel(s): {', '.join(unknown)}. "
+                f"Known: {', '.join(sorted(AGENT_CHANNELS))}",
+                file=sys.stderr,
+            )
+            return 2
+        if not agents:
+            print(
+                "error: --agents needs at least one channel. To install no agent instructions "
+                "at all, do not install the standard.",
+                file=sys.stderr,
+            )
+            return 2
 
     if args.chain and args.no_hooks:
         print(
@@ -928,6 +1029,7 @@ def main(argv: list[str] | None = None) -> int:
         args.replace_existing,
         no_hooks=args.no_hooks,
         chain=args.chain,
+        agents=agents,
     )
 
 

@@ -48,7 +48,7 @@ state, until 2026-08-31, that the space ended at `SP043` — after `SP046` and `
 added and while the person adding them was editing this file.
 
 ```text
-emitted:  SP001-SP035, SP037-SP043, SP046-SP059
+emitted:  SP001-SP035, SP037-SP043, SP046-SP060
 gap:      SP036
 reserved: SP044-SP045
 ```
@@ -187,10 +187,11 @@ an unknown number of releases with nothing noticing.
 | F119 | Nowhere a user actually reads — the installer's Next steps, the post-`adopt` failure output, `INSTALL.md`'s two "Raise it" sentences, SP005's own remedy text — named an issue tracker, and no local, offline way to assemble a problem report existed | medium | Closed — `ACT-062`, 2026-09-03; see the body |
 | F120 | The agent instructions are not graded by conformance level, while every control is | medium | **Open** |
 | F121 | `owner_role` and `reviewer_role` are required of a solo adopter, for whom both are constant | medium | **Open** |
-| F122 | The installer creates a Copilot instruction channel unconditionally, including in repositories that do not use Copilot | low | **Open** |
-| F123 | `authority.md` names one vendor's file as the place the authority hierarchy must be stated | medium | **Open** |
-| F124 | The checker verifies that an install is unedited and has no notion of whether it is current | high | **Open** |
+| F122 | The installer creates a Copilot instruction channel unconditionally, including in repositories that do not use Copilot | low | Closed — `ACT-066` (`DR-67`), 2026-09-08; see the body |
+| F123 | `authority.md` names one vendor's file as the place the authority hierarchy must be stated | medium | Closed — `ACT-066` (`DR-67`), 2026-09-08; see the body |
+| F124 | The checker verifies that an install is unedited and has no notion of whether it is current | high | Open — narrowed by `ACT-067` (`DR-68`): the mechanism exists and nothing triggers it |
 | F125 | No adopter-facing precedence rule exists between this standard and a co-resident governance system | medium | **Open** |
+| F126 | `test_adopt_matrix.py`'s edit-route case (T6) intermittently fails SP033, reproducibly on a clean checkout, unrelated to any change in this session | medium | **Open** |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1522,6 +1523,73 @@ field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
 
+## F126 — `test_adopt_matrix.py`'s edit-route case intermittently fails `SP033`, reproducibly on a clean checkout
+
+**Severity: medium. Open.**
+
+Found on 2026-09-08 during `ACT-068`'s Step 1 prototype, while running `test_adopt_matrix.py` as
+part of that step's own verification. Not caused by anything in this session's changes — isolated
+by re-running the identical suite against `main` at `f871cad` with `git stash`, before any prototype
+file existed, and the failure reproduced identically: **`4 failed, 45262 passed; 208 runs`**, all
+four inside the `standard`-level, `route="edit"` matrix case (`adopt_matrix.py:287-288`), each
+reading:
+
+```
+- T6-195: after the string edit the checker still passes: WARN ['SP033', 'SP033']
+- T6-195: after the bool edits the checker still passes: WARN ['SP033', ...×10]
+- T6-195: after the list-element edit the checker still passes: WARN ['SP033', ...×10]
+```
+
+`SP033` fires when a gate's `effective_from` is later than the date the checker is told is
+"today". `tests/adopt_matrix.py:1148` calls `check_conformance.evaluate(repo, TODAY, False, False)`
+with `TODAY = _dt.date.today()`, a module-level constant **captured once at import time**
+(`adopt_matrix.py:48`). The profile the edit-route case writes and then re-checks is produced by
+the wizard's own write path, which computes "today" independently, and not once: `defaults.py:233`,
+`sections.py:226`, `flow.py:93`, `plan.py:938` and `plan.py:1139` each call
+`_dt.date.today()` or `_dt.datetime.now()` separately, rather than deriving from one instant passed
+through. **This is the architectural fragility, established by direct read; it is not yet proven to
+be the trigger for this specific failure.**
+
+**What was checked and ruled out.** Local time and UTC agree on the calendar date at the moment of
+investigation (`2026-09-08` both ways) — a naive UTC/local mismatch is not live right now, so the
+defect is not simply "some call uses UTC and another uses local time" caught mid-difference. The
+matrix run takes roughly three minutes; a real-time midnight rollover mid-run cannot be ruled out
+in general but was not observed directly in this instance.
+
+**Corroborated on 2026-09-08 by a clean control: the same suite PASSES in CI.** The run for
+`ACT-068` reported `matrix=success` on GitHub Actions while failing locally on the same commit,
+with different case IDs failing between two consecutive local runs (`T6-195`, then `T2-003`/
+`T2-064`). Three facts together — passes in CI, fails locally, and picks different cases each local
+run — place the cause in the **local environment's clock or timing**, not in the repository's
+content. That is a narrowing, not a closure: it says where to look, not what is wrong.
+
+**A second consequence, found on 2026-09-08 while doing unrelated work: the tracked matrix report
+cannot be regenerated on the affected machine.** `test_adopt_matrix.py --write` embeds a line
+reading *"N case(s) failed on the last run that wrote this file; this file must not be committed
+in that state"* — the report guarding itself, correctly. So while this defect is live locally, any
+change that legitimately alters `audit/validation/ADOPT_MATRIX.md` cannot have that report
+regenerated here; the regeneration must happen where the suite passes, which today means CI. This
+is a real operational consequence, not a second defect, and it is recorded so a later session that
+needs to regenerate the report understands why it cannot rather than concluding the report is
+broken.
+
+**`EVIDENCE GAP`:** the exact triggering sequence — which of the five independent clock reads
+disagreed with `adopt_matrix.py`'s frozen `TODAY`, and under what condition — has not been isolated.
+Establishing it needs either a reproduction harness that controls the clock (freezing or mocking
+`_dt.date.today()`) or catching the suite failing again with the wall-clock time recorded at the
+moment of the affected wizard write.
+
+**Not investigated further here, deliberately.** Root-causing and fixing this is unrelated to the
+topic restructure this session is doing (`ACT-068`) and was not blocking its decision gate — that
+gate concerns the emitter/`DR-45` manifest interaction alone, which held cleanly and independently
+of this failure. Recorded rather than silently worked around, per this repository's own rule that a
+defect found here is recorded here, including a defect in the framework's own test suite.
+
+**Proposed remedy, not yet decided:** derive every date computation in the wizard's write path from
+one instant, injected once per run (the pattern `flow.py:93`'s `today or _dt.date.today()` parameter
+already partially uses), so a run spanning a clock boundary is internally consistent even if it
+disagrees with a separately-frozen test constant.
+
 ## F125 — No adopter-facing precedence rule exists between this standard and a co-resident governance system
 
 **Severity: medium. Open.**
@@ -1578,16 +1646,33 @@ version** — PyPI carries `0.16.0` and `0.16.1`, read directly on 2026-09-08. *
 finding does not depend on that reading: the absence of any currency notion is established from
 this repository's own code.
 
-**Remedy direction, not yet decided.** A currency check has to run where the network is — the
-conformance workflow, or a release-side notifier — and report installed-versus-latest as an
-advisory, never as a failure, since an adopter may have deliberate reasons to pin. **Closure
-requires verification by effect in both directions:** an install one version behind must produce a
-signal, and a current install must produce none. A check that fires on everything is not evidence
-that it detected anything.
+**Narrowed, not closed, by `ACT-067` (`DR-68`), 2026-09-08.** `surfaceplate doctor --online`
+now reports installed-versus-published as an advisory, verified by effect against the live index
+in all three directions: `0.16.0` against a published `0.16.1` warns — the case this finding names,
+reproduced exactly; `0.16.1` against `0.16.1` reports `ok` and **produces no signal**; and `0.17.0`
+against `0.16.1` reports *ahead* rather than an instruction to upgrade, because the publisher's own
+repository is always ahead by construction. The middle row is what makes the first worth anything.
+Unreachable reports `warn`, not `ok` — an unanswered question is not a passing one.
+
+**What remains open, and it is the half that matters to an adopter.** The mechanism exists and
+**nothing triggers it**. A repository whose maintainer never runs `doctor --online` is in exactly
+the position this finding describes. The obvious trigger is a step in the installed conformance
+workflow, which runs in every adopter's CI where a network exists — and it is not built, because it
+would make every adopting repository's CI call out to `pypi.org` on every run, and would be
+uneditable by the adopter, the installed workflow being integrity-checked. A repository that did
+not want the call could not remove it without failing its own check. That is a change to adopters'
+infrastructure and to an outbound network boundary, which this standard's own rules reserve to a
+human. Recorded as `H20`; `DR-68` states it as an explicit limitation rather than leaving the gap
+to be discovered.
 
 ## F123 — `authority.md` names one vendor's file as the place the authority hierarchy must be stated
 
-**Severity: medium. Open.**
+**Severity: medium. Closed — `ACT-066` (`DR-67`), 2026-09-08.**
+
+**Remedy.** The paragraph names *the repository's own agent instruction file* and then says what
+that means — `AGENTS.md`, `CLAUDE.md`, `.github/copilot-instructions.md`, or whatever the
+repository has told the agent to read — rather than one vendor's filename. Kept deliberately
+non-exhaustive: an agent this framework has never heard of should not be excluded by a list.
 
 Raised at `ACT-063` from a portfolio operating-model review outside this repository (`mnemosyne/reviews/2026-09-04_operating-model-plan-v3.md`, where it is numbered `SP-F4`). That review proposed it; it is recorded here only after being re-verified against this repository on 2026-09-08, and where the re-verification disagreed with the review the disagreement is stated rather than smoothed away. Nothing in `mnemosyne` is part of this standard or a condition of adopting it; it is the origin of the observation, not an authority over the remedy.
 
@@ -1605,27 +1690,45 @@ whatever it is, rather than one vendor's.
 
 ## F122 — The installer creates a Copilot instruction channel unconditionally, including in repositories that do not use Copilot
 
-**Severity: low. Open.**
+**Severity: low. Closed — `ACT-066` (`DR-67`), 2026-09-08.**
+
+**Remedy, and it is deliberately wider than this finding asked for.** `surfaceplate install
+--agents claude,copilot` narrows the per-agent destinations; omitting the flag installs every
+channel, so no existing adopter's install changes. This finding's proposed remedy was to make the
+**Copilot** channel opt-in specifically; building that literally would make one vendor's channel
+opt-in while the other stayed default, which is the same neutrality breach one layer along in a
+framework whose `DR-30` exists to prevent exactly that. `DR-67` records the divergence rather than
+leaving it to be discovered. The declining is recorded in `INSTALL.json` and reported on every
+conformance run, and the checker does not then demand a file it was told not to write.
 
 Raised at `ACT-063` from a portfolio operating-model review outside this repository (`mnemosyne/reviews/2026-09-04_operating-model-plan-v3.md`, where it is numbered `SP-F3`). That review proposed it; it is recorded here only after being re-verified against this repository on 2026-09-08, and where the re-verification disagreed with the review the disagreement is stated rather than smoothed away. Nothing in `mnemosyne` is part of this standard or a condition of adopting it; it is the origin of the observation, not an authority over the remedy.
 
 Every install writes a full GitHub Copilot instruction channel whether or not the adopter uses
-Copilot: **13 of the 82 installed paths** are Copilot-specific — six
-`.github/instructions/*.instructions.md` and seven `.github/skills/*/SKILL.md` — read from
-`.standards/INSTALL.json` on 2026-09-08. There is no flag to decline them, and `DR-29`'s
-`--no-hooks` precedent shows the project already accepts that an adopter may decline a channel
-provided the declining leaves a trace.
+Copilot: **13 of the 82 installed paths** are Copilot-specific — seven
+`.github/instructions/*.instructions.md` and seven `.github/skills/*/SKILL.md` — plus
+`.github/copilot-instructions.md`, created outside the payload by the block upsert, for **14
+artefacts** in total. There is no flag to decline them, and `DR-29`'s `--no-hooks` precedent shows
+the project already accepts that an adopter may decline a channel provided the declining leaves a
+trace. The symmetry matters for the remedy: the Claude Code channel is the same size, so a fix
+that makes only one of them declinable would breach the agent neutrality `DR-30` established.
 
-**The review's named artefact is wrong, and the substance survives the correction.** It cited
-`.github/copilot-instructions.md` as evidence that *"the installer added back a live
-agent-instruction channel"*. That file is **not written by the installer**:
-`install_standard.py:15` states in its own words that *"`.github/copilot-instructions.md` and
-`CLAUDE.md` stay the adopter's, untouched."* Its presence in this repository is this repository's
-own file, not an installed artefact. Checking the payload rather than the working tree — the
-distinction between the artefact delivered and one that merely sits beside it — moves the finding
-onto `.github/instructions/` and `.github/skills/`, which the installer really does write. Had the
-finding been recorded as stated, its closure test would have examined a file the remedy does not
-touch.
+**The review's named artefact was right, and this entry said otherwise for a few hours.**
+`.github/copilot-instructions.md` is **created by the installer** in every adopting repository
+that lacks it, and its block is refreshed on every upgrade — `upsert_conformance_block`
+(`install_standard.py:557`) writes a header and the marker block when the file is not there.
+Verified by effect on 2026-09-08 against a repository installed into from scratch: the file
+exists afterwards, and `.standards/INSTALL.json` does **not** list it. So the Copilot channel an
+adopter receives is **14 artefacts, not 13** — the 13 payload paths plus this created file.
+
+**What this entry claimed until 2026-09-08, and why the error is worth keeping.** It said the file
+is *"not written by the installer"*, citing `install_standard.py:15` — *"`.github/copilot-instructions.md`
+and `CLAUDE.md` stay the adopter's, untouched"*. That comment is true of the **payload**: the file
+is not payload-owned, so it is neither overwritten wholesale nor integrity-checked. It is not true
+of the **installer**, which creates the file by a different route. Reading a comment about one
+mechanism as though it governed the whole program is the same wrong-object error this entry was
+raised to correct in the review, made in the opposite direction while correcting it. Two
+mechanisms write into an adopting repository — the payload and the block upsert — and checking one
+of them is not checking what an adopter receives.
 
 Severity is low rather than medium because the cost is unwanted files rather than a false claim:
 nothing about the extra channel makes the repository's conformance result wrong. It is recorded

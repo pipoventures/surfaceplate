@@ -3,8 +3,8 @@
 ## Why levels exist
 
 `core/CONTROL_PRINCIPLES.md` principle 12 requires proportionality: *defer controls that do not
-reduce a demonstrated risk*. `core/AI_OPERATING_MODEL.md` requires the smallest control set that
-protects the risk.
+reduce a demonstrated risk*. Topic 5 (`standard/topics/05-risk-and-proportionality.md`) requires
+the smallest control set that protects the risk.
 
 Without graded levels, a two-person proof of concept and a client-reported quantitative model face
 the same control surface. In practice that produces one of two failures: small teams reject the
@@ -233,7 +233,7 @@ be relied upon.
 
 <!-- BEGIN GENERATED: finding codes (tests/check_code_registers.py --write) -->
 
-56 codes. Generated from the checker's own source by `tests/check_code_registers.py --write`;
+57 codes. Generated from the checker's own source by `tests/check_code_registers.py --write`;
 the same script fails in CI when this table and the checker disagree. A code's title is what
 the report prints; `<gate>`, `<control>`, `<file>` stand for the name the report fills in.
 
@@ -295,5 +295,6 @@ the report prints; `<gate>`, `<control>`, `<file>` stand for the name the report
 | `SP057` | Record '<file>' references something that does not exist |
 | `SP058` | Two records in the '<control>' register claim one identity; Record '<file>' belongs to a different application |
 | `SP059` | Control '<control>' names a step of the workflow this framework installed; Gate '<gate>' names a file this framework installed as its precondition |
+| `SP060` | A declared canon artefact is missing or untracked |
 
 <!-- END GENERATED: finding codes -->
