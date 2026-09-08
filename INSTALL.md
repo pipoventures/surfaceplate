@@ -24,6 +24,13 @@ No product file is touched. The installer also sets the repository-local Git con
 `core.hooksPath=.githooks`. If another hook path or a default pre-commit hook already exists, the
 installer stops before writing anything so the existing automation is not silently disabled.
 
+**If you use one agent and not the other, install only its channel.** `--agents claude`,
+`--agents copilot`, or both (the default). A channel is seven instruction files and seven skills,
+plus — for Copilot — a created `.github/copilot-instructions.md`. Declining one writes none of
+them. `AGENTS.md` is written either way, because it is agent-neutral. The choice is recorded in
+`.standards/INSTALL.json` and reported by every conformance check, so a repository that declined a
+channel is never mistaken for one whose agent is reading rules it was never given (`DR-67`).
+
 **If you have your own hook system and intend to keep it, you have two routes: `--no-hooks` and `--chain`.** Take `--chain` if your hook can call this standard's gate, and `--no-hooks` if you want no gate at all.
 
 **`--chain`** installs `.githooks/pre-commit` and leaves `core.hooksPath` exactly as it was. Your own hook runs it and propagates its exit code; you then declare the arrangement in the profile:

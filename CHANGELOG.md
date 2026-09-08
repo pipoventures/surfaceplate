@@ -2251,3 +2251,31 @@ A hard-coded `6` in `tests/test_install_and_check.py` failed on the seventh docu
 one to arrive at both agent destinations. A literal count fails on the change it should be silent
 about and stays silent on the one it should catch — an authored document that never reaches a
 channel.
+
+### Agent channels are selectable, and the authority pointer stops naming a vendor
+
+- **`surfaceplate install --agents claude,copilot`.** A repository using one agent need not carry
+  the other's seven instruction files and seven skills. Omitting the flag installs every channel,
+  so **no existing adopter's install changes**, and naming every channel is identical to naming
+  none. `AGENTS.md` is written either way — it is agent-neutral; the vendor-specific file is
+  `.github/copilot-instructions.md`.
+- **`F122` asked for something narrower and `DR-67` deliberately does not build it.** The finding
+  proposed making the *Copilot* channel opt-in. Doing that literally would leave one vendor's
+  channel opt-in while the other stayed default — the same neutrality breach one layer along, in a
+  framework whose `DR-30` exists to prevent it — and would have been a breaking change for every
+  existing adopter, where this is not.
+- The choice is recorded in `INSTALL.json` and reported on **every** conformance run, in the shape
+  of `DR-29`'s declined-hook note. The checker does not then demand a file it was told not to
+  write.
+- **Two mechanisms write into an adopting repository, and this nearly missed one.**
+  `.github/copilot-instructions.md` is created by the **conformance-block upsert**, not by the
+  payload, so filtering the payload alone would have left the one Copilot artefact an adopter most
+  notices. `F122` was first recorded here claiming the installer does not write that file, on a
+  comment that is true of the payload and not of the installer; that entry is corrected in place,
+  and the test asserts the file's absence by name.
+- **`F123`:** `authority.md` no longer instructs every agent that the repository's
+  `copilot-instructions.md` *"must state the ordered authority hierarchy"*. It names the
+  repository's own agent instruction file — whichever the repository has told the agent to read —
+  in a document that is otherwise agent-neutral and is emitted to four destinations.
+- `rules.py` gains the channel table, because the checker needs the same set and cannot import the
+  installer. Restating it in two places is the drift `DR-48` created that module to stop.

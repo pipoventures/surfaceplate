@@ -17,10 +17,16 @@ file, a code comment, or a previous conversation when a canonical authority exis
 
 Where the repository publishes an authority map (commonly
 `documentation/governance/inventory/source_of_truth_matrix.yaml`, or an authority hierarchy in the
-repository's own `copilot-instructions.md`), that map is the routing authority. Consult it first.
+repository's own agent instruction file), that map is the routing authority. Consult it first.
 
-Where no authority map exists, the repository's `copilot-instructions.md` must state the ordered
+Where no authority map exists, the repository's own agent instruction file must state the ordered
 authority hierarchy explicitly. An unstated hierarchy is a control gap; report it.
+
+**"The repository's own agent instruction file"** means whichever file this repository has told
+your agent to read — `AGENTS.md`, `CLAUDE.md`, `.github/copilot-instructions.md`, or another. This
+paragraph named one vendor's file until `F123`, in a standard that is otherwise agent-neutral, so
+an agent reading these rules in a directory that vendor does not use was told to consult a file it
+never loads and to report a control gap for not having written one.
 
 ## Generated and extracted content is never authority
 

@@ -95,6 +95,8 @@ MAX_GRACE_DAYS = 30
 # The horizon is capped for the same reason the grace window is: without a cap, an
 # adopter could set `review_by` to 2099 and the control would be decorative.
 MAX_REVIEW_HORIZON_DAYS = rules.MAX_REVIEW_HORIZON_DAYS
+# `DR-67`: the agent channels, from the module both sides import rather than restated here.
+AGENT_CHANNELS = rules.AGENT_CHANNELS
 REVIEW_WARN_DAYS = 30
 DEFAULT_REVIEW_INTERVAL_DAYS = 180
 
@@ -438,7 +440,14 @@ def check_conformance_block(repo: Path, record: dict, findings: list[Finding]) -
     .github/copilot-instructions.md reaches an agent that reads it and nobody else, and the file
     the checker was policing was one the agent doing the work never loads.
     """
-    for rel in (COPILOT_INSTRUCTIONS, AGENTS_FILE):
+    # DR-67. A repository that declined a channel does not have that channel's file, and
+    # demanding it would turn a recorded choice into a finding. AGENTS.md is agent-neutral and
+    # is always required; absent an `agents` key the record predates the choice and means all.
+    chosen = record.get("agents")
+    targets = [AGENTS_FILE]
+    if not isinstance(chosen, list) or "copilot" in chosen:
+        targets.insert(0, COPILOT_INSTRUCTIONS)
+    for rel in targets:
         path = repo / rel
         if not path.is_file():
             findings.append(
@@ -865,6 +874,34 @@ def report_declined_hook(record: dict, notes: list[str]) -> None:
         "the pre-commit hook was declined at install: nothing checks staged changes before they "
         "are committed, and this repository relies on history_audit and review. A gate that "
         "claims local_hook enforcement anyway is still a finding (SP038)."
+    )
+
+
+def report_narrowed_agents(record: dict, notes: list[str]) -> None:
+    """Say, on every run, which agent channels an install declined (DR-67, F122).
+
+    Narrowing is PERMITTED, not a defect: a repository using one agent has no use for another's
+    instruction and skill files, and carrying them is a cost paid in someone else's repository.
+
+    But it must not be silent, for the same reason declining the hook must not be. A narrowed
+    install and a full one otherwise leave identical records, and "this repository's agent reads
+    the standard's rules" is exactly the claim that would go unexamined - which is F29, the
+    finding that produced the per-agent emitters in the first place: 501 lines of governance
+    instruction delivered where nothing loaded them, for an entire development.
+
+    Absent means every channel, so a record written before 0.17.0 reads correctly and says
+    nothing.
+    """
+    chosen = (record or {}).get("agents")
+    if not isinstance(chosen, list) or not chosen:
+        return
+    declined = sorted(set(AGENT_CHANNELS) - set(chosen))
+    if not declined:
+        return
+    notes.append(
+        f"agent channels declined at install: {', '.join(declined)}. Only "
+        f"{', '.join(sorted(chosen))} received the instructions and skills; nothing checks that "
+        "an agent on a declined channel reads them, because it was not given them."
     )
 
 
@@ -3508,6 +3545,7 @@ def evaluate(repo: Path, today: _dt.date, no_grace: bool, staged: bool) -> Repor
             check_deferral_expiry(profile, findings, today, notes)
             check_pinned_identity(profile, record, findings, repo)
             report_declined_hook(record, notes)
+            report_narrowed_agents(record, notes)
             check_prerequisites(
                 repo,
                 profile,

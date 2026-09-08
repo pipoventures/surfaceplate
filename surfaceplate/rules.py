@@ -23,6 +23,18 @@ import re
 import subprocess
 from pathlib import Path
 
+# `DR-67`. The agents this standard emits for, and the destination prefixes each one owns.
+# Held here rather than in the installer because the checker needs the same set and cannot import
+# the installer - it is vendored standalone beside this file. Restating it in two places is the
+# drift `DR-48` created this module to stop.
+#
+# `.github/copilot-instructions.md` is listed under `copilot` although it is not a payload path:
+# the block upsert creates it, so declining the channel has to skip it there too (`F122`).
+AGENT_CHANNELS: dict[str, tuple[str, ...]] = {
+    "claude": (".claude/rules/", ".claude/skills/"),
+    "copilot": (".github/instructions/", ".github/skills/", ".github/copilot-instructions.md"),
+}
+
 # `application_id`: the schema's own pattern, quoted from `schemas/application-profile.schema.yaml`.
 APPLICATION_ID = re.compile(r"^[a-z0-9][a-z0-9_-]+$")
 

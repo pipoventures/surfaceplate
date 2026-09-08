@@ -187,8 +187,8 @@ an unknown number of releases with nothing noticing.
 | F119 | Nowhere a user actually reads — the installer's Next steps, the post-`adopt` failure output, `INSTALL.md`'s two "Raise it" sentences, SP005's own remedy text — named an issue tracker, and no local, offline way to assemble a problem report existed | medium | Closed — `ACT-062`, 2026-09-03; see the body |
 | F120 | The agent instructions are not graded by conformance level, while every control is | medium | **Open** |
 | F121 | `owner_role` and `reviewer_role` are required of a solo adopter, for whom both are constant | medium | **Open** |
-| F122 | The installer creates a Copilot instruction channel unconditionally, including in repositories that do not use Copilot | low | **Open** |
-| F123 | `authority.md` names one vendor's file as the place the authority hierarchy must be stated | medium | **Open** |
+| F122 | The installer creates a Copilot instruction channel unconditionally, including in repositories that do not use Copilot | low | Closed — `ACT-066` (`DR-67`), 2026-09-08; see the body |
+| F123 | `authority.md` names one vendor's file as the place the authority hierarchy must be stated | medium | Closed — `ACT-066` (`DR-67`), 2026-09-08; see the body |
 | F124 | The checker verifies that an install is unedited and has no notion of whether it is current | high | **Open** |
 | F125 | No adopter-facing precedence rule exists between this standard and a co-resident governance system | medium | **Open** |
 Closed entries are indexed here and left in their original records; they are not restated.
@@ -1587,7 +1587,12 @@ that it detected anything.
 
 ## F123 — `authority.md` names one vendor's file as the place the authority hierarchy must be stated
 
-**Severity: medium. Open.**
+**Severity: medium. Closed — `ACT-066` (`DR-67`), 2026-09-08.**
+
+**Remedy.** The paragraph names *the repository's own agent instruction file* and then says what
+that means — `AGENTS.md`, `CLAUDE.md`, `.github/copilot-instructions.md`, or whatever the
+repository has told the agent to read — rather than one vendor's filename. Kept deliberately
+non-exhaustive: an agent this framework has never heard of should not be excluded by a list.
 
 Raised at `ACT-063` from a portfolio operating-model review outside this repository (`mnemosyne/reviews/2026-09-04_operating-model-plan-v3.md`, where it is numbered `SP-F4`). That review proposed it; it is recorded here only after being re-verified against this repository on 2026-09-08, and where the re-verification disagreed with the review the disagreement is stated rather than smoothed away. Nothing in `mnemosyne` is part of this standard or a condition of adopting it; it is the origin of the observation, not an authority over the remedy.
 
@@ -1605,27 +1610,45 @@ whatever it is, rather than one vendor's.
 
 ## F122 — The installer creates a Copilot instruction channel unconditionally, including in repositories that do not use Copilot
 
-**Severity: low. Open.**
+**Severity: low. Closed — `ACT-066` (`DR-67`), 2026-09-08.**
+
+**Remedy, and it is deliberately wider than this finding asked for.** `surfaceplate install
+--agents claude,copilot` narrows the per-agent destinations; omitting the flag installs every
+channel, so no existing adopter's install changes. This finding's proposed remedy was to make the
+**Copilot** channel opt-in specifically; building that literally would make one vendor's channel
+opt-in while the other stayed default, which is the same neutrality breach one layer along in a
+framework whose `DR-30` exists to prevent exactly that. `DR-67` records the divergence rather than
+leaving it to be discovered. The declining is recorded in `INSTALL.json` and reported on every
+conformance run, and the checker does not then demand a file it was told not to write.
 
 Raised at `ACT-063` from a portfolio operating-model review outside this repository (`mnemosyne/reviews/2026-09-04_operating-model-plan-v3.md`, where it is numbered `SP-F3`). That review proposed it; it is recorded here only after being re-verified against this repository on 2026-09-08, and where the re-verification disagreed with the review the disagreement is stated rather than smoothed away. Nothing in `mnemosyne` is part of this standard or a condition of adopting it; it is the origin of the observation, not an authority over the remedy.
 
 Every install writes a full GitHub Copilot instruction channel whether or not the adopter uses
-Copilot: **13 of the 82 installed paths** are Copilot-specific — six
-`.github/instructions/*.instructions.md` and seven `.github/skills/*/SKILL.md` — read from
-`.standards/INSTALL.json` on 2026-09-08. There is no flag to decline them, and `DR-29`'s
-`--no-hooks` precedent shows the project already accepts that an adopter may decline a channel
-provided the declining leaves a trace.
+Copilot: **13 of the 82 installed paths** are Copilot-specific — seven
+`.github/instructions/*.instructions.md` and seven `.github/skills/*/SKILL.md` — plus
+`.github/copilot-instructions.md`, created outside the payload by the block upsert, for **14
+artefacts** in total. There is no flag to decline them, and `DR-29`'s `--no-hooks` precedent shows
+the project already accepts that an adopter may decline a channel provided the declining leaves a
+trace. The symmetry matters for the remedy: the Claude Code channel is the same size, so a fix
+that makes only one of them declinable would breach the agent neutrality `DR-30` established.
 
-**The review's named artefact is wrong, and the substance survives the correction.** It cited
-`.github/copilot-instructions.md` as evidence that *"the installer added back a live
-agent-instruction channel"*. That file is **not written by the installer**:
-`install_standard.py:15` states in its own words that *"`.github/copilot-instructions.md` and
-`CLAUDE.md` stay the adopter's, untouched."* Its presence in this repository is this repository's
-own file, not an installed artefact. Checking the payload rather than the working tree — the
-distinction between the artefact delivered and one that merely sits beside it — moves the finding
-onto `.github/instructions/` and `.github/skills/`, which the installer really does write. Had the
-finding been recorded as stated, its closure test would have examined a file the remedy does not
-touch.
+**The review's named artefact was right, and this entry said otherwise for a few hours.**
+`.github/copilot-instructions.md` is **created by the installer** in every adopting repository
+that lacks it, and its block is refreshed on every upgrade — `upsert_conformance_block`
+(`install_standard.py:557`) writes a header and the marker block when the file is not there.
+Verified by effect on 2026-09-08 against a repository installed into from scratch: the file
+exists afterwards, and `.standards/INSTALL.json` does **not** list it. So the Copilot channel an
+adopter receives is **14 artefacts, not 13** — the 13 payload paths plus this created file.
+
+**What this entry claimed until 2026-09-08, and why the error is worth keeping.** It said the file
+is *"not written by the installer"*, citing `install_standard.py:15` — *"`.github/copilot-instructions.md`
+and `CLAUDE.md` stay the adopter's, untouched"*. That comment is true of the **payload**: the file
+is not payload-owned, so it is neither overwritten wholesale nor integrity-checked. It is not true
+of the **installer**, which creates the file by a different route. Reading a comment about one
+mechanism as though it governed the whole program is the same wrong-object error this entry was
+raised to correct in the review, made in the opposite direction while correcting it. Two
+mechanisms write into an adopting repository — the payload and the block upsert — and checking one
+of them is not checking what an adopter receives.
 
 Severity is low rather than medium because the cost is unwanted files rather than a false claim:
 nothing about the extra channel makes the repository's conformance result wrong. It is recorded

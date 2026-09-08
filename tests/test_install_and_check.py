@@ -891,6 +891,117 @@ def test_a_declared_hook_chain_is_verified_by_effect(tmp: Path) -> None:
     )
 
 
+def test_an_agent_channel_can_be_declined_and_the_declining_is_never_silent(tmp: Path) -> None:
+    """`DR-67` (`F122`). A repository using one agent need not carry the other's files.
+
+    The finding asked for the COPILOT channel to become opt-in. It is deliberately not built that
+    way: making one vendor's channel opt-in while the other stays default is the same neutrality
+    breach one layer along, and `DR-30` exists to stop this framework privileging the agent its
+    author happens to use. Both channels are selectable, both default on, and the symmetry is
+    asserted below rather than assumed - each case is run in both directions.
+
+    The half that is easy to miss, and the reason `F122`'s first recording was wrong: TWO
+    mechanisms write into an adopting repository. The payload writes `.github/instructions/` and
+    `.github/skills/`; the conformance-block upsert CREATES `.github/copilot-instructions.md`
+    outside the payload entirely. Filtering the payload alone would have left the one Copilot
+    artefact an adopter most notices, so that file is asserted absent here specifically.
+    """
+    channels = {
+        "claude": (".claude/rules", ".claude/skills"),
+        "copilot": (".github/instructions", ".github/skills", ".github/copilot-instructions.md"),
+    }
+    # Both baselines are DERIVED, and the first draft of this test got the arithmetic wrong by
+    # not doing so: it compared a `--no-hooks` install against the full payload count and was out
+    # by the two `.githooks/` files. The number was wrong, not the installer. So the baseline is
+    # a real `--no-hooks` install of everything, and the per-channel size is counted off the
+    # payload rather than written down - either literal would have to be re-derived by hand every
+    # time the set changes, which is the defect `check_vendored_current.py` avoids the same way.
+    baseline = make_git_repo(tmp, "agents-default")
+    install(baseline, "--no-hooks")
+    baseline_files = len(read_record(baseline)["files"])
+    payload = _installer.build_payload(PAYLOAD)
+    per_channel = {
+        name: sum(1 for rel in payload if rel.startswith(prefixes))
+        for name, prefixes in _installer.AGENT_CHANNELS.items()
+    }
+    check(
+        "each agent channel is the same size, so declining either costs the same",
+        len(set(per_channel.values())) == 1,
+        str(per_channel),
+    )
+
+    for chosen, other in (("claude", "copilot"), ("copilot", "claude")):
+        repo = make_git_repo(tmp, f"agents-{chosen}")
+        result = install(repo, "--agents", chosen, "--no-hooks")
+        check(f"--agents {chosen}: installs", result.returncode == 0, result.stderr[-300:])
+        check(
+            f"--agents {chosen}: none of {other}'s artefacts are written",
+            not any((repo / rel).exists() for rel in channels[other]),
+            ", ".join(rel for rel in channels[other] if (repo / rel).exists()),
+        )
+        check(
+            f"--agents {chosen}: its own artefacts ARE written",
+            all((repo / rel).exists() for rel in channels[chosen]),
+            ", ".join(rel for rel in channels[chosen] if not (repo / rel).exists()),
+        )
+        check(
+            f"--agents {chosen}: AGENTS.md is written either way - it is agent-neutral",
+            (repo / "AGENTS.md").is_file(),
+        )
+        check(
+            f"--agents {chosen}: the choice is recorded, not silent",
+            read_record(repo).get("agents") == [chosen],
+            str(read_record(repo).get("agents")),
+        )
+        check(
+            f"--agents {chosen}: exactly {other}'s payload paths are the ones missing",
+            len(read_record(repo)["files"]) == baseline_files - per_channel[other],
+            f"{len(read_record(repo)['files'])} installed, {baseline_files} at the same "
+            f"options with every channel, {other} contributes {per_channel[other]}",
+        )
+        out = verify(repo).stdout
+        check(
+            f"--agents {chosen}: the check reports the declined channel on every run",
+            f"agent channels declined at install: {other}" in out,
+            out[-500:],
+        )
+        check(
+            f"--agents {chosen}: and does not demand the file it was told not to write",
+            "SP006" not in out and "SP007" not in out,
+            out[-500:],
+        )
+
+    # The positive control. Without this, every assertion above would still pass against an
+    # installer that had simply stopped writing agent files at all.
+    check(
+        "a default install still writes both channels",
+        all((baseline / rel).exists() for pair in channels.values() for rel in pair),
+    )
+    check(
+        "and records no narrowing, so an existing adopter's record is unchanged",
+        "agents" not in read_record(baseline),
+    )
+    explicit = make_git_repo(tmp, "agents-explicit-both")
+    install(explicit, "--agents", "claude,copilot", "--no-hooks")
+    check(
+        "naming every channel explicitly is the same as naming none",
+        "agents" not in read_record(explicit),
+    )
+
+    result = install(make_git_repo(tmp, "agents-unknown"), "--agents", "cursor", "--no-hooks")
+    check(
+        "an unknown channel is refused rather than silently ignored",
+        result.returncode == 2 and "unknown agent channel" in result.stderr,
+        result.stderr[-300:],
+    )
+    result = install(make_git_repo(tmp, "agents-empty"), "--agents", ",", "--no-hooks")
+    check(
+        "an empty channel list is refused",
+        result.returncode == 2 and "at least one channel" in result.stderr,
+        result.stderr[-300:],
+    )
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory() as raw:
         tmp = Path(raw)
@@ -1042,6 +1153,9 @@ def main() -> int:
         result = install(existing, "--replace-existing")
         check("--replace-existing proceeds", result.returncode == 0, result.stderr[-300:])
         check("and replaces the file", "Our own" not in (target / "SKILL.md").read_text(encoding="utf-8"))
+
+        print("\nan agent channel can be declined (DR-67, F122)")
+        test_an_agent_channel_can_be_declined_and_the_declining_is_never_silent(tmp)
 
         print("\na declared hook chain is verified by effect (DR-66)")
         test_a_declared_hook_chain_is_verified_by_effect(tmp)
