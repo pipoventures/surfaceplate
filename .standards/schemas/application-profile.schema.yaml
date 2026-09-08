@@ -103,6 +103,37 @@ properties:
       deferrals:
         type: array
         items: {$ref: '#/$defs/deferral'}
+      hook_chain:
+        type: object
+        description: >-
+          DR-66. Declared only by a repository whose Git hooks already run from somewhere
+          else and which has chosen to keep that arrangement. Its own hook calls the gate
+          this standard installs, and check_conformance.py verifies BY EFFECT that the hook
+          Git will actually run reaches that gate - it runs it with SURFACEPLATE_HOOK_PROBE
+          set and requires the gate's answer. Optional, and additive: a profile without it
+          behaves exactly as before, which is why schema_version does not move (DR-50).
+          Declaring it is not a way to soften SP038. An undeclared foreign hooks path still
+          refuses at install, a declared chain that does not reach the gate still fails, and
+          a repository that does not want a local hook should install with --no-hooks and
+          not claim local_hook at all.
+        additionalProperties: false
+        required: [delegates_to, rationale]
+        properties:
+          delegates_to:
+            type: string
+            minLength: 1
+            description: >-
+              The gate this repository's own hook calls. The only value the checker accepts
+              is the gate this standard installs, .githooks/pre-commit; the field is written
+              out rather than assumed so that a reader of the profile can see what is being
+              claimed without knowing the checker's internals.
+          rationale:
+            type: string
+            minLength: 1
+            description: >-
+              Why this repository keeps its own hook system. A chain with no stated reason is
+              an omission wearing a decision's clothes, the same objection SP031 makes to an
+              undated deferral.
     allOf:
       # F105 (DR-63): `complete` explains itself too. Evidence is not required here: lifecycle,
       # validation and approval are kept apart, and evidence lives in assurance-evidence records.

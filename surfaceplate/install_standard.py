@@ -588,6 +588,7 @@ def install(
     dry_run: bool,
     replace_existing: bool,
     no_hooks: bool = False,
+    chain: bool = False,
 ) -> int:
     payload = build_payload(source)
     # F27. The hook is one enforcement route of three, and SP038 fires only when a gate
@@ -656,7 +657,15 @@ def install(
 
     # Not consulted when hooks are declined: there is no conflict to have, because nothing
     # will be configured. Checking anyway would refuse an install that touches no hook at all.
-    hook_conflict = None if no_hooks else hook_configuration_conflict(target)
+    #
+    # DR-1, implemented by DR-66: refusal stays the DEFAULT, and chaining is opted into rather
+    # than composed silently. `--chain` installs the gate and leaves core.hooksPath exactly as
+    # it was, so the adopter's own hook keeps running and is responsible for calling the gate.
+    # What makes this different from the silent chaining DR-1 rejected is that nothing here
+    # infers, understands, or preserves another tool's directory contract: the installer writes
+    # a gate and configures nothing, and the conformance check separately verifies BY EFFECT
+    # that the adopter's chain reaches it. An unreached gate is a finding, not a silent pass.
+    hook_conflict = None if (no_hooks or chain) else hook_configuration_conflict(target)
     if hook_conflict:
         print(hook_conflict_message(hook_conflict))
         print("Nothing has been written.")
@@ -720,6 +729,9 @@ def install(
 
     if no_hooks:
         print("  declined  the pre-commit hook, and core.hooksPath is left as it was")
+    elif chain:
+        print(f"  write   {HOOK_TARGET}, and core.hooksPath is left as it was")
+        print("            your own hook must call it; the conformance check verifies that")
     else:
         hook_ok, hook_action = configure_standard_hook(target, dry_run)
         print(f"  {hook_action}")
@@ -762,6 +774,11 @@ def install(
     # written before 0.17.0 reads correctly without migration.
     if no_hooks:
         record["hooks"] = "declined"
+    # DR-66. Recorded for the same reason declining is: a chained install and a normal one
+    # otherwise leave identical records, and the difference is exactly what a later reader
+    # needs in order to know whether core.hooksPath was this standard's doing.
+    elif chain:
+        record["hooks"] = "chained"
     record_text = json.dumps(record, indent=2, sort_keys=True) + "\n"
     if not dry_run:
         record_path.parent.mkdir(parents=True, exist_ok=True)
@@ -805,6 +822,18 @@ def install(
         print("  4. Commit the result. No local hook was installed - history_audit and review")
         print("     are what enforces this. Nothing checks staged changes before they commit.")
         print("  5. Open a pull request.")
+    elif chain:
+        print(f"  4. Run: git update-index --chmod=+x {HOOK_TARGET}")
+        print(f"  5. Make your own pre-commit hook run {HOOK_TARGET} and propagate its exit")
+        print("     code. core.hooksPath was left as it was; nothing here changed it.")
+        print("  6. Declare it in the profile so the check can verify it:")
+        print("       adoption:")
+        print("         hook_chain:")
+        print(f"           delegates_to: {HOOK_TARGET}")
+        print("           rationale: <why this repository keeps its own hook system>")
+        print("  7. Commit the result. The check runs your hook with SURFACEPLATE_HOOK_PROBE")
+        print("     set and reports SP038 if it does not reach the gate.")
+        print("  8. Open a pull request.")
     else:
         print(f"  4. Run: git update-index --chmod=+x {HOOK_TARGET}")
         print("  5. Commit the result. The installed pre-commit hook checks staged changes.")
@@ -854,7 +883,26 @@ def main(argv: list[str] | None = None) -> int:
             "and reported by every conformance check."
         ),
     )
+    parser.add_argument(
+        "--chain",
+        action="store_true",
+        help=(
+            "Install the pre-commit hook but leave core.hooksPath alone, for a repository "
+            "whose hooks already run from somewhere else and whose own hook will call this "
+            "one. Declare adoption.hook_chain in the profile; the conformance check then "
+            "verifies by effect that the chain reaches the gate (DR-66)."
+        ),
+    )
     args = parser.parse_args(argv)
+
+    if args.chain and args.no_hooks:
+        print(
+            "error: --chain and --no-hooks are opposite answers to the same question. "
+            "--chain installs the gate for your own hook to call; --no-hooks installs no "
+            "gate at all.",
+            file=sys.stderr,
+        )
+        return 2
 
     source = Path(args.source).resolve() if args.source else repo_root()
     target = Path(args.target).resolve()
@@ -879,6 +927,7 @@ def main(argv: list[str] | None = None) -> int:
         args.dry_run,
         args.replace_existing,
         no_hooks=args.no_hooks,
+        chain=args.chain,
     )
 
 

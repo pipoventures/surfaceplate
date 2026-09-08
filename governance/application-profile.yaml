@@ -52,7 +52,7 @@ data_classification: internal
 conformance_level: standard
 
 adoption:
-  framework_version: 0.16.1
+  framework_version: 0.17.0
   # DR-14's anchor, now implemented: sha256 of the MANIFEST.sha256 of the tree this
   # repository installed from. It replaces the release archive's digest, which could not
   # serve as a pin because build_release.py embeds file mtimes in the zip - so nobody,
@@ -75,7 +75,7 @@ adoption:
   # .standards/INSTALL.json. SP049 fails loudly if it is not, which is the intended
   # behaviour. An adopter meets the same step only on upgrade, where re-pinning is exactly
   # what should happen because the framework has changed.
-  framework_digest: d07c3080eabaec2091984d8a2cd5c98f58974d3ce246ec28f052afe6b4420ff1
+  framework_digest: 99d9a25bb40232a796d947ac29e059d0d4aac0b403708872f820d7e91fe1dada
   adoption_date: "2026-08-31"
   review_by: "2027-02-27"
   framework_maintainer: Mario Pipo
@@ -94,6 +94,24 @@ adoption:
   # F109: the two gate deferrals once mirrored here as x-…-gate control deferrals are
   # recorded once, under prerequisites, where a gate's deferral belongs.
   deferrals: []
+  # DR-66. This repository's Git hooks run from a machine-local delegating directory, set
+  # in .git/config, so that a personal mirror-refresh post-commit hook survives alongside
+  # this standard's gate - core.hooksPath REPLACES .git/hooks rather than adding to it, so
+  # without the delegation one of the two would silently never run. The delegating hook
+  # execs .githooks/pre-commit and propagates its exit code, so the gate is unchanged.
+  #
+  # Declaring it here is what lets check_conformance.py verify the arrangement instead of
+  # merely tolerating it: it runs the hook Git will actually run with SURFACEPLATE_HOOK_PROBE
+  # set, and requires this standard's gate to answer. Before DR-66 this repository reported
+  # SP038 - a true finding, because nothing established that the chain reached the gate.
+  hook_chain:
+    delegates_to: .githooks/pre-commit
+    rationale: >-
+      The machine this repository is developed on keeps a personal post-commit hook that
+      refreshes a local review mirror. That hook is unrelated to this standard and cannot be
+      committed to a public repository, so core.hooksPath points at an untracked delegating
+      directory inside .git/ which runs both. The delegation is verified by effect on every
+      conformance run rather than trusted.
 
 # These three cannot be excluded, deferred, or omitted at any conformance level.
 baseline_controls:

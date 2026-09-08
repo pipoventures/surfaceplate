@@ -6,10 +6,9 @@
   about the framework, not an adopting application.
 - Decision owner: Mario Pipo (maintainer), per the decision-maker convention recorded in
   `org/decisions/README.md`.
-- Status: accepted (decision only — not implemented; see Limitations and follow-up)
-- Risk level: 2 — governs the installer/hook enforcement mechanism (workflow), per the risk table
-  in `core/REVIEW_AND_EVIDENCE.md`. Not yet level 3, because nothing is implemented; a live
-  security-boundary change would be.
+- Status: accepted — implemented by `DR-66` and `ACT-064`, 2026-09-08, in `0.17.0`.
+- Risk level: 2 as recorded here, because nothing was implemented at the time. **The
+  implementation is level 3**, as this record anticipated — see `DR-66`, which carries it.
 - Related work item: `v0.11.0` (commit `22728e770dbd018305744b9ae5785fe04dbe2a36`)
 
 ## Decision
@@ -72,9 +71,22 @@ Two alternatives considered and rejected:
 
 ## Limitations and follow-up
 
-Decided, not implemented. No code, schema, or documentation change has been made toward opt-in
-chaining. Implementation is scoped to 0.12.0 or later. Until then, the only available behaviour
-remains refuse-only, exactly as at `v0.11.0`.
+**Implemented on 2026-09-08 by `DR-66`, in `0.17.0`** — nine days and five releases after this
+record was written, and after the condition it anticipated had actually occurred in this
+repository. `DR-66` carries the mechanism: `--chain` as the explicit opt-in, `adoption.hook_chain`
+as the declaration, and verification **by effect** — the checker runs the hook Git will actually
+run and requires this standard's gate to answer. Read `DR-66` for what is built; this record is
+the direction it had to take.
+
+**What this section said until then, kept because the delay is the point:** *"Decided, not
+implemented. No code, schema, or documentation change has been made toward opt-in chaining.
+Implementation is scoped to 0.12.0 or later. Until then, the only available behaviour remains
+refuse-only, exactly as at `v0.11.0`."* That was accurate when written and stayed accurate through
+`0.12.0` to `0.16.1`. The cost of leaving it unbuilt was not hypothetical: this repository
+subsequently acquired exactly the hook topology this record describes, and reported `SP038`
+against itself for three days because the remedy had been decided and not built. `DR-30` records
+the same shape — *"because it was decided and not implemented, nobody discovered that `DR-12`'s
+planned remedy was itself wrong"*.
 
 ## Approval
 

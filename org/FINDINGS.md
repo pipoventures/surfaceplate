@@ -185,6 +185,12 @@ an unknown number of releases with nothing noticing.
 | F117 | `README.md` said "this is not published to PyPI yet" after `0.16.0` and `0.16.1` were both on the index | medium | Closed — `ACT-062`, 2026-09-03; see the body |
 | F118 | `SECURITY.md` said the repository "is currently private" and that private vulnerability reporting "cannot be enabled" for it, weeks after the repository was made public | medium | Closed — `ACT-062`, 2026-09-03; see the body |
 | F119 | Nowhere a user actually reads — the installer's Next steps, the post-`adopt` failure output, `INSTALL.md`'s two "Raise it" sentences, SP005's own remedy text — named an issue tracker, and no local, offline way to assemble a problem report existed | medium | Closed — `ACT-062`, 2026-09-03; see the body |
+| F120 | The agent instructions are not graded by conformance level, while every control is | medium | **Open** |
+| F121 | `owner_role` and `reviewer_role` are required of a solo adopter, for whom both are constant | medium | **Open** |
+| F122 | The installer creates a Copilot instruction channel unconditionally, including in repositories that do not use Copilot | low | **Open** |
+| F123 | `authority.md` names one vendor's file as the place the authority hierarchy must be stated | medium | **Open** |
+| F124 | The checker verifies that an install is unedited and has no notion of whether it is current | high | **Open** |
+| F125 | No adopter-facing precedence rule exists between this standard and a co-resident governance system | medium | **Open** |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1515,6 +1521,165 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F125 — No adopter-facing precedence rule exists between this standard and a co-resident governance system
+
+**Severity: medium. Open.**
+
+Raised at `ACT-063` from a portfolio operating-model review outside this repository (`mnemosyne/reviews/2026-09-04_operating-model-plan-v3.md`, where it is numbered `SP-F6`). That review proposed it; it is recorded here only after being re-verified against this repository on 2026-09-08, and where the re-verification disagreed with the review the disagreement is stated rather than smoothed away. Nothing in `mnemosyne` is part of this standard or a condition of adopting it; it is the origin of the observation, not an authority over the remedy.
+
+An adopting repository may already carry its own standing instructions — a `CLAUDE.md`, a house
+style, a parent organisation's engineering policy — and this standard installs alongside them
+without saying which wins. `standard/agent-instructions/authority.md` §*Contradictions are blocking
+defects* tells an agent that contradictory authority is a blocking defect and to stop; the standard
+then creates exactly that condition on install and supplies no rule for resolving it. Nothing in
+the payload states whether the installed rules govern, are governed by, or are subordinate to
+instructions the repository already had.
+
+**The review's evidence for this is half wrong, and the correction matters.** It asserted
+*"Surfaceplate does not mention mnemosyne."* Re-checked on 2026-09-08: true of the installed
+standard — `grep -ril mnemosyne .standards/` returns **0 files** — and false of this repository,
+where `git grep -ril mnemosyne` returns **5 tracked files**, among them `DR-2` (2026-08-30), which
+declares that kernel *"sole behavioural canon"* for AI-assisted work under this standard. So a
+precedence statement about that particular pair does exist; what does not exist is any rule an
+adopter receives. Recording the finding on the review's original wording would have made it
+falsifiable by a thirty-second grep and closable by pointing at `DR-2`, which would close the wrong
+thing.
+
+**What the finding actually is, stated so the remedy is aimed correctly:** the standard ships no
+mechanism by which an adopter can declare what governs their repository when this standard and
+something else disagree. That is the same gap `WI-2`'s adopter-declared canon addresses, and it is
+why this finding rides the application-profile schema change rather than being answered by a
+paragraph of prose.
+
+## F124 — The checker verifies that an install is unedited and has no notion of whether it is current
+
+**Severity: high. Open.**
+
+Raised at `ACT-063` from a portfolio operating-model review outside this repository (`mnemosyne/reviews/2026-09-04_operating-model-plan-v3.md`, where it is numbered `SP-F5`). That review proposed it; it is recorded here only after being re-verified against this repository on 2026-09-08, and where the re-verification disagreed with the review the disagreement is stated rather than smoothed away. Nothing in `mnemosyne` is part of this standard or a condition of adopting it; it is the origin of the observation, not an authority over the remedy.
+
+`check_conformance.py` establishes, through `MANIFEST.sha256` and `SP049`'s recomputation of the
+anchor, that the installed standard is byte-for-byte the version recorded at install time. It has
+no way to ask whether that version is the current one, and structurally cannot: it runs inside the
+adopting repository with no network. `DR-45` is explicit that the anchor *"records the manifest of
+the tree installed FROM, which is a historical fact, not a live invariant"* — correct, and exactly
+the reason nothing surfaces staleness.
+
+The consequence is that a repository can sit an arbitrary number of versions behind, indefinitely,
+while its conformance check passes and says nothing. Integrity and currency are different
+properties and only one of them is checked. This is the highest-severity of the six because it
+scales with adoption: every repository that installs the standard acquires a control that is silent
+in exactly the case where it would be most useful.
+
+**Corroborating fact, and its evidence level.** The review reports `plutos` running `.standards`
+`0.16.0` against a published `0.16.1` with nothing surfacing the gap. **`FACT` as to the published
+version** — PyPI carries `0.16.0` and `0.16.1`, read directly on 2026-09-08. **`EVIDENCE GAP` as to
+`plutos`** — that is a separate repository and this session has not run the checker in it. The
+finding does not depend on that reading: the absence of any currency notion is established from
+this repository's own code.
+
+**Remedy direction, not yet decided.** A currency check has to run where the network is — the
+conformance workflow, or a release-side notifier — and report installed-versus-latest as an
+advisory, never as a failure, since an adopter may have deliberate reasons to pin. **Closure
+requires verification by effect in both directions:** an install one version behind must produce a
+signal, and a current install must produce none. A check that fires on everything is not evidence
+that it detected anything.
+
+## F123 — `authority.md` names one vendor's file as the place the authority hierarchy must be stated
+
+**Severity: medium. Open.**
+
+Raised at `ACT-063` from a portfolio operating-model review outside this repository (`mnemosyne/reviews/2026-09-04_operating-model-plan-v3.md`, where it is numbered `SP-F4`). That review proposed it; it is recorded here only after being re-verified against this repository on 2026-09-08, and where the re-verification disagreed with the review the disagreement is stated rather than smoothed away. Nothing in `mnemosyne` is part of this standard or a condition of adopting it; it is the origin of the observation, not an authority over the remedy.
+
+`standard/agent-instructions/authority.md:20,22` instructs every agent that where an authority map
+is absent, *"the repository's `copilot-instructions.md` must state the ordered authority hierarchy
+explicitly. An unstated hierarchy is a control gap; report it."* Verified in place on 2026-09-08.
+The document is otherwise agent-neutral and is emitted to four destinations by `DR-30`'s
+one-body-several-emitters pattern — so an adopter reading it in `.claude/rules/` is told to consult
+a file their agent does not read, and, if they follow it literally, to report a control gap for not
+having written one.
+
+This is the same root as `F122`: a channel-specific assumption surviving inside content that
+`DR-30` made channel-neutral. The remedy is to name the repository's *declared* instruction file,
+whatever it is, rather than one vendor's.
+
+## F122 — The installer creates a Copilot instruction channel unconditionally, including in repositories that do not use Copilot
+
+**Severity: low. Open.**
+
+Raised at `ACT-063` from a portfolio operating-model review outside this repository (`mnemosyne/reviews/2026-09-04_operating-model-plan-v3.md`, where it is numbered `SP-F3`). That review proposed it; it is recorded here only after being re-verified against this repository on 2026-09-08, and where the re-verification disagreed with the review the disagreement is stated rather than smoothed away. Nothing in `mnemosyne` is part of this standard or a condition of adopting it; it is the origin of the observation, not an authority over the remedy.
+
+Every install writes a full GitHub Copilot instruction channel whether or not the adopter uses
+Copilot: **13 of the 82 installed paths** are Copilot-specific — six
+`.github/instructions/*.instructions.md` and seven `.github/skills/*/SKILL.md` — read from
+`.standards/INSTALL.json` on 2026-09-08. There is no flag to decline them, and `DR-29`'s
+`--no-hooks` precedent shows the project already accepts that an adopter may decline a channel
+provided the declining leaves a trace.
+
+**The review's named artefact is wrong, and the substance survives the correction.** It cited
+`.github/copilot-instructions.md` as evidence that *"the installer added back a live
+agent-instruction channel"*. That file is **not written by the installer**:
+`install_standard.py:15` states in its own words that *"`.github/copilot-instructions.md` and
+`CLAUDE.md` stay the adopter's, untouched."* Its presence in this repository is this repository's
+own file, not an installed artefact. Checking the payload rather than the working tree — the
+distinction between the artefact delivered and one that merely sits beside it — moves the finding
+onto `.github/instructions/` and `.github/skills/`, which the installer really does write. Had the
+finding been recorded as stated, its closure test would have examined a file the remedy does not
+touch.
+
+Severity is low rather than medium because the cost is unwanted files rather than a false claim:
+nothing about the extra channel makes the repository's conformance result wrong. It is recorded
+because unwanted artefacts in someone else's repository are a real adoption cost, and because a
+stranger cannot be expected to know which of the two per-agent channels they are receiving.
+
+## F121 — `owner_role` and `reviewer_role` are required of a solo adopter, for whom both are constant
+
+**Severity: medium. Open.**
+
+Raised at `ACT-063` from a portfolio operating-model review outside this repository (`mnemosyne/reviews/2026-09-04_operating-model-plan-v3.md`, where it is numbered `SP-F2`). That review proposed it; it is recorded here only after being re-verified against this repository on 2026-09-08, and where the re-verification disagreed with the review the disagreement is stated rather than smoothed away. Nothing in `mnemosyne` is part of this standard or a condition of adopting it; it is the origin of the observation, not an authority over the remedy.
+
+A sub-case of `F120`, recorded separately because it is the sharpest instance and has its own
+remedy. `standard/agent-instructions/activity.md:37-38` requires every register entry to carry
+`owner_role` and `reviewer_role`, at every conformance level. For a single-maintainer repository
+both columns are constant, and `reviewer_role` implies a second person who does not exist — which
+in turn makes the `waiting_for_review` status either unreachable or self-referential.
+
+**This repository is its own evidence.** Every one of the 62 rows in `activity/register.md` reads
+`maintainer` in both columns. The framework's reference implementation demonstrates the defect in
+the product.
+
+**Proposed remedy, not yet decided:** at `essential`, satisfy both by a repository-level declaration
+rather than a per-entry field. Note what this must not do — it must not remove the fields at
+`standard` or `full`, where a named reviewer is doing real work, and it must not make
+`waiting_for_review` meaningless for adopters who do have a second person.
+
+## F120 — The agent instructions are not graded by conformance level, while every control is
+
+**Severity: medium. Open.**
+
+Raised at `ACT-063` from a portfolio operating-model review outside this repository (`mnemosyne/reviews/2026-09-04_operating-model-plan-v3.md`, where it is numbered `SP-F1`). That review proposed it; it is recorded here only after being re-verified against this repository on 2026-09-08, and where the re-verification disagreed with the review the disagreement is stated rather than smoothed away. Nothing in `mnemosyne` is part of this standard or a condition of adopting it; it is the origin of the observation, not an authority over the remedy.
+
+`core/CONFORMANCE_LEVELS.md` grades every control by level and states plainly why: *"Without graded
+levels, a two-person proof of concept and a client-reported quantitative model face the same
+control surface. In practice that produces one of two failures: small teams reject the framework as
+disproportionate, or they claim adoption while implementing very little of it."*
+
+**The agent instructions escaped that grading.** All six carry `scope: "**"` and state flat,
+ungraded requirements — `activity.md` alone imposes eleven minimum register fields, a seven-value
+status vocabulary, and two required role fields, verified in place on 2026-09-08. An adopter at
+`essential` receives `essential` controls — three baselines plus `dependency_lock` — and
+`full`-weight agent instructions. The framework's own `core/CONTROL_PRINCIPLES.md` principle 12,
+*"Defer controls that do not reduce a demonstrated risk to a material output, its data, or its
+release"*, is not applied to the framework's own instruction layer.
+
+**Why this one is load-bearing for the topic restructure.** Grading a rule by level means class,
+audience and enforcement become **fields on the rule** rather than properties of the file it sits
+in — which is the topic restructure's central mechanism, not a separate piece of work. The remedy
+is therefore scheduled to land with that change rather than ahead of it, and this finding is the
+reason the restructure is not merely a rearrangement.
+
+**Proposed remedy, not yet decided:** grade the agent-instruction rules by level as the controls
+are. At `essential`, a two-value status and a bare dependency pointer satisfy `activity.md`.
 
 ## F119 — Nowhere a user actually reads named an issue tracker, and no offline way to assemble a problem report existed
 
