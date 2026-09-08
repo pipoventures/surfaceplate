@@ -196,7 +196,7 @@ an unknown number of releases with nothing noticing.
 | F128 | A skill shipped to every adopter pointed at `activity.instructions.md`, a filename the twelve-topic restructure stopped writing and a Copilot-only emitted name before that; nothing checked what the payload says about itself | medium | Closed — `ACT-073`, 2026-09-08; see the body |
 | F129 | `F123`'s ruling was applied to the document it was found in and nowhere else: Topic 7 still told every agent that stack-specific commands and test areas belong in `copilot-instructions.md` | medium | Closed — `ACT-073`, 2026-09-08; see the body |
 | F130 | The same dependency version is pinned in five places — `pyproject.toml`, two workflows, the payload's copy of one of them, and `INSTALL.md` — and nothing compared them, so a dependency change was judged green by a CI run that installed the old version | high | Closed — `ACT-074`, 2026-09-08; see the body |
-| F131 | `CVE-2025-71176` in pytest cannot be remediated within the pinned test set: `pytest-textual-snapshot` pins `syrupy==4.8.0`, which caps `pytest<9.0.0`, and the fix is only in `9.0.3` | medium | Open — no satisfiable upgrade exists; the decision is `H21` |
+| F131 | `CVE-2025-71176` in pytest cannot be remediated within the pinned test set: `pytest-textual-snapshot` pins `syrupy==4.8.0`, which caps `pytest<9.0.0`, and the fix is only in `9.0.3` | medium | Open — **accepted, not remediated**: the maintainer took route (1) at `H21`, 2026-09-08. The condition persists |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1530,7 +1530,7 @@ field is asked with its seed row first.
 
 ## F131 — A security advisory in a pinned test dependency has no satisfiable remedy, because a plugin pins the package that caps it
 
-**Severity: medium. Open — the decision is `H21`.**
+**Severity: medium. Open — accepted by the maintainer at `H21`, 2026-09-08. Not remediated; the condition persists.**
 
 Recorded on 2026-09-08 in this session, from GitHub's Dependabot alert 1 on `main`.
 **`GHSA-6w46-j5rx-g56g` / `CVE-2025-71176`** — *"pytest through 9.0.2 on UNIX relies on directories
@@ -1594,6 +1594,29 @@ are the maintainer's:
 
 **Recommendation: (1)**, on the exposure reading above and on the absence of any upstream date. Not
 a decision this session can take. Recorded as **`H21`**.
+
+**Decided 2026-09-08: route (1), accept and defer.** The maintainer accepted the residual risk on
+the reading above. **This finding therefore stays `Open`, and the distinction is not pedantry: an
+accepted risk and a fixed defect are different states, and a register that recorded them the same
+way would be unable to answer "what is still wrong here?" — which is the only question it exists
+to answer.** `pytest 8.4.2` is still pinned and still carries `CVE-2025-71176`. What changed is that
+someone with the authority to accept it has, on the record, with a reason.
+
+**Review trigger, so this is a deferral and not an abandonment:** a `pytest-textual-snapshot`
+release that permits `syrupy >= 5`. At that point the whole chain unblocks in one bump and this
+finding closes by remediation rather than by acceptance.
+
+**What the acceptance does not extend to.** It covers this advisory, in this dependency, at this
+severity, on this exposure reading. A new advisory in the same package, or a change that puts
+`pytest` on a path an adopter installs, is a new decision — not one this record has already taken.
+
+**Corrected in the same change (`ACT-076`):** the costing offered to the maintainer said the
+suppression would be *"three lines in `.github/dependabot.yml`"*. That file does not exist, and
+creating one requires an `updates:` block that would **enable scheduled version-update pull
+requests** this repository has never had — a behaviour change nobody asked for, offered as though it
+were a formality. The alert came from Dependabot **security updates**, a repository setting, so the
+instrument is dismissing the alert with a recorded reason. Stated here because the wrong instrument
+was in the costing the decision was taken on, even though the decision itself is unaffected.
 
 ## F130 — The same dependency version is pinned in five places, and nothing compared them
 
