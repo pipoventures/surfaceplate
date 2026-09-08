@@ -3,8 +3,8 @@
 ## Why levels exist
 
 `core/CONTROL_PRINCIPLES.md` principle 12 requires proportionality: *defer controls that do not
-reduce a demonstrated risk*. `core/AI_OPERATING_MODEL.md` requires the smallest control set that
-protects the risk.
+reduce a demonstrated risk*. Topic 5 (`standard/topics/05-risk-and-proportionality.md`) requires
+the smallest control set that protects the risk.
 
 Without graded levels, a two-person proof of concept and a client-reported quantitative model face
 the same control surface. In practice that produces one of two failures: small teams reject the

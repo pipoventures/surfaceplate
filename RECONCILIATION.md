@@ -10,7 +10,7 @@ installer cannot tell whether it is a rough draft or the most carefully consider
 repository. So it refuses, lists the conflicts, and writes nothing.
 
 The case this exists for is a repository that already carries some or all of the seven skill names
-and the seven instruction file names, with its own stack and methodology detail in them that the
+and the twelve topic document names, with its own stack and methodology detail in them that the
 stack-neutral standard deliberately does not reproduce. Overwriting those would be a regression
 presented as an installation.
 

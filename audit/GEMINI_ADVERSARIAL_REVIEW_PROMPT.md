@@ -70,8 +70,12 @@ does not overclaim either by accident:
 
 ### 1. Operating model and human/agent authority boundary
 
-Read `surfaceplate/core/AI_OPERATING_MODEL.md`, `surfaceplate/core/CONTROL_PRINCIPLES.md`, and
-`surfaceplate/core/REVIEW_AND_EVIDENCE.md`.
+Read `surfaceplate/standard/topics/02-decision-authority-and-escalation.md`,
+`surfaceplate/standard/topics/03-work-definition.md`,
+`surfaceplate/standard/topics/06-evidence-and-completion.md`, and
+`surfaceplate/core/CONTROL_PRINCIPLES.md`. (`DR-69`'s topic restructure retired
+`core/AI_OPERATING_MODEL.md` and `core/REVIEW_AND_EVIDENCE.md`; their content now lives in these
+topic documents, merged with what was a separate agent-instruction layer.)
 
 - Does the operating model define bounded work, acceptance criteria, ownership, escalation, and
   completion evidence clearly enough to follow without a governance specialist?

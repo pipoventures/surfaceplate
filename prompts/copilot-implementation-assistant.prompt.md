@@ -29,10 +29,8 @@ anything, locate and read these files from the installed kit copy:
 
 - `README.md`
 - `SETUP_GUIDE.md`
-- `core/AI_OPERATING_MODEL.md`
+- `standard/topics/*.md` (all twelve — the topic axis this kit is organised on)
 - `core/CONTROL_PRINCIPLES.md`
-- `core/REVIEW_AND_EVIDENCE.md`
-- `core/SECURITY_BASELINE.md`
 - `core/CONFORMANCE_LEVELS.md`
 - `core/PREREQUISITE_GATES.md`
 - `schemas/README.md`

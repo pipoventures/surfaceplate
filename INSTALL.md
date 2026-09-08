@@ -14,7 +14,7 @@ Two commands. Then one file to fill in.
 | `.githooks/pre-commit` | The standard | The local commit-time check. The installer activates it with `core.hooksPath=.githooks`. |
 | `.claude/rules/surfaceplate-*.md` | The standard | The agent instructions, in the form Claude Code loads. |
 | `.github/instructions/*.instructions.md` | The standard | The same instructions, in the form GitHub Copilot loads. |
-| `.standards/agent-instructions/*.md` | The standard | The canonical copies. If your agent reads neither form above, point it here. |
+| `.standards/topics/*.md` | The standard | The canonical copies, each carrying its full normative and imperative content. If your agent reads neither form above, point it here. |
 | `AGENTS.md` | **You**, apart from the marked block | The installer inserts a conformance block and preserves everything outside it. Your own content is never touched. |
 | `.standards/` | The standard | A pinned copy of the standard, the schemas, and the checker. Machine-managed. Do not edit. |
 | `.github/copilot-instructions.md` | **You** | Your own guidance. The installer appends a marked block; everything outside the markers is untouched. |

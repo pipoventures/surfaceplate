@@ -2313,3 +2313,49 @@ The obvious trigger — a step in the installed conformance workflow — would m
 repository's CI call `pypi.org` on every run, and would be uneditable by the adopter because that
 workflow is integrity-checked. That is a decision about someone else's infrastructure, recorded as
 `H20` rather than taken.
+
+### The topic restructure — documents surface (`ACT-068`, `DR-69`)
+
+The largest single change this project has made. `core/` ÷ `agent-instructions/` — the split that
+stated the same rule twice by design, because it encoded audience rather than subject — is retired
+in favour of a single **twelve-topic axis**. Full reasoning in `DR-69`, measured before the change
+was designed: 13 documents, 1,423 lines, 43% of it in two files, three headings word-for-word
+identical between `AI_OPERATING_MODEL.md` and `ai-workflow.md`.
+
+- **Twelve topic documents** at `standard/topics/`, each carrying a normative part (kept for the
+  canonical, human-facing copy at `.standards/topics/`) and an imperative part, marked
+  `## For agents — <Topic>`, that the emitter ships alone to `.claude/rules/` and
+  `.github/instructions/` — proven first on Topic 11 (Concurrency) alone, in isolation from every
+  content-migration decision, before the other eleven were authored against the mechanism.
+- **`core/CONFORMANCE_LEVELS.md` and `core/PREREQUISITE_GATES.md` survive as specifications**,
+  cited by the topic documents rather than dissolved into them — folding 43% of the corpus into
+  twelve files would have scattered one coherent specification and made the checker's own data
+  structures answerable to twelve documents instead of two. `core/CONTROL_PRINCIPLES.md` also
+  survives unchanged, cited the same way.
+- **`F120` addressed in Topic 4** (Work tracking): at `essential`, a two-value status and a bare
+  dependency pointer satisfy the register, rather than the full `standard`/`full` field set this
+  repository's own reference register once demanded of every row regardless of level.
+- **`F125` addressed in Topic 1** (Authority): a stated default for what governs when this standard
+  and an adopter's own instructions disagree, and how an adopter may declare a different order —
+  binding only the repository that declares it, never citable elsewhere.
+- **No finding renumbered, no `SP` code renumbered.**
+- **A rename this repository had to get right about itself.** `governance/application-profile.yaml`
+  declares `standard/topics/07-testing.md` as the `test_convention` gate's precondition artefact —
+  a third rename in that artefact's history. No exception filed: `ACT-030`'s remedy for `F30`
+  follows renames through git automatically once committed; `GX-0001` and `GX-0002` are superseded
+  records of the first two renames, covering nothing now.
+- **The curated independent-review bundle changed shape, deliberately, not silently.**
+  `core/AI_OPERATING_MODEL.md` is replaced in the 27-file evidence bundle by
+  `standard/topics/02-decision-authority-and-escalation.md` — the topic that now states the
+  human/agent authority boundary the bundle was including it for — keeping the count at 27 rather
+  than expanding it, and the "What is deliberately not included" list is corrected to name what is
+  now actually excluded (eleven further topic documents) rather than the retired filenames.
+- Every live cross-reference updated in the same change: `README.md`, `INSTALL.md`,
+  `RECONCILIATION.md`, `SETUP_GUIDE.md`, `governance/authority-map.yaml`, both seed templates, the
+  Copilot implementation-assistant prompt, and the checker's and `CONFORMANCE_LEVELS.md`'s own
+  cross-references to the documents that moved.
+
+A genuine, pre-existing defect surfaced and recorded rather than silently absorbed: `F126`,
+`test_adopt_matrix.py`'s edit-route case intermittently failing `SP033` on a clock-dependent
+condition unrelated to this session's changes — isolated by reproducing it against `main` before
+any prototype file existed.

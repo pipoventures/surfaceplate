@@ -17,8 +17,12 @@ file you were not given.
 - `surfaceplate/MANIFEST.sha256` and `governance/application-profile.yaml` — the framework's own
   integrity anchor and its own declaration of conformance to itself, for the recomputation task
   below.
-- `surfaceplate/core/AI_OPERATING_MODEL.md`, `CONTROL_PRINCIPLES.md`, `CONFORMANCE_LEVELS.md`,
-  `PREREQUISITE_GATES.md` — the rules the standard actually publishes.
+- `surfaceplate/standard/topics/02-decision-authority-and-escalation.md`,
+  `surfaceplate/core/CONTROL_PRINCIPLES.md`, `CONFORMANCE_LEVELS.md`, `PREREQUISITE_GATES.md` —
+  the rules the standard actually publishes. The first replaces the retired core operating-model
+  document under `DR-69`'s topic restructure: its content, and the human/agent authority boundary
+  it stated, now lives in this topic document, alongside related material merged in from what was
+  a separate agent-instruction file.
 - `surfaceplate/schemas/application-profile.schema.yaml` — the one contract every adopting
   repository's profile must satisfy.
 - `surfaceplate/adopt/sections.py`, `defaults.py`, `scaffold.py`, `wizard.py` — the four files where
@@ -34,7 +38,9 @@ file you were not given.
   them: judge the claim on the text, not on the module that copies it.
 
 **What is deliberately not included, so you do not assume it was reviewed:**
-`surfaceplate/core/REVIEW_AND_EVIDENCE.md` and `SECURITY_BASELINE.md`; the four non-profile schemas
+`surfaceplate/standard/topics/` other than `02-decision-authority-and-escalation.md` — eleven
+further topic documents, including the ones that absorbed the former `core/REVIEW_AND_EVIDENCE.md`
+and `SECURITY_BASELINE.md`; the four non-profile schemas
 (method registry, run lineage, override, assurance evidence); the rest of the wizard
 (`plan.py`, `render.py`, `discover.py`, `catalogue.py`, `interview.py`, `cli.py`, and the whole
 `tui/` interaction layer); **the checker and installer source, which are the largest omission in this
@@ -165,7 +171,7 @@ example against it.
   no final assurance state reachable without typed evidence behind it?
 - Does the worked profile actually satisfy the schema as given, as far as you can tell by inspection?
   Name any field that looks schema-invalid.
-- `CONTROL_PRINCIPLES.md` and `AI_OPERATING_MODEL.md` state the human/agent authority boundary. Is it
+- `CONTROL_PRINCIPLES.md` and `02-decision-authority-and-escalation.md` state the human/agent authority boundary. Is it
   unambiguous, or does it leave room for an agent to claim something — approval, validation, release
   readiness — that the schema or the profile does not actually support?
 

@@ -1156,7 +1156,11 @@ def main() -> int:
         check("reported as modification", "SP005" in result.stdout)
         check("never graced", "never graced" in result.stdout)
 
-        (repo / ".github/instructions/security.instructions.md").unlink()
+        # Derived rather than a hard-coded filename: `security.instructions.md` stopped existing
+        # once `DR-69` (`ACT-068`) split its content across two topic documents, and any one
+        # installed instruction file exercises the same tamper-evidence mechanism.
+        deletable = sorted((PAYLOAD / "standard" / "topics").glob("*.md"))[0].stem
+        (repo / f".github/instructions/{deletable}.instructions.md").unlink()
         result = verify(repo)
         check("deleted instruction fails", result.returncode == 1)
         check("reported as deletion", "SP004" in result.stdout)
@@ -2729,7 +2733,7 @@ def main() -> int:
         # reaches a channel. Counting the inputs and requiring every one to arrive at both
         # destinations tests the property the emitter actually promises (`DR-30`: one body,
         # several emitters), and needs no edit when the set changes again.
-        authored = sorted((PAYLOAD / "standard" / "agent-instructions").glob("*.md"))
+        authored = sorted((PAYLOAD / "standard" / "topics").glob("*.md"))
         check(
             "every authored instruction is emitted for Claude Code as well as Copilot",
             len(rules) == len(authored) and len(copilot) == len(authored),

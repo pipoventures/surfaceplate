@@ -214,14 +214,14 @@ def build_payload(source: Path, agents: tuple[str, ...] | None = None) -> dict[s
     payload: dict[str, Path] = {}
 
     # ONE BODY, SEVERAL EMITTERS (F29, DR-30). The instructions live once, agent-neutrally, in
-    # standard/agent-instructions/. Each agent then receives them in the file IT ACTUALLY READS,
-    # with that agent's own front-matter key for path scoping.
+    # standard/topics/. Each agent then receives the IMPERATIVE part in the file it actually
+    # reads (DR-69, ACT-068), with that agent's own front-matter key for path scoping.
     #
     # This was six Copilot-format files and nothing else, so every adopter using Claude Code
     # received 501 lines of governance instruction that were never loaded - and so did this
     # repository, for its entire development. The destination is the whole point; the content
     # was never the problem.
-    for path in sorted((source / "standard" / "agent-instructions").glob("*.md")):
+    for path in sorted((source / "standard" / "topics").glob("*.md")):
         name = path.stem
         front, body = split_front_matter(path.read_text(encoding="utf-8"))
         imperative = extract_imperative(body)
@@ -274,10 +274,11 @@ def build_payload(source: Path, agents: tuple[str, ...] | None = None) -> dict[s
     payload[f"{VENDOR_DIR}/VERSION"] = source / "VERSION"
     payload[f"{VENDOR_DIR}/conformance-block.md"] = source / "standard" / "conformance-block.md"
 
-    # The canonical, agent-neutral copies travel too. An agent this framework has never heard of
-    # can be pointed at one location instead of being told to guess which emitted form applies.
-    for path in sorted((source / "standard" / "agent-instructions").glob("*.md")):
-        payload[f"{VENDOR_DIR}/agent-instructions/{path.name}"] = path
+    # The canonical, agent-neutral copies travel too, both normative and imperative parts
+    # together. An agent this framework has never heard of can be pointed at one location
+    # instead of being told to guess which emitted form applies.
+    for path in sorted((source / "standard" / "topics").glob("*.md")):
+        payload[f"{VENDOR_DIR}/topics/{path.name}"] = path
 
     for schema in sorted((source / "schemas").glob("*.yaml")):
         payload[f"{VENDOR_DIR}/schemas/{schema.name}"] = schema

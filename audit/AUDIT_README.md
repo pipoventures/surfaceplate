@@ -83,7 +83,8 @@ directly from the repository root:
 ```bash
 {
   for f in surfaceplate/MANIFEST.sha256 governance/application-profile.yaml \
-           surfaceplate/core/AI_OPERATING_MODEL.md surfaceplate/core/CONTROL_PRINCIPLES.md \
+           surfaceplate/standard/topics/02-decision-authority-and-escalation.md \
+           surfaceplate/core/CONTROL_PRINCIPLES.md \
            surfaceplate/core/CONFORMANCE_LEVELS.md surfaceplate/core/PREREQUISITE_GATES.md \
            surfaceplate/schemas/application-profile.schema.yaml \
            surfaceplate/adopt/sections.py surfaceplate/adopt/defaults.py \

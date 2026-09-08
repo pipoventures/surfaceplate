@@ -1876,8 +1876,9 @@ def check_secret_hygiene(repo: Path, profile: dict, findings: list[Finding]) -> 
     WHAT THIS DOES NOT DO, stated first because the temptation to read it the other way is
     the whole risk: it does not scan for secrets, and a pass here says NOTHING about whether
     secrets are present. It checks that the repository has named a scanner and wired it
-    somewhere that can fail. `core/SECURITY_BASELINE.md` puts the scanner itself on the
-    adopting repository - "run the receiving repository's approved secret scanner" - and this
+    somewhere that can fail. Topic 8 (`standard/topics/08-confidentiality-and-data-boundaries.md`)
+    puts the scanner itself on the adopting repository - "run the receiving repository's approved
+    secret scanner" - and this
     framework has no business reimplementing one behind two YAML dependencies.
 
     Why the bypass check exists at all, and why it is not paranoia: a workflow can run a

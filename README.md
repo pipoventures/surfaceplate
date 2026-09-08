@@ -142,11 +142,11 @@ framework's oldest open finding.
 | Directory | Contents |
 |---|---|
 | `surfaceplate/` | The installable package. Everything below is inside it — `install_standard.py` and `check_conformance.py` sit at its root, beside the payload they copy. Since `ACT-019` (`DR-31`), this is what `pip install`s, and what `git clone` gives you is this directory's parent. |
-| `surfaceplate/standard/agent-instructions/` | Seven stack-neutral instruction files: AI workflow, authority, activity, provenance, tests, security, concurrency. Emitted per agent at install — Claude Code's `.claude/rules/`, Copilot's `.github/instructions/` — from this one canonical source. |
+| `surfaceplate/standard/topics/` | Twelve topic documents (`DR-69`), each carrying a normative part and an imperative part. Only the imperative part is emitted per agent at install — Claude Code's `.claude/rules/`, Copilot's `.github/instructions/` — from this one canonical source; the whole file travels to `.standards/topics/` for any agent not emitted for. |
 | `surfaceplate/standard/.github/skills/` | Seven task workflows: `change`, `bug-fix`, `review`, `fix-ci`, `dependency-update`, `security-review`, `release`. Each states its required inputs, its gates, and its mandatory stops. |
 | `surfaceplate/standard/.github/workflows/` | The conformance workflow installed into adopting repositories. |
 | `surfaceplate/standard/.githooks/` | The pre-commit hook installed into adopting repositories. It checks the staged snapshot and runs the full conformance check before Git creates a commit. |
-| `surfaceplate/core/` | The operating model, control principles, evidence expectations, security baseline, conformance levels, and the prerequisite gate catalogue. |
+| `surfaceplate/core/` | Control principles, conformance levels, and the prerequisite gate catalogue — the two largest specifications, cited by the topic documents rather than reproduced in them (`DR-69`). |
 | `surfaceplate/schemas/` | JSON Schema contracts for application profiles, methods, runs, assurance evidence, overrides, and gate exceptions. |
 | `surfaceplate/templates/`, `surfaceplate/examples/` | Blank templates, and worked examples that actually validate. |
 | `surfaceplate/adapters/` | Stack-specific guidance for Python, TypeScript, and R. |
@@ -314,7 +314,7 @@ file you copy is a file you stop having to reason about.
 | Licence | What it covers |
 |---|---|
 | **Apache-2.0** — [`LICENSE`](LICENSE) | `scripts/`, `tests/`, `surfaceplate/schemas/`, `surfaceplate/adapters/`, `surfaceplate/install_standard.py`, `surfaceplate/check_conformance.py`, `surfaceplate/standard/.githooks/`, `surfaceplate/standard/.github/workflows/`, and everything not listed opposite |
-| **CC0-1.0** — [`LICENSE-DOCS`](LICENSE-DOCS) | `surfaceplate/core/` (the standard text), `surfaceplate/templates/`, `surfaceplate/standard/agent-instructions/`, `surfaceplate/standard/.github/skills/`, `surfaceplate/standard/conformance-block.md` |
+| **CC0-1.0** — [`LICENSE-DOCS`](LICENSE-DOCS) | `surfaceplate/core/` (the standard text), `surfaceplate/templates/`, `surfaceplate/standard/topics/`, `surfaceplate/standard/.github/skills/`, `surfaceplate/standard/conformance-block.md` |
 
 Apache-2.0 rather than MIT for the software, because of its express patent grant, and because it
 grants no trademark rights. The code is open; the name is not.

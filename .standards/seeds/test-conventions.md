@@ -6,7 +6,7 @@ How tests in this repository are named and where they live, so that a change can
 
 ## Naming
 
-Tests are named `test_{area}_{description}`, the convention the standard recommends (`.standards/agent-instructions/tests.md`). The area names the part of the repository under test; the description says what behaviour is asserted.
+Tests are named `test_{area}_{description}`, the convention the standard recommends (`.standards/topics/07-testing.md`). The area names the part of the repository under test; the description says what behaviour is asserted.
 
 ## Areas
 

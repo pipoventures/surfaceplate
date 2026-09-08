@@ -71,14 +71,16 @@ authorities:
       document-qualified rather than renumbered.
 
   - paths: ["activity/**"]
-    governed_by: surfaceplate/standard/agent-instructions/activity.md
+    governed_by: surfaceplate/standard/topics/04-work-tracking.md
     note: >-
       The activity instruction file is the standard's own rule for what a register entry
       must carry and when it must be updated. This repository is bound by it in the same
       way an adopter is. This entry was found pointing at activity.instructions.md - a
       Copilot-emitted filename, not the canonical one - while updating the whole file for
       the packaging move (ACT-019). Stale since the canonical instructions dropped that
-      suffix at DR-30/F29; fixed here rather than left for a third pass to find.
+      suffix at DR-30/F29; fixed here rather than left for a third pass to find. Moved a
+      second time by the topic restructure (DR-69, ACT-068): the content now lives in
+      Topic 4 (Work tracking), not a standalone activity.md.
 
   - paths: ["governance/**"]
     governed_by: surfaceplate/schemas/application-profile.schema.yaml

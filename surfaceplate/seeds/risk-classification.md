@@ -10,7 +10,7 @@ The standard's templates carry a four-point scale, `0` to `3`, on every work pac
 
 ## What raises a class
 
-The standard's audit triggers (`.standards/agent-instructions/ai-workflow.md`) are the inputs: a change that affects material numerical or model outputs, material AI outputs or reasoning, public schemas or contracts, provenance or run lineage, security boundaries, dependencies, approval state, model or tool classification, AI provider or prompt behaviour, or is a broad refactor, is never the lowest class. Review depth increases for a change that is novel, hard to test, irreversible, externally reported or difficult to reproduce.
+The standard's audit triggers (`.standards/topics/06-evidence-and-completion.md`) are the inputs: a change that affects material numerical or model outputs, material AI outputs or reasoning, public schemas or contracts, provenance or run lineage, security boundaries, dependencies, approval state, model or tool classification, AI provider or prompt behaviour, or is a broad refactor, is never the lowest class. Review depth increases for a change that is novel, hard to test, irreversible, externally reported or difficult to reproduce.
 
 ## What each level means here
 
