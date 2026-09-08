@@ -191,6 +191,7 @@ an unknown number of releases with nothing noticing.
 | F123 | `authority.md` names one vendor's file as the place the authority hierarchy must be stated | medium | Closed — `ACT-066` (`DR-67`), 2026-09-08; see the body |
 | F124 | The checker verifies that an install is unedited and has no notion of whether it is current | high | Open — narrowed by `ACT-067` (`DR-68`): the mechanism exists and nothing triggers it |
 | F125 | No adopter-facing precedence rule exists between this standard and a co-resident governance system | medium | **Open** |
+| F126 | `test_adopt_matrix.py`'s edit-route case (T6) intermittently fails SP033, reproducibly on a clean checkout, unrelated to any change in this session | medium | **Open** |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1521,6 +1522,56 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F126 — `test_adopt_matrix.py`'s edit-route case intermittently fails `SP033`, reproducibly on a clean checkout
+
+**Severity: medium. Open.**
+
+Found on 2026-09-08 during `ACT-068`'s Step 1 prototype, while running `test_adopt_matrix.py` as
+part of that step's own verification. Not caused by anything in this session's changes — isolated
+by re-running the identical suite against `main` at `f871cad` with `git stash`, before any prototype
+file existed, and the failure reproduced identically: **`4 failed, 45262 passed; 208 runs`**, all
+four inside the `standard`-level, `route="edit"` matrix case (`adopt_matrix.py:287-288`), each
+reading:
+
+```
+- T6-195: after the string edit the checker still passes: WARN ['SP033', 'SP033']
+- T6-195: after the bool edits the checker still passes: WARN ['SP033', ...×10]
+- T6-195: after the list-element edit the checker still passes: WARN ['SP033', ...×10]
+```
+
+`SP033` fires when a gate's `effective_from` is later than the date the checker is told is
+"today". `tests/adopt_matrix.py:1148` calls `check_conformance.evaluate(repo, TODAY, False, False)`
+with `TODAY = _dt.date.today()`, a module-level constant **captured once at import time**
+(`adopt_matrix.py:48`). The profile the edit-route case writes and then re-checks is produced by
+the wizard's own write path, which computes "today" independently, and not once: `defaults.py:233`,
+`sections.py:226`, `flow.py:93`, `plan.py:938` and `plan.py:1139` each call
+`_dt.date.today()` or `_dt.datetime.now()` separately, rather than deriving from one instant passed
+through. **This is the architectural fragility, established by direct read; it is not yet proven to
+be the trigger for this specific failure.**
+
+**What was checked and ruled out.** Local time and UTC agree on the calendar date at the moment of
+investigation (`2026-09-08` both ways) — a naive UTC/local mismatch is not live right now, so the
+defect is not simply "some call uses UTC and another uses local time" caught mid-difference. The
+matrix run takes roughly three minutes; a real-time midnight rollover mid-run cannot be ruled out
+in general but was not observed directly in this instance.
+
+**`EVIDENCE GAP`:** the exact triggering sequence — which of the five independent clock reads
+disagreed with `adopt_matrix.py`'s frozen `TODAY`, and under what condition — has not been isolated.
+Establishing it needs either a reproduction harness that controls the clock (freezing or mocking
+`_dt.date.today()`) or catching the suite failing again with the wall-clock time recorded at the
+moment of the affected wizard write.
+
+**Not investigated further here, deliberately.** Root-causing and fixing this is unrelated to the
+topic restructure this session is doing (`ACT-068`) and was not blocking its decision gate — that
+gate concerns the emitter/`DR-45` manifest interaction alone, which held cleanly and independently
+of this failure. Recorded rather than silently worked around, per this repository's own rule that a
+defect found here is recorded here, including a defect in the framework's own test suite.
+
+**Proposed remedy, not yet decided:** derive every date computation in the wizard's write path from
+one instant, injected once per run (the pattern `flow.py:93`'s `today or _dt.date.today()` parameter
+already partially uses), so a run spanning a clock boundary is internally consistent even if it
+disagrees with a separately-frozen test constant.
 
 ## F125 — No adopter-facing precedence rule exists between this standard and a co-resident governance system
 

@@ -106,6 +106,26 @@ def split_front_matter(text: str) -> tuple[dict[str, str], str]:
     return front, match.group(2)
 
 
+# DR-69 (ACT-068). A topic document may carry a normative part (context and reasoning, for
+# the human reading the canonical copy) and an imperative part (the directives an agent needs
+# every turn), in one file, marked by this heading. Only the imperative part reaches
+# `.claude/rules/` and `.github/instructions/` - the destinations an agent loads every turn -
+# which is the other direction F29 can fail in: shipping a whole reasoning-rich document into a
+# file loaded every turn is the same waste in a new shape.
+IMPERATIVE_MARKER = re.compile(r"^## For agents\b", re.MULTILINE)
+
+
+def extract_imperative(body: str) -> str:
+    """The imperative part of an instruction body, or the whole body where none is marked.
+
+    A document not yet restructured under the topic axis has no marker, and is emitted whole,
+    unchanged - this is every agent-instruction document until Step 2 (`ACT-068`) migrates it,
+    and it is why this function is additive rather than a rewrite of the emission loop.
+    """
+    match = IMPERATIVE_MARKER.search(body)
+    return body[match.start():] if match else body
+
+
 def payload_text(src: "Path | str") -> str:
     """A payload entry is either a file to copy or already-rendered content to write.
 
@@ -204,11 +224,12 @@ def build_payload(source: Path, agents: tuple[str, ...] | None = None) -> dict[s
     for path in sorted((source / "standard" / "agent-instructions").glob("*.md")):
         name = path.stem
         front, body = split_front_matter(path.read_text(encoding="utf-8"))
+        imperative = extract_imperative(body)
         scope = front.get("scope", '"**"')
         description = front.get("description", "")
         # GitHub Copilot: .github/instructions/*.instructions.md, scoped with `applyTo`.
         payload[f".github/instructions/{name}.instructions.md"] = (
-            f"---\napplyTo: {scope}\ndescription: {description}\n---\n{body}"
+            f"---\napplyTo: {scope}\ndescription: {description}\n---\n{imperative}"
         )
         # Claude Code: .claude/rules/*.md, scoped with `paths`. Additive by design - it cannot
         # collide with an adopter's own CLAUDE.md the way writing that file would, and rules
@@ -217,7 +238,7 @@ def build_payload(source: Path, agents: tuple[str, ...] | None = None) -> dict[s
             "" if scope.strip('"\' ') == "**" else f"paths:\n  - {scope}\n"
         )
         payload[f".claude/rules/surfaceplate-{name}.md"] = (
-            f"---\n{paths_block}description: {description}\n---\n{body}"
+            f"---\n{paths_block}description: {description}\n---\n{imperative}"
         )
 
     # The skills get the same treatment as the instructions above, and `F58` is why they did not
