@@ -621,6 +621,60 @@ def test_the_profile_says_which_controls_are_actually_checked() -> None:
     )
 
 
+
+def test_a_clock_nudge_does_not_read_as_a_future_gate() -> None:
+    """`F126`: a recorded instant is compared against a live clock read later, and they can disagree.
+
+    An instrumented matrix run caught six verdicts where the recorded `effective_from` sat ~1.2s
+    AHEAD of the clock the checker read moments afterwards - impossible on a single monotonic
+    clock, since the write path truncates microseconds downward. NTP steps, VM suspend/resume and
+    WSL2's resync against its host all move the wall clock backward by around that much.
+
+    Four directions, because the tolerance must absorb noise WITHOUT weakening the control. The
+    second and third are the ones that matter: `F47`/`DR-44` decided deliberately that "an instant
+    later today is genuinely in the future and must still be refused", and a tolerance that
+    swallowed that would have traded one defect for a worse one.
+    """
+    from surfaceplate import rules
+
+    now = _dt.datetime.now().astimezone()
+    today = _dt.date.today()
+
+    def is_future(raw: str) -> bool:
+        day, _since = rules.parse_effective_from(raw)
+        return rules.effective_is_future(raw, day, today)
+
+    skew = (now + _dt.timedelta(seconds=2)).replace(microsecond=0).isoformat()
+    check(
+        "an instant a couple of seconds ahead is not a future gate (F126)",
+        not is_future(skew),
+        skew,
+    )
+    later_today = (now + _dt.timedelta(hours=1)).replace(microsecond=0).isoformat()
+    check(
+        "an instant an hour ahead still IS one - F47's intent survives the tolerance",
+        is_future(later_today),
+        later_today,
+    )
+    tomorrow_date = (today + _dt.timedelta(days=1)).isoformat()
+    check(
+        "and a date-valued effective_from dated tomorrow still is",
+        is_future(tomorrow_date),
+        tomorrow_date,
+    )
+    past = (now - _dt.timedelta(hours=1)).replace(microsecond=0).isoformat()
+    check("an instant in the past is not", not is_future(past), past)
+
+    # The tolerance is a stated quantity, not an accident of the comparison. If someone widens it
+    # to hours, "an instant later today" stops being refused and F47's decision is reversed by a
+    # constant rather than by a record.
+    check(
+        "and the tolerance stays small enough that F47's case cannot slip through it",
+        rules.FUTURE_INSTANT_TOLERANCE < _dt.timedelta(minutes=5),
+        str(rules.FUTURE_INSTANT_TOLERANCE),
+    )
+
+
 def test_the_tool_does_not_set_effective_from() -> None:
     """`F51`. The binding rule names this field, and the tool was setting it anyway.
 
@@ -2381,6 +2435,7 @@ def main() -> int:
 
         print("\nDR-47: the wizard proposes, and says where each value came from")
         test_the_profile_says_which_controls_are_actually_checked()
+        test_a_clock_nudge_does_not_read_as_a_future_gate()
         test_the_tool_does_not_set_effective_from()
         test_the_level_is_recommended_and_never_chosen()
         test_derived_gate_fields_are_correct_and_still_overridable()

@@ -15,7 +15,7 @@ Do not start without these. Ask if any is missing:
 - the requested outcome, stated as a behaviour;
 - acceptance criteria;
 - the bounded scope — which files or areas may change, and which may not;
-- the registered activity ID (see `activity.instructions.md`);
+- the registered activity ID (see Topic 4, Work tracking);
 - any known ambiguity or open decision.
 
 ## Workflow

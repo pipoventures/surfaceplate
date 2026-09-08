@@ -185,13 +185,16 @@ an unknown number of releases with nothing noticing.
 | F117 | `README.md` said "this is not published to PyPI yet" after `0.16.0` and `0.16.1` were both on the index | medium | Closed — `ACT-062`, 2026-09-03; see the body |
 | F118 | `SECURITY.md` said the repository "is currently private" and that private vulnerability reporting "cannot be enabled" for it, weeks after the repository was made public | medium | Closed — `ACT-062`, 2026-09-03; see the body |
 | F119 | Nowhere a user actually reads — the installer's Next steps, the post-`adopt` failure output, `INSTALL.md`'s two "Raise it" sentences, SP005's own remedy text — named an issue tracker, and no local, offline way to assemble a problem report existed | medium | Closed — `ACT-062`, 2026-09-03; see the body |
-| F120 | The agent instructions are not graded by conformance level, while every control is | medium | **Open** |
-| F121 | `owner_role` and `reviewer_role` are required of a solo adopter, for whom both are constant | medium | **Open** |
+| F120 | The agent instructions are not graded by conformance level, while every control is | medium | Closed — `ACT-068` (`DR-69`), 2026-09-08; see the body |
+| F121 | `owner_role` and `reviewer_role` are required of a solo adopter, for whom both are constant | medium | Closed — `ACT-068` (`DR-69`), 2026-09-08; see the body |
 | F122 | The installer creates a Copilot instruction channel unconditionally, including in repositories that do not use Copilot | low | Closed — `ACT-066` (`DR-67`), 2026-09-08; see the body |
 | F123 | `authority.md` names one vendor's file as the place the authority hierarchy must be stated | medium | Closed — `ACT-066` (`DR-67`), 2026-09-08; see the body |
 | F124 | The checker verifies that an install is unedited and has no notion of whether it is current | high | Open — narrowed by `ACT-067` (`DR-68`): the mechanism exists and nothing triggers it |
-| F125 | No adopter-facing precedence rule exists between this standard and a co-resident governance system | medium | **Open** |
-| F126 | `test_adopt_matrix.py`'s edit-route case (T6) intermittently fails SP033, reproducibly on a clean checkout, unrelated to any change in this session | medium | **Open** |
+| F125 | No adopter-facing precedence rule exists between this standard and a co-resident governance system | medium | Closed — `ACT-068`/`ACT-069` (`DR-69`, `DR-71`), 2026-09-08; see the body |
+| F126 | A recorded `effective_from` instant can sit ahead of the clock the checker reads moments later, so a gate created seconds ago reads as dated in the future | medium | Closed — `ACT-070`, 2026-09-08; see the body |
+| F127 | `SECURITY.md` went stale a second time about the same feature: it said private vulnerability reporting was *"not enabled today"*, citing an API check, after the setting had been turned on | medium | Closed — `ACT-070`, 2026-09-08; see the body |
+| F128 | A skill shipped to every adopter pointed at `activity.instructions.md`, a filename the twelve-topic restructure stopped writing and a Copilot-only emitted name before that; nothing checked what the payload says about itself | medium | Closed — `ACT-073`, 2026-09-08; see the body |
+| F129 | `F123`'s ruling was applied to the document it was found in and nowhere else: Topic 7 still told every agent that stack-specific commands and test areas belong in `copilot-instructions.md` | medium | Closed — `ACT-073`, 2026-09-08; see the body |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1523,9 +1526,199 @@ field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
 
-## F126 — `test_adopt_matrix.py`'s edit-route case intermittently fails `SP033`, reproducibly on a clean checkout
+## F129 — `F123`'s ruling was applied to the document it was found in, and to no other
 
-**Severity: medium. Open.**
+**Severity: medium. Closed — `ACT-073`, 2026-09-08.**
+
+Recorded on 2026-09-08 in this session, found while chasing `F128` with a grep that was wider than
+the defect it was looking for. `F123` established, four days earlier, that an agent-neutral
+standard must not name one vendor's file as the place a repository states something — an agent
+reading the rules in a directory that vendor does not use is told to consult a file it never loads.
+Topic 1 carries that remedy, in the careful form the finding earned: *"whichever file this
+repository has told your agent to read — `AGENTS.md`, `CLAUDE.md`, `.github/copilot-instructions.md`,
+or another"*.
+
+Topic 7 said, twice: *"Stack-specific commands belong in the repository's own
+`copilot-instructions.md`"* and *"Declare the repository's test areas in its own
+`copilot-instructions.md`"*. Both survived the twelve-topic restructure untouched, because the
+restructure moved the sentences and did not re-read them against a ruling made about a different
+file.
+
+**Its reach, stated precisely rather than at its worst.** Both sentences sit in Topic 7's
+**normative** half, which `DR-69`'s emitter does not ship to `.claude/rules/` or
+`.github/instructions/` — those carry the imperative section only, and it names no vendor's file.
+So no agent was handed this in the file it loads. What every adopter does receive is the canonical
+copy at `.standards/topics/07-testing.md`, which carries the whole document and which `DR-30`
+designates for the human reader and for *"any agent not emitted for"* — the two audiences least able
+to notice that the instruction assumes a vendor they may not use.
+
+**The finding is the sweep, not the sentence.** `F123` was closed by correcting the site where it
+was noticed. Nothing then asked *where else does this repository say the same thing*, and the answer
+was: twice in the testing topic. A remedy applied to an instance leaves the class open, and the
+class is what a later reader meets.
+
+**Remedy, `ACT-073`.** Both sentences now say "the repository's own agent instruction file", the
+first citing Topic 1 where the full form of the rule lives. No new mechanism: this is not
+mechanically checkable — "names a vendor's file" is a judgement about prose, and a regex banning the
+string would fail on Topic 1's own correct usage, which names all three deliberately. What is
+mechanically checkable is the narrower thing `F128`'s check now covers.
+
+## F128 — A skill shipped to every adopter named an instruction file the installer had stopped writing
+
+**Severity: medium. Closed — `ACT-073`, 2026-09-08.**
+
+Recorded on 2026-09-08 in this session, found by grepping the payload for references to the retired
+`agent-instructions/` names while resolving `H17`. `standard/.github/skills/change/SKILL.md`
+required, among a change's inputs, *"the registered activity ID (see `activity.instructions.md`)"*.
+That file has not existed since `ACT-068` replaced the seven-document split with twelve topic
+documents: the Copilot destination is now `04-work-tracking.instructions.md`. The skill is emitted
+to **both** `.github/skills/change/SKILL.md` and `.claude/skills/change/SKILL.md`, so every adopter
+of either agent received a pointer that resolves to nothing.
+
+It was already half-wrong before the restructure, which is the more useful half of this finding.
+`activity.instructions.md` is a **Copilot-emitted filename** — `DR-31` recorded exactly that
+observation about exactly that name in another document, and `DR-30` had dropped the suffix from the
+canonical body precisely because it was vendor-shaped. A Claude Code adopter has never had a file
+by that name. So the restructure did not create the defect; it removed the last agent for whom the
+pointer happened to work, and turned a wrong-for-half-of-them pointer into a wrong-for-everyone one.
+
+`activity/register.md`'s opening sentence carried the same stale path, and is corrected in the same
+change. That one is this repository's own document rather than payload, and it is recorded here
+rather than separately because it is the identical sentence with an identical cause.
+
+**Why nothing caught it.** `tests/check_code_registers.py` resolves every path-like span in
+`README.md` and `INSTALL.md` against the installer's payload — the `F70`/`F71` remedy, and a good
+one. **It had never been pointed at the payload itself.** The front door was checked and the thing
+behind it was not, so a document that ships to every adopter could name a destination the installer
+does not write, and every suite stayed green. `F50` is the same defect one layer further out: a
+hand-off command naming a file deleted three packets earlier, caught only when a person ran it.
+
+**Remedy, `ACT-073`.** Two parts, and the second is the one that matters.
+
+1. The skill now says *"see Topic 4, Work tracking"* — the topic, not the file. A topic number
+   survives a rename of the emitted filenames, which is the property the old pointer lacked. The
+   register's sentence names the topic and all three of its installed paths, and marks the old
+   wording as history in place.
+2. `check_code_registers.py` gains `payload_pointer_checks`: every Markdown file in
+   `build_payload()` — the canonical topics, both emitted copies of each, and both copies of each
+   skill — has its `.standards/…`, `.claude/rules/…`, `.claude/skills/…`, `.github/instructions/…`,
+   `.github/skills/…` and bare `*.instructions.md` spans resolved against the payload's own
+   destinations. Deliberately narrow: a payload document naming `README.md` or a stack's own file is
+   naming the *adopter's* tree, which this cannot resolve and must not pretend to.
+
+**Verified by effect, both directions.** With the old wording reinstated the check fails naming both
+emitted copies (`payload .claude/skills/change/SKILL.md: 'activity.instructions.md' names a file the
+installer writes: no installed destination matches it`, and the `.github` twin), exit 1; with the fix
+in place it passes, 93 checks. A check that could not have failed here would have been the false
+green this repository exists to find.
+
+## F127 — `SECURITY.md` went stale a second time about the same feature, in a sentence that cited its own verification
+
+**Severity: medium. Closed — `ACT-070`, 2026-09-08.**
+
+Recorded on 2026-09-08 in this session, while clearing `H17`. `SECURITY.md` asserted that private
+vulnerability reporting *"is not enabled today — verified directly against GitHub's API
+(`GET /repos/pipoventures/surfaceplate/private-vulnerability-reporting` currently answers
+`enabled: false`), not assumed"*. Queried before acting on `H17`, the same endpoint answered
+`{"enabled": true}`. The document had been telling readers there was no confidential channel while
+one existed, and pointing them instead at public Issues with advice to hold back specifics — the
+opposite of what it should have said, in the one file where being wrong about the reporting route
+matters most.
+
+**This is `F118` repeating, in the same file, about the same feature, after `F118` was closed.**
+That is the finding. `F118`'s remedy corrected the *value* — the paragraph was rewritten to say the
+repository was public and reporting not yet enabled — and it did so scrupulously, adding the API
+call as evidence. What it did not change is the property that produced `F118` in the first place:
+**the sentence describes state that lives in GitHub's settings, which this repository cannot read,
+cannot check, and is not notified about.** Every check this project runs is offline and reads the
+tree; none of them can fail when a setting changes under a document that describes it. So the
+corrected paragraph was exactly as capable of going stale as the one it replaced, and it did,
+within five days.
+
+The aggravating detail is `not assumed`. A claim that cites its own verification reads as *more*
+reliable than a bare assertion, so a reader who noticed the sentence at all had extra reason to
+believe it. Evidence of a past check is not evidence of a present fact, and writing it in the
+present tense (*"currently answers"*) silently converts one into the other. This is the same shape
+as `S3`'s rule — a document is read for sense rather than run — one level up: here the document
+*was* run, once, and the result was then written down as though it were permanent.
+
+**Remedy, `ACT-070`.** Two changes, and one deliberate non-change.
+
+1. The paragraph now states the observation **with the date it was made** and says plainly that it
+   describes a setting a person can change, giving the reader the falsifier: if the Security tab
+   offers no such button, the line is stale. A dated observation cannot silently become a false
+   standing claim, because its scope is written into it.
+2. The two superseded readings are kept, marked explicitly historical, because the pattern is worth
+   more to a later reader than the correction is — this is the supersession rule the standard
+   itself now ships (Topic 1), applied to the file that has twice demonstrated why it exists.
+3. **No check was added, and that is the honest answer rather than a gap left open.** A check for
+   this would have to call GitHub's API from CI, needs a token with the right scope, fails closed
+   on a fork and on any adopter, and would assert a fact about *this* repository from code that
+   ships to *others*. `S3` already records the parallel case (`F57`): where a check would not
+   reliably catch the defect it is named for, adding one buys a false green rather than a gate. The
+   remedy here is a writing rule — date a claim about external state, or do not make it — not a
+   mechanism.
+
+**What closes it:** the paragraph as rewritten, and `H17` closed in `org/HUMAN_ACTIONS.md` with
+both API responses quoted. The narrower fact `F118` was raised against — the repository's
+visibility — is settled and cannot recur; the reporting setting can, and the document now tells a
+reader how to tell.
+
+## F126 — A recorded `effective_from` instant can sit ahead of the clock that judges it
+
+**Severity: medium. Closed — `ACT-070`, 2026-09-08.**
+
+*Originally recorded under the title "`test_adopt_matrix.py`'s edit-route case intermittently fails
+`SP033`, reproducibly on a clean checkout". That named the symptom in the test suite. The finding
+is retitled to name the defect, which is in the shipped comparison and reaches adopters, not only
+this repository's own matrix.*
+
+**What was measured, and it is the whole finding.** An instrumented matrix run logged every call
+the checker made to `rules.effective_is_future`, capturing the raw field, the parsed day, the
+`today` it was given, and the real clock at the moment of the verdict. Six verdicts looked like
+this:
+
+```
+raw = 2026-09-08T21:25:30+01:00      the effective_from as written
+clock = 2026-09-08T21:25:28.594430   the clock when the checker judged it
+```
+
+**The recorded instant was ~1.4 seconds ahead of the clock that judged it.** That is impossible on
+a single monotonic clock: `provenance.now_iso()` truncates microseconds *downward*, so a value it
+mints can never exceed a later reading. `SP033` was arithmetically correct and the timestamp was
+wrong. A seventh verdict in the same run was the deliberate `effective-from-future` negative case
+(a date of tomorrow against a today), working exactly as designed.
+
+**`FACT` / `INFERENCE`, kept apart.** That the recorded instant led the checking clock is `FACT`,
+measured directly. *Why* the clock moved is `INFERENCE`: NTP steps, VM suspend/resume and WSL2's
+periodic resync against its Windows host all move the wall clock backward by roughly this much, and
+this machine is WSL2. It was never forced to reproduce — 20,000 tight write-then-check cycles were
+clean, an idle clock showed no drift over twelve seconds, and a second full matrix run produced
+zero future verdicts. Recorded as an inference rather than dressed up as a diagnosis.
+
+**Remedy: make the comparison robust to the class, rather than repair a cause not observed.**
+`rules.FUTURE_INSTANT_TOLERANCE` (60 seconds) applies to the **instant** branch only. Nobody defers
+a gate by a minute, so the control keeps its whole meaning: a gate genuinely dated in the future is
+hours or days out. `F47`/`DR-44`'s deliberate decision — *"an instant later today is genuinely in
+the future and must still be refused"* — survives untouched, because an instant later today is
+hours ahead, not seconds. The date branch is unchanged, where a one-day error needs a midnight
+crossing rather than a clock nudge, and where a tolerance would weaken the "dated tomorrow"
+refusal for nothing.
+
+Held in `rules.py` so the wizard's validator and the checker move together, per `DR-48`.
+
+**Verified in four directions** (`tests/test_adopt.py`): an instant two seconds ahead is no longer
+future; an instant an hour ahead still is; a date of tomorrow still is; an instant in the past is
+not. A fifth assertion pins the tolerance below five minutes, so that widening it to hours — which
+would silently reverse `F47` by editing a constant rather than by writing a record — fails the
+suite instead.
+
+**A second consequence this closes.** While open, this defect made `audit/validation/ADOPT_MATRIX.md`
+impossible to regenerate on the affected machine: `--write` embeds a *"N case(s) failed… must not be
+committed in that state"* guard. It also made the matrix's own report-comparison useless as
+evidence for anything else, because it reported "differs" whether or not the change under test had
+altered the report — a check returning the same answer for both outcomes it was being asked to
+distinguish.
 
 Found on 2026-09-08 during `ACT-068`'s Step 1 prototype, while running `test_adopt_matrix.py` as
 part of that step's own verification. Not caused by anything in this session's changes — isolated
@@ -1592,7 +1785,19 @@ disagrees with a separately-frozen test constant.
 
 ## F125 — No adopter-facing precedence rule exists between this standard and a co-resident governance system
 
-**Severity: medium. Open.**
+**Severity: medium. Closed — `ACT-068`/`ACT-069` (`DR-69`, `DR-71`), 2026-09-08.**
+
+**Remedy, in two halves, because the finding had two.** Topic 1 (Authority) now states the
+**default** in adopter-facing text: this standard governs the surfaces it specifies, the
+repository's own instructions govern the rest, and a contradiction on a surface this standard does
+specify is the blocking defect the same document already described. And `adopter_canon` in the
+application profile is the **mechanism** by which a repository declares a different order — binding
+the repository that declares it and no other, checked by `SP060` for existence and tracking so the
+declaration is verified rather than decorative.
+
+Both halves were needed. A rule with no mechanism would have been advice; a mechanism with no
+stated default would have left every repository that declares nothing in exactly the position this
+finding describes.
 
 Raised at `ACT-063` from a portfolio operating-model review outside this repository (`mnemosyne/reviews/2026-09-04_operating-model-plan-v3.md`, where it is numbered `SP-F6`). That review proposed it; it is recorded here only after being re-verified against this repository on 2026-09-08, and where the re-verification disagreed with the review the disagreement is stated rather than smoothed away. Nothing in `mnemosyne` is part of this standard or a condition of adopting it; it is the origin of the observation, not an authority over the remedy.
 
@@ -1737,7 +1942,19 @@ stranger cannot be expected to know which of the two per-agent channels they are
 
 ## F121 — `owner_role` and `reviewer_role` are required of a solo adopter, for whom both are constant
 
-**Severity: medium. Open.**
+**Severity: medium. Closed — `ACT-068` (`DR-69`), 2026-09-08.**
+
+**Remedy.** Topic 4 (Work tracking) grades the register by conformance level: at `essential`, a
+two-value status and a bare dependency pointer satisfy it, and `owner_role`/`reviewer_role` are
+declared once at the repository level rather than repeated per entry. The full field set is what
+`standard` and `full` ask for, where a named reviewer is doing real work.
+
+**This finding then earned its keep a second time, hours later, on a different surface.** `DR-69`
+had specified nesting the twelve controls under topics in the application profile. `DR-71` rejected
+that using *this finding's own reasoning* — a control's topic is decided by the framework, so
+nesting it into every adopter's file would restate a fact the framework owns, in a field that could
+only be redundant when right or wrong when not. "A constant column carries no information", one
+level up. The programme's only breaking change was removed on the strength of it.
 
 Raised at `ACT-063` from a portfolio operating-model review outside this repository (`mnemosyne/reviews/2026-09-04_operating-model-plan-v3.md`, where it is numbered `SP-F2`). That review proposed it; it is recorded here only after being re-verified against this repository on 2026-09-08, and where the re-verification disagreed with the review the disagreement is stated rather than smoothed away. Nothing in `mnemosyne` is part of this standard or a condition of adopting it; it is the origin of the observation, not an authority over the remedy.
 
@@ -1758,7 +1975,21 @@ rather than a per-entry field. Note what this must not do — it must not remove
 
 ## F120 — The agent instructions are not graded by conformance level, while every control is
 
-**Severity: medium. Open.**
+**Severity: medium. Closed — `ACT-068` (`DR-69`), 2026-09-08.**
+
+**Remedy, and it is narrower than the finding's own proposal.** The finding proposed grading every
+agent-instruction rule file by level. What shipped grades the instance that mattered: Topic 4
+(Work tracking) states what `essential` requires of a register versus what `standard` and `full`
+do, which is the case this finding named as its sharpest and the one that imposed a real cost on a
+small adopter.
+
+**The general mechanism landed with the restructure rather than as a separate control.** The topic
+axis is what makes grading expressible at all — class, audience and level become properties stated
+in a rule's own document rather than of the directory it sat in — and the topic documents state
+their floors in their own text. What is deliberately *not* built is a machine-checked per-rule
+level field: no check reads one, and inventing an enforcement mechanism for a documentation
+property would be a control with no reader, which `core/CONTROL_PRINCIPLES.md` principle 12
+declines.
 
 Raised at `ACT-063` from a portfolio operating-model review outside this repository (`mnemosyne/reviews/2026-09-04_operating-model-plan-v3.md`, where it is numbered `SP-F1`). That review proposed it; it is recorded here only after being re-verified against this repository on 2026-09-08, and where the re-verification disagreed with the review the disagreement is stated rather than smoothed away. Nothing in `mnemosyne` is part of this standard or a condition of adopting it; it is the origin of the observation, not an authority over the remedy.
 
@@ -1830,6 +2061,11 @@ vulnerability reporting is therefore available to enable but is verified — via
 `GET /repos/pipoventures/surfaceplate/private-vulnerability-reporting`, which currently answers
 `enabled: false` — not enabled today, with enabling it listed in `org/HUMAN_ACTIONS.md`, and that
 until it is, there is no confidential channel here.
+
+**That remedy went stale in turn, on 2026-09-08: `F127`.** The quoted `enabled: false` above is
+preserved as the record of what was written and verified on 3 September — it is not the current
+state, and has not been since the setting was turned on. `F127` records why correcting the value
+was not enough.
 
 ## F117 — `README.md` said the package was not published to PyPI after `0.16.0` and `0.16.1` were both on the index
 

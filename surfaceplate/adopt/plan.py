@@ -31,6 +31,7 @@ import datetime as _dt
 from dataclasses import dataclass, field as _field
 from pathlib import Path
 
+from surfaceplate import rules
 from surfaceplate.adopt import catalogue, detect, discover, example_answers, explanations, validators
 
 # The three controls required at every level. Fixed order, matching the profile's own layout and
@@ -678,6 +679,21 @@ def _implementation_reference_field(
     )
 
 
+def _in_topic_order(control_ids) -> list[str]:
+    """Controls ordered by topic, then by id within a topic (`DR-69`, `DR-71`).
+
+    This is what makes "what you answered is what's written" true: `render.py` groups the written
+    profile under the same topic headings, from the same `rules.CONTROL_TOPICS` map, so the order
+    an adopter is asked in and the order they read back are one order rather than two that happen
+    to look alike.
+
+    A control the map does not know sorts last rather than being dropped, under topic `99` - the
+    same choice `render.py` makes, and for the same reason: an interview that silently stopped
+    asking about a control would be a far worse failure than one that asks about it out of order.
+    """
+    return sorted(control_ids, key=lambda c: (rules.CONTROL_TOPICS.get(c, 99), c))
+
+
 def controls_plan(
     *, level: str, mode: str, found: discover.Discovered | None = None, scanner: str = discover.DEFAULT_SCANNER
 ) -> SectionPlan:
@@ -748,7 +764,7 @@ def controls_plan(
         for control_id, gate_id in WITHHELD_ABOVE_FLOOR.items()
         if control_id not in required and gate_id not in catalogue.LEVEL_REQUIRED_GATES[level]
     }
-    above_floor = [c for c in sorted(catalogue.CONFORMANCE_LEVELS["full"]) if c not in required and c not in withheld]
+    above_floor = [c for c in _in_topic_order(catalogue.CONFORMANCE_LEVELS["full"]) if c not in required and c not in withheld]
     if above_floor:
         withheld_note = "".join(
             f" {control_id} is not offered at {level}: the checker verifies it through the {gate_id} gate, "
@@ -776,7 +792,7 @@ def controls_plan(
             )
         )
 
-    for control_id in sorted(catalogue.CONFORMANCE_LEVELS["full"]):
+    for control_id in _in_topic_order(catalogue.CONFORMANCE_LEVELS["full"]):
         at_floor = control_id in required
         fields.append(
             FieldSpec(

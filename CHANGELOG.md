@@ -2395,3 +2395,100 @@ taxonomy.
   topics: nineteen do not divide cleanly across twelve, and `DR-69` kept that specification whole.
 - `SP060` is exempt from the wizard's SP-parity table **with its reason stated** — `adopter_canon`
   is written by hand, so there is no field at which the wizard could refuse it.
+
+### A recorded instant could sit ahead of the clock that judged it (`F126`)
+
+A gate created seconds ago could be reported as *dated in the future*. Found while doing unrelated
+work, root-caused by instrumentation after three code-reading hypotheses had each been killed by
+measurement.
+
+**What was measured.** Logging every verdict the checker reached caught six of this shape:
+
+```
+raw   = 2026-09-08T21:25:30+01:00     the effective_from as written
+clock = 2026-09-08T21:25:28.594430    the clock when the checker judged it
+```
+
+The recorded instant sat **1.4 seconds ahead of the clock that judged it** — impossible on a single
+monotonic clock, because `provenance.now_iso()` truncates microseconds *downward* and so cannot
+mint a value exceeding a later reading. `SP033` was arithmetically correct; the timestamp was wrong.
+
+**Cause recorded as inference, not dressed up as diagnosis.** That the instant led the clock is
+measured fact. *Why* the clock moved was never forced to reproduce: 20,000 tight write-then-check
+cycles were clean, an idle clock showed no drift, and a second full run produced no verdicts at
+all. NTP steps, VM suspend/resume and WSL2's resync against its host all move a wall clock backward
+by about this much, and the affected machine is WSL2 — stated as `INFERENCE`.
+
+**Remedy: robustness to the class, not repair of an unobserved cause.**
+`rules.FUTURE_INSTANT_TOLERANCE` (60 seconds), on the **instant branch only**. Nobody defers a gate
+by a minute, so the control keeps its meaning entirely, and `F47`/`DR-44`'s deliberate decision —
+*"an instant later today is genuinely in the future and must still be refused"* — survives
+untouched, because an instant later today is hours ahead, not seconds. The date branch is unchanged.
+Held in `rules.py`, so the wizard's validator and the checker move together (`DR-48`).
+
+Verified in four directions, plus a fifth assertion pinning the tolerance below five minutes so
+that widening it to hours — which would reverse `F47` by editing a constant rather than writing a
+record — fails the suite instead.
+
+**This reached adopters, not only this repository's test suite**, which is why the finding was
+retitled from its original symptom-shaped name. Anyone on WSL2 who scaffolded an artefact and
+immediately ran the checker could see a spurious `SP033` against a gate they had just created.
+
+### The human-action pass, and what it turned up (`ACT-073`)
+
+Three of the maintainer's open human actions were cleared, and two of the three clearances found a
+defect rather than merely recording a decision.
+
+`H17` asked for two GitHub settings an agent cannot approve. **Private vulnerability reporting was
+already on** — `GET /repos/pipoventures/surfaceplate/private-vulnerability-reporting` answered
+`{"enabled": true}`, while `SECURITY.md` was still telling readers, in a sentence that cited its own
+API check, that it was *"not enabled today"* and that they should therefore hold back specifics and
+ask publicly for a private channel. That is `F118` repeating in the same file about the same
+feature, four days after `F118` closed, and it is recorded as **`F127`**. `F118`'s remedy corrected
+the value; what it did not change is that the sentence describes state living in GitHub's settings,
+which nothing here can read, check, or be notified about. The paragraph now carries the **date of
+the observation** and says plainly what would falsify it, and the two superseded readings are kept
+marked as history. No check was added, deliberately: one would have to call GitHub's API from CI
+with a scoped token, fail closed on every fork and every adopter, and assert a fact about *this*
+repository from code that ships to others — `S3`'s existing case (`F57`) for not building a gate
+that cannot catch its own defect. Discussions were off and are now on; `SUPPORT.md` routes questions
+there, with the note that a question the documentation should have answered is also a defect in the
+documentation.
+
+`H19` — whether to pay for independent review if the free channels go quiet — is **closed in the
+negative and standing**: the maintainer's decision is that there is never a paid review, only free
+channels and the PwC route. `H4` and `H6` therefore have no paid fallback behind them, which is now
+a stated property of the plan rather than an option quietly held in reserve. `H18`'s route is
+recorded: the install observations happen inside the PwC integration/testing, which makes them
+downstream of that engagement and of the publication the review packet also waits for.
+
+**`F128` — a skill shipped to every adopter named an instruction file the installer had stopped
+writing.** `standard/.github/skills/change/SKILL.md` asked for *"the registered activity ID (see
+`activity.instructions.md`)"*, emitted to both `.github/skills/` and `.claude/skills/`. That file
+has not existed since `ACT-068`, and before the restructure it was a **Copilot-only** emitted name
+that no Claude Code adopter ever had — so the restructure did not create the defect, it removed the
+last agent for whom the pointer accidentally worked. It now names the topic (*"see Topic 4, Work
+tracking"*), which survives a rename of the emitted filenames. `activity/register.md`'s opening
+sentence carried the same stale path and is corrected in place with the old wording marked
+historical.
+
+The reason nothing caught it is the interesting half. `check_code_registers.py` has resolved every
+path-like span in `README.md` and `INSTALL.md` against the installer's payload since `F70`/`F71` —
+**and had never been pointed at the payload itself**. The front door was checked and the room behind
+it was not. `payload_pointer_checks` now resolves the `.standards/…`, `.claude/rules/…`,
+`.claude/skills/…`, `.github/instructions/…`, `.github/skills/…` and bare `*.instructions.md` spans
+in every Markdown file `build_payload()` produces — canonical topics, both emitted copies of each,
+both copies of each skill. Verified in both directions: reinstating the old wording fails the check
+naming both emitted copies; the fix passes.
+
+**`F129` — `F123`'s ruling was applied to the document it was found in, and to no other.** `F123`
+established that an agent-neutral standard must not name one vendor's file as the place a repository
+states something. Topic 1 carries that remedy properly. Topic 7 still said, twice, that
+stack-specific commands and test areas belong in the repository's own `copilot-instructions.md` —
+carried through the restructure unread. Both sentences are in the **normative** half, which is not
+emitted to `.claude/rules/` or `.github/instructions/`, so no agent met them in the file it loads;
+they reached the canonical `.standards/topics/07-testing.md` that `DR-30` designates for the human
+reader and for any agent not emitted for. Both now say "the repository's own agent instruction
+file", the first citing Topic 1 where the full form lives. No mechanism: whether prose names a vendor's
+file is a judgement, and a regex banning the string would fail on Topic 1's own deliberate naming of
+all three.

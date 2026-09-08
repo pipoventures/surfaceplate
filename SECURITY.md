@@ -6,16 +6,18 @@ Use [GitHub private vulnerability reporting](https://docs.github.com/en/code-sec
 via this repository's Security tab: **Security → Report a vulnerability**. This keeps the report
 private between you and the maintainer until a fix, if one is needed, is ready.
 
-**This repository is now public** (it was private when this paragraph was first written; that
-statement went stale the moment the repository's visibility changed, and is corrected here rather
-than left standing beside a later note). Private vulnerability reporting is therefore available to
-enable, but **is not enabled today** — verified directly against GitHub's API
-(`GET /repos/pipoventures/surfaceplate/private-vulnerability-reporting` currently answers
-`enabled: false`), not assumed. Enabling it is listed in
-[`org/HUMAN_ACTIONS.md`](org/HUMAN_ACTIONS.md). Until it is, there is no confidential channel here:
-a genuinely sensitive report should hold back specifics and ask, via
-[GitHub Issues](https://github.com/pipoventures/surfaceplate/issues), for a private way to send them
-rather than posting them in the open.
+The repository is public and the feature is on: `GET
+/repos/pipoventures/surfaceplate/private-vulnerability-reporting` answered `enabled: true` on
+**2026-09-08**. That is a dated observation of a setting a person can change, not a standing
+property of this document — if the Security tab offers you no such button, the setting has moved
+and this line is stale.
+
+*Historical, kept because the pattern is the point:* this paragraph has now been wrong twice. It
+said the repository was private weeks after it was made public (`F118`), and then said private
+reporting was *"not enabled today"* after it had been enabled (`F127`). Both were
+true when written and both went false without the file changing, because what they describe lives
+in GitHub's settings and not in this repository. Nothing here can check it; only a person looking
+can. Hence the date above.
 
 ## What happens after a report
 
