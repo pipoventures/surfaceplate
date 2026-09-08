@@ -58,6 +58,10 @@ surfaceplate check --repo /path/to/your-repo
 `surfaceplate install --agents claude` (or `copilot`) installs only that agent's instruction
 and skill files; the default installs both, and the choice is recorded and reported.
 
+`surfaceplate doctor --online` says whether the standard you installed is still the published
+one. The conformance check cannot: it establishes that an install is *unedited*, offline and by
+design, and integrity is not currency.
+
 If `surfaceplate install` stops with *"Git hooks for this repository already run from somewhere
 else"*, your machine sets `core.hooksPath` globally or at system level: `surfaceplate doctor` shows
 where. Two routes keep it: `surfaceplate install --no-hooks` installs no hook at all, and

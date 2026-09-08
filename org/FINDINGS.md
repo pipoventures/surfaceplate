@@ -189,7 +189,7 @@ an unknown number of releases with nothing noticing.
 | F121 | `owner_role` and `reviewer_role` are required of a solo adopter, for whom both are constant | medium | **Open** |
 | F122 | The installer creates a Copilot instruction channel unconditionally, including in repositories that do not use Copilot | low | Closed — `ACT-066` (`DR-67`), 2026-09-08; see the body |
 | F123 | `authority.md` names one vendor's file as the place the authority hierarchy must be stated | medium | Closed — `ACT-066` (`DR-67`), 2026-09-08; see the body |
-| F124 | The checker verifies that an install is unedited and has no notion of whether it is current | high | **Open** |
+| F124 | The checker verifies that an install is unedited and has no notion of whether it is current | high | Open — narrowed by `ACT-067` (`DR-68`): the mechanism exists and nothing triggers it |
 | F125 | No adopter-facing precedence rule exists between this standard and a co-resident governance system | medium | **Open** |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -1578,12 +1578,24 @@ version** — PyPI carries `0.16.0` and `0.16.1`, read directly on 2026-09-08. *
 finding does not depend on that reading: the absence of any currency notion is established from
 this repository's own code.
 
-**Remedy direction, not yet decided.** A currency check has to run where the network is — the
-conformance workflow, or a release-side notifier — and report installed-versus-latest as an
-advisory, never as a failure, since an adopter may have deliberate reasons to pin. **Closure
-requires verification by effect in both directions:** an install one version behind must produce a
-signal, and a current install must produce none. A check that fires on everything is not evidence
-that it detected anything.
+**Narrowed, not closed, by `ACT-067` (`DR-68`), 2026-09-08.** `surfaceplate doctor --online`
+now reports installed-versus-published as an advisory, verified by effect against the live index
+in all three directions: `0.16.0` against a published `0.16.1` warns — the case this finding names,
+reproduced exactly; `0.16.1` against `0.16.1` reports `ok` and **produces no signal**; and `0.17.0`
+against `0.16.1` reports *ahead* rather than an instruction to upgrade, because the publisher's own
+repository is always ahead by construction. The middle row is what makes the first worth anything.
+Unreachable reports `warn`, not `ok` — an unanswered question is not a passing one.
+
+**What remains open, and it is the half that matters to an adopter.** The mechanism exists and
+**nothing triggers it**. A repository whose maintainer never runs `doctor --online` is in exactly
+the position this finding describes. The obvious trigger is a step in the installed conformance
+workflow, which runs in every adopter's CI where a network exists — and it is not built, because it
+would make every adopting repository's CI call out to `pypi.org` on every run, and would be
+uneditable by the adopter, the installed workflow being integrity-checked. A repository that did
+not want the call could not remove it without failing its own check. That is a change to adopters'
+infrastructure and to an outbound network boundary, which this standard's own rules reserve to a
+human. Recorded as `H20`; `DR-68` states it as an explicit limitation rather than leaving the gap
+to be discovered.
 
 ## F123 — `authority.md` names one vendor's file as the place the authority hierarchy must be stated
 

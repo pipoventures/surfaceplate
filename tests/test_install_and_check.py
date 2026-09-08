@@ -1002,6 +1002,66 @@ def test_an_agent_channel_can_be_declined_and_the_declining_is_never_silent(tmp:
     )
 
 
+def test_currency_is_reported_where_integrity_cannot_be(tmp: Path) -> None:
+    """`DR-68` (`F124`). Integrity is checked; currency is not, and cannot be, offline.
+
+    `check_conformance.py` establishes that an install is UNEDITED and has no notion of whether it
+    is CURRENT - it runs inside the adopting repository with no network, and `DR-45` says the
+    anchor "records the manifest of the tree installed FROM, which is a historical fact, not a
+    live invariant". So a repository can sit any number of versions behind while its check passes
+    and says nothing.
+
+    The comparison is tested here without a network. The live three-direction run against
+    `pypi.org` is recorded in `DR-68`; what a suite can own is the part that must be right when
+    the network answers, and `_version_key` is where this would go wrong silently: `0.9.0` sorts
+    ABOVE `0.17.0` as text, so a string comparison reports a two-releases-old install as ahead.
+    """
+    sys.path.insert(0, str(PAYLOAD))
+    import doctor  # noqa: E402  - imported here so a missing payload fails this test, not the run
+
+    check(
+        "0.9.0 keyed sorts below 0.17.0, which a string comparison gets backwards",
+        doctor._version_key("0.9.0") < doctor._version_key("0.17.0") and not ("0.9.0" < "0.17.0"),
+    )
+    check(
+        "and equal versions key equal",
+        doctor._version_key("0.16.1") == doctor._version_key("0.16.1"),
+    )
+
+    repo = make_git_repo(tmp, "currency")
+    install(repo, "--no-hooks")
+    check(
+        "offline, currency is SKIPPED rather than reported ok - an unasked question is not a "
+        "passing one",
+        doctor.check_standard_currency(repo, online=False).status == doctor.SKIP,
+    )
+    check(
+        "and it names the installed version even when it cannot compare it",
+        read_record(repo)["standard_version"]
+        in doctor.check_standard_currency(repo, online=False).detail,
+    )
+    bare = make_git_repo(tmp, "currency-uninstalled")
+    check(
+        "a repository with no standard installed is skipped, not warned about",
+        doctor.check_standard_currency(bare, online=False).status == doctor.SKIP,
+    )
+    check(
+        "the installed version is read from the install record, not from .standards/VERSION",
+        # SP049 anchors the record; a hand-edited VERSION must not get to answer this.
+        doctor._installed_version(repo)[0] == read_record(repo)["standard_version"],
+    )
+
+    # The offline checker must stay silent on currency, or the finding it is paired with would
+    # not exist. Asserted rather than assumed, because "the check says nothing about X" is the
+    # kind of claim that quietly stops being true.
+    out = verify(repo).stdout
+    check(
+        "check_conformance.py reports no currency verdict of any kind",
+        "is the published version" not in out and "published " not in out,
+        out[-400:],
+    )
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory() as raw:
         tmp = Path(raw)
@@ -1153,6 +1213,9 @@ def main() -> int:
         result = install(existing, "--replace-existing")
         check("--replace-existing proceeds", result.returncode == 0, result.stderr[-300:])
         check("and replaces the file", "Our own" not in (target / "SKILL.md").read_text(encoding="utf-8"))
+
+        print("\ncurrency is reported where integrity cannot be (DR-68, F124)")
+        test_currency_is_reported_where_integrity_cannot_be(tmp)
 
         print("\nan agent channel can be declined (DR-67, F122)")
         test_an_agent_channel_can_be_declined_and_the_declining_is_never_silent(tmp)

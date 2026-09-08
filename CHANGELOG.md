@@ -2279,3 +2279,37 @@ channel.
   in a document that is otherwise agent-neutral and is emitted to four destinations.
 - `rules.py` gains the channel table, because the checker needs the same set and cannot import the
   installer. Restating it in two places is the drift `DR-48` created that module to stop.
+
+### Currency is reported where integrity cannot be
+
+`check_conformance.py` establishes that an install is **unedited** and has no notion of whether it
+is **current**. It cannot have one: it runs inside the adopting repository with no network, and
+`DR-45` says plainly that the anchor *"records the manifest of the tree installed FROM, which is a
+historical fact, not a live invariant"*. A repository can sit any number of versions behind,
+indefinitely, while its check passes and says nothing (`F124`).
+
+- **`surfaceplate doctor --online`** now reports installed-versus-published, as an **advisory,
+  never a failure** — pinning a version is a legitimate decision, and a check that failed on it
+  would be telling adopters that deliberate version control is a defect.
+- **Verified by effect against the live index in all three directions.** `0.16.0` against a
+  published `0.16.1` warns — the case `F124` names, reproduced exactly. `0.16.1` against `0.16.1`
+  reports `ok` and **produces no signal**, which is what makes the first row worth anything.
+  `0.17.0` against `0.16.1` reports *ahead*, not an instruction to upgrade — the publisher's own
+  repository is always ahead by construction, and that case was found by running the check against
+  this repository before shipping it.
+- Unreachable is `warn`, not `ok`. An unanswered question is not a passing one, and reporting `ok`
+  because the network was down is the false green this framework exists to find.
+- The comparison is numeric per segment: `0.9.0` sorts **above** `0.17.0` as text, so a string
+  comparison would report a two-releases-old install as ahead. Asserted directly in the suite.
+- **`check_conformance.py` is untouched.** Its offline behaviour is what makes a conformance result
+  reproducible from the repository alone, and a flag that could reach the network would have to be
+  reasoned about by every adopter reading it, to buy a fact a second command answers. `doctor.py`'s
+  docstring is amended in the same change to name **both** of its outbound requests as the whole of
+  its network surface.
+
+**`F124` is narrowed, not closed, and `DR-68` says so.** The mechanism exists and nothing triggers
+it: an adopter who never runs `doctor --online` is in exactly the position the finding describes.
+The obvious trigger — a step in the installed conformance workflow — would make every adopting
+repository's CI call `pypi.org` on every run, and would be uneditable by the adopter because that
+workflow is integrity-checked. That is a decision about someone else's infrastructure, recorded as
+`H20` rather than taken.
