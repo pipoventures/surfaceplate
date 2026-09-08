@@ -905,6 +905,51 @@ def report_narrowed_agents(record: dict, notes: list[str]) -> None:
     )
 
 
+def check_adopter_canon(repo: Path, profile: dict, findings: list[Finding], notes: list[str]) -> None:
+    """`WI-2` / `DR-71`: what an adopter declares governs their repository, checked for existence.
+
+    Optional. Absent, Topic 1's default applies and nothing is reported - a repository that has
+    declared nothing has not made a claim, and reporting on a claim nobody made is noise.
+
+    Declared, the artefact must exist and be tracked. An untracked file is one a reviewer cannot
+    see in a diff and a fresh clone does not have, so declaring one would name a governing document
+    that is not, in any shared sense, present.
+
+    What this CANNOT establish, stated because the temptation to over-read it is the whole risk:
+    whether the artefact says anything about precedence, and whether anyone honours it. A pass here
+    means a tracked file exists at a declared path. It is the same ceiling `SP046`/`SP047` state
+    about a wired secret scanner, and it is reported as an advisory on every run so that a
+    narrowed precedence is never silent.
+    """
+    declared = profile.get("adopter_canon") or []
+    if not isinstance(declared, list):
+        return
+    for entry in declared:
+        if not isinstance(entry, dict):
+            continue
+        artefact = entry.get("artefact")
+        if not isinstance(artefact, str) or not artefact:
+            continue
+        if not (repo / artefact).is_file() or not rules.is_tracked(repo, artefact):
+            findings.append(
+                Finding(
+                    "SP060",
+                    "A declared canon artefact is missing or untracked",
+                    f"adopter_canon names {artefact}, which is not a tracked file in this "
+                    f"repository.",
+                    "Commit the artefact, correct the path, or remove the declaration. A "
+                    "governing document nobody else can read governs nothing.",
+                    graceable=True,
+                )
+            )
+            continue
+        notes.append(
+            f"adopter_canon: {artefact} is declared to govern this repository where it and this "
+            f"standard disagree. Checked to exist and be tracked, and for nothing else - not "
+            f"that it says anything about precedence, nor that it is honoured."
+        )
+
+
 def check_pinned_identity(
     profile: dict, record: dict | None, findings: list[Finding], repo: Path | None = None
 ) -> None:
@@ -3545,6 +3590,7 @@ def evaluate(repo: Path, today: _dt.date, no_grace: bool, staged: bool) -> Repor
             )
             check_deferral_expiry(profile, findings, today, notes)
             check_pinned_identity(profile, record, findings, repo)
+            check_adopter_canon(repo, profile, findings, notes)
             report_declined_hook(record, notes)
             report_narrowed_agents(record, notes)
             check_prerequisites(

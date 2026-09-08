@@ -2303,6 +2303,12 @@ def test_every_checker_code_has_a_validator_or_an_exemption(tmp: Path) -> None:
         "SP057": (X, "reads the records inside a register, which the wizard does not write"),
         "SP058": (X, "reads the records inside a register, which the wizard does not write"),
         "SP059": (V, "tracked_path", ".standards/VERSION"),
+        # `WI-2` / `DR-71`. Exempt because the wizard never writes an `adopter_canon` entry:
+        # declaring what governs a repository where it and this standard disagree is a
+        # deliberate act a human takes by hand, not one of the questions the interview asks.
+        # There is no field at which to refuse it, which is the only honest ground for an
+        # exemption here - "the checker checks something the wizard does not write".
+        "SP060": (X, "adopter_canon is written by hand, never by the wizard"),
     }
     source = (PAYLOAD / "check_conformance.py").read_text(encoding="utf-8")
     emitted = set(re.findall(r'Finding\(\s*"(SP\d{3})"', source))

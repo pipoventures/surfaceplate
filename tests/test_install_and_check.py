@@ -1062,6 +1062,56 @@ def test_currency_is_reported_where_integrity_cannot_be(tmp: Path) -> None:
     )
 
 
+def test_a_declared_canon_artefact_is_checked_for_existence_and_tracking(tmp: Path) -> None:
+    """`WI-2` / `DR-71`. What an adopter declares governs their repository, verified not trusted.
+
+    Three directions, because two would not be evidence. A check that fired on a missing file but
+    also on a present one would be indistinguishable from a check that fires on everything, and
+    the tracked/untracked distinction is the half most likely to be dropped as an implementation
+    detail - an untracked file is one a reviewer never sees in a diff and a fresh clone does not
+    have, so a governing document that is untracked governs nothing in any shared sense.
+    """
+    repo = make_git_repo(tmp, "canon")
+    install(repo, "--no-hooks")
+    profile = repo / "governance" / "application-profile.yaml"
+    profile.write_text(
+        profile.read_text(encoding="utf-8")
+        + "\nadopter_canon:\n  - artefact: docs/house-policy.md\n"
+          "    rationale: our own engineering policy predates this standard\n",
+        encoding="utf-8",
+    )
+
+    check("a declared artefact that does not exist raises SP060", "SP060" in verify(repo).stdout)
+
+    (repo / "docs").mkdir(exist_ok=True)
+    (repo / "docs" / "house-policy.md").write_text("# House policy\n", encoding="utf-8")
+    check(
+        "and one that exists but is UNTRACKED still raises it",
+        "SP060" in verify(repo).stdout,
+        "an untracked governing document is not one anyone else can read",
+    )
+
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "policy"], check=True)
+    out = verify(repo).stdout
+    check("a tracked artefact raises nothing", "SP060" not in out, out[-400:])
+    check(
+        "and is reported as an advisory on every run, with its ceiling stated",
+        "adopter_canon: docs/house-policy.md is declared to govern" in out
+        and "not that it says anything about precedence" in out,
+        out[-500:],
+    )
+
+    # The positive control. Without it, every assertion above would pass against a checker that
+    # had simply stopped reading `adopter_canon` at all.
+    bare = make_git_repo(tmp, "canon-undeclared")
+    install(bare, "--no-hooks")
+    check(
+        "a profile declaring no canon says nothing about it",
+        "adopter_canon" not in verify(bare).stdout,
+    )
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory() as raw:
         tmp = Path(raw)
@@ -1217,6 +1267,9 @@ def main() -> int:
         result = install(existing, "--replace-existing")
         check("--replace-existing proceeds", result.returncode == 0, result.stderr[-300:])
         check("and replaces the file", "Our own" not in (target / "SKILL.md").read_text(encoding="utf-8"))
+
+        print("\na declared canon artefact is checked, not trusted (DR-71, WI-2)")
+        test_a_declared_canon_artefact_is_checked_for_existence_and_tracking(tmp)
 
         print("\ncurrency is reported where integrity cannot be (DR-68, F124)")
         test_currency_is_reported_where_integrity_cannot_be(tmp)

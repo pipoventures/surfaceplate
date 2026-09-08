@@ -23,6 +23,55 @@ import re
 import subprocess
 from pathlib import Path
 
+# `DR-69`'s twelve topics, and `DR-71`'s mapping of each control to the one it belongs to.
+#
+# Held here, once, for the reason `DR-48` created this module: the checker and the wizard both
+# need it and neither may restate it. `DR-71` rejected putting a control's topic in the ADOPTER's
+# profile - a control's topic is decided by this framework, so nesting it into every adopter's
+# file would restate a fact this framework already owns, where it could only be redundant or
+# wrong. That is `F121`'s defect ("a constant column carries no information") one level up.
+#
+# What the topic axis reaches in the profile is therefore its LAYOUT, not its keys: `render.py`
+# groups `control_decisions` under generated headings from this map, and the written keys stay
+# flat and canonical. An adopter reads twelve subjects; the contract carries no duplicate.
+TOPIC_NAMES: dict[int, str] = {
+    1: "Authority and the documentary record",
+    2: "Decision authority and escalation",
+    3: "Work definition",
+    4: "Work tracking",
+    5: "Risk and proportionality",
+    6: "Evidence and completion",
+    7: "Testing",
+    8: "Confidentiality and data boundaries",
+    9: "Dependencies and supply chain",
+    10: "Provenance and lineage",
+    11: "Concurrency and shared-repository discipline",
+    12: "Enforcement and change control",
+}
+
+# Every control this framework defines, and the one topic it belongs to. Topics 2, 4, 5, 11 and 12
+# carry no control, which is informative rather than a gap: those topics are governed by rules and
+# by prerequisite gates rather than by declared controls.
+#
+# Prerequisite gates deliberately keep their own six-group catalogue order and are NOT re-cut
+# across these twelve (`DR-71`): nineteen gates do not divide cleanly across twelve subjects, and
+# `DR-69` kept `core/PREREQUISITE_GATES.md` whole as a specification whose internal grouping is
+# its own.
+CONTROL_TOPICS: dict[str, int] = {
+    "documentation_authority": 1,
+    "agent_work_packets": 3,
+    "actual_diff_review": 6,
+    "assurance_findings": 6,
+    "contract_tests": 7,
+    "deterministic_tests": 7,
+    "secret_hygiene": 8,
+    "dependency_lock": 9,
+    "provenance": 10,
+    "run_lineage": 10,
+    "method_registry": 10,
+    "overrides": 10,
+}
+
 # `DR-67`. The agents this standard emits for, and the destination prefixes each one owns.
 # Held here rather than in the installer because the checker needs the same set and cannot import
 # the installer - it is vendored standalone beside this file. Restating it in two places is the

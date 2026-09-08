@@ -48,7 +48,7 @@ state, until 2026-08-31, that the space ended at `SP043` — after `SP046` and `
 added and while the person adding them was editing this file.
 
 ```text
-emitted:  SP001-SP035, SP037-SP043, SP046-SP059
+emitted:  SP001-SP035, SP037-SP043, SP046-SP060
 gap:      SP036
 reserved: SP044-SP045
 ```
@@ -1562,6 +1562,16 @@ with different case IDs failing between two consecutive local runs (`T6-195`, th
 `T2-064`). Three facts together — passes in CI, fails locally, and picks different cases each local
 run — place the cause in the **local environment's clock or timing**, not in the repository's
 content. That is a narrowing, not a closure: it says where to look, not what is wrong.
+
+**A second consequence, found on 2026-09-08 while doing unrelated work: the tracked matrix report
+cannot be regenerated on the affected machine.** `test_adopt_matrix.py --write` embeds a line
+reading *"N case(s) failed on the last run that wrote this file; this file must not be committed
+in that state"* — the report guarding itself, correctly. So while this defect is live locally, any
+change that legitimately alters `audit/validation/ADOPT_MATRIX.md` cannot have that report
+regenerated here; the regeneration must happen where the suite passes, which today means CI. This
+is a real operational consequence, not a second defect, and it is recorded so a later session that
+needs to regenerate the report understands why it cannot rather than concluding the report is
+broken.
 
 **`EVIDENCE GAP`:** the exact triggering sequence — which of the five independent clock reads
 disagreed with `adopt_matrix.py`'s frozen `TODAY`, and under what condition — has not been isolated.

@@ -2359,3 +2359,39 @@ A genuine, pre-existing defect surfaced and recorded rather than silently absorb
 `test_adopt_matrix.py`'s edit-route case intermittently failing `SP033` on a clock-dependent
 condition unrelated to this session's changes — isolated by reproducing it against `main` before
 any prototype file existed.
+
+### The application-profile surface — and the breaking change that turned out not to be needed
+
+`DR-69` specified this surface as *"per-topic decisions replace the flat control list"*, and it was
+the whole programme's only breaking change. **`DR-71` rejected the nesting on its merits and the
+break is gone.** `schema_version` stays `"1.0"`; no profile migrates.
+
+The reasoning, because it generalises: **a control's topic is decided by this framework, not by the
+adopter.** Nested, every adopter's file would restate a fact the framework already owns — where it
+can only be redundant when right, or wrong when not. If the checker rejected a mismatched
+placement, the adopter's placement would carry no information; if it accepted one, the framework's
+own taxonomy would stop being authoritative. That is **`F121`'s defect one level up** — *"a
+constant column carries no information"* — the shape this framework had removed from its own
+activity register hours earlier, in the same session.
+
+What the rejected option was *for* is kept in full: an adopter who answered twelve topic-shaped
+questions should open the file and read the same twelve topics. **Layout delivers that; storage was
+never the part a reader experiences.** `rules.CONTROL_TOPICS` and `TOPIC_NAMES` hold the map once,
+where the checker and the wizard both read it (`DR-48`), and `render.py` groups `control_decisions`
+under generated topic headings. Because there is one source, the layout cannot disagree with the
+taxonomy.
+
+- **`WI-2` — `adopter_canon`**, an optional array of `{artefact, rationale}`. Declaring an artefact
+  means: where it and this standard disagree, it governs **in this repository** — binding the
+  repository that declares it and no other. **`SP060`** checks the artefact exists **and is
+  tracked**: an untracked governing document is one no reviewer sees in a diff and no fresh clone
+  has. Verified in all three directions — missing fires, present-but-untracked still fires, tracked
+  is silent and reported as an advisory carrying its own ceiling.
+- **`WI-1` — `DR-70`** narrows `DR-2`'s scope. It had declared a private doctrine bundle *"sole
+  behavioural canon for AI-assisted work under this standard"* — which, read literally, bound every
+  adopter to a bundle they cannot read. `DR-4` had already required the opposite eight days
+  earlier; the two accepted records are now made to agree, and `DR-2`'s substance is untouched.
+- Prerequisite gates keep their six-group catalogue order and are **not** re-cut across twelve
+  topics: nineteen do not divide cleanly across twelve, and `DR-69` kept that specification whole.
+- `SP060` is exempt from the wizard's SP-parity table **with its reason stated** — `adopter_canon`
+  is written by hand, so there is no field at which the wizard could refuse it.

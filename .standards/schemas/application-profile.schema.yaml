@@ -194,6 +194,40 @@ properties:
   # marked inside the artefact - a template that could exempt itself would be exactly the
   # hole SP032 exists to close. Every exemption is reported as an advisory on each run, so a
   # narrowed control says it was narrowed.
+  adopter_canon:
+    type: array
+    description: >-
+      WI-2 (DR-71). What governs this repository where it and this standard disagree.
+
+      Optional, and additive: a profile without it behaves exactly as before, which is why
+      schema_version does not move. Absent, the default in Topic 1 applies - this standard
+      governs the surfaces it specifies, the repository's own instructions govern the rest,
+      and a contradiction on a surface this standard DOES specify is a blocking defect.
+
+      Declaring an artefact here means: where that artefact and this standard disagree, that
+      artefact governs IN THIS REPOSITORY. It binds the repository that declares it and no
+      other. Nothing outside this standard's own published documents is ever a condition of
+      adopting it, and one adopter's declaration is never citable to another.
+
+      SP060 checks the named artefact exists and is tracked. It cannot check that the artefact
+      says anything about precedence, or that anyone honours it - the same honest ceiling
+      SP046/SP047 state about secret scanning.
+    items:
+      type: object
+      additionalProperties: false
+      required: [artefact, rationale]
+      properties:
+        artefact:
+          type: string
+          minLength: 1
+          description: >-
+            Repository-relative path to the governing document.
+        rationale:
+          type: string
+          minLength: 1
+          description: >-
+            Why this repository declares it, and over what. A reader of the profile should be
+            able to tell what this displaces without opening the artefact.
   placeholder_scan_exemptions:
     type: array
     items:

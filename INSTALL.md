@@ -24,6 +24,22 @@ No product file is touched. The installer also sets the repository-local Git con
 `core.hooksPath=.githooks`. If another hook path or a default pre-commit hook already exists, the
 installer stops before writing anything so the existing automation is not silently disabled.
 
+**If your repository already has its own governing document, declare it.** Optional, in the
+profile:
+
+```yaml
+adopter_canon:
+  - artefact: docs/engineering-policy.md
+    rationale: predates this standard and governs our release process
+```
+
+It means: where that artefact and this standard disagree, that artefact governs **in this
+repository**. It binds yours and no one else's — nothing outside this standard's own published
+documents is ever a condition of adopting it, and one adopter's declaration is never citable to
+another. `SP060` checks the artefact exists and is tracked; it cannot check that it says anything
+about precedence, or that anyone honours it. Declare nothing and the default in Topic 1 applies:
+this standard governs the surfaces it specifies, your own instructions govern the rest (`DR-71`).
+
 **If you use one agent and not the other, install only its channel.** `--agents claude`,
 `--agents copilot`, or both (the default). A channel is seven instruction files and seven skills,
 plus — for Copilot — a created `.github/copilot-instructions.md`. Declining one writes none of

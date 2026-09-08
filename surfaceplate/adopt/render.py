@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import yaml
 
+from surfaceplate import rules
+
 
 def _strip_document_end(text: str) -> str:
     """PyYAML appends a literal `\\n...` document-end marker when a bare scalar is dumped as its
@@ -166,6 +168,42 @@ def _render_control(control_id: str, entry: dict) -> str:
     return "\n".join(lines)
 
 
+def _render_controls_by_topic(decisions: dict) -> str:
+    """`DR-71`: the profile is LAID OUT by topic, while its keys stay flat and canonical.
+
+    The headings are generated from `rules.CONTROL_TOPICS` - this framework's own map, read here
+    and by the checker from the one module `DR-48` created to stop exactly this being written
+    twice. Because there is one source, the layout cannot disagree with the taxonomy; a second
+    copy anywhere would reintroduce that risk.
+
+    Why the layout rather than the keys, recorded where a reader of the output will wonder: a
+    control's topic is decided by this framework, not by the adopter, so nesting it into the
+    profile would restate a fact the framework already owns - redundant when right, and wrong
+    when not. `F121`'s "a constant column carries no information", one level up.
+
+    A control this map does not know is rendered LAST, under a heading that says so, rather than
+    dropped. A renderer that silently omitted a declaration would be the worst failure available
+    to this function, and "unmapped" is a condition someone can see and fix.
+    """
+    by_topic: dict[int, list[str]] = {}
+    unmapped: list[str] = []
+    for control_id in decisions:
+        topic = rules.CONTROL_TOPICS.get(control_id)
+        if topic is None:
+            unmapped.append(control_id)
+        else:
+            by_topic.setdefault(topic, []).append(control_id)
+
+    blocks: list[str] = []
+    for topic in sorted(by_topic):
+        blocks.append(f"  # ---- Topic {topic}: {rules.TOPIC_NAMES[topic]} ----")
+        blocks.extend(_render_control(cid, decisions[cid]) for cid in by_topic[topic])
+    if unmapped:
+        blocks.append("  # ---- Not mapped to a topic ----")
+        blocks.extend(_render_control(cid, decisions[cid]) for cid in unmapped)
+    return "\n".join(blocks)
+
+
 def _render_deferrals(deferrals: list[dict]) -> str:
     if not deferrals:
         return " []"
@@ -196,7 +234,7 @@ def render_profile(profile: dict, *, written_on: str = "") -> str:
     # `F108`: the tool writes no note of its own; one a profile already carries is kept.
     scanner_notes = f"      notes: {_block(scanner['notes'], 6)}\n" if scanner.get('notes') else ""
 
-    controls_text = "\n".join(_render_control(cid, e) for cid, e in p["control_decisions"].items())
+    controls_text = _render_controls_by_topic(p["control_decisions"])
     gates_text = "\n".join(_render_gate(g) for g in p["prerequisites"])
     roles_text = _render_list_block(p["human_roles"], 2)
     exclusions_text = _render_list_block(p["exclusions"], 2)
