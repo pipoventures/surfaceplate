@@ -213,7 +213,19 @@ def check_actions_enabled(repo: Path, online: bool) -> Line:
     return Line(OK if enabled else FAIL, "GitHub Actions enabled", f"{enabled} for {slug} (allowed_actions: {data.get('allowed_actions')})")
 
 
-PYPI_JSON = "https://pypi.org/pypi/surfaceplate/json"
+def _rules():
+    """`rules.py`, however this module happens to have been imported.
+
+    Same dual form as `check_tool_matches_install` above and as the checker's own import: the
+    tool runs as a package, flat with the payload directory on the path, and vendored. `DR-48`
+    holds the currency comparison there so this module and `check_conformance.py` cannot answer
+    "is 0.9.0 newer than 0.17.0" two different ways.
+    """
+    try:
+        from surfaceplate import rules
+    except ImportError:  # imported flat, with the payload directory itself on the path
+        import rules  # type: ignore[no-redef]
+    return rules
 
 
 def check_standard_currency(repo: Path, online: bool) -> Line:
@@ -241,29 +253,13 @@ def check_standard_currency(repo: Path, online: bool) -> Line:
     if not online:
         return Line(SKIP, name, f"skipped (offline); installed {installed}, run with --online")
 
-    import json
-    import urllib.error
-    import urllib.request
-
-    request = urllib.request.Request(
-        PYPI_JSON, headers={"Accept": "application/json", "User-Agent": "surfaceplate-doctor"}
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=15) as response:  # noqa: S310 - fixed https host
-            latest = json.loads(response.read().decode("utf-8")).get("info", {}).get("version")
-    except urllib.error.HTTPError as exc:
-        return Line(WARN, name, f"pypi.org answered {exc.code}; installed {installed}")
-    except (urllib.error.URLError, OSError, ValueError) as exc:
-        return Line(WARN, name, f"could not reach pypi.org: {exc}; installed {installed}")
-    if not isinstance(latest, str) or not latest:
-        return Line(WARN, name, f"pypi.org named no version; installed {installed}")
-    if latest == installed:
+    latest, error = _rules().published_version()
+    if error is not None:
+        return Line(WARN, name, f"{error}; installed {installed}")
+    state = _rules().currency_state(installed, latest)
+    if state == "current":
         return Line(OK, name, f"{installed} is the published version")
-    # Ahead is a different fact from behind and must not be reported as the same one. The
-    # publisher's own repository is always ahead by construction - it installs from its working
-    # tree - and telling it to "upgrade" to an older version would be advice that is simply
-    # wrong. Found by running this against this repository before shipping it.
-    if _version_key(installed) > _version_key(latest):
+    if state == "ahead":
         return Line(
             OK,
             name,
@@ -276,20 +272,6 @@ def check_standard_currency(repo: Path, online: bool) -> Line:
         f"installed {installed}, published {latest}. Integrity is checked and currency is not - "
         "upgrade, or pin deliberately; this is an advisory, not a defect",
     )
-
-
-def _version_key(version: str) -> tuple:
-    """Order two version strings without taking a dependency to do it.
-
-    Numeric segments compare as numbers so 0.9.0 sorts below 0.17.0, which a string comparison
-    gets backwards - the case this repository would have hit first. Anything unparseable falls
-    back to comparing as text, which is wrong in general and never worse than not answering: the
-    only consequence is an advisory phrased as "behind" when it is "ahead".
-    """
-    parts = []
-    for segment in str(version).replace("-", ".").split("."):
-        parts.append((0, int(segment)) if segment.isdigit() else (1, segment))
-    return tuple(parts)
 
 
 def _installed_version(repo: Path) -> tuple[str | None, dict | None]:

@@ -228,3 +228,76 @@ def is_tracked(repo: Path, path: str) -> bool:
     except (OSError, subprocess.TimeoutExpired):
         return False
     return result.returncode == 0
+
+
+# ---------------------------------------------------------------------------
+# Currency: is the installed standard the published one? (`F124`, `DR-68`, `DR-72`)
+#
+# Integrity and currency are different properties and only one of them can be established
+# offline. `DR-45` is explicit that the framework anchor "records the manifest of the tree
+# installed FROM, which is a historical fact, not a live invariant", so nothing in a sealed
+# checkout can answer whether a newer version exists.
+#
+# Held here for `DR-48`'s reason: `doctor --online` asked this question first and the installed
+# conformance workflow now asks it too (`DR-72`). Two implementations of "is 0.9.0 newer than
+# 0.17.0" is exactly the drift this module exists to prevent - and that comparison has a known
+# wrong answer if written naively, which is the next function's whole subject.
+PYPI_JSON = "https://pypi.org/pypi/surfaceplate/json"
+PYPI_TIMEOUT_SECONDS = 15
+
+
+def version_key(version: str) -> tuple:
+    """Order two version strings without taking a dependency to do it.
+
+    Numeric segments compare as numbers so `0.9.0` sorts below `0.17.0`, which a string
+    comparison gets backwards - the case this repository would have hit first. Anything
+    unparseable falls back to comparing as text, which is wrong in general and never worse than
+    not answering: the only consequence is an advisory phrased as "behind" when it is "ahead".
+    """
+    parts = []
+    for segment in str(version).replace("-", ".").split("."):
+        parts.append((0, int(segment)) if segment.isdigit() else (1, segment))
+    return tuple(parts)
+
+
+def published_version(timeout: int = PYPI_TIMEOUT_SECONDS) -> tuple[str | None, str | None]:
+    """`(version, error)` from the index. Exactly one of the two is ever set.
+
+    THE ONLY OUTBOUND REQUEST IN THIS MODULE, and it is made nowhere unless a caller asks for
+    it. Importing this module opens no socket; `check_conformance.py` imports it on every run,
+    including from the pre-commit hook, and must stay offline there.
+
+    An unreachable index returns an error rather than a version, and every caller reports that
+    as its own state - never as "current". Reporting `ok` because the network was down is the
+    false green this framework exists to find.
+    """
+    import json
+    import urllib.error
+    import urllib.request
+
+    request = urllib.request.Request(
+        PYPI_JSON, headers={"Accept": "application/json", "User-Agent": "surfaceplate"}
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310 - fixed https host
+            latest = json.loads(response.read().decode("utf-8")).get("info", {}).get("version")
+    except urllib.error.HTTPError as exc:
+        return None, f"pypi.org answered {exc.code}"
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        return None, f"could not reach pypi.org: {exc}"
+    if not isinstance(latest, str) or not latest:
+        return None, "pypi.org named no version"
+    return latest, None
+
+
+def currency_state(installed: str, published: str) -> str:
+    """`current`, `ahead`, or `behind`.
+
+    `ahead` is a different fact from `behind` and must not be reported as the same one. The
+    repository that publishes the standard installs from its own working tree and is therefore
+    always ahead by construction; telling it to "upgrade" to an older version would be advice
+    that is simply wrong. Found by running this against this repository before shipping it.
+    """
+    if installed == published:
+        return "current"
+    return "ahead" if version_key(installed) > version_key(published) else "behind"

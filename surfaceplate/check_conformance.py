@@ -905,6 +905,68 @@ def report_narrowed_agents(record: dict, notes: list[str]) -> None:
     )
 
 
+def report_currency(record: dict, profile: dict, notes: list[str]) -> None:
+    """Is the installed standard the published one? (`F124`, `DR-72`) - ADVISORY, NEVER A FINDING.
+
+    `DR-72` turned this on by default in the installed workflow, so it runs in every adopting
+    repository's CI unless that repository declares otherwise. Three properties make that
+    defensible, and each is a deliberate constraint rather than an implementation detail:
+
+    1. **It never becomes a failure.** Not a `Finding`, not even a graceable one - a graceable
+       finding fails once the grace window ends, and a check that eventually failed on this
+       would be telling adopters that pinning a version deliberately is a defect. It reports;
+       the human decides. A note is quieter than a finding, and that is the point.
+    2. **It runs only when asked.** `--currency` is off by default, so a local run and the
+       pre-commit hook open no socket, exactly as before. The installed workflow passes the
+       flag; nothing else does. The one command an adopter runs by hand stays offline.
+    3. **An adopter can decline it, on the record.** `adoption.currency_check.enabled: false`
+       with a rationale, and this makes no request. The installed workflow is integrity-checked
+       and so cannot be edited by the adopter - which is why the opt-out had to live in the
+       profile, the one file here that is theirs. `H20` is the decision; the alternative
+       considered and rejected was leaving the mechanism with nothing to trigger it.
+
+    Unreachable is reported as unreachable, never as current. An unanswered question is not a
+    passing one.
+    """
+    declared = profile.get("adoption", {}).get("currency_check")
+    if isinstance(declared, dict) and declared.get("enabled") is False:
+        notes.append(
+            "currency: not checked - this repository declares "
+            f"adoption.currency_check.enabled: false ({declared.get('rationale', 'no rationale given')}). "
+            "No request was made. Integrity is still checked; currency is not."
+        )
+        return
+
+    installed = record.get("standard_version")
+    if not isinstance(installed, str) or not installed:
+        notes.append("currency: not checked - the install record names no version")
+        return
+
+    latest, error = rules.published_version()
+    if error is not None:
+        notes.append(
+            f"currency: UNKNOWN - {error}. Installed {installed}. An unreachable index is not "
+            "a passing check; nothing here failed because of it."
+        )
+        return
+
+    state = rules.currency_state(installed, latest)
+    if state == "current":
+        notes.append(f"currency: installed {installed} is the published version")
+    elif state == "ahead":
+        notes.append(
+            f"currency: installed {installed} is AHEAD of the published {latest} - a "
+            "pre-release, or this is the repository that publishes the standard"
+        )
+    else:
+        notes.append(
+            f"currency: installed {installed}, PUBLISHED {latest}. Integrity is checked and "
+            "currency is not, so this gap can persist indefinitely without anything failing. "
+            "Upgrade, or pin deliberately and declare adoption.currency_check.enabled: false "
+            "with the reason. This is an advisory, not a defect."
+        )
+
+
 def check_adopter_canon(repo: Path, profile: dict, findings: list[Finding], notes: list[str]) -> None:
     """`WI-2` / `DR-71`: what an adopter declares governs their repository, checked for existence.
 
@@ -3538,7 +3600,7 @@ class Report:
         return [f for f in self.findings if f.graceable]
 
 
-def evaluate(repo: Path, today: _dt.date, no_grace: bool, staged: bool) -> Report:
+def evaluate(repo: Path, today: _dt.date, no_grace: bool, staged: bool, currency: bool = False) -> Report:
     report = Report(repo)
     findings = report.findings
     notes = report.notes
@@ -3593,6 +3655,8 @@ def evaluate(repo: Path, today: _dt.date, no_grace: bool, staged: bool) -> Repor
             check_adopter_canon(repo, profile, findings, notes)
             report_declined_hook(record, notes)
             report_narrowed_agents(record, notes)
+            if currency:
+                report_currency(record, profile, notes)
             check_prerequisites(
                 repo,
                 profile,
@@ -3794,9 +3858,10 @@ def render_sarif(report: Report) -> str:
 RENDERERS = {"text": render_text, "json": render_json, "sarif": render_sarif}
 
 
-def run(repo: Path, today: _dt.date, no_grace: bool, staged: bool, output: str = "text") -> int:
+def run(repo: Path, today: _dt.date, no_grace: bool, staged: bool, output: str = "text",
+        currency: bool = False) -> int:
     """Evaluate, print in the chosen format, and return the exit code."""
-    report = evaluate(repo, today, no_grace, staged)
+    report = evaluate(repo, today, no_grace, staged, currency)
     print(RENDERERS[output](report))
     return report.exit_code
 
@@ -3834,6 +3899,16 @@ def main(argv: list[str] | None = None) -> int:
         help="Output format: text (default), json, or sarif (2.1.0).",
     )
     parser.add_argument(
+        "--currency",
+        action="store_true",
+        help=(
+            "Also report whether the installed standard is the published one. Makes ONE "
+            "request, to pypi.org. Off by default, so the hook and a local run stay offline. "
+            "Advisory only - it can never fail the check. A repository declining the call sets "
+            "adoption.currency_check.enabled: false in its profile, with a rationale."
+        ),
+    )
+    parser.add_argument(
         "--probe",
         action="store_true",
         help=argparse.SUPPRESS,
@@ -3864,7 +3939,8 @@ def main(argv: list[str] | None = None) -> int:
         print("error: --staged requires a readable Git repository", file=sys.stderr)
         return 3
     try:
-        return run(repo, _dt.date.today(), args.no_grace, args.staged, output=args.format)
+        return run(repo, _dt.date.today(), args.no_grace, args.staged, output=args.format,
+                   currency=args.currency)
     except Exception as exc:  # noqa: BLE001 - `DR-49`: an internal error is its own exit code
         print(f"error: the checker failed internally: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 4

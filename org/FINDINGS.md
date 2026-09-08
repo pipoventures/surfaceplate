@@ -189,7 +189,7 @@ an unknown number of releases with nothing noticing.
 | F121 | `owner_role` and `reviewer_role` are required of a solo adopter, for whom both are constant | medium | Closed — `ACT-068` (`DR-69`), 2026-09-08; see the body |
 | F122 | The installer creates a Copilot instruction channel unconditionally, including in repositories that do not use Copilot | low | Closed — `ACT-066` (`DR-67`), 2026-09-08; see the body |
 | F123 | `authority.md` names one vendor's file as the place the authority hierarchy must be stated | medium | Closed — `ACT-066` (`DR-67`), 2026-09-08; see the body |
-| F124 | The checker verifies that an install is unedited and has no notion of whether it is current | high | Open — narrowed by `ACT-067` (`DR-68`): the mechanism exists and nothing triggers it |
+| F124 | The checker verifies that an install is unedited and has no notion of whether it is current | high | Closed — `ACT-075` (`DR-72`), 2026-09-08; see the body |
 | F125 | No adopter-facing precedence rule exists between this standard and a co-resident governance system | medium | Closed — `ACT-068`/`ACT-069` (`DR-69`, `DR-71`), 2026-09-08; see the body |
 | F126 | A recorded `effective_from` instant can sit ahead of the clock the checker reads moments later, so a gate created seconds ago reads as dated in the future | medium | Closed — `ACT-070`, 2026-09-08; see the body |
 | F127 | `SECURITY.md` went stale a second time about the same feature: it said private vulnerability reporting was *"not enabled today"*, citing an API check, after the setting had been turned on | medium | Closed — `ACT-070`, 2026-09-08; see the body |
@@ -1945,7 +1945,7 @@ paragraph of prose.
 
 ## F124 — The checker verifies that an install is unedited and has no notion of whether it is current
 
-**Severity: high. Open.**
+**Severity: high. Closed — `ACT-075` (`DR-72`), 2026-09-08.**
 
 Raised at `ACT-063` from a portfolio operating-model review outside this repository (`mnemosyne/reviews/2026-09-04_operating-model-plan-v3.md`, where it is numbered `SP-F5`). That review proposed it; it is recorded here only after being re-verified against this repository on 2026-09-08, and where the re-verification disagreed with the review the disagreement is stated rather than smoothed away. Nothing in `mnemosyne` is part of this standard or a condition of adopting it; it is the origin of the observation, not an authority over the remedy.
 
@@ -1987,6 +1987,29 @@ not want the call could not remove it without failing its own check. That is a c
 infrastructure and to an outbound network boundary, which this standard's own rules reserve to a
 human. Recorded as `H20`; `DR-68` states it as an explicit limitation rather than leaving the gap
 to be discovered.
+
+**Closed by `ACT-075` (`DR-72`), 2026-09-08 — the maintainer answered `H20` and chose the option
+that keeps the adopter a say.** The step exists and is on by default; the adopter declines it in the
+one installed file that is theirs.
+
+- `check_conformance.py --currency` makes the one request and reports *current*, *ahead*, *behind*
+  or *unknown*. The installed workflow passes the flag; nothing else does, so a local check and the
+  pre-commit hook still open no socket.
+- **It is an advisory and can never be a finding** — not blocking and not graceable either, because
+  a graceable finding fails once the grace window ends, and a check that eventually failed on this
+  would call a deliberate version pin a defect.
+- `adoption.currency_check: {enabled: false, rationale: …}` suppresses the request entirely. Absent
+  means enabled, so `schema_version` stays `"1.0"` and no existing profile is invalid. The opt-out
+  had to live in the profile because the workflow is integrity-checked: without it, *"on by
+  default"* would have meant *"compulsory"*.
+- The comparison moved to `rules.py` (`DR-48`), so `doctor --online` and the checker cannot answer
+  *"is 0.9.0 newer than 0.17.0"* two different ways — a comparison with a known wrong answer when
+  written as a string comparison.
+
+**What the closure does and does not claim.** It claims the gap this finding names is now reported
+wherever a network exists: a repository sitting versions behind is told so on every CI run. It does
+not claim the report is unmissable — an advisory line is quieter than a failure, deliberately — nor
+that the index is trustworthy. `DR-72`'s Limitations state both.
 
 ## F123 — `authority.md` names one vendor's file as the place the authority hierarchy must be stated
 
