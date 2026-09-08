@@ -1556,6 +1556,13 @@ defect is not simply "some call uses UTC and another uses local time" caught mid
 matrix run takes roughly three minutes; a real-time midnight rollover mid-run cannot be ruled out
 in general but was not observed directly in this instance.
 
+**Corroborated on 2026-09-08 by a clean control: the same suite PASSES in CI.** The run for
+`ACT-068` reported `matrix=success` on GitHub Actions while failing locally on the same commit,
+with different case IDs failing between two consecutive local runs (`T6-195`, then `T2-003`/
+`T2-064`). Three facts together — passes in CI, fails locally, and picks different cases each local
+run — place the cause in the **local environment's clock or timing**, not in the repository's
+content. That is a narrowing, not a closure: it says where to look, not what is wrong.
+
 **`EVIDENCE GAP`:** the exact triggering sequence — which of the five independent clock reads
 disagreed with `adopt_matrix.py`'s frozen `TODAY`, and under what condition — has not been isolated.
 Establishing it needs either a reproduction harness that controls the clock (freezing or mocking
