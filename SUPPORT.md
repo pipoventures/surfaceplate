@@ -24,5 +24,11 @@ its limitations.
 ## A question about your own repository's conformance
 
 Start with [`INSTALL.md`](INSTALL.md)'s "Frequently asked" section and
-[`RECONCILIATION.md`](RECONCILIATION.md) if the installer stopped on existing files. If neither
-answers it, that gap is itself worth an issue.
+[`RECONCILIATION.md`](RECONCILIATION.md) if the installer stopped on existing files.
+
+If neither answers it, ask in
+[Discussions](https://github.com/pipoventures/surfaceplate/discussions). A question is not a
+defect, and the two want different treatment: an issue is a thing to be fixed and closed, while a
+question is worth leaving where the next person can find it. **A question that the documentation
+should have answered is also a defect in the documentation** — say so in the same post if you think
+it is one, and it becomes an issue as well.

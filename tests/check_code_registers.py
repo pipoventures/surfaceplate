@@ -56,6 +56,14 @@ CATALOGUE_BEGIN = "<!-- BEGIN GENERATED: finding codes (tests/check_code_registe
 CATALOGUE_END = "<!-- END GENERATED: finding codes -->"
 LINK = re.compile(r"\[[^\]]*\]\(([^)\s#]+)(?:#[^)]*)?\)")
 PATHISH = re.compile(r"`((?:\.standards|\.github|surfaceplate|org|audit|core|prompts|tests|scripts|docs)/[A-Za-z0-9_./*-]+)`")
+# `F128`: the same treatment, applied to what the payload says about itself - see
+# `payload_pointer_checks`. Only pointers that name an installed destination are resolved.
+PAYLOAD_POINTER = re.compile(
+    r"`((?:\.standards/[A-Za-z0-9_./*-]+)"
+    r"|(?:\.claude/(?:rules|skills)/[A-Za-z0-9_./*-]+)"
+    r"|(?:\.github/(?:instructions|skills)/[A-Za-z0-9_./*-]+)"
+    r"|(?:[A-Za-z0-9_.*-]+\.instructions\.md))`"
+)
 # A comment may sit between the code and the title (SP038's does), so it is skipped.
 TITLE = re.compile(r"Finding\(\s*\"(SP\d{3})\",\s*(?:#[^\n]*\n\s*)*((?:f?\"[^\"]*\"\s*)+)")
 PLACEHOLDERS = {
@@ -215,6 +223,42 @@ def front_door_checks(checker_text: str, write: bool) -> None:
           present == expected, "run: python tests/check_code_registers.py --write")
 
 
+def payload_pointer_checks(targets: set[str]) -> None:
+    """`F128`: the front door is checked and the payload's own documents were not.
+
+    The `change` skill, shipped to every adopter, said *"the registered activity ID (see
+    `activity.instructions.md`)"* - a file the twelve-topic restructure stopped writing three
+    surfaces earlier, and a Copilot-only emitted filename before that. Nothing failed, because no
+    check reads what the payload says about itself. `F50` is the same defect one layer out: a
+    hand-off command naming a file deleted three packets earlier, caught only when someone ran it.
+
+    Narrow on purpose. It resolves exactly the pointers that name an installed destination - an
+    agent-instruction filename, a rules file, a skill, or a `.standards/` path. A payload document
+    naming `README.md` or a stack's own file is naming the adopter's tree, which this cannot and
+    must not try to resolve.
+    """
+    import sys
+
+    sys.path.insert(0, str(ROOT / "surfaceplate"))
+    import install_standard  # noqa: E402
+
+    payload = install_standard.build_payload(ROOT / "surfaceplate")
+    for dest in sorted(payload):
+        if not dest.endswith(".md"):
+            continue
+        source = payload[dest]
+        text = source.read_text(encoding="utf-8") if isinstance(source, Path) else source
+        for pointer in sorted(set(PAYLOAD_POINTER.findall(text))):
+            # A bare `x.instructions.md` can only mean the Copilot destination; that it reads as a
+            # bare filename is part of what made this defect survive.
+            qualified = pointer if "/" in pointer else f".github/instructions/{pointer}"
+            check(
+                f"payload {dest}: `{pointer}` names a file the installer writes",
+                _resolves_installed(qualified, targets),
+                "no installed destination matches it",
+            )
+
+
 def main() -> int:
     import sys
 
@@ -222,6 +266,7 @@ def main() -> int:
     findings_text = FINDINGS.read_text(encoding="utf-8")
     checker_text = CHECKER.read_text(encoding="utf-8")
     front_door_checks(checker_text, write)
+    payload_pointer_checks(_installed_targets())
 
     # ---- SP codes: declaration against the code that emits them ----
     space = declared_space(findings_text)
@@ -322,9 +367,11 @@ def main() -> int:
         for failure in FAILURES:
             print(f"  {failure}")
         print()
-        print("Update org/FINDINGS.md, or the checker, so the two agree. A register that")
-        print("describes a code space it does not have is worse than none: it reads as")
-        print("authoritative and is not.")
+        print("Something states a fact about this repository that this repository does not have.")
+        print("Correct the statement, or the code it describes, so the two agree - a register or a")
+        print("document that describes what is not there is worse than none: it reads as")
+        print("authoritative and is not. For a payload pointer, the document ships to every")
+        print("adopter, so the wrong name is theirs to trip over as well as yours.")
         return 1
 
     # Reported so that "the registers agree" is distinguishable from "nothing was compared",
