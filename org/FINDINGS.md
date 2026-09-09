@@ -208,6 +208,7 @@ an unknown number of releases with nothing noticing.
 | F140 | `adopt --edit` without `--because` was accepted and recorded with boilerplate that reads like a reason, and the CLI said the change was recorded *"with the reason"* | medium | Closed — `ACT-083` (`DR-78`), 2026-09-09; see the body |
 | F141 | Installing an older tool over a newer install announced *"an UPGRADE"*, and `doctor` printed two different installed versions in one run | medium | Closed — `ACT-083` (`DR-78`), 2026-09-09; see the body |
 | F142 | `F132` returned through the door `DR-73` left open: `dependency_lock` stayed *offerable* above the floor on a repository with no manifest, and ticking it demanded a lock file that cannot exist | high | Closed — `ACT-085`, 2026-09-09; see the body |
+| F143 | Ticking a control in the above-floor list never revealed the fields it makes required: the screen listened for every widget's change event except the multiselect's, so the wizard demanded a value for a field it did not show and no key could reach | high | Closed — `ACT-086`, 2026-09-09; see the body |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1538,6 +1539,43 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F143 — The wizard demanded a value for a field it did not show
+
+**Severity: high. Closed — `ACT-086`, 2026-09-09.**
+
+Found by the maintainer on the next screen after `F142`, and unrelated to it. Ticking any control in
+the above-floor list made its rationale and implementation-reference **required** and left them
+**invisible**: `Ctrl+S` refused the section for their being blank, and no key could reach them. The
+report was *"blocked again"*, and it was exact — there was no progressing.
+
+**Established by effect before being explained.** Driving the real interface with real keypresses:
+after `space` on `method_registry`, `row-method_registry--rationale` and
+`row-method_registry--implementation_reference` are both `display=False`, and the screen's focus
+chain holds six widgets, none of them those. Tab from the list goes to the scroll container and
+then wraps to the first field.
+
+**Cause, read after it was measured.** `FormScreen._on_change` is decorated
+`@on(Checkbox.Changed)`, `@on(Input.Changed)`, `@on(RadioSet.Changed)` — and **not**
+`@on(SelectionList.SelectedChanged)`. It is the one widget on that screen whose answer reveals
+other fields. `FieldSpec.applies` had already been generalised for it, with a comment explaining
+that *"depends on that field"* means *"is among what was ticked"* for a multiselect: **the plan side
+was finished and the screen was never wired to the event.**
+
+**Why nothing caught it, and it is the same boundary three findings running.**
+`tests/test_adopt.py` and `tests/test_adopt_matrix.py` answer the plan directly — a
+`ScriptedInterview` never renders a row, so a row that is never shown is invisible to 45,000 checks.
+`F132` was a repository shape no fixture had; `F142` was an offer no test tried to take; this is an
+event no scripted path emits. **The suites cover what the wizard decides and not what it displays**,
+and every one of the three was found in minutes by a person using it.
+
+**Remedy.** `SelectionList.SelectedChanged` is added to the handler, and to the gates screen's
+equivalent — where no field depends on a multiselect today, so it changes nothing now and stops the
+two screens differing in a way the next conditional field would have to rediscover.
+
+**Verified in both directions.** With the handler, the rows display, both fields enter the focus
+chain, and Tab from the list lands on the first of them. With it removed again the new test fails,
+naming the two rows and their `display=False` — the state the maintainer was looking at.
 
 ## F142 — An option that cannot be completed is not an option
 

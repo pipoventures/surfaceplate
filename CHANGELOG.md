@@ -2897,3 +2897,27 @@ makes it a state rather than a refusal: *"Add one — a `package.json`, a `pypro
 Verified in both directions: the no-manifest repository does not offer it and says why; the
 repository with a `package-lock.json` still has it **required in the floor** — two exclusions from
 one list, for opposite reasons.
+
+### The wizard demanded a value for a field it did not show (`ACT-086`, `F143`)
+
+Ticking any control in the above-floor list made its rationale and implementation-reference
+**required** and left them **invisible**. `Ctrl+S` refused the section for their being blank, and no
+key could reach them. *"Blocked again"* was exact: there was no progressing.
+
+`FormScreen._on_change` listened for `Checkbox.Changed`, `Input.Changed` and `RadioSet.Changed` —
+and **not** `SelectionList.SelectedChanged`, which is the one widget on that screen whose answer
+reveals other fields. `FieldSpec.applies` had already been generalised for it, with a comment
+explaining that *"depends on that field"* means *"is among what was ticked"* for a multiselect: the
+plan side was finished and the screen was never wired to the event.
+
+**Why nothing caught it, and it is the same boundary three findings running.** `test_adopt.py` and
+the 208-case matrix answer the plan directly — a `ScriptedInterview` never renders a row, so a row
+that is never shown is invisible to 45,000 checks. `F132` was a repository shape no fixture had;
+`F142` was an offer no test tried to take; this is an event no scripted path emits. **The suites
+cover what the wizard decides and not what it displays**, and all three were found in minutes by a
+person using it.
+
+The regression test therefore lives in `test_adopt_tui.py` and drives real keypresses, because no
+scripted path can reach this. Verified in both directions: with the handler the rows display, both
+fields enter the focus chain and Tab lands on the first; with it removed the test fails naming the
+same two hidden rows.

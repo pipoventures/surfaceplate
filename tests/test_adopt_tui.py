@@ -169,6 +169,68 @@ def test_the_opening_app_returns_the_three_answers() -> None:
     check("with a draft, Enter then Ctrl+Q quits (None)", asyncio.run(drive(welcome(draft), ["enter", "ctrl+q"])) is None)
 
 
+def test_ticking_a_control_reveals_the_fields_it_makes_required() -> None:
+    """`F143`. The wizard demanded a value for a field it did not show.
+
+    `FormScreen._on_change` listened for `Checkbox.Changed`, `Input.Changed` and
+    `RadioSet.Changed` - and not for `SelectionList.SelectedChanged`, which is the one widget whose
+    answer reveals other fields. `FieldSpec.applies` had already been generalised so that
+    "depends on a multiselect" means "is among what was ticked": the plan side was done and the
+    screen was never wired to the event.
+
+    So ticking a control in the above-floor list left its rationale and reference rows
+    `display=False` - out of the focus chain, unreachable by any key - while `Ctrl+S` refused the
+    section for their being blank. The adopter's report was "I can't progress", and they were
+    right: there was no progressing.
+
+    **No scripted suite could have caught this.** `test_adopt.py` and the matrix answer the plan
+    directly and never render a row, which is why this test lives here and drives real keypresses.
+    """
+    import subprocess
+    import tempfile
+
+    repo = Path(tempfile.mkdtemp(prefix="surfaceplate-reveal-")) / "repo"
+    repo.mkdir()
+    for args in (["init", "-q"], ["config", "user.email", "h@example.invalid"],
+                 ["config", "user.name", "H"], ["config", "commit.gpgsign", "false"]):
+        subprocess.run(["git", "-C", str(repo), *args], check=True)
+    (repo / "src").mkdir()
+    (repo / "src" / "app.py").write_text("x = 1\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "fixture"], check=True,
+                   capture_output=True)
+    found = plan.discover.scan(repo)
+    section = plan.controls_plan(level="essential", mode="simple", found=found)
+
+    async def tick_one(control: str) -> tuple[list, list]:
+        app = Host(FormScreen(section, repo=repo))
+        async with app.run_test(size=(120, 60)) as pilot:
+            await pilot.pause()
+            listing = app.screen.query_one("#f-above_floor")
+            listing.focus()
+            await pilot.pause()
+            names = [str(getattr(o, "prompt", o)) for o in listing.options]
+            index = next(i for i, n in enumerate(names) if n.startswith(control))
+            for _ in range(index):
+                await pilot.press("down")
+                await pilot.pause()
+            await pilot.press("space")          # a real keypress, as an adopter makes it
+            await pilot.pause()
+            await pilot.pause()
+            rows = [(w.id, w.display) for w in app.screen.query("*")
+                    if w.id and w.id.startswith(f"row-{control}--")]
+            chain = [w.id for w in app.screen.focus_chain if getattr(w, "id", None)]
+            return rows, chain
+
+    rows, chain = asyncio.run(tick_one("method_registry"))
+    check("ticking a control shows the rows it makes required",
+          rows and all(shown for _, shown in rows), str(rows))
+    check("and puts them in the focus chain, so a key can reach them",
+          [c for c in chain if "method_registry" in c], str(chain))
+    check("both of its fields, not only the first",
+          len([c for c in chain if "method_registry" in c]) == 2, str(chain))
+
+
 def test_the_help_beside_a_field_states_what_it_decides_and_describes_the_chosen_file() -> None:
     """`F82` and `F80` / `DR-51` (3), (4). Beside the focused field: what is asked, what the
     answer decides, what a wrong answer costs; and for a field answered by picking a file, what
@@ -1535,6 +1597,7 @@ def main() -> int:
     test_ctrl_q_reaches_the_screens_own_cancel()
     test_choosing_the_create_it_row_commits_without_a_refusal()
     test_continuing_past_the_folded_gates_asks_once()
+    test_ticking_a_control_reveals_the_fields_it_makes_required()
     test_the_help_beside_a_field_states_what_it_decides_and_describes_the_chosen_file()
 
     print("\nconformance level (mockup frame 02)")
