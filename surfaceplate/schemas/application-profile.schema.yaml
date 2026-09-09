@@ -183,7 +183,13 @@ properties:
       secret_hygiene: {$ref: '#/$defs/secret_hygiene_decision'}
   control_decisions:
     type: object
-    minProperties: 1
+    # `minProperties` was 1 until `DR-73`. It was a weak proxy for "you must decide something",
+    # and it became wrong: at `essential` the floor is `dependency_lock` alone, so a repository
+    # that declares no dependencies anywhere legitimately decides no selectable control. The real
+    # enforcement was never here - SP021/SP022 check the level's floor against the checker's own
+    # catalogue, and they still do. A schema rule that forbids a state the standard permits is a
+    # contradiction between two authorities, which this standard calls a blocking defect.
+    minProperties: 0
     propertyNames:
       pattern: "^(deterministic_tests|contract_tests|provenance|run_lineage|method_registry|overrides|assurance_findings|dependency_lock|documentation_authority|x-[a-z0-9][a-z0-9_-]*)$"
     additionalProperties:

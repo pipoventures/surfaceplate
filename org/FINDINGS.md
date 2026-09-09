@@ -197,7 +197,7 @@ an unknown number of releases with nothing noticing.
 | F129 | `F123`'s ruling was applied to the document it was found in and nowhere else: Topic 7 still told every agent that stack-specific commands and test areas belong in `copilot-instructions.md` | medium | Closed — `ACT-073`, 2026-09-08; see the body |
 | F130 | The same dependency version is pinned in five places — `pyproject.toml`, two workflows, the payload's copy of one of them, and `INSTALL.md` — and nothing compared them, so a dependency change was judged green by a CI run that installed the old version | high | Closed — `ACT-074`, 2026-09-08; see the body |
 | F131 | `CVE-2025-71176` in pytest cannot be remediated within the pinned test set: `pytest-textual-snapshot` pins `syrupy==4.8.0`, which caps `pytest<9.0.0`, and the fix is only in `9.0.3` | medium | Open — **accepted, not remediated**: the maintainer took route (1) at `H21`, 2026-09-08. The condition persists |
-| F132 | A repository with no dependency manifest of any kind cannot produce a conformant profile at any level, and the wizard dead-ends on the first screen: `dependency_lock` is the sole `essential` floor control and `SP051` requires it to name a real tracked file | high | Open — the remedy is a contract change; the decision is `H22` |
+| F132 | A repository with no dependency manifest of any kind cannot produce a conformant profile at any level, and the wizard dead-ends on the first screen: `dependency_lock` is the sole `essential` floor control and `SP051` requires it to name a real tracked file | high | Closed — `ACT-078` (`DR-73`), 2026-09-09; see the body |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1531,7 +1531,7 @@ field is asked with its seed row first.
 
 ## F132 — A repository with no dependency manifest cannot adopt this standard at any level
 
-**Severity: high. Open — the remedy is a contract change; the decision is `H22`.**
+**Severity: high. Closed — `ACT-078` (`DR-73`), 2026-09-09.**
 
 Found on 2026-09-08 by the maintainer, **on the first screen of the first walkthrough**, against a
 real repository. This is `H18`'s method producing `H18`'s result before `H18` had formally begun,
@@ -1588,6 +1588,29 @@ Either (1) or (2) is a change to a published contract and to `core/CONFORMANCE_L
 this standard reserves to a human. The wizard change follows the standard's, not the other way
 round — fixing the wizard alone would let it write a profile the checker still rejects, which is
 `F66`'s defect exactly.
+
+**Closed by `ACT-078` (`DR-73`), 2026-09-09 — the maintainer chose route (1).** The floor is lifted
+by the checker, from the repository's own tracked files, and never by a declaration. Only the floor
+moves: a repository that decides `dependency_lock` required anyway is checked by `SP051` exactly as
+before, and the report says on every run that the waiver applied and why.
+
+**What makes it a waiver rather than a hole is the second direction, and it is asserted.** Adding a
+`package.json` restores the floor with no edit to the profile, and `SP021` fires naming the control.
+Both directions are in `tests/test_adopt.py::test_a_repository_with_no_dependencies_can_still_conform`,
+which fails without the fix in exactly the way the maintainer's run failed.
+
+**Three consequences that were not obvious when this was raised:**
+
+- **`control_decisions` may now be empty**, because at `essential` the waived control was the whole
+  floor. `minProperties` moves `1` → `0` — a relaxation, so no existing profile becomes invalid —
+  and the renderer writes `{}` rather than a bare key, which YAML reads as `null`.
+- **`SP021`'s remedy told an `essential` adopter to "declare a lower level".** There is not one.
+  This finding is precisely the case where that advice sent a reader nowhere, and it is corrected.
+- **The shared test fixture had been in this finding's state all along**, and every scripted answer
+  supplied a lock-file path pointing at a file that did not exist. The suite was green because the
+  script answered a question no repository of that shape could answer. That is the same shape as
+  the finding itself, one layer in, and it is recorded in `DR-73`'s Limitations rather than quietly
+  fixed.
 
 ## F131 — A security advisory in a pinned test dependency has no satisfiable remedy, because a plugin pins the package that caps it
 

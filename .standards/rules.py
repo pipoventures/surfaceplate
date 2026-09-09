@@ -301,3 +301,137 @@ def currency_state(installed: str, published: str) -> str:
     if installed == published:
         return "current"
     return "ahead" if version_key(installed) > version_key(published) else "behind"
+
+
+# ---------------------------------------------------------------------------
+# Does this repository have dependencies at all? (`F132`, `DR-73`, `H22`)
+#
+# `dependency_lock` is the only control in the `essential` floor, and `SP051` requires it to name
+# a real tracked file. A repository with no dependency manifest of any kind - a documentation
+# repository, a policy repository, a monorepo subtree whose dependencies resolve a level up - has
+# nothing to name and could not conform at any level. `F132` was found on exactly such a
+# repository, by a person, on the wizard's first screen.
+#
+# `H22` chose to DERIVE the answer rather than let it be declared. Nothing is written in the
+# profile, so nothing can be misdeclared, and the moment a manifest appears the floor returns
+# without anyone having to remember to change a file.
+#
+# THE LIST IS DELIBERATELY GENEROUS, because the two errors are not symmetrical. Believing a
+# manifest exists where none does sends a repository back to `F132`'s dead end - bad, and visible
+# to whoever hits it. Believing NONE exists where one does silently waives the one control this
+# standard applies to everyone - worse, and silent. So when in doubt, this list says "has
+# dependencies".
+#
+# Two deliberate exclusions, stated so they read as decisions rather than oversights.
+# `CMakeLists.txt` and `Dockerfile` both imply a supply chain, and neither has a lock file an
+# adopter could name; including them would send C and container repositories to the same dead end
+# this exists to remove. A repository that pins a base image and wants the control has always been
+# free to decide `dependency_lock` required and name whatever it pins with.
+DEPENDENCY_MANIFESTS: frozenset[str] = frozenset({
+    # Python
+    "pyproject.toml", "setup.py", "setup.cfg", "pipfile", "pipfile.lock", "poetry.lock",
+    "requirements.lock", "environment.yml", "environment.yaml", "uv.lock", "pdm.lock",
+    # JavaScript and friends
+    "package.json", "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "npm-shrinkwrap.json",
+    "bun.lockb", "deno.json", "deno.jsonc", "deno.lock",
+    # Go, Rust, Ruby, PHP
+    "go.mod", "go.sum", "cargo.toml", "cargo.lock", "gemfile", "gemfile.lock",
+    "composer.json", "composer.lock",
+    # JVM
+    "pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts",
+    "ivy.xml", "build.sbt",
+    # .NET
+    "packages.config", "paket.dependencies", "paket.lock", "directory.packages.props",
+    # Elixir, Dart, Swift, Perl, R, Haskell, Nix, Terraform, C/C++
+    "mix.exs", "mix.lock", "pubspec.yaml", "pubspec.lock", "package.swift", "package.resolved",
+    "podfile", "podfile.lock", "cartfile", "cpanfile", "makefile.pl", "description", "renv.lock",
+    "stack.yaml", "cabal.project", "flake.nix", "flake.lock", ".terraform.lock.hcl",
+    "conanfile.txt", "conanfile.py", "conan.lock", "vcpkg.json",
+})
+
+# Suffixes that are a manifest whatever the file is called.
+DEPENDENCY_MANIFEST_SUFFIXES: tuple[str, ...] = (
+    ".gemspec", ".csproj", ".fsproj", ".vbproj", ".cabal",
+)
+
+# A plain text file whose NAME says it pins dependencies, wherever it sits. This exists because
+# the name list above is not enough, and the combinatorial matrix proved it rather than anyone
+# reasoning it out: its `mixed` shape is built as "a pinned-dependency file no lock-file rule
+# names" - `deps/pins.txt`, holding `PyYAML==6.0.3` - and the first version of this derivation
+# waived the control for it. That is a repository with real dependencies losing the one control
+# this standard applies to everyone, which is the exact error this whole list is arranged to
+# avoid. A file called `pins.txt`, `constraints.in` or `deps/versions.txt` is a dependency
+# declaration under a name nobody standardised, and is treated as one.
+_PINNING_WORDS = ("requirement", "constraint", "pin", "dep", "version", "lock")
+_PINNING_SUFFIXES = (".txt", ".in", ".lock", ".toml", ".yaml", ".yml", ".json")
+_PINNING_DIRS = ("deps/", "dependencies/", "requirements/", "constraints/")
+
+# Paths this framework owns. A manifest inside the installed payload is the framework's, not the
+# adopter's, and must never be read as evidence that the adopter has dependencies.
+_FRAMEWORK_OWNED = (
+    ".standards/", ".claude/", ".githooks/",
+    ".github/instructions/", ".github/skills/", ".github/workflows/standards-conformance.yml",
+)
+
+
+# The controls whose LEVEL FLOOR a repository can fail to be held to for a reason derived from
+# the repository itself. Named as a set of exactly one rather than special-cased inline: the
+# wizard uses it to decide when a missing answer is legitimate, and a missing answer for anything
+# NOT in this set must keep raising loudly rather than quietly dropping a control.
+WAIVABLE_CONTROLS: frozenset[str] = frozenset({"dependency_lock"})
+
+
+def _adopter_tracked_files(repo: Path) -> list[str] | None:
+    """The repository's own tracked files, framework-owned paths removed. `None` if git cannot say.
+
+    `None` is not an empty list and the callers must not treat it as one: "git could not answer"
+    and "there are no files" are different facts, and only the second is evidence of anything.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo), "ls-files"],
+            capture_output=True, text=True, timeout=30,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    return [
+        line for line in result.stdout.splitlines()
+        if line and not line.startswith(_FRAMEWORK_OWNED)
+    ]
+
+
+def dependency_manifest(repo: Path) -> tuple[str | None, str]:
+    """`(path, state)` for the adopter's own dependency manifest.
+
+    `state` is one of:
+
+    - `found`    - `path` names one. `dependency_lock` applies as it always has.
+    - `none`     - the repository tracks files and not one of them is a manifest. The
+                   `dependency_lock` floor is lifted, and the check says so on every run.
+    - `unknown`  - **git could not answer.** The floor is NOT lifted: an unanswered question is
+                   not a passing one, and waiving a control because a subprocess failed would be
+                   the false green this framework exists to find.
+
+    An empty list is `none`, not `unknown`, and the distinction was got wrong first time here.
+    A repository whose only tracked files are this framework's own - a fresh install, nothing
+    else committed yet - owns no manifest, and git said so successfully. Conflating that with a
+    failed subprocess made a brand-new repository unable to conform, which is `F132` again for a
+    different shape. What matters is whether the question was ANSWERED, not whether the answer
+    was interesting.
+    """
+    tracked = _adopter_tracked_files(repo)
+    if tracked is None:
+        return None, "unknown"
+    for path in tracked:
+        name = path.split("/")[-1].lower()
+        if name in DEPENDENCY_MANIFESTS or name.endswith(DEPENDENCY_MANIFEST_SUFFIXES):
+            return path, "found"
+        lower = path.lower()
+        if name.endswith(_PINNING_SUFFIXES) and (
+            any(word in name for word in _PINNING_WORDS)
+            or any(seg in lower for seg in _PINNING_DIRS)
+        ):
+            return path, "found"
+    return None, "none"

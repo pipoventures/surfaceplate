@@ -617,8 +617,15 @@ def check_profile_semantics(
     findings: list[Finding],
     today: _dt.date,
     notes: list[str],
+    waived: frozenset[str] = frozenset(),
 ) -> None:
-    """Cross-field rules that JSON Schema cannot express."""
+    """Cross-field rules that JSON Schema cannot express.
+
+    `waived` names controls whose LEVEL FLOOR does not apply to this repository, derived from the
+    repository itself rather than declared in the profile (`DR-73`). It lifts `SP021`/`SP022` only.
+    A control the adopter decides `required` anyway is still checked exactly as before - the
+    waiver removes an obligation, never a check.
+    """
     level = profile.get("conformance_level")
     if level not in CONFORMANCE_LEVELS:
         findings.append(
@@ -639,6 +646,11 @@ def check_profile_semantics(
         decisions = decisions if isinstance(decisions, dict) else {}
         for control_id in sorted(CONFORMANCE_LEVELS[level]):
             entry = decisions.get(control_id)
+            # `DR-73`: the floor does not apply where the repository cannot satisfy it for a
+            # reason this checker established for itself. Reported, never silent - a control
+            # that stops applying without saying so is indistinguishable from one nobody noticed.
+            if control_id in waived and entry is None:
+                continue
             if entry is None:
                 findings.append(
                     Finding(
@@ -646,8 +658,19 @@ def check_profile_semantics(
                         f"Conformance level '{level}' is overclaimed",
                         f"it requires control '{control_id}', which is absent from "
                         "control_decisions.",
-                        f"Either decide '{control_id}' as required, or declare a lower level. "
-                        "See core/CONFORMANCE_LEVELS.md.",
+                        (
+                            f"Decide '{control_id}' as required and name what implements it."
+                            if level == "essential"
+                            else f"Either decide '{control_id}' as required, or declare a lower "
+                            "level."
+                        )
+                        + " See core/CONFORMANCE_LEVELS.md."
+                        + (
+                            " This repository tracks a dependency manifest, so the "
+                            "DR-73 waiver does not apply to it."
+                            if control_id == "dependency_lock"
+                            else ""
+                        ),
                         graceable=True,
                     )
                 )
@@ -903,6 +926,41 @@ def report_narrowed_agents(record: dict, notes: list[str]) -> None:
         f"{', '.join(sorted(chosen))} received the instructions and skills; nothing checks that "
         "an agent on a declined channel reads them, because it was not given them."
     )
+
+
+def report_waived_controls(repo: Path, notes: list[str]) -> frozenset[str]:
+    """Controls whose level floor this repository cannot be held to, derived and reported.
+
+    `F132` / `DR-73` / `H22`. `dependency_lock` is the only control in the `essential` floor and
+    `SP051` requires it to name a real tracked file. A repository with no dependency manifest of
+    any kind has nothing to name, so it could not conform at ANY level - not a corner case but a
+    whole class: documentation repositories, policy repositories, monorepo subtrees whose
+    dependencies resolve a level up.
+
+    `H22` chose to DERIVE this rather than let it be declared, and the reason is worth keeping
+    beside the code. A declared exemption is a sentence an adopter writes; this is a fact about
+    their tree that the checker re-establishes on every run. Nothing can be misdeclared, and the
+    moment a `package.json` appears the floor returns without anyone having to remember.
+
+    THREE STATES, NOT TWO. `found` and `none` are answers; `unknown` - git could not answer, or
+    the repository tracks nothing yet - is not, and does NOT waive. Waiving a control because a
+    subprocess failed would be the false green this framework exists to find.
+    """
+    manifest, state = rules.dependency_manifest(repo)
+    if state == "none":
+        notes.append(
+            "dependency_lock: the level floor does not apply here - this repository tracks no "
+            "dependency manifest of any kind (DR-73). It is re-derived on every run, so adding "
+            "one restores the floor and the check will then require a lock file. Deciding the "
+            "control `required` anyway is still honoured and still checked."
+        )
+        return frozenset({"dependency_lock"})
+    if state == "unknown":
+        notes.append(
+            "dependency_lock: applicability could not be established - git named no tracked "
+            "files here. The floor is NOT lifted: an unanswered question is not a passing one."
+        )
+    return frozenset()
 
 
 def report_currency(record: dict, profile: dict, notes: list[str]) -> None:
@@ -3638,7 +3696,9 @@ def evaluate(repo: Path, today: _dt.date, no_grace: bool, staged: bool, currency
             profile = check_profile(repo, findings)
         if profile is not None:
             check_profile_schema(repo, profile, findings)
-            check_profile_semantics(profile, findings, today, notes)
+            check_profile_semantics(
+                profile, findings, today, notes, waived=report_waived_controls(repo, notes)
+            )
             check_secret_hygiene(repo, profile, findings)
             # Computed ONCE and shared. Calling it per consumer duplicated the advisory - two
             # exemptions produced four lines - which is noise that trains a reader to skim

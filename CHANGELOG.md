@@ -2589,3 +2589,61 @@ hold is that asking the question cannot change the answer. Run live against this
 
 `DR-72` records what this does not establish: nothing verifies that the index's answer is genuine,
 and a fork publishing elsewhere would report its own installs as behind.
+
+### A repository with no dependencies can adopt this standard (`ACT-078`, `DR-73`, closing `F132`)
+
+Found by the maintainer on the **first screen of the first walkthrough**, against a real 257-file
+documentation repository, after 45,266 matrix checks had passed.
+
+`dependency_lock` was the only control in the `essential` floor. `SP021`/`SP022` require a level's
+controls to be decided `required`, so `deferred` and `excluded` both failed; `SP051` then required a
+real, tracked, non-empty file. **A repository with no dependency manifest of any kind had nothing to
+name and could not conform at any level** — while the profile schema's own `stack` field says *"The
+kit does not require a UI, API, or specific language"*. Documentation repositories, policy
+repositories, and monorepo subtrees whose dependencies resolve a level up all share the shape.
+
+**The wizard was not the defect.** It refused to continue because it was declining to write a
+profile its own checker would reject, which is correct. The defect was upstream of it.
+
+The floor is now lifted for such a repository, **derived by the checker from the adopter's own
+tracked files and never declared in the profile**. `H22` chose derivation over a declared
+`not_applicable` on a narrow ground: whether a repository has a manifest is a fact about their tree,
+not a judgement about their risk, and a declaration that adds no information adds only ways to be
+wrong.
+
+Four properties, each of which is what stops this being a hole rather than a waiver:
+
+- **Only the floor moves, never a check.** A repository that decides `dependency_lock` required
+  anyway is checked by `SP051` exactly as before.
+- **It is re-derived on every run, and both directions are asserted.** Adding a `package.json`
+  restores the floor with no edit to any profile, and `SP021` fires naming the control.
+- **The manifest list is deliberately generous**, because the two errors are not symmetrical.
+  Believing a manifest exists where none does returns a repository to the dead end — visible to
+  whoever hits it. Believing none exists where one does silently waives the one control this
+  standard applies to everyone. `CMakeLists.txt` and `Dockerfile` are excluded on purpose: both
+  imply a supply chain and neither has a lock file an adopter could name.
+- **An unanswered question lifts nothing.** If git cannot list the files, the floor stands.
+
+Three consequences that were not obvious when the finding was raised. **`control_decisions` may now
+be empty**, since at `essential` the waived control was the whole floor — `minProperties` moves
+`1` → `0` (a relaxation; no existing profile becomes invalid, `schema_version` stays `"1.0"`) and
+the renderer writes `{}` rather than a bare key, which YAML reads as `null`. **`SP021`'s remedy told
+an `essential` adopter to "declare a lower level"** — there is not one, and this finding is exactly
+the case where that advice sent a reader nowhere. And **the shared test fixture had been in the
+finding's state all along**: every scripted answer supplied a lock-file path pointing at a file that
+did not exist, so the suite was green because the script answered a question no repository of that
+shape could answer. The fixture now seeds a manifest, and the new test removes it.
+
+**The first version of this waived a repository that had real dependencies, and the matrix caught
+it.** Its `mixed` shape is built as *"a pinned-dependency file no lock-file rule names"* —
+`deps/pins.txt` holding `PyYAML==6.0.3` — which a list of standard manifest names cannot see. The
+floor lifted for a repository that pins its dependencies and had been naming that very file as its
+implementation reference. The list now also recognises a plain file whose name says it pins things,
+or that sits in a `deps/`, `requirements/` or `constraints/` directory. The regenerated matrix report
+is fully accounted for: **82 rows changed, all of shape `bare`, each losing exactly six checks**, and
+`rich` and `mixed` untouched.
+
+`sections.build_controls` stays pure — the waiver arrives as the absence of an answer the plan did
+not ask for, not as a fresh scan — because purity is what makes `--answers` replay deterministic and
+the matrix's report comparable. The omission is gated on a named `WAIVABLE_CONTROLS` set, so a
+missing rationale for any other control still raises loudly rather than dropping it silently.

@@ -40,7 +40,7 @@ combinations at `standard` are named and not run.
 | T6 | routes: propose then replay, resume after every stage, edit per leaf class, cancel at every point, every refusal class | 41 |
 | T7 | the screens driven headlessly through a full run at every configuration, compared with the scripted run | 6 |
 
-**208 cases, 45266 checks.** Coverage self-check: no gaps.
+**208 cases, 44774 checks.** Coverage self-check: no gaps.
 
 ## Environment
 
@@ -62,18 +62,18 @@ assurance record, not here.
 
 | case | level | interface | shape | choices | expected | checks | origins recorded |
 |---|---|---|---|---|---|---|---|
-| `T2-001` | essential | no | bare | artefacts found | PASS, no findings | 93 | computed 23, discovered 1, example 5, fact of record 4, scaffolded 2, typed 10 |
+| `T2-001` | essential | no | bare | artefacts found | PASS, no findings | 87 | computed 22, discovered 1, example 4, fact of record 4, scaffolded 2, typed 9 |
 | `T2-002` | essential | no | rich | artefacts found | PASS, no findings | 91 | computed 24, discovered 5, example 5, fact of record 3, typed 8 |
 | `T2-003` | essential | no | mixed | artefacts found | PASS, no findings | 93 | computed 23, discovered 2, example 5, fact of record 4, scaffolded 2, typed 9 |
-| `T2-004` | essential | yes | bare | artefacts found | PASS, no findings | 93 | computed 23, discovered 1, example 5, fact of record 4, scaffolded 2, typed 10 |
+| `T2-004` | essential | yes | bare | artefacts found | PASS, no findings | 87 | computed 22, discovered 1, example 4, fact of record 4, scaffolded 2, typed 9 |
 | `T2-005` | essential | yes | rich | artefacts found | PASS, no findings | 91 | computed 24, discovered 5, example 5, fact of record 3, typed 8 |
 | `T2-006` | essential | yes | mixed | artefacts found | PASS, no findings | 93 | computed 23, discovered 2, example 5, fact of record 4, scaffolded 2, typed 9 |
-| `T2-007` | standard | no | bare | statuses all-required; artefacts found | PASS, no findings | 302 | computed 116, discovered 15, example 8, fact of record 13, scaffolded 11, typed 28 |
-| `T2-008` | standard | no | bare | statuses all-deferred; artefacts found | PASS, no findings | 208 | computed 67, discovered 4, example 19, fact of record 7, scaffolded 5, typed 45 |
-| `T2-009` | standard | no | bare | statuses all-not_applicable; artefacts found | PASS, no findings | 208 | computed 67, discovered 4, example 19, fact of record 7, scaffolded 5, typed 23 |
-| `T2-010` | standard | no | bare | statuses cycled; artefacts found | PASS, no findings | 241 | computed 86, discovered 8, example 15, fact of record 8, scaffolded 6, typed 34 |
-| `T2-011` | standard | no | bare | statuses bulk; artefacts found | PASS, no findings | 209 | computed 67, discovered 4, example 19, fact of record 7, scaffolded 5, typed 23 |
-| `T2-012` | standard | no | bare | statuses bulk-partial; artefacts found | PASS, no findings | 226 | computed 76, discovered 6, example 17, fact of record 8, scaffolded 6, typed 24 |
+| `T2-007` | standard | no | bare | statuses all-required; artefacts found | PASS, no findings | 296 | computed 115, discovered 15, example 7, fact of record 13, scaffolded 11, typed 27 |
+| `T2-008` | standard | no | bare | statuses all-deferred; artefacts found | PASS, no findings | 202 | computed 66, discovered 4, example 18, fact of record 7, scaffolded 5, typed 44 |
+| `T2-009` | standard | no | bare | statuses all-not_applicable; artefacts found | PASS, no findings | 202 | computed 66, discovered 4, example 18, fact of record 7, scaffolded 5, typed 22 |
+| `T2-010` | standard | no | bare | statuses cycled; artefacts found | PASS, no findings | 235 | computed 85, discovered 8, example 14, fact of record 8, scaffolded 6, typed 33 |
+| `T2-011` | standard | no | bare | statuses bulk; artefacts found | PASS, no findings | 203 | computed 66, discovered 4, example 18, fact of record 7, scaffolded 5, typed 22 |
+| `T2-012` | standard | no | bare | statuses bulk-partial; artefacts found | PASS, no findings | 220 | computed 75, discovered 6, example 16, fact of record 8, scaffolded 6, typed 23 |
 | `T2-013` | standard | no | rich | statuses all-required; artefacts found | PASS, no findings | 291 | computed 126, discovered 35, example 8, fact of record 3, typed 19 |
 | `T2-014` | standard | no | rich | statuses all-deferred; artefacts found | PASS, no findings | 203 | computed 71, discovered 13, example 19, fact of record 3, typed 41 |
 | `T2-015` | standard | no | rich | statuses all-not_applicable; artefacts found | PASS, no findings | 203 | computed 71, discovered 13, example 19, fact of record 3, typed 19 |
@@ -86,12 +86,12 @@ assurance record, not here.
 | `T2-022` | standard | no | mixed | statuses cycled; artefacts found | PASS, no findings | 240 | computed 87, discovered 12, example 15, fact of record 7, scaffolded 5, typed 31 |
 | `T2-023` | standard | no | mixed | statuses bulk; artefacts found | PASS, no findings | 208 | computed 68, discovered 8, example 19, fact of record 6, scaffolded 4, typed 20 |
 | `T2-024` | standard | no | mixed | statuses bulk-partial; artefacts found | PASS, no findings | 225 | computed 77, discovered 10, example 17, fact of record 7, scaffolded 5, typed 21 |
-| `T2-025` | standard | yes | bare | statuses all-required; artefacts found | PASS, no findings | 335 | computed 131, discovered 19, example 8, fact of record 14, scaffolded 12, typed 31 |
-| `T2-026` | standard | yes | bare | statuses all-deferred; artefacts found | PASS, no findings | 241 | computed 82, discovered 8, example 19, fact of record 8, scaffolded 6, typed 48 |
-| `T2-027` | standard | yes | bare | statuses all-not_applicable; artefacts found | PASS, no findings | 241 | computed 82, discovered 8, example 19, fact of record 8, scaffolded 6, typed 26 |
-| `T2-028` | standard | yes | bare | statuses cycled; artefacts found | PASS, no findings | 274 | computed 101, discovered 12, example 15, fact of record 9, scaffolded 7, typed 37 |
-| `T2-029` | standard | yes | bare | statuses bulk; artefacts found | PASS, no findings | 242 | computed 82, discovered 8, example 19, fact of record 8, scaffolded 6, typed 26 |
-| `T2-030` | standard | yes | bare | statuses bulk-partial; artefacts found | PASS, no findings | 259 | computed 91, discovered 10, example 17, fact of record 9, scaffolded 7, typed 27 |
+| `T2-025` | standard | yes | bare | statuses all-required; artefacts found | PASS, no findings | 329 | computed 130, discovered 19, example 7, fact of record 14, scaffolded 12, typed 30 |
+| `T2-026` | standard | yes | bare | statuses all-deferred; artefacts found | PASS, no findings | 235 | computed 81, discovered 8, example 18, fact of record 8, scaffolded 6, typed 47 |
+| `T2-027` | standard | yes | bare | statuses all-not_applicable; artefacts found | PASS, no findings | 235 | computed 81, discovered 8, example 18, fact of record 8, scaffolded 6, typed 25 |
+| `T2-028` | standard | yes | bare | statuses cycled; artefacts found | PASS, no findings | 268 | computed 100, discovered 12, example 14, fact of record 9, scaffolded 7, typed 36 |
+| `T2-029` | standard | yes | bare | statuses bulk; artefacts found | PASS, no findings | 236 | computed 81, discovered 8, example 18, fact of record 8, scaffolded 6, typed 25 |
+| `T2-030` | standard | yes | bare | statuses bulk-partial; artefacts found | PASS, no findings | 253 | computed 90, discovered 10, example 16, fact of record 9, scaffolded 7, typed 26 |
 | `T2-031` | standard | yes | rich | statuses all-required; artefacts found | PASS, no findings | 323 | computed 142, discovered 43, example 8, fact of record 3, typed 19 |
 | `T2-032` | standard | yes | rich | statuses all-deferred; artefacts found | PASS, no findings | 235 | computed 87, discovered 21, example 19, fact of record 3, typed 41 |
 | `T2-033` | standard | yes | rich | statuses all-not_applicable; artefacts found | PASS, no findings | 235 | computed 87, discovered 21, example 19, fact of record 3, typed 19 |
@@ -104,12 +104,12 @@ assurance record, not here.
 | `T2-040` | standard | yes | mixed | statuses cycled; artefacts found | PASS, no findings | 273 | computed 102, discovered 16, example 15, fact of record 8, scaffolded 6, typed 34 |
 | `T2-041` | standard | yes | mixed | statuses bulk; artefacts found | PASS, no findings | 241 | computed 83, discovered 12, example 19, fact of record 7, scaffolded 5, typed 23 |
 | `T2-042` | standard | yes | mixed | statuses bulk-partial; artefacts found | PASS, no findings | 258 | computed 92, discovered 14, example 17, fact of record 8, scaffolded 6, typed 24 |
-| `T2-043` | full | no | bare | statuses all-required; artefacts found | PASS, no findings | 336 | computed 128, discovered 15, example 13, fact of record 13, scaffolded 16, typed 21 |
-| `T2-044` | full | no | bare | statuses all-deferred; artefacts found | PASS, no findings | 302 | computed 110, discovered 11, example 17, fact of record 11, scaffolded 14, typed 27 |
-| `T2-045` | full | no | bare | statuses all-not_applicable; artefacts found | PASS, no findings | 302 | computed 110, discovered 11, example 17, fact of record 11, scaffolded 14, typed 19 |
-| `T2-046` | full | no | bare | statuses cycled; artefacts found | PASS, no findings | 319 | computed 119, discovered 13, example 15, fact of record 12, scaffolded 15, typed 22 |
-| `T2-047` | full | no | bare | statuses bulk; artefacts found | PASS, no findings | 303 | computed 110, discovered 11, example 17, fact of record 11, scaffolded 14, typed 19 |
-| `T2-048` | full | no | bare | statuses bulk-partial; artefacts found | PASS, no findings | 320 | computed 119, discovered 13, example 15, fact of record 12, scaffolded 15, typed 20 |
+| `T2-043` | full | no | bare | statuses all-required; artefacts found | PASS, no findings | 330 | computed 127, discovered 15, example 12, fact of record 13, scaffolded 16, typed 20 |
+| `T2-044` | full | no | bare | statuses all-deferred; artefacts found | PASS, no findings | 296 | computed 109, discovered 11, example 16, fact of record 11, scaffolded 14, typed 26 |
+| `T2-045` | full | no | bare | statuses all-not_applicable; artefacts found | PASS, no findings | 296 | computed 109, discovered 11, example 16, fact of record 11, scaffolded 14, typed 18 |
+| `T2-046` | full | no | bare | statuses cycled; artefacts found | PASS, no findings | 313 | computed 118, discovered 13, example 14, fact of record 12, scaffolded 15, typed 21 |
+| `T2-047` | full | no | bare | statuses bulk; artefacts found | PASS, no findings | 297 | computed 109, discovered 11, example 16, fact of record 11, scaffolded 14, typed 18 |
+| `T2-048` | full | no | bare | statuses bulk-partial; artefacts found | PASS, no findings | 314 | computed 118, discovered 13, example 14, fact of record 12, scaffolded 15, typed 19 |
 | `T2-049` | full | no | rich | statuses all-required; artefacts found | PASS, no findings | 321 | computed 138, discovered 40, example 13, fact of record 3, typed 12 |
 | `T2-050` | full | no | rich | statuses all-deferred; artefacts found | PASS, no findings | 289 | computed 118, discovered 32, example 17, fact of record 3, typed 20 |
 | `T2-051` | full | no | rich | statuses all-not_applicable; artefacts found | PASS, no findings | 289 | computed 118, discovered 32, example 17, fact of record 3, typed 12 |
@@ -122,12 +122,12 @@ assurance record, not here.
 | `T2-058` | full | no | mixed | statuses cycled; artefacts found | PASS, no findings | 318 | computed 120, discovered 17, example 15, fact of record 11, scaffolded 14, typed 19 |
 | `T2-059` | full | no | mixed | statuses bulk; artefacts found | PASS, no findings | 302 | computed 111, discovered 15, example 17, fact of record 10, scaffolded 13, typed 16 |
 | `T2-060` | full | no | mixed | statuses bulk-partial; artefacts found | PASS, no findings | 319 | computed 120, discovered 17, example 15, fact of record 11, scaffolded 14, typed 17 |
-| `T2-061` | full | yes | bare | statuses all-required; artefacts found | PASS, no findings | 369 | computed 143, discovered 19, example 13, fact of record 14, scaffolded 17, typed 24 |
-| `T2-062` | full | yes | bare | statuses all-deferred; artefacts found | PASS, no findings | 335 | computed 125, discovered 15, example 17, fact of record 12, scaffolded 15, typed 30 |
-| `T2-063` | full | yes | bare | statuses all-not_applicable; artefacts found | PASS, no findings | 335 | computed 125, discovered 15, example 17, fact of record 12, scaffolded 15, typed 22 |
-| `T2-064` | full | yes | bare | statuses cycled; artefacts found | PASS, no findings | 352 | computed 134, discovered 17, example 15, fact of record 13, scaffolded 16, typed 25 |
-| `T2-065` | full | yes | bare | statuses bulk; artefacts found | PASS, no findings | 336 | computed 125, discovered 15, example 17, fact of record 12, scaffolded 15, typed 22 |
-| `T2-066` | full | yes | bare | statuses bulk-partial; artefacts found | PASS, no findings | 353 | computed 134, discovered 17, example 15, fact of record 13, scaffolded 16, typed 23 |
+| `T2-061` | full | yes | bare | statuses all-required; artefacts found | PASS, no findings | 363 | computed 142, discovered 19, example 12, fact of record 14, scaffolded 17, typed 23 |
+| `T2-062` | full | yes | bare | statuses all-deferred; artefacts found | PASS, no findings | 329 | computed 124, discovered 15, example 16, fact of record 12, scaffolded 15, typed 29 |
+| `T2-063` | full | yes | bare | statuses all-not_applicable; artefacts found | PASS, no findings | 329 | computed 124, discovered 15, example 16, fact of record 12, scaffolded 15, typed 21 |
+| `T2-064` | full | yes | bare | statuses cycled; artefacts found | PASS, no findings | 346 | computed 133, discovered 17, example 14, fact of record 13, scaffolded 16, typed 24 |
+| `T2-065` | full | yes | bare | statuses bulk; artefacts found | PASS, no findings | 330 | computed 124, discovered 15, example 16, fact of record 12, scaffolded 15, typed 21 |
+| `T2-066` | full | yes | bare | statuses bulk-partial; artefacts found | PASS, no findings | 347 | computed 133, discovered 17, example 14, fact of record 13, scaffolded 16, typed 22 |
 | `T2-067` | full | yes | rich | statuses all-required; artefacts found | PASS, no findings | 353 | computed 154, discovered 48, example 13, fact of record 3, typed 12 |
 | `T2-068` | full | yes | rich | statuses all-deferred; artefacts found | PASS, no findings | 321 | computed 134, discovered 40, example 17, fact of record 3, typed 20 |
 | `T2-069` | full | yes | rich | statuses all-not_applicable; artefacts found | PASS, no findings | 321 | computed 134, discovered 40, example 17, fact of record 3, typed 12 |
@@ -140,38 +140,38 @@ assurance record, not here.
 | `T2-076` | full | yes | mixed | statuses cycled; artefacts found | PASS, no findings | 351 | computed 135, discovered 21, example 15, fact of record 12, scaffolded 15, typed 22 |
 | `T2-077` | full | yes | mixed | statuses bulk; artefacts found | PASS, no findings | 335 | computed 126, discovered 19, example 17, fact of record 11, scaffolded 14, typed 19 |
 | `T2-078` | full | yes | mixed | statuses bulk-partial; artefacts found | PASS, no findings | 352 | computed 135, discovered 21, example 15, fact of record 12, scaffolded 15, typed 20 |
-| `T3-079` | essential | no | bare | artefacts seed | PASS, no findings | 93 | computed 23, discovered 1, example 5, fact of record 4, scaffolded 2, typed 10 |
-| `T3-080` | essential | no | bare | artefacts typed | PASS, no findings | 92 | computed 24, example 5, fact of record 3, scaffolded 1, typed 12 |
+| `T3-079` | essential | no | bare | artefacts seed | PASS, no findings | 87 | computed 22, discovered 1, example 4, fact of record 4, scaffolded 2, typed 9 |
+| `T3-080` | essential | no | bare | artefacts typed | PASS, no findings | 86 | computed 23, example 4, fact of record 3, scaffolded 1, typed 11 |
 | `T3-081` | essential | no | rich | artefacts seed | PASS, no findings | 91 | computed 24, discovered 5, example 5, fact of record 3, typed 8 |
 | `T3-082` | essential | no | rich | artefacts typed | PASS, no findings | 91 | computed 24, discovered 3, example 5, fact of record 3, typed 10 |
 | `T3-083` | essential | no | mixed | artefacts seed | PASS, no findings | 93 | computed 23, discovered 2, example 5, fact of record 4, scaffolded 2, typed 9 |
 | `T3-084` | essential | no | mixed | artefacts typed | PASS, no findings | 92 | computed 24, discovered 1, example 5, fact of record 3, scaffolded 1, typed 11 |
-| `T3-085` | essential | yes | bare | artefacts seed | PASS, no findings | 93 | computed 23, discovered 1, example 5, fact of record 4, scaffolded 2, typed 10 |
-| `T3-086` | essential | yes | bare | artefacts typed | PASS, no findings | 92 | computed 24, example 5, fact of record 3, scaffolded 1, typed 12 |
+| `T3-085` | essential | yes | bare | artefacts seed | PASS, no findings | 87 | computed 22, discovered 1, example 4, fact of record 4, scaffolded 2, typed 9 |
+| `T3-086` | essential | yes | bare | artefacts typed | PASS, no findings | 86 | computed 23, example 4, fact of record 3, scaffolded 1, typed 11 |
 | `T3-087` | essential | yes | rich | artefacts seed | PASS, no findings | 91 | computed 24, discovered 5, example 5, fact of record 3, typed 8 |
 | `T3-088` | essential | yes | rich | artefacts typed | PASS, no findings | 91 | computed 24, discovered 3, example 5, fact of record 3, typed 10 |
 | `T3-089` | essential | yes | mixed | artefacts seed | PASS, no findings | 93 | computed 23, discovered 2, example 5, fact of record 4, scaffolded 2, typed 9 |
 | `T3-090` | essential | yes | mixed | artefacts typed | PASS, no findings | 92 | computed 24, discovered 1, example 5, fact of record 3, scaffolded 1, typed 11 |
-| `T3-091` | standard | no | bare | statuses all-required; artefacts seed | PASS, no findings | 302 | computed 116, discovered 15, example 8, fact of record 13, scaffolded 11, typed 28 |
-| `T3-092` | standard | no | bare | statuses all-required; artefacts typed | PASS, no findings | 292 | computed 122, example 8, fact of record 3, scaffolded 1, typed 57 |
+| `T3-091` | standard | no | bare | statuses all-required; artefacts seed | PASS, no findings | 296 | computed 115, discovered 15, example 7, fact of record 13, scaffolded 11, typed 27 |
+| `T3-092` | standard | no | bare | statuses all-required; artefacts typed | PASS, no findings | 286 | computed 121, example 7, fact of record 3, scaffolded 1, typed 56 |
 | `T3-093` | standard | no | rich | statuses all-required; artefacts seed | PASS, no findings | 292 | computed 125, discovered 34, example 8, fact of record 4, scaffolded 1, typed 19 |
 | `T3-094` | standard | no | rich | statuses all-required; artefacts typed | PASS, no findings | 291 | computed 122, discovered 5, example 8, fact of record 3, typed 53 |
 | `T3-095` | standard | no | mixed | statuses all-required; artefacts seed | PASS, no findings | 301 | computed 117, discovered 19, example 8, fact of record 12, scaffolded 10, typed 25 |
 | `T3-096` | standard | no | mixed | statuses all-required; artefacts typed | PASS, no findings | 292 | computed 122, discovered 3, example 8, fact of record 3, scaffolded 1, typed 54 |
-| `T3-097` | standard | yes | bare | statuses all-required; artefacts seed | PASS, no findings | 335 | computed 131, discovered 19, example 8, fact of record 14, scaffolded 12, typed 31 |
-| `T3-098` | standard | yes | bare | statuses all-required; artefacts typed | PASS, no findings | 324 | computed 142, example 8, fact of record 3, scaffolded 1, typed 61 |
+| `T3-097` | standard | yes | bare | statuses all-required; artefacts seed | PASS, no findings | 329 | computed 130, discovered 19, example 7, fact of record 14, scaffolded 12, typed 30 |
+| `T3-098` | standard | yes | bare | statuses all-required; artefacts typed | PASS, no findings | 318 | computed 141, example 7, fact of record 3, scaffolded 1, typed 60 |
 | `T3-099` | standard | yes | rich | statuses all-required; artefacts seed | PASS, no findings | 324 | computed 141, discovered 42, example 8, fact of record 4, scaffolded 1, typed 19 |
 | `T3-100` | standard | yes | rich | statuses all-required; artefacts typed | PASS, no findings | 323 | computed 142, discovered 5, example 8, fact of record 3, typed 57 |
 | `T3-101` | standard | yes | mixed | statuses all-required; artefacts seed | PASS, no findings | 334 | computed 132, discovered 23, example 8, fact of record 13, scaffolded 11, typed 28 |
 | `T3-102` | standard | yes | mixed | statuses all-required; artefacts typed | PASS, no findings | 324 | computed 142, discovered 3, example 8, fact of record 3, scaffolded 1, typed 58 |
-| `T3-103` | full | no | bare | statuses all-required; artefacts seed | PASS, no findings | 336 | computed 128, discovered 15, example 13, fact of record 13, scaffolded 16, typed 21 |
-| `T3-104` | full | no | bare | statuses all-required; artefacts typed | PASS, no findings | 325 | computed 134, example 13, fact of record 3, scaffolded 5, typed 51 |
+| `T3-103` | full | no | bare | statuses all-required; artefacts seed | PASS, no findings | 330 | computed 127, discovered 15, example 12, fact of record 13, scaffolded 16, typed 20 |
+| `T3-104` | full | no | bare | statuses all-required; artefacts typed | PASS, no findings | 319 | computed 133, example 12, fact of record 3, scaffolded 5, typed 50 |
 | `T3-105` | full | no | rich | statuses all-required; artefacts seed | PASS, no findings | 322 | computed 137, discovered 39, example 13, fact of record 4, scaffolded 1, typed 12 |
 | `T3-106` | full | no | rich | statuses all-required; artefacts typed | PASS, no findings | 321 | computed 134, discovered 10, example 13, fact of record 3, typed 46 |
 | `T3-107` | full | no | mixed | statuses all-required; artefacts seed | PASS, no findings | 335 | computed 129, discovered 19, example 13, fact of record 12, scaffolded 15, typed 18 |
 | `T3-108` | full | no | mixed | statuses all-required; artefacts typed | PASS, no findings | 325 | computed 134, discovered 3, example 13, fact of record 3, scaffolded 5, typed 48 |
-| `T3-109` | full | yes | bare | statuses all-required; artefacts seed | PASS, no findings | 369 | computed 143, discovered 19, example 13, fact of record 14, scaffolded 17, typed 24 |
-| `T3-110` | full | yes | bare | statuses all-required; artefacts typed | PASS, no findings | 357 | computed 154, example 13, fact of record 3, scaffolded 5, typed 55 |
+| `T3-109` | full | yes | bare | statuses all-required; artefacts seed | PASS, no findings | 363 | computed 142, discovered 19, example 12, fact of record 14, scaffolded 17, typed 23 |
+| `T3-110` | full | yes | bare | statuses all-required; artefacts typed | PASS, no findings | 351 | computed 153, example 12, fact of record 3, scaffolded 5, typed 54 |
 | `T3-111` | full | yes | rich | statuses all-required; artefacts seed | PASS, no findings | 354 | computed 153, discovered 47, example 13, fact of record 4, scaffolded 1, typed 12 |
 | `T3-112` | full | yes | rich | statuses all-required; artefacts typed | PASS, no findings | 353 | computed 154, discovered 10, example 13, fact of record 3, typed 50 |
 | `T3-113` | full | yes | mixed | statuses all-required; artefacts seed | PASS, no findings | 368 | computed 144, discovered 23, example 13, fact of record 13, scaffolded 16, typed 21 |
@@ -184,52 +184,52 @@ assurance record, not here.
 | `T4-120` | essential | no | rich | artefacts found; above floor: overrides | PASS, no findings | 97 | computed 25, discovered 6, example 6, fact of record 3, typed 8 |
 | `T4-121` | essential | no | rich | artefacts found; above floor: provenance | PASS, no findings | 97 | computed 25, discovered 6, example 6, fact of record 3, typed 8 |
 | `T4-122` | essential | no | rich | artefacts found; above floor: run_lineage | PASS, no findings | 97 | computed 25, discovered 6, example 6, fact of record 3, typed 8 |
-| `T4-123` | essential | no | bare | artefacts found; above floor: all | PASS, no findings | 139 | computed 30, discovered 1, example 12, fact of record 4, scaffolded 7, typed 12 |
-| `T4-124` | essential | no | bare | artefacts found; above floor: assurance_findings | PASS, no findings | 100 | computed 24, discovered 1, example 6, fact of record 4, scaffolded 3, typed 10 |
-| `T4-125` | essential | no | bare | artefacts found; above floor: contract_tests | PASS, no findings | 99 | computed 24, discovered 1, example 6, fact of record 4, scaffolded 2, typed 11 |
-| `T4-126` | essential | no | bare | artefacts found; above floor: deterministic_tests | PASS, no findings | 99 | computed 24, discovered 1, example 6, fact of record 4, scaffolded 2, typed 11 |
-| `T4-127` | essential | no | bare | artefacts found; above floor: method_registry | PASS, no findings | 100 | computed 24, discovered 1, example 6, fact of record 4, scaffolded 3, typed 10 |
-| `T4-128` | essential | no | bare | artefacts found; above floor: overrides | PASS, no findings | 100 | computed 24, discovered 1, example 6, fact of record 4, scaffolded 3, typed 10 |
-| `T4-129` | essential | no | bare | artefacts found; above floor: provenance | PASS, no findings | 100 | computed 24, discovered 1, example 6, fact of record 4, scaffolded 3, typed 10 |
-| `T4-130` | essential | no | bare | artefacts found; above floor: run_lineage | PASS, no findings | 100 | computed 24, discovered 1, example 6, fact of record 4, scaffolded 3, typed 10 |
+| `T4-123` | essential | no | bare | artefacts found; above floor: all | PASS, no findings | 133 | computed 29, discovered 1, example 11, fact of record 4, scaffolded 7, typed 11 |
+| `T4-124` | essential | no | bare | artefacts found; above floor: assurance_findings | PASS, no findings | 94 | computed 23, discovered 1, example 5, fact of record 4, scaffolded 3, typed 9 |
+| `T4-125` | essential | no | bare | artefacts found; above floor: contract_tests | PASS, no findings | 93 | computed 23, discovered 1, example 5, fact of record 4, scaffolded 2, typed 10 |
+| `T4-126` | essential | no | bare | artefacts found; above floor: deterministic_tests | PASS, no findings | 93 | computed 23, discovered 1, example 5, fact of record 4, scaffolded 2, typed 10 |
+| `T4-127` | essential | no | bare | artefacts found; above floor: method_registry | PASS, no findings | 94 | computed 23, discovered 1, example 5, fact of record 4, scaffolded 3, typed 9 |
+| `T4-128` | essential | no | bare | artefacts found; above floor: overrides | PASS, no findings | 94 | computed 23, discovered 1, example 5, fact of record 4, scaffolded 3, typed 9 |
+| `T4-129` | essential | no | bare | artefacts found; above floor: provenance | PASS, no findings | 94 | computed 23, discovered 1, example 5, fact of record 4, scaffolded 3, typed 9 |
+| `T4-130` | essential | no | bare | artefacts found; above floor: run_lineage | PASS, no findings | 94 | computed 23, discovered 1, example 5, fact of record 4, scaffolded 3, typed 9 |
 | `T4-131` | standard | no | rich | statuses all-required; artefacts found; above floor: all | PASS, no findings | 321 | computed 131, discovered 40, example 13, fact of record 3, typed 19 |
 | `T4-132` | standard | no | rich | statuses all-required; artefacts found; above floor: assurance_findings | PASS, no findings | 297 | computed 127, discovered 36, example 9, fact of record 3, typed 19 |
 | `T4-133` | standard | no | rich | statuses all-required; artefacts found; above floor: method_registry | PASS, no findings | 297 | computed 127, discovered 36, example 9, fact of record 3, typed 19 |
 | `T4-134` | standard | no | rich | statuses all-required; artefacts found; above floor: overrides | PASS, no findings | 297 | computed 127, discovered 36, example 9, fact of record 3, typed 19 |
 | `T4-135` | standard | no | rich | statuses all-required; artefacts found; above floor: provenance | PASS, no findings | 297 | computed 127, discovered 36, example 9, fact of record 3, typed 19 |
 | `T4-136` | standard | no | rich | statuses all-required; artefacts found; above floor: run_lineage | PASS, no findings | 297 | computed 127, discovered 36, example 9, fact of record 3, typed 19 |
-| `T4-137` | standard | no | bare | statuses all-required; artefacts found; above floor: all | PASS, no findings | 336 | computed 121, discovered 15, example 13, fact of record 13, scaffolded 16, typed 28 |
-| `T4-138` | standard | no | bare | statuses all-required; artefacts found; above floor: assurance_findings | PASS, no findings | 309 | computed 117, discovered 15, example 9, fact of record 13, scaffolded 12, typed 28 |
-| `T4-139` | standard | no | bare | statuses all-required; artefacts found; above floor: method_registry | PASS, no findings | 309 | computed 117, discovered 15, example 9, fact of record 13, scaffolded 12, typed 28 |
-| `T4-140` | standard | no | bare | statuses all-required; artefacts found; above floor: overrides | PASS, no findings | 309 | computed 117, discovered 15, example 9, fact of record 13, scaffolded 12, typed 28 |
-| `T4-141` | standard | no | bare | statuses all-required; artefacts found; above floor: provenance | PASS, no findings | 309 | computed 117, discovered 15, example 9, fact of record 13, scaffolded 12, typed 28 |
-| `T4-142` | standard | no | bare | statuses all-required; artefacts found; above floor: run_lineage | PASS, no findings | 309 | computed 117, discovered 15, example 9, fact of record 13, scaffolded 12, typed 28 |
-| `T5-143` | essential | no | bare | artefacts found; classification:public | PASS, no findings | 93 | computed 23, discovered 1, example 5, fact of record 4, scaffolded 2, typed 10 |
-| `T5-144` | essential | no | bare | artefacts found; classification:confidential | PASS, no findings | 93 | computed 23, discovered 1, example 5, fact of record 4, scaffolded 2, typed 10 |
-| `T5-145` | essential | no | bare | artefacts found; classification:restricted | PASS, no findings | 93 | computed 23, discovered 1, example 5, fact of record 4, scaffolded 2, typed 10 |
-| `T5-146` | essential | no | bare | artefacts found; risk:yes-no | PASS, no findings | 93 | computed 23, discovered 1, example 5, fact of record 4, scaffolded 2, typed 10 |
-| `T5-147` | essential | no | bare | artefacts found; risk:no-yes | PASS, no findings | 93 | computed 23, discovered 1, example 5, fact of record 4, scaffolded 2, typed 10 |
-| `T5-148` | essential | no | bare | artefacts found; risk:yes-yes | PASS, no findings | 93 | computed 23, discovered 1, example 5, fact of record 4, scaffolded 2, typed 10 |
-| `T5-149` | essential | no | bare | artefacts found; risk_profile:typed | PASS, no findings | 93 | computed 22, discovered 1, example 5, fact of record 4, scaffolded 2, typed 11 |
+| `T4-137` | standard | no | bare | statuses all-required; artefacts found; above floor: all | PASS, no findings | 330 | computed 120, discovered 15, example 12, fact of record 13, scaffolded 16, typed 27 |
+| `T4-138` | standard | no | bare | statuses all-required; artefacts found; above floor: assurance_findings | PASS, no findings | 303 | computed 116, discovered 15, example 8, fact of record 13, scaffolded 12, typed 27 |
+| `T4-139` | standard | no | bare | statuses all-required; artefacts found; above floor: method_registry | PASS, no findings | 303 | computed 116, discovered 15, example 8, fact of record 13, scaffolded 12, typed 27 |
+| `T4-140` | standard | no | bare | statuses all-required; artefacts found; above floor: overrides | PASS, no findings | 303 | computed 116, discovered 15, example 8, fact of record 13, scaffolded 12, typed 27 |
+| `T4-141` | standard | no | bare | statuses all-required; artefacts found; above floor: provenance | PASS, no findings | 303 | computed 116, discovered 15, example 8, fact of record 13, scaffolded 12, typed 27 |
+| `T4-142` | standard | no | bare | statuses all-required; artefacts found; above floor: run_lineage | PASS, no findings | 303 | computed 116, discovered 15, example 8, fact of record 13, scaffolded 12, typed 27 |
+| `T5-143` | essential | no | bare | artefacts found; classification:public | PASS, no findings | 87 | computed 22, discovered 1, example 4, fact of record 4, scaffolded 2, typed 9 |
+| `T5-144` | essential | no | bare | artefacts found; classification:confidential | PASS, no findings | 87 | computed 22, discovered 1, example 4, fact of record 4, scaffolded 2, typed 9 |
+| `T5-145` | essential | no | bare | artefacts found; classification:restricted | PASS, no findings | 87 | computed 22, discovered 1, example 4, fact of record 4, scaffolded 2, typed 9 |
+| `T5-146` | essential | no | bare | artefacts found; risk:yes-no | PASS, no findings | 87 | computed 22, discovered 1, example 4, fact of record 4, scaffolded 2, typed 9 |
+| `T5-147` | essential | no | bare | artefacts found; risk:no-yes | PASS, no findings | 87 | computed 22, discovered 1, example 4, fact of record 4, scaffolded 2, typed 9 |
+| `T5-148` | essential | no | bare | artefacts found; risk:yes-yes | PASS, no findings | 87 | computed 22, discovered 1, example 4, fact of record 4, scaffolded 2, typed 9 |
+| `T5-149` | essential | no | bare | artefacts found; risk_profile:typed | PASS, no findings | 87 | computed 21, discovered 1, example 4, fact of record 4, scaffolded 2, typed 10 |
 | `T5-150` | essential | no | bare | artefacts found; advanced | PASS, no findings | 1 | — |
-| `T5-151` | essential | no | bare | artefacts found; nonslug | PASS, no findings | 93 | computed 22, discovered 1, example 5, fact of record 4, scaffolded 2, typed 11 |
-| `T5-152` | essential | no | bare | artefacts found; display_name | PASS, no findings | 93 | computed 22, discovered 1, example 5, fact of record 4, scaffolded 2, typed 11 |
+| `T5-151` | essential | no | bare | artefacts found; nonslug | PASS, no findings | 87 | computed 21, discovered 1, example 4, fact of record 4, scaffolded 2, typed 10 |
+| `T5-152` | essential | no | bare | artefacts found; display_name | PASS, no findings | 87 | computed 21, discovered 1, example 4, fact of record 4, scaffolded 2, typed 10 |
 | `T5-153` | standard | no | bare | statuses all-required; artefacts found; seed-declined | refused at the review: “cannot be blank” | 2 | — |
-| `T5-154` | standard | no | bare | statuses all-required; artefacts found; decision-log-and-record | PASS, no findings | 302 | computed 116, discovered 15, example 8, fact of record 13, scaffolded 11, typed 28 |
+| `T5-154` | standard | no | bare | statuses all-required; artefacts found; decision-log-and-record | PASS, no findings | 296 | computed 115, discovered 15, example 7, fact of record 13, scaffolded 11, typed 27 |
 | `T5-155` | standard | no | mixed | statuses all-required; artefacts found; archived-chosen | PASS, no findings | 300 | computed 118, discovered 19, example 8, fact of record 11, scaffolded 9, typed 26 |
 | `T5-156` | standard | no | mixed | statuses all-required; artefacts found; rejected-chosen | refused at the review: “placeholder” | 2 | — |
 | `T5-157` | standard | no | mixed | statuses all-required; artefacts found; above floor: overrides; unfit-register-chosen | findings SP056 | 307 | computed 118, discovered 19, example 9, fact of record 12, scaffolded 10, typed 26 |
-| `T5-158` | standard | no | bare | statuses all-required; artefacts found; effective-from-before-history | findings SP035 | 292 | computed 111, example 8, fact of record 3, scaffolded 1, typed 68 |
+| `T5-158` | standard | no | bare | statuses all-required; artefacts found; effective-from-before-history | findings SP035 | 286 | computed 110, example 7, fact of record 3, scaffolded 1, typed 67 |
 | `T5-159` | standard | no | bare | statuses all-deferred; artefacts found; revisit-by-past | refused at the review: “in the past” | 2 | — |
 | `T5-160` | standard | no | bare | statuses all-required; artefacts found; effective-from-future | refused at the review: “in the future” | 2 | — |
-| `T5-161` | essential | no | bare | artefacts found; seed-parent-is-a-file | findings SP032 | 92 | computed 23, discovered 1, example 5, fact of record 4, scaffolded 2, typed 10 |
-| `T6-162` | essential | no | bare | propose-replay | PASS, no findings | 97 | computed 23, discovered 1, example 5, fact of record 4, scaffolded 2, typed 10 |
+| `T5-161` | essential | no | bare | artefacts found; seed-parent-is-a-file | findings SP032 | 86 | computed 22, discovered 1, example 4, fact of record 4, scaffolded 2, typed 9 |
+| `T6-162` | essential | no | bare | propose-replay | PASS, no findings | 91 | computed 22, discovered 1, example 4, fact of record 4, scaffolded 2, typed 9 |
 | `T6-163` | essential | no | rich | propose-replay | PASS, no findings | 95 | computed 24, discovered 5, example 5, fact of record 3, typed 8 |
 | `T6-164` | essential | no | mixed | propose-replay | PASS, no findings | 97 | computed 23, discovered 2, example 5, fact of record 4, scaffolded 2, typed 9 |
-| `T6-165` | standard | no | bare | propose-replay | PASS, no findings | 306 | computed 116, discovered 15, example 8, fact of record 13, scaffolded 11, typed 28 |
+| `T6-165` | standard | no | bare | propose-replay | PASS, no findings | 300 | computed 115, discovered 15, example 7, fact of record 13, scaffolded 11, typed 27 |
 | `T6-166` | standard | no | rich | propose-replay | PASS, no findings | 295 | computed 126, discovered 35, example 8, fact of record 3, typed 19 |
 | `T6-167` | standard | no | mixed | propose-replay | PASS, no findings | 305 | computed 117, discovered 19, example 8, fact of record 12, scaffolded 10, typed 25 |
-| `T6-168` | full | no | bare | propose-replay | PASS, no findings | 340 | computed 128, discovered 15, example 13, fact of record 13, scaffolded 16, typed 21 |
+| `T6-168` | full | no | bare | propose-replay | PASS, no findings | 334 | computed 127, discovered 15, example 12, fact of record 13, scaffolded 16, typed 20 |
 | `T6-169` | full | no | rich | propose-replay | PASS, no findings | 325 | computed 138, discovered 40, example 13, fact of record 3, typed 12 |
 | `T6-170` | full | no | mixed | propose-replay | PASS, no findings | 339 | computed 129, discovered 19, example 13, fact of record 12, scaffolded 15, typed 18 |
 | `T6-171` | standard | no | rich | propose-no-level | refused or cancelled, nothing written | 2 | — |
@@ -239,21 +239,21 @@ assurance record, not here.
 | `T6-175` | standard | yes | rich | propose-ui-refused | PASS, no findings | 2 | — |
 | `T6-176` | full | yes | bare | propose-ui-refused | PASS, no findings | 3 | — |
 | `T6-177` | full | yes | rich | propose-ui-refused | PASS, no findings | 2 | — |
-| `T6-178` | essential | no | bare | resume (level) | PASS, no findings | 99 | computed 23, discovered 1, example 5, fact of record 4, scaffolded 2, typed 10 |
-| `T6-179` | essential | no | bare | resume (gates) | PASS, no findings | 99 | computed 23, discovered 1, example 5, fact of record 4, scaffolded 2, typed 10 |
-| `T6-180` | essential | no | bare | resume (remainder) | PASS, no findings | 99 | computed 23, discovered 1, example 5, fact of record 4, scaffolded 2, typed 10 |
-| `T6-181` | essential | no | bare | resume (scaffold) | PASS, no findings | 99 | computed 23, discovered 1, example 5, fact of record 4, scaffolded 2, typed 10 |
-| `T6-182` | essential | no | bare | resume (review) | PASS, no findings | 99 | computed 23, discovered 1, example 5, fact of record 4, scaffolded 2, typed 10 |
-| `T6-183` | standard | no | bare | resume (level) | PASS, no findings | 308 | computed 116, discovered 15, example 8, fact of record 13, scaffolded 11, typed 28 |
-| `T6-184` | standard | no | bare | resume (gates) | PASS, no findings | 308 | computed 116, discovered 15, example 8, fact of record 13, scaffolded 11, typed 28 |
-| `T6-185` | standard | no | bare | resume (remainder) | PASS, no findings | 308 | computed 116, discovered 15, example 8, fact of record 13, scaffolded 11, typed 28 |
-| `T6-186` | standard | no | bare | resume (scaffold) | PASS, no findings | 308 | computed 116, discovered 15, example 8, fact of record 13, scaffolded 11, typed 28 |
-| `T6-187` | standard | no | bare | resume (review) | PASS, no findings | 308 | computed 116, discovered 15, example 8, fact of record 13, scaffolded 11, typed 28 |
-| `T6-188` | full | no | bare | resume (level) | PASS, no findings | 342 | computed 128, discovered 15, example 13, fact of record 13, scaffolded 16, typed 21 |
-| `T6-189` | full | no | bare | resume (gates) | PASS, no findings | 342 | computed 128, discovered 15, example 13, fact of record 13, scaffolded 16, typed 21 |
-| `T6-190` | full | no | bare | resume (remainder) | PASS, no findings | 342 | computed 128, discovered 15, example 13, fact of record 13, scaffolded 16, typed 21 |
-| `T6-191` | full | no | bare | resume (scaffold) | PASS, no findings | 342 | computed 128, discovered 15, example 13, fact of record 13, scaffolded 16, typed 21 |
-| `T6-192` | full | no | bare | resume (review) | PASS, no findings | 342 | computed 128, discovered 15, example 13, fact of record 13, scaffolded 16, typed 21 |
+| `T6-178` | essential | no | bare | resume (level) | PASS, no findings | 93 | computed 22, discovered 1, example 4, fact of record 4, scaffolded 2, typed 9 |
+| `T6-179` | essential | no | bare | resume (gates) | PASS, no findings | 93 | computed 22, discovered 1, example 4, fact of record 4, scaffolded 2, typed 9 |
+| `T6-180` | essential | no | bare | resume (remainder) | PASS, no findings | 93 | computed 22, discovered 1, example 4, fact of record 4, scaffolded 2, typed 9 |
+| `T6-181` | essential | no | bare | resume (scaffold) | PASS, no findings | 93 | computed 22, discovered 1, example 4, fact of record 4, scaffolded 2, typed 9 |
+| `T6-182` | essential | no | bare | resume (review) | PASS, no findings | 93 | computed 22, discovered 1, example 4, fact of record 4, scaffolded 2, typed 9 |
+| `T6-183` | standard | no | bare | resume (level) | PASS, no findings | 302 | computed 115, discovered 15, example 7, fact of record 13, scaffolded 11, typed 27 |
+| `T6-184` | standard | no | bare | resume (gates) | PASS, no findings | 302 | computed 115, discovered 15, example 7, fact of record 13, scaffolded 11, typed 27 |
+| `T6-185` | standard | no | bare | resume (remainder) | PASS, no findings | 302 | computed 115, discovered 15, example 7, fact of record 13, scaffolded 11, typed 27 |
+| `T6-186` | standard | no | bare | resume (scaffold) | PASS, no findings | 302 | computed 115, discovered 15, example 7, fact of record 13, scaffolded 11, typed 27 |
+| `T6-187` | standard | no | bare | resume (review) | PASS, no findings | 302 | computed 115, discovered 15, example 7, fact of record 13, scaffolded 11, typed 27 |
+| `T6-188` | full | no | bare | resume (level) | PASS, no findings | 336 | computed 127, discovered 15, example 12, fact of record 13, scaffolded 16, typed 20 |
+| `T6-189` | full | no | bare | resume (gates) | PASS, no findings | 336 | computed 127, discovered 15, example 12, fact of record 13, scaffolded 16, typed 20 |
+| `T6-190` | full | no | bare | resume (remainder) | PASS, no findings | 336 | computed 127, discovered 15, example 12, fact of record 13, scaffolded 16, typed 20 |
+| `T6-191` | full | no | bare | resume (scaffold) | PASS, no findings | 336 | computed 127, discovered 15, example 12, fact of record 13, scaffolded 16, typed 20 |
+| `T6-192` | full | no | bare | resume (review) | PASS, no findings | 336 | computed 127, discovered 15, example 12, fact of record 13, scaffolded 16, typed 20 |
 | `T6-193` | full | yes | rich | resume (gates) | PASS, no findings | 359 | computed 154, discovered 48, example 13, fact of record 3, typed 12 |
 | `T6-194` | standard | no | rich | edit | PASS, no findings | 18 | — |
 | `T6-195` | standard | no | bare | edit | PASS, no findings | 18 | — |

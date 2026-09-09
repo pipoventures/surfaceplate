@@ -179,6 +179,30 @@ Additionally required:
 |---|---|
 | `dependency_lock` | Supply-chain exposure exists regardless of output materiality. |
 
+**Unless this repository has no dependencies at all** (`DR-73`). `dependency_lock` is the only
+control this level requires, and it is checked by `SP051` against a real, tracked, non-empty file.
+A repository that declares no dependencies anywhere — a documentation repository, a policy
+repository, a monorepo subtree whose dependencies resolve a level up — has no such file to name and
+could not conform at **any** level. `F132` was found on exactly such a repository.
+
+The exception is **derived, not declared**. The checker looks at the adopting repository's own
+tracked files for a dependency manifest of any kind — `package.json`, `pyproject.toml`, `go.mod`,
+`Gemfile`, `pom.xml`, `Cargo.toml`, `composer.json` and the rest — and lifts the floor only when it
+finds none. Nothing is written in the profile, so nothing can be misdeclared, and the answer is
+re-established on every run: **the moment a manifest appears the floor returns**, and the check
+reports `SP021` until the control is decided and a lock file named.
+
+Three properties are worth stating because they are what make this safe rather than a hole:
+
+- **Only the floor is lifted, never a check.** A repository that decides `dependency_lock`
+  required anyway is checked exactly as before.
+- **The list of manifests is deliberately generous.** The two errors are not symmetrical: believing
+  a manifest exists where none does sends a repository back to the dead end, which is visible to
+  whoever hits it; believing none exists where one does silently waives the one control this
+  standard applies to everyone. When in doubt it says *has dependencies*.
+- **An unanswerable question does not lift anything.** If git cannot list the repository's files,
+  the floor stands. An unanswered question is not a passing one.
+
 ### `standard`
 
 Intended for applications with real users, or whose outputs inform work but are not the final basis

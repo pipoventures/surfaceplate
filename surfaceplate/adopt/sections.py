@@ -77,6 +77,14 @@ def build_risk(answers: dict) -> dict:
     return out
 
 
+def _rules():
+    try:
+        from surfaceplate import rules
+    except ImportError:  # imported flat, with the payload directory itself on the path
+        import rules  # type: ignore[no-redef]
+    return rules
+
+
 def build_level(answers: dict) -> dict:
     return {"conformance_level": answers["conformance_level"]}
 
@@ -119,6 +127,18 @@ def build_controls(answers: dict, *, level: str) -> dict:
         )
         if not declared:
             continue
+        # `F132` / `DR-73`. This function is PURE - the same answers always produce the same
+        # profile, which is what makes `--answers` replay deterministic and the matrix's report
+        # comparable. So the waiver cannot be a fresh scan of the repository here; it arrives as
+        # the absence of the answer `plan.controls_plan` did not ask for.
+        #
+        # Gated on `rules.WAIVABLE_CONTROLS` rather than applied to every control, deliberately.
+        # A missing rationale for anything else is a bug in the plan and must go on raising
+        # `KeyError` loudly, because a control that vanishes quietly is the worst outcome
+        # available here - the profile would simply not mention a control the level requires.
+        if control_id not in answers and f"{control_id}.rationale" not in answers:
+            if control_id in _rules().WAIVABLE_CONTROLS:
+                continue
         entry: dict = {
             "decision": DECISION_REQUIRED,
             "rationale": answers[f"{control_id}.rationale"],
