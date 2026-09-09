@@ -443,6 +443,17 @@ def main() -> int:
         ", ".join(f"SP{n:03d}" for n in sorted(holes)),
     )
 
+    # ---- SP codes carry a topic (`DR-69` surface 5, `DR-77`) ----
+    sys.path.insert(0, str(ROOT / "surfaceplate"))
+    import rules as _rules  # noqa: E402
+
+    missing = sorted(f"SP{n:03d}" for n in emitted if f"SP{n:03d}" not in _rules.SP_TOPICS)
+    check("every emitted SP code has a topic", not missing, ", ".join(missing))
+    stray = sorted(c for c in _rules.SP_TOPICS if int(c[2:]) not in emitted)
+    check("and SP_TOPICS names no code the checker does not emit", not stray, ", ".join(stray))
+    bad = sorted(f"{c}={t}" for c, t in _rules.SP_TOPICS.items() if t not in _rules.TOPIC_NAMES)
+    check("every topic named is one of the twelve topics", not bad, ", ".join(bad))
+
     # ---- F codes: the register against itself ----
     rows = [int(m) for m in re.findall(r"^\| F(\d+) \|", findings_text, re.MULTILINE)]
     bodies = [int(m) for m in re.findall(r"^## F(\d+) ", findings_text, re.MULTILINE)]

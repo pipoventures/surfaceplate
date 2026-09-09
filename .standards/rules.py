@@ -491,3 +491,48 @@ def dates_as_strings(value):
     if isinstance(value, (_dt.datetime, _dt.date, _dt.time)):
         return value.isoformat()
     return value
+
+
+# ---------------------------------------------------------------------------
+# `DR-69` surface 5, `DR-77`: every finding code belongs to one of the twelve topics, so a report
+# can be read, filtered and routed by subject rather than by code number.
+#
+# THE RULE APPLIED, stated because it decides the hard cases: **a code's topic is the subject the
+# finding is ABOUT, not the mechanism that detects it.** `SP008` (the conformance block has been
+# altered) is detected by a digest, which is enforcement machinery, but its subject is the block
+# that declares what governs the repository - Topic 1. `SP004` and `SP005` are detected the same
+# way and their subject is the installed standard itself - Topic 12.
+#
+# THE LIMITATION, stated rather than discovered: a **control-generic** code cannot honestly carry
+# one topic. `SP051` fires for `dependency_lock` (Topic 9) and for `assurance_findings` (Topic 6)
+# alike, and the code does not know which until it fires. Those map to Topic 12, whose subject
+# genuinely is "a declaration and the thing that verifies it". A consumer wanting the control's own
+# topic has it: the finding names the control, and `CONTROL_TOPICS` maps it.
+SP_TOPICS: dict[str, int] = {
+    # The install, its integrity, and the workflow that runs the check.
+    "SP001": 12, "SP002": 12, "SP003": 12, "SP004": 12, "SP005": 12, "SP009": 12,
+    "SP048": 12, "SP049": 12,
+    # The agent instruction file and the block that declares what governs here.
+    "SP006": 1, "SP007": 1, "SP008": 1,
+    # The application profile: present, readable, schema-conformant, free of placeholders.
+    "SP010": 12, "SP011": 12, "SP012": 12, "SP013": 12, "SP014": 12, "SP015": 12, "SP016": 12,
+    "SP020": 12,
+    # Levels and their floors; the gate catalogue and what a level obliges of it.
+    "SP017": 12, "SP021": 12, "SP022": 12, "SP027": 12, "SP028": 12, "SP029": 12, "SP030": 12,
+    "SP037": 12,
+    # Adoption identity and the currency of the record that states it.
+    "SP018": 1, "SP019": 1, "SP024": 1, "SP025": 1, "SP026": 1,
+    # Deferrals, exceptions, and gates left unexplained: who decided, and did they say why.
+    "SP023": 2, "SP031": 2, "SP043": 2,
+    # Gate mechanics: preconditions, effective dates, history, the staged snapshot, pathspecs.
+    "SP032": 12, "SP033": 12, "SP034": 12, "SP035": 12, "SP038": 12, "SP039": 12,
+    "SP040": 12, "SP041": 12, "SP042": 12,
+    # Secrets: the one control family with a topic of its own.
+    "SP046": 8, "SP047": 8,
+    # The documentary record: exemptions, authority, and an adopter's declared canon.
+    "SP050": 1, "SP052": 1, "SP060": 1,
+    # Control-generic - see the limitation above.
+    "SP051": 12, "SP053": 12, "SP055": 12, "SP056": 12, "SP057": 12, "SP058": 12, "SP059": 12,
+    # Records that carry their own revisit dates: overrides and the lineage family.
+    "SP054": 10,
+}

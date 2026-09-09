@@ -2799,3 +2799,33 @@ obligation on a different axis.
 control principles — so `CONFORMANCE_LEVELS.md`'s *"ten of the twelve, as stated above"* was
 ambiguous in the very document that now also carries a twelve-**topic** table. Corrected to "ten of
 the twelve controls".
+
+### Every finding says what it is about (`ACT-072`, `DR-77`) — and `DR-69` is complete
+
+The last of `DR-69`'s five surfaces. `rules.SP_TOPICS` maps all 57 emitted codes to one of the
+twelve topics; `Finding.__init__` looks it up, so **no call site changed** and no finding can be
+built with a topic that disagrees with the registry. `--format json` carries `topic` and
+`topic_name`; SARIF carries both in the `properties` bag the specification provides for exactly
+this. A fresh install's fifteen findings now group as **1 authority, 1 confidentiality, 13
+enforcement**, without a lookup table.
+
+**No renumbering.** `SP001-SP035`, `SP037-SP043`, `SP046-SP060` are unchanged and the gaps stay.
+
+**The rule that decided the hard cases: a code's topic is the subject the finding is *about*, not
+the mechanism that detects it.** `SP008` — the conformance block has been altered — is detected by
+a digest, which is enforcement machinery, but its subject is the block that declares what governs
+the repository, so it is Topic 1. `SP004` and `SP005` are detected the same way and genuinely *are*
+about the installed standard, so they are Topic 12.
+
+**Forty of the fifty-seven are Topic 12, and that is recorded rather than smoothed.** Thirty-three
+of them are the install, the profile, the levels and the gate machinery — their subject really is
+enforcement, and most of what this checker emits is about its own apparatus, which is a true and
+slightly awkward fact about the tool. The other seven are **control- or gate-generic** and cannot
+honestly carry one topic at all: `SP051` fires for `dependency_lock` (Topic 9) and
+`assurance_findings` (Topic 6) alike and does not know which until it fires. Seventeen codes carry a
+specific subject, and those are where the axis earns its keep.
+
+**`DR-69` is now fully implemented**, as amended by `DR-71` (the profile is laid out by topic, not
+keyed by it) and `DR-76` (so are the conformance levels). What survived the programme unchanged is
+what `DR-69` got right: the twelve topics themselves, and the normative/imperative split that lets
+one authored document serve a human reader and an agent without either getting the other's half.
