@@ -2799,3 +2799,64 @@ obligation on a different axis.
 control principles — so `CONFORMANCE_LEVELS.md`'s *"ten of the twelve, as stated above"* was
 ambiguous in the very document that now also carries a twelve-**topic** table. Corrected to "ten of
 the twelve controls".
+
+### Every finding says what it is about (`ACT-072`, `DR-77`) — and `DR-69` is complete
+
+The last of `DR-69`'s five surfaces. `rules.SP_TOPICS` maps all 57 emitted codes to one of the
+twelve topics; `Finding.__init__` looks it up, so **no call site changed** and no finding can be
+built with a topic that disagrees with the registry. `--format json` carries `topic` and
+`topic_name`; SARIF carries both in the `properties` bag the specification provides for exactly
+this. A fresh install's fifteen findings now group as **1 authority, 1 confidentiality, 13
+enforcement**, without a lookup table.
+
+**No renumbering.** `SP001-SP035`, `SP037-SP043`, `SP046-SP060` are unchanged and the gaps stay.
+
+**The rule that decided the hard cases: a code's topic is the subject the finding is *about*, not
+the mechanism that detects it.** `SP008` — the conformance block has been altered — is detected by
+a digest, which is enforcement machinery, but its subject is the block that declares what governs
+the repository, so it is Topic 1. `SP004` and `SP005` are detected the same way and genuinely *are*
+about the installed standard, so they are Topic 12.
+
+**Forty of the fifty-seven are Topic 12, and that is recorded rather than smoothed.** Thirty-three
+of them are the install, the profile, the levels and the gate machinery — their subject really is
+enforcement, and most of what this checker emits is about its own apparatus, which is a true and
+slightly awkward fact about the tool. The other seven are **control- or gate-generic** and cannot
+honestly carry one topic at all: `SP051` fires for `dependency_lock` (Topic 9) and
+`assurance_findings` (Topic 6) alike and does not know which until it fires. Seventeen codes carry a
+specific subject, and those are where the axis earns its keep.
+
+**`DR-69` is now fully implemented**, as amended by `DR-71` (the profile is laid out by topic, not
+keyed by it) and `DR-76` (so are the conformance levels). What survived the programme unchanged is
+what `DR-69` got right: the twelve topics themselves, and the normative/imperative split that lets
+one authored document serve a human reader and an agent without either getting the other's half.
+
+### Three places the tool said something its behaviour did not support (`ACT-083`, `DR-78`)
+
+One record for three findings because they are one species. Not wrong computations — **wrong things
+said about right ones**, which is the failure this framework exists to refuse.
+
+**`F140` — an edit with no reason was recorded as though it had one.** `adopt --edit` without
+`--because` was accepted, and the provenance sidecar gained `reason: edited after the write with
+` `` `surfaceplate adopt --edit` `` `. The CLI then reported the change as recorded *"with the
+reason"*. A sentence in a governance record that reads like a reason and is not one — `SP031`'s
+objection to a gate deferred without one, made by this framework about itself, in the record it asks
+adopters to trust. **The rule now lives with the writer**, not the argument parser, so every caller
+is bound by it and not only the one that goes through the CLI.
+
+**`F139` — an internal error where a refusal belongs.** `--edit` against the installer's *template*
+profile — the documented alternative to running the wizard — ended as `KeyError: 'scanner'`, exit 4.
+`--edit` re-renders the whole file and so needs the shape `adopt` writes. The adopter did nothing
+wrong, and a traceback tells them nothing about what to do instead; it now refuses, names the
+missing block, and says the two things that work.
+
+**`F141` — a downgrade announced as an upgrade.** Installing over a newer install printed
+`NOTE: this is an UPGRADE, 99.0.0 -> 0.17.0`, then replaced newer files with older ones while saying
+the opposite. The tool noticed the difference and not its direction. It now orders the versions with
+the same comparison the currency check uses, so this payload has one answer to *"is 0.9.0 newer than
+0.17.0"* and not two — **both directions asserted**, since a check that only ever returns one answer
+has not been shown to distinguish anything. `doctor`'s matching half printed `both 0.17.0` beside
+`installed 99.0.0`; it now reports the disagreement and names the reliable half.
+
+**One breaking change, deliberately, before 1.0:** `adopt --edit` without `--because` is an error
+where it used to succeed. Refusing the downgrade was rejected — installing an older version on
+purpose is legitimate; announcing it wrongly was not.

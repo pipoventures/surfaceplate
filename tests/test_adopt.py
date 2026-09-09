@@ -989,6 +989,48 @@ def test_full_ui_end_to_end(tmp: Path) -> None:
     check("the full profile validates against its own schema", _schema_ok(repo, written))
 
 
+def test_an_edit_needs_a_reason_and_a_template_profile_gets_a_refusal(tmp: Path) -> None:
+    """`F140` and `F139`, both from the pathway sweep, both cases of the tool saying something
+    that was not true of what it did.
+
+    `F140` (`PW-07`): `--edit` without `--because` was accepted and recorded with boilerplate that
+    reads like a reason, and the CLI then reported the change as recorded "with the reason". An
+    unexplained change presented as explained - `SP031`'s objection to a gate deferred without a
+    reason, applied to the profile itself. The invariant now lives with the WRITER, so every
+    caller is bound by it and not only the one that goes through the argument parser.
+
+    `F139` (`PW-12`): `--edit` against the installer's TEMPLATE profile - the documented
+    alternative to running the wizard - ended in `KeyError: 'scanner'`, exit 4. `--edit` re-renders
+    the whole file and so needs the shape `adopt` writes; a crash is not how a tool declines.
+    """
+    repo = make_installed_repo(tmp, "edit-rules")
+
+    try:
+        wizard.edit(repo, "owner", "X", because="")
+        refused = ""
+    except Exception as exc:  # noqa: BLE001 - the type is the finding
+        refused = f"{type(exc).__name__}: {exc}"
+    check("an edit with no reason is refused", "WriteRefused" in refused, refused or "accepted")
+    check("and the refusal says why one is required, not merely that one is",
+          "account for" in refused, refused)
+    try:
+        wizard.edit(repo, "owner", "X", because="   ")
+        blank = ""
+    except Exception as exc:  # noqa: BLE001
+        blank = type(exc).__name__
+    check("whitespace is not a reason either", blank == "WriteRefused", blank or "accepted")
+
+    try:
+        wizard.edit(repo, "owner", "X", because="the team was renamed after a reorg")
+        outcome = "written"
+    except Exception as exc:  # noqa: BLE001
+        outcome = f"{type(exc).__name__}: {exc}"
+    check("--edit on the installer's template profile refuses rather than raising KeyError",
+          "KeyError" not in outcome, outcome)
+    check("and the refusal says what to do instead",
+          "adopt" in outcome or "Edit the file directly" in outcome, outcome)
+
+
 def test_a_replay_neither_reads_nor_writes_a_draft(tmp: Path) -> None:
     """`F134`. A refused `--answers` replay wrote `.standards/adopt-draft.json` while printing
     "Nothing was written", and the next replay then resumed from that draft rather than from the
@@ -1589,7 +1631,10 @@ def test_adopt_edit_rewrites_one_line_and_records_it(tmp: Path) -> None:
     check("a list element is addressed by index", yaml.safe_load((repo / wizard.PROFILE_PATH).read_text(encoding="utf-8"))["baseline_controls"]["secret_hygiene"]["scanner"]["wired_in"] == ["workflows/secret-scan.yml"])
     for path, value, why in (("ownr", "x", "a path the profile lacks"), ("conformance_level", "full", "a line the review marks not editable"), ("prerequisites[0].status", "deferred", "a gate's status")):
         try:
-            wizard.edit(repo, path, value)
+            # `F140`: a reason is required of every edit now, so it is supplied here - these
+            # cases are about the OTHER refusals, and without one they would all stop at the
+            # reason check and stop testing what they are named for.
+            wizard.edit(repo, path, value, because="exercising the refusal this case is about")
             outcome = "edited"
         except wizard.WriteRefused as exc:
             outcome = exc.detail
@@ -2609,6 +2654,7 @@ def main() -> int:
         test_full_ui_end_to_end(tmp)
 
         print("\nstandard-level, no-UI (ACT-022: DESIGN_GATES rationale is asked)")
+        test_an_edit_needs_a_reason_and_a_template_profile_gets_a_refusal(tmp)
         test_a_replay_neither_reads_nor_writes_a_draft(tmp)
         test_a_repository_with_no_dependencies_can_still_conform(tmp)
         test_design_gates_are_asked_not_invented(tmp)

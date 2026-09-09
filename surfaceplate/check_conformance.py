@@ -276,6 +276,14 @@ class Finding:
         self.detail = detail
         self.remedy = remedy
         self.graceable = graceable
+        # `DR-69` surface 5, `DR-77`. Looked up from the registry rather than passed, so none of
+        # the 100-odd `Finding(...)` constructions in this file changes and none can be built
+        # with a topic that disagrees with the registry. `None` is impossible in practice -
+        # `check_code_registers.py` fails when an emitted code has no entry - and is still handled
+        # rather than asserted, because a checker that raises inside its own reporting is worse
+        # than one that reports a finding without a subject.
+        self.topic = rules.SP_TOPICS.get(code)
+        self.topic_name = rules.TOPIC_NAMES.get(self.topic) if self.topic else None
 
     def render(self) -> str:
         return (
@@ -3850,6 +3858,11 @@ def _finding_dict(finding: Finding) -> dict:
         "detail": finding.detail,
         "remedy": finding.remedy,
         "graceable": finding.graceable,
+        # `DR-77`: the subject, so a report can be filtered and routed by topic rather than by
+        # code number. The name travels with the number because a consumer should not need this
+        # framework's topic table to read its output.
+        "topic": finding.topic,
+        "topic_name": finding.topic_name,
     }
 
 
@@ -3906,6 +3919,11 @@ def render_sarif(report: Report) -> str:
                 "message": {"text": f"{finding.title}. {finding.detail} Fix: {finding.remedy}"},
                 "locations": [{"physicalLocation": {"artifactLocation": {"uri": uri}}}],
                 "partialFingerprints": {"surfaceplate/finding/v1": fingerprint},
+                # SARIF 2.1.0 has no field for "which subject is this about", and its
+                # `properties` bag is the specified place for exactly that (§3.8). Consumers that
+                # do not know this framework ignore it; those that do can group a code-scan
+                # upload by topic without a lookup table.
+                "properties": {"topic": finding.topic, "topicName": finding.topic_name},
             }
         )
     document = {

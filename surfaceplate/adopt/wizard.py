@@ -639,6 +639,19 @@ def edit(repo: Path, path: str, value: str, *, because: str = "") -> Path:
     Refuses a path the profile lacks (naming the nearest), a line the review marks as not
     editable (it changes which other lines exist), and anything the schema or the placeholder
     scan refuses. Nothing is written unless everything verifies."""
+    # `F140` (`PW-07`): the invariant is "an edit to a governance profile is recorded WITH A
+    # REASON", so it belongs here with the writer rather than only in the argument parser - every
+    # caller of `edit()` is bound by it, not only the one that goes through the CLI. It used to
+    # accept a blank reason and record boilerplate that reads like one, and the CLI then said the
+    # change was recorded "with the reason". That is `SP031`'s objection to a gate deferred without
+    # a reason, applied to the profile itself.
+    if not (because or "").strip():
+        raise WriteRefused(
+            "an edit needs a reason: pass --because, in a sentence. It is written into the "
+            "provenance record beside the profile, and an edit recorded without one reads later "
+            "as a change nobody can account for.",
+            path=path,
+        )
     import difflib
 
     import yaml
@@ -681,7 +694,21 @@ def edit(repo: Path, path: str, value: str, *, because: str = "") -> Path:
                 raise WriteRefused(f"{path}: {problem}", path=path)
     container[key] = new_value
     written_on = str((profile.get("adoption") or {}).get("adoption_date") or "")
-    rendered = _render.render_profile(profile, written_on=written_on)
+    try:
+        rendered = _render.render_profile(profile, written_on=written_on)
+    except KeyError as exc:
+        # `F139` (`PW-12`): `--edit` renders the WHOLE profile, so it needs the shape `adopt`
+        # writes. Against the installer's template - the documented alternative to running the
+        # wizard - the renderer reached for a block the template does not carry and the run ended
+        # as `KeyError: 'scanner'`, exit 4. A crash where a refusal belongs: the adopter did
+        # nothing wrong, and an internal error tells them nothing about what to do instead.
+        raise WriteRefused(
+            f"this profile is missing {exc} and cannot be re-rendered, so --edit cannot write it "
+            "back safely. --edit re-renders the whole file, which needs the shape `adopt` writes. "
+            "Edit the file directly, or run `surfaceplate adopt` to have it written from your "
+            "answers first.",
+            path=path,
+        ) from None
     _verify(profile, rendered, repo)
     record_path = repo / provenance.PROVENANCE_PATH
     try:
@@ -691,7 +718,12 @@ def edit(repo: Path, path: str, value: str, *, because: str = "") -> Path:
     if not isinstance(record, dict):
         record = {}
     at = provenance.now_iso()
-    provenance.record_edit(record, path, reason=because or "edited after the write with `surfaceplate adopt --edit`", at=at)
+    # `F140` (`PW-07`): `because or "<boilerplate>"` put a sentence in the provenance record that
+    # reads like a reason and is not one - an unexplained change presented as explained, which is
+    # the objection `SP031` makes to a gate deferred without a reason. `--because` is now required
+    # by the CLI, so this only ever sees a real one; the fallback stays as a belt-and-braces for
+    # any caller reaching `edit()` directly, and says plainly that no reason was given.
+    provenance.record_edit(record, path, reason=because or "NO REASON GIVEN - this edit is unexplained", at=at)
     _write_atomically(target, rendered)
     _write_atomically(record_path, provenance.render_record(record))
     return target

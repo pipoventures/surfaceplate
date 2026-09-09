@@ -1151,6 +1151,73 @@ def test_currency_is_reported_where_integrity_cannot_be(tmp: Path) -> None:
     )
 
 
+def test_a_downgrade_is_reported_as_a_downgrade(tmp: Path) -> None:
+    """`F141` (`PW-08`). Installing an older tool over a newer install announced "an UPGRADE" -
+    the tool noticed the difference and not its direction. `rules.version_key` orders them, the
+    same comparison the currency check uses, so this payload has one answer to "is 0.9.0 newer
+    than 0.17.0" and not two.
+    """
+    repo = make_git_repo(tmp, "downgrade")
+    install(repo, "--no-hooks")
+    record_path = repo / ".standards" / "INSTALL.json"
+    record = json.loads(record_path.read_text(encoding="utf-8"))
+    record["standard_version"] = "99.0.0"
+    record_path.write_text(json.dumps(record, indent=2), encoding="utf-8")
+
+    older = install(repo, "--no-hooks")
+    check("installing over a NEWER recorded version says DOWNGRADE, not UPGRADE",
+          "DOWNGRADE" in older.stdout and "an UPGRADE" not in older.stdout,
+          older.stdout[-400:])
+    check("and says what installing anyway would do",
+          "NEWER than this tool" in older.stdout, older.stdout[-400:])
+
+    # And the ordinary direction still reads as an upgrade.
+    record = json.loads(record_path.read_text(encoding="utf-8"))
+    record["standard_version"] = "0.0.1"
+    record_path.write_text(json.dumps(record, indent=2), encoding="utf-8")
+    newer = install(repo, "--no-hooks")
+    check("and installing over an OLDER one still says UPGRADE",
+          "an UPGRADE" in newer.stdout and "DOWNGRADE" not in newer.stdout,
+          newer.stdout[-400:])
+
+
+def test_every_finding_carries_the_topic_it_is_about(tmp: Path) -> None:
+    """`DR-69` surface 5, `DR-77`. A report can be read, filtered and routed by subject rather than
+    by code number - *"a field nobody can query is not a field"*.
+
+    The topic is looked up from `rules.SP_TOPICS` inside `Finding.__init__`, so none of the
+    hundred-odd constructions in the checker changed and none can be built with a topic that
+    disagrees with the registry.
+    """
+    sys.path.insert(0, str(PAYLOAD))
+    import rules  # noqa: E402
+
+    repo = make_git_repo(tmp, "finding-topics")
+    install(repo, "--no-hooks")
+    out = verify(repo, "--format", "json")
+    payload = json.loads(out.stdout)
+    findings = payload["findings"]
+    check("a fresh install reports findings to carry a topic", bool(findings))
+    check("every finding names a topic number and its name",
+          all(isinstance(f.get("topic"), int) and f.get("topic_name") for f in findings),
+          str([f["code"] for f in findings if not f.get("topic")]))
+    check("and every one of those is one of the twelve topics",
+          all(f["topic"] in rules.TOPIC_NAMES for f in findings))
+    check("the name travels with the number, so a consumer needs no lookup table",
+          all(f["topic_name"] == rules.TOPIC_NAMES[f["topic"]] for f in findings))
+
+    sarif = json.loads(verify(repo, "--format", "sarif").stdout)
+    results = sarif["runs"][0]["results"]
+    check("SARIF carries it in the properties bag the spec provides for this",
+          results and all(r["properties"]["topic"] in rules.TOPIC_NAMES for r in results),
+          str(results[:1]))
+
+    # The registry is authoritative: a finding cannot be built with a topic of its own.
+    made = _checker.Finding("SP046", "t", "d", "r", graceable=True)
+    check("Finding takes its topic from the registry, not from its caller",
+          made.topic == rules.SP_TOPICS["SP046"] == 8, str(made.topic))
+
+
 def test_the_standard_can_be_removed_and_takes_nothing_of_the_adopters(tmp: Path) -> None:
     """`F138`. There was no way out: no command, no flag, no document. The pathway sweep found that
     by looking for one, and *the absence of an answer is the finding* - a standard a repository
@@ -1503,6 +1570,12 @@ def main() -> int:
 
         print("\na declared canon artefact is checked, not trusted (DR-71, WI-2)")
         test_a_declared_canon_artefact_is_checked_for_existence_and_tracking(tmp)
+
+        print("\na downgrade is reported as a downgrade (F141)")
+        test_a_downgrade_is_reported_as_a_downgrade(tmp)
+
+        print("\nevery finding carries the topic it is about (DR-77)")
+        test_every_finding_carries_the_topic_it_is_about(tmp)
 
         print("\nthe standard can be removed, and takes nothing of the adopter's (F138)")
         test_the_standard_can_be_removed_and_takes_nothing_of_the_adopters(tmp)

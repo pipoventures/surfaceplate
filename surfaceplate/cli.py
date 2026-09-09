@@ -88,6 +88,16 @@ def _cmd_adopt(argv: list[str]) -> int:
     try:
         if args.edit:
             path, value = args.edit
+            # `F140` (`PW-07`): an edit to a governance profile without a stated reason is the
+            # thing `SP031` refuses in a deferral - "an omission wearing a decision's clothes".
+            # It used to be accepted and recorded with boilerplate, and the CLI then said the
+            # change was recorded "with the reason".
+            if not args.because.strip():
+                print("error: --edit requires --because: say why, in a sentence. The reason is "
+                      "written into the provenance record beside the profile, and an edit "
+                      "recorded without one reads later as a change nobody can account for.",
+                      file=sys.stderr)
+                return 3
             written = wizard.edit(repo, path, value, because=args.because)
             print(f"Edited {path} in {written}; the change is recorded beside it as typed, with the reason.")
             return 0
