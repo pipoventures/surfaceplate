@@ -51,7 +51,7 @@ sys.path.insert(0, str(ROOT))
 PAYLOAD = ROOT / "surfaceplate"
 
 from surfaceplate import rules  # noqa: E402
-from surfaceplate.adopt import catalogue, defaults, discover, plan  # noqa: E402
+from surfaceplate.adopt import catalogue, defaults, discover, plan, validators  # noqa: E402
 
 PASSES = 0
 FAILURES: list[str] = []
@@ -90,6 +90,12 @@ AXES: dict[str, dict[str, str]] = {
         "none": "no directory a pattern-C control could name",
         "unfit": "a directory of YAML that is not this control's records - never proposed (F93)",
     },
+    "candidates": {
+        "none": "nothing to pick from - the field degrades to the plain text box (DR-38)",
+        "few": "fewer than the cap - the offer is complete and says so",
+        "more_than_the_cap": "more than `discover.SHOWN` - the offer is a SUBSET, must say which "
+                             "of how many, and must still admit the answer it left out (F147)",
+    },
 }
 
 # The properties that change behaviour and are asserted SOMEWHERE ELSE. Named here so this file's
@@ -109,6 +115,10 @@ COVERED_ELSEWHERE: dict[str, str] = {
                            "workflow RUNS the scanner, not when none exists (F83)",
     "what the interface DISPLAYS": "tests/test_adopt_tui.py - a field the plan asks for must be "
                                    "displayed and reachable, for every gating widget (F143)",
+    "what the interface ACCEPTS": "tests/test_adopt_tui.py - a value the field's validator accepts "
+                                  "must be givable, whether or not discovery offered it (F147). "
+                                  "Displayed and reachable are not answerable, and the gap between "
+                                  "them is where F147 lived",
 }
 
 
@@ -362,6 +372,101 @@ def test_axis_registers(tmp: Path) -> None:
 
 
 # ---------------------------------------------------------------------------------------------
+# Axis: candidates
+# ---------------------------------------------------------------------------------------------
+
+def test_axis_candidates(tmp: Path) -> None:
+    """`F147`. The property is *how many things discovery found relative to what a field can show*,
+    and it decides whether the offer is the whole truth or a subset that must say so.
+
+    This axis was missing, and `A-stranger` - the repository where the maintainer hit the defect -
+    is the only trial repository small enough that a raised cap would have hidden the problem
+    rather than exposed it. Thirty candidates against a cap of twelve: the offer was a subset, the
+    prompt called it the finding, and the field it omitted was the repository's own register.
+    """
+    print("\naxis: candidates")
+
+    def artefact_field(repo: Path):
+        found = discover.scan(repo)
+        specs = plan.gate_plan(level="essential", builds_ui=False, mode="simple", found=found)
+        field = next(f for s in specs if s.id == "work_registration" for f in s.fields
+                     if f.id == "artefact")
+        return found, field
+
+    def offered(field) -> list[str]:
+        """The candidates, which is what the cap is about - never the action rows."""
+        return [v for v, _label in field.choices if v not in (plan.TYPE_A_PATH, field.seed)]
+
+    # none: no tracked document of the adopter's own, AND no seed for the gate at hand.
+    #
+    # The field must be DISCOVERED, not named. `work_registration` was tried first and is the
+    # wrong probe: it is in `scaffold.SEEDABLE`, so its dropdown always carries a "create it" row
+    # and correctly stays a dropdown with nothing else in it (`DR-54` (1)). Naming a field whose
+    # seed makes the degradation unreachable would have reported a defect in the product that was
+    # a defect in this test.
+    none = make_repo(tmp, "cand-none")
+    found_none = discover.scan(none)
+    seedless = next(
+        (f for s in plan.gate_plan(level="full", builds_ui=True, mode="simple", found=found_none)
+         for f in s.fields if f.id == "artefact" and not f.seed),
+        None,
+    )
+    check("a gate with no seed exists to probe with - an empty probe proves nothing",
+          seedless is not None, "every gate at full/ui carries a seed")
+    if seedless is not None:
+        check("nothing found and nothing to create: a text box, not an empty dropdown (DR-38)",
+              seedless.kind == "text",
+              f"kind={seedless.kind} choices={len(seedless.choices)}")
+        check("and no candidates were found, so the degradation is the reason for it",
+              not found_none.artefacts, str(found_none.artefacts[:3]))
+
+    # few: under the cap. The offer is complete, so the count states one number.
+    few = make_repo(tmp, "cand-few")
+    (few / "docs").mkdir()
+    for index in range(3):
+        (few / "docs" / f"note-{index}.md").write_text(f"# {index}\n", encoding="utf-8")
+    _git(few, "add", "-A"); _git(few, "commit", "-qm", "a few documents")
+    found_few, field_few = artefact_field(few)
+    check("a few found: every one of them is offered",
+          len(offered(field_few)) == len(found_few.artefacts),
+          f"{len(offered(field_few))} offered of {len(found_few.artefacts)}")
+    check("and the field's total agrees with what was found",
+          field_few.found_total == len(found_few.artefacts),
+          f"{field_few.found_total} vs {len(found_few.artefacts)}")
+
+    # more_than_the_cap: the shape that produced `F147`.
+    many = make_repo(tmp, "cand-many")
+    (many / "docs").mkdir()
+    for index in range(discover.SHOWN + 6):
+        (many / "docs" / f"note-{index:03d}.md").write_text(f"# {index}\n", encoding="utf-8")
+    omitted = "the-one-they-actually-meant.md"
+    (many / omitted).write_text("# Register\n\nReal content.\n", encoding="utf-8")
+    _git(many, "add", "-A"); _git(many, "commit", "-qm", "more documents than the cap")
+    found_many, field_many = artefact_field(many)
+
+    check("more than the cap: the offer is cut to it",
+          len(offered(field_many)) == discover.SHOWN,
+          f"{len(offered(field_many))} offered, cap {discover.SHOWN}")
+    check("and the cut is real - something the adopter may mean is NOT offered",
+          omitted not in offered(field_many), omitted)
+    check("but the field knows the true total, so it can say what it is hiding (F147)",
+          field_many.found_total == len(found_many.artefacts) > discover.SHOWN,
+          f"found_total={field_many.found_total} found={len(found_many.artefacts)}")
+    check("and the omitted file is still a valid answer the validator accepts",
+          validators.check("tracked_path", omitted, repo=many) is None,
+          str(validators.check("tracked_path", omitted, repo=many)))
+    check("so the field must admit it - every dropdown carries the escape (F147, DR-82)",
+          plan.TYPE_A_PATH in [v for v, _l in field_many.choices],
+          str([v for v, _l in field_many.choices][:2]))
+
+    # BOTH DIRECTIONS on the thing that matters: the escape is not a hole. A path that is not
+    # there is refused on exactly the terms a picked one would be.
+    check("and the escape is not a hole - an absent path is still refused",
+          validators.check("tracked_path", "nowhere/at/all.md", repo=many) is not None,
+          str(validators.check("tracked_path", "nowhere/at/all.md", repo=many)))
+
+
+# ---------------------------------------------------------------------------------------------
 # The invariant that holds across every shape
 # ---------------------------------------------------------------------------------------------
 
@@ -403,6 +508,7 @@ def main() -> int:
         test_axis_ci_steps(tmp)
         test_axis_history(tmp)
         test_axis_registers(tmp)
+        test_axis_candidates(tmp)
         test_no_shape_yields_an_implausible_proposal(tmp)
 
     print()

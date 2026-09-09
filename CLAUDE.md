@@ -20,9 +20,11 @@ here was done by an agent that had never read them. The import above is what clo
   because `F50` let the item 9 hand-off name a file deleted three packets earlier — plus
   `test_repository_shapes.py`, which names the **properties of a repository** that change this
   framework's behaviour and covers them. That one exists because a person driving the wizard by hand
-  found five defects in an afternoon (`F132`, `F142`, `F143`, `F144`, `F145`) that fifty thousand
-  checks could not reach: the suites walked every *decision* and never varied the *repository* the
-  decisions were about. Four more cover
+  found six defects in two afternoons (`F132`, `F142`, `F143`, `F144`, `F145`, `F147`) that fifty
+  thousand checks could not reach: the suites walked every *decision* and never varied the
+  *repository* the decisions were about. `F147` added the `candidates` axis and is the reason that
+  list reads six rather than five — the count is corrected in the same change that adds one, which
+  is the habit that keeps it true. Four more cover
   `adopt`: `test_adopt.py`, `test_provenance.py`, `test_discover.py`, `test_scaffold.py`. Three need `textual` and so must be run
   from the virtualenv (`.venv/bin/python`): `test_render.py`, `test_adopt_tui.py`, and
   `test_adopt_snapshots.py`, which also needs the `test` extra (`pytest`, `pytest-textual-snapshot`,

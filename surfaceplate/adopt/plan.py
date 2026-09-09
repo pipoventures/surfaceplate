@@ -134,6 +134,11 @@ class FieldSpec:
     # `DR-54` (1): the path of the seed this field's first row offers to create, where one is
     # free; the value of that row is the path itself, and choosing it leads to the offer.
     seed: str = ""
+    # `F147` / `DR-82`: how many candidates discovery actually found, where `choices` shows only
+    # the first `discover.SHOWN` of them. The field states both, because "12 found" said in front
+    # of twelve of thirty is a claim stronger than the evidence - the defect this framework exists
+    # to refuse, in its own interface.
+    found_total: int = 0
 
     def applies(self, answers: dict) -> bool:
         """Whether this field is asked at all, given what has been answered so far in its section."""
@@ -893,22 +898,50 @@ def locked_controls(level: str) -> set[str]:
 # Section 6 — prerequisite gates
 # ---------------------------------------------------------------------------------------------
 
+# `F147` / `DR-82`: the escape from a discovered list, as a row in the list itself.
+#
+# A discovered list is an OFFER and never the set of permitted answers. `DR-38` decided *never
+# offer something that isn't there*; it was implemented as *never accept anything else*, which is
+# a different and much stronger rule that nobody decided. Nothing in the model held it either -
+# `flow.py` does not check an answer against `spec.choices`, and every field built here carries a
+# validator that re-checks the repository on its own (`tracked_path`, `ci_step`,
+# `scanner_workflow:<name>`). So the constraint lived only in the widget, and a scripted adoption
+# could always name a file a human at the keyboard could not.
+#
+# The NUL prefix cannot collide with any path, so this can never be mistaken for one. If it ever
+# reached a profile the field's own validator would refuse it - loudly, never silently.
+TYPE_A_PATH = "\x00type-a-path"
+
+
 def _from_candidates(
     *, id: str, label: str, help: str, candidates: tuple[str, ...], depends_on=None,
     validate: str = "nonempty", context: str = "", decides: str = "", wrong: str = "", seed: str = "",
 ) -> FieldSpec:
-    """A field answered by picking, when there is anything to pick from.
+    """A field answered by picking, when there is anything to pick from - and typed into otherwise.
 
     `DR-38`'s rule: never offer something that isn't there. So when discovery found nothing - no
     git, an unusual layout - this degrades to the plain text field it always was, rather than
     presenting an empty dropdown that cannot be answered. `DR-54` (1): where a seed's path is
     free, the first row offers to create it, and the field is a dropdown even with nothing else
     to pick from - "create it" is something that is there.
+
+    `DR-82`: and the list always carries `TYPE_A_PATH`, because discovery is never complete and
+    the adopter knows their repository better than the scan does.
     """
     # `F75`: the cap is here, per field, after the caller has ranked for the field at hand -
     # never on the scan.
     shown = tuple(candidates)[: discover.SHOWN]
     choices = tuple((c, c) for c in shown)
+    if choices or seed:
+        # Above the candidates, so it is visible without scrolling a list that may be forty rows
+        # long. `F147` was found by an adopter who could not see a way out; an escape below the
+        # fold is one they would not have seen either.
+        #
+        # Added only where there is a dropdown at all: with nothing found and no seed the field
+        # degrades to the plain text box `DR-38` specified, which already accepts anything the
+        # validator accepts. A one-row dropdown saying "type a path" would be a click bought for
+        # nothing.
+        choices = ((TYPE_A_PATH, "… type a path we did not find"),) + choices
     if seed:
         # Short enough for the dropdown's row at 80 columns, path included.
         choices = ((seed, f"create it: {seed}"),) + choices
@@ -929,6 +962,7 @@ def _from_candidates(
         decides=decides,
         wrong=wrong,
         seed=seed,
+        found_total=len(candidates),
     )
 
 
