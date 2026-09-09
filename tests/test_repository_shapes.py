@@ -81,11 +81,34 @@ AXES: dict[str, dict[str, str]] = {
                      "named anyway is cautioned (F145)",
         "tests": "steps that run tests - each control takes its own (F84's rule)",
     },
-    "installed": {
-        "none": "a first install",
-        "older": "an upgrade - and it must say so",
-        "newer": "a downgrade - and it must say THAT, not its opposite (F141)",
+    "history": {
+        "none": "a repository with no commits - nothing may be asserted about its past",
+        "one_commit": "a single commit - a window of one is not evidence of a clean history",
+        "shallow": "a truncated clone - `--follow` cannot see past the graft (F31's shape, local)",
     },
+    "registers": {
+        "none": "no directory a pattern-C control could name",
+        "unfit": "a directory of YAML that is not this control's records - never proposed (F93)",
+    },
+}
+
+# The properties that change behaviour and are asserted SOMEWHERE ELSE. Named here so this file's
+# axis list reads as a map of coverage rather than a claim about it: an axis that is covered in
+# another suite is covered, and an axis that is covered nowhere must not be able to hide between
+# two files that each assume the other has it.
+COVERED_ELSEWHERE: dict[str, str] = {
+    "installed (none/older/newer)": "tests/test_install_and_check.py - the direction of an "
+                                    "upgrade, and a recorded version that contradicts the digest (F141)",
+    "occupied standard-owned paths": "tests/test_install_and_check.py - the installer stops, and "
+                                     "`--replace-existing` proceeds",
+    "hooks (none/global/local/chained)": "tests/test_install_and_check.py - `--no-hooks`, "
+                                         "`--chain`, and the probe that verifies a chain by effect (DR-66)",
+    "agent channels (both/one)": "tests/test_install_and_check.py - a declined channel writes "
+                                 "nothing and is reported on every run (DR-67)",
+    "scanner wired / not": "tests/test_discover.py and tests/test_adopt.py - asked when no "
+                           "workflow RUNS the scanner, not when none exists (F83)",
+    "what the interface DISPLAYS": "tests/test_adopt_tui.py - a field the plan asks for must be "
+                                   "displayed and reachable, for every gating widget (F143)",
 }
 
 
@@ -139,7 +162,7 @@ def proposals_for(repo: Path, level: str = "standard") -> dict[str, str]:
 # The oracle the matrix does not have: is what was proposed PLAUSIBLE for what it implements?
 # ---------------------------------------------------------------------------------------------
 
-def implausible(control: str, reference: str) -> str:
+def implausible(control: str, reference: str, found=None) -> str:
     """Empty when the reference could honestly implement the control; else why not.
 
     `F144` is the finding this exists for. The matrix asserted that the written profile matched the
@@ -147,8 +170,14 @@ def implausible(control: str, reference: str) -> str:
     lives there)` as the implementation of `deterministic_tests`. **Asserting that output matches
     expectation cannot catch an expectation that was wrong.**
 
-    Deliberately conservative: it reports only what is clearly wrong, for the reason `F145` records
-    about the checker's own caution - a false alarm here would train a reader to skim the real one.
+    All four control patterns, because each has its own way of being wrong and each has been wrong
+    at least once: pattern A named any artefact until `F40`/`F84`, pattern B any CI step until
+    `F144`, pattern C any directory holding YAML until `F93`, and `dependency_lock` a manifest
+    until `F135`.
+
+    Deliberately conservative throughout: it reports only what is clearly wrong, for the reason
+    `F145` records about the checker's own caution - a false alarm here would train a reader to
+    skim the real one.
     """
     if control in catalogue.PATTERN_B_CONTROLS:
         if rules.step_name_is_clearly_not_a_test(reference):
@@ -159,6 +188,18 @@ def implausible(control: str, reference: str) -> str:
                                         "composer.json", "pom.xml", "setup.py"}
         if name in manifests_that_are_not_locks:
             return f"{reference!r} declares dependencies but does not pin them"
+    if control == "assurance_findings" and reference:
+        # `F40`, `F84`: a findings register is named like one. The offer ranks every artefact; a
+        # PROPOSAL needs a match.
+        if not any(word in reference.lower() for word in plan.FINDINGS_WORDS):
+            return f"{reference!r} names no word that suggests a findings or assurance register"
+    if control in catalogue.PATTERN_C_CONTROLS and found is not None and reference:
+        # `F93`: a record directory is proposed only where it FITS - its name carries the
+        # control's words and every record in it passes the control's schema. Four controls were
+        # once all proposed `config/accounts`, a directory of account configuration.
+        fitting = found.register_fit.get(control, ())
+        if fitting and reference not in fitting:
+            return f"{reference!r} is not among the directories that fit {control}: {list(fitting)}"
     return ""
 
 
@@ -234,6 +275,93 @@ def test_axis_ci_steps(tmp: Path) -> None:
 
 
 # ---------------------------------------------------------------------------------------------
+# Axis: history
+# ---------------------------------------------------------------------------------------------
+
+def test_axis_history(tmp: Path) -> None:
+    """`F31`'s shape, locally. The property is *how much past this repository has*, and it decides
+    what may be asserted about it.
+
+    A repository with no commits, or one, or a truncated clone, cannot support a claim that its
+    history is clean - and the rule this framework applies to its own checks is that a negative
+    must establish the observation could have succeeded. `historical_paths` documents the intended
+    behaviour: fall back to the strict, single-path check *whenever git cannot answer*, because a
+    fallback that errs toward reporting is the right direction for a control.
+    """
+    print("\naxis: history")
+
+    empty = tmp / "hist-none"
+    empty.mkdir(parents=True)
+    _git(empty, "init", "-q")
+    _git(empty, "config", "user.email", "t@example.invalid")
+    _git(empty, "config", "user.name", "T")
+    check("no commits: the derivation cannot answer, and says unknown rather than none",
+          rules.dependency_manifest(empty)[1] in ("unknown", "none"),
+          str(rules.dependency_manifest(empty)))
+
+    one = make_repo(tmp, "hist-one", dependencies="manifest_and_lock")
+    from surfaceplate import check_conformance as checker  # noqa: E402
+
+    check("one commit: a path that exists has itself as its only history",
+          checker.historical_paths(one, "package.json") == ["package.json"],
+          str(checker.historical_paths(one, "package.json")))
+    check("a path that never existed yields itself and nothing invented",
+          checker.historical_paths(one, "nope/never.md") == ["nope/never.md"],
+          str(checker.historical_paths(one, "nope/never.md")))
+
+    shallow = tmp / "hist-shallow"
+    _git(one, "commit", "--allow-empty", "-qm", "second")
+    _git(one, "commit", "--allow-empty", "-qm", "third")
+    cloned = subprocess.run(
+        ["git", "clone", "-q", "--depth", "1", f"file://{one}", str(shallow)],
+        capture_output=True, text=True,
+    )
+    if cloned.returncode != 0:
+        check("a shallow clone could be made - otherwise this axis proves nothing",
+              False, cloned.stderr[-200:])
+        return
+    depth = subprocess.run(["git", "-C", str(shallow), "rev-list", "--count", "HEAD"],
+                           capture_output=True, text=True).stdout.strip()
+    check("the clone really is shallow - the premise, not an assumption", depth == "1", depth)
+    check("shallow: history still resolves to the path itself, never to a name it cannot see",
+          checker.historical_paths(shallow, "package.json") == ["package.json"],
+          str(checker.historical_paths(shallow, "package.json")))
+
+
+# ---------------------------------------------------------------------------------------------
+# Axis: registers
+# ---------------------------------------------------------------------------------------------
+
+def test_axis_registers(tmp: Path) -> None:
+    """`F93`. The property is *whether the repository holds a directory that fits a pattern-C
+    control*, and it decides whether one may be proposed.
+
+    Four controls were once all proposed `config/accounts` - a directory of account configuration -
+    because a pattern-C reference was taken from any directory holding YAML. The checker then
+    rejected every record in it, four times over.
+    """
+    print("\naxis: registers")
+
+    repo = make_repo(tmp, "reg-unfit", dependencies="manifest_and_lock")
+    (repo / "config" / "accounts").mkdir(parents=True)
+    (repo / "config" / "accounts" / "prod.yaml").write_text("account: prod\n", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "a directory of YAML that is not a register")
+
+    found = discover.scan(repo)
+    check("the unfit directory is discovered - it is offered, and that is correct",
+          "config/accounts" in found.register_dirs, str(found.register_dirs))
+    for control in sorted(catalogue.PATTERN_C_CONTROLS):
+        fits = found.register_fit.get(control, ())
+        check(f"but it does not FIT {control}", "config/accounts" not in fits, str(fits))
+
+    proposed = proposals_for(repo, "full")
+    for control in sorted(catalogue.PATTERN_C_CONTROLS):
+        value = proposed.get(f"controls.{control}.implementation_reference")
+        check(f"and {control} is not proposed it (F93)", value != "config/accounts", str(value))
+
+
+# ---------------------------------------------------------------------------------------------
 # The invariant that holds across every shape
 # ---------------------------------------------------------------------------------------------
 
@@ -254,7 +382,7 @@ def test_no_shape_yields_an_implausible_proposal(tmp: Path) -> None:
                 for field, value in proposals_for(repo, level).items():
                     seen += 1
                     control = field.split(".")[1]
-                    why = implausible(control, value)
+                    why = implausible(control, value, discover.scan(repo))
                     check(f"{dependencies}/{ci_steps}/{level}: {control} -> {value!r}",
                           not why, why)
     check("the invariant actually examined some proposals - an empty sweep proves nothing",
@@ -268,8 +396,13 @@ def main() -> int:
         print("Repository properties that change behaviour")
         for axis, values in AXES.items():
             print(f"  {axis}: {', '.join(values)}")
+        print("  and, asserted elsewhere:")
+        for axis, where in COVERED_ELSEWHERE.items():
+            print(f"    {axis} -> {where.split(' - ')[0]}")
         test_axis_dependencies(tmp)
         test_axis_ci_steps(tmp)
+        test_axis_history(tmp)
+        test_axis_registers(tmp)
         test_no_shape_yields_an_implausible_proposal(tmp)
 
     print()

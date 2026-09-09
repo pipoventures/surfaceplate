@@ -3047,3 +3047,22 @@ mistaken for a defect — a beyond-floor gate's body is hidden until `Ctrl+O`, s
 compared `applies()` against a different visibility axis and blamed the product for six failures of
 its own making. The **"an empty sweep proves nothing"** guard is what caught the first two: it
 reported zero radio-gated fields examined and refused to pass.
+
+### The axis work completed, and a map of where each property is checked (`ACT-091`)
+
+`DR-80`'s first instalment declared three axes and said so. This adds the two properties that were
+asserted **nowhere** — `history` (a repository with no commits, one commit, or a truncated clone
+cannot support a claim that its past is clean) and `registers` (`F93`: a directory of YAML that is
+not this control's records must never be proposed) — and generalises the truth oracle to **all four
+control patterns**, each of which has been wrong at least once: pattern A until `F40`/`F84`, pattern
+B until `F144`, pattern C until `F93`, and `dependency_lock` until `F135`.
+
+The rest of the properties are asserted in other suites, and are now named in a `COVERED_ELSEWHERE`
+map beside the axis table. **That map is the point rather than a courtesy:** an axis covered in
+another suite is covered, and an axis covered nowhere must not be able to hide between two files that
+each assume the other has it. The table states where each property is checked; it does not claim this
+file checks them all.
+
+Verified by removing the fix each axis guards. Take out `F93`'s fit filter and the registers axis
+reports all four pattern-C controls proposed `config/accounts` — a directory of account
+configuration — which is that finding verbatim.

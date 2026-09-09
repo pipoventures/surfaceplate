@@ -9,7 +9,7 @@ a3e8cd32162e8dd71360be22c91b4d71ea3dca39034395b2da5b42bc11d7e98f  surfaceplate-0
 83b4142a39e5bd89f524b6bfffd58a070f34f70ee4d3503e242b0092d993796d  surfaceplate-0.18.0/.github/workflows/secret-scan.yml
 9d1191c861c008bca88e1cf1c8bb1f291fdc2c063a3a14b03213be0e819f3171  surfaceplate-0.18.0/.github/workflows/standard-self-check.yml
 4c86bc5a754e901872ccc6de24a578330f7268d7433bf8e3840f01b62dd032cf  surfaceplate-0.18.0/AGENTS.md
-cb5c9e4d5f693663cb7785f0167caeb2a8fb81916b5484d3d09567def343acf5  surfaceplate-0.18.0/CHANGELOG.md
+662d230d98ae0e441108bb44fa7fc5c8aec7682225d7c020ea7a4fbcce6f5038  surfaceplate-0.18.0/CHANGELOG.md
 fe7106b835b6e02776567d37d7a4f2224371b80a0bf5422956bae29ca0177a1c  surfaceplate-0.18.0/CLAUDE.md
 299f7305d43d73498646d99f6c994ffe77b9e1ed114a724e211e0cc68136dc69  surfaceplate-0.18.0/CONTRIBUTING.md
 867100e2e3bbfd993a9e2bd27caf7b4100d6e1edec84de5d38e190f763ae7e83  surfaceplate-0.18.0/INSTALL.md
@@ -23,7 +23,7 @@ fddca9faf4e45a086446493a4bacbfbd8bc970247622f8d5995d8325a8901cf5  surfaceplate-0
 a319c3636ff3822299324a7e717d1b8c393f1a4c658cf8b307e0c27d7c0a983d  surfaceplate-0.18.0/SECURITY.md
 a8ffa839e39e9328b5ff53ffbc947d30f6548fb5a4628e36189049fe8fe08518  surfaceplate-0.18.0/SETUP_GUIDE.md
 69a715ed975da659adf81ff0b1edd4d576b875313d3e3c01e2ae4de5006ace1b  surfaceplate-0.18.0/SUPPORT.md
-631e16f0852357e59072b6e5cc53f42c1e01ff083d7901a7a0f4f407de62c878  surfaceplate-0.18.0/activity/register.md
+8afd0c9d5dd60f04d57b1e9a809a09bde158cbf9ae70722f35fc031cdee664b9  surfaceplate-0.18.0/activity/register.md
 91757193c63094f53ce7f7c1dd8c1c172065bf38a925a156cb293296f0456d12  surfaceplate-0.18.0/audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md
 74a002de361fab6dc8cee995f8d6f406ade6eba0ba2c93d9c6b397407c304ba3  surfaceplate-0.18.0/audit/AUDIT_README.md
 688413d8784273806dfbb388262e0907ecdfbea23c3bc7c4555d0cb80b629780  surfaceplate-0.18.0/audit/AUDIT_SCOPE.md
@@ -169,7 +169,7 @@ fc2b0b4daa21053489323ca9ab2f93829840555ae767149b79261dbd967c1695  surfaceplate-0
 8b3bc6ead0fada615dcf5a0d04b6a231b14152f43ef14963d43c8c76e890f531  surfaceplate-0.18.0/org/decisions/DR-78.md
 19df6c61c63a2ccf6d02b62c5f3c85ec88761b9d8f08e3c5a341d378670bf0c0  surfaceplate-0.18.0/org/decisions/DR-79.md
 ecb44b6d64643e519ae0e3761c5997efd058d466885f6a9a7b20067476194945  surfaceplate-0.18.0/org/decisions/DR-8.md
-e9ffc4f61b6016f5e8812fcf8c45a97952d80fdecb3ee5f1fb63904c00767435  surfaceplate-0.18.0/org/decisions/DR-80.md
+4d0f25b37a7c8dc8eb96c99a0374e0dc4b06371b9a0646551ef0936627343345  surfaceplate-0.18.0/org/decisions/DR-80.md
 932acc89e5c02b0306b7961150160c7f298452d7de7f2fe1332b8ce94de6de40  surfaceplate-0.18.0/org/decisions/DR-9.md
 1f1593da3bbc5650fd572998851f6dbf0603e7c64c1eaeb253b42118d419c50b  surfaceplate-0.18.0/org/decisions/README.md
 f379f8a8ee07fcefe5a24afaaa94b5b0efafb8a7b7f631ad05cad546fbeda93b  surfaceplate-0.18.0/org/ruleset-standards-conformance.json
@@ -294,6 +294,6 @@ f737d05e7cb3facab55a2431f53b3ea7658ee5b7a5810a63360daae690d36d85  surfaceplate-0
 869377eb5c0f90d9808f6bcf262335d038d64fd4486015f58acf00d2a920cdd3  surfaceplate-0.18.0/tests/test_install_and_check.py
 291e79d63c2851c0062ce1fbef65cc756295812e44985145563a85d2a11f8593  surfaceplate-0.18.0/tests/test_provenance.py
 5573ca73af51405a9bf553d304063b0580a3b1a96e17ef219d74ffc6f14a2499  surfaceplate-0.18.0/tests/test_render.py
-aa65a6bb24ecc551d3d5b2f288273101635f4b8cfca6114e3c319a62ef9190bd  surfaceplate-0.18.0/tests/test_repository_shapes.py
+18b8fc6cf9f804e25f60c2f03f5ee9b523b01faaa099150820b86fe82e6e790d  surfaceplate-0.18.0/tests/test_repository_shapes.py
 b032581bcf670320b6204f8e8454f40ce357919b3d84df7e9c19af57d22e8bdd  surfaceplate-0.18.0/tests/test_scaffold.py
 040f4e74863ff6120280c4941b3414eae72f5531ae6239821951b0a6784fcfea  surfaceplate-0.18.0/tests/validate_contracts.py
