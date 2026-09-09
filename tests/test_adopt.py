@@ -1119,19 +1119,29 @@ def test_a_repository_with_no_dependencies_can_still_conform(tmp: Path) -> None:
     check("the level floor the wizard uses no longer names the control",
           "dependency_lock" not in plan.level_floor("essential", found))
 
-    # THE WAIVER REMOVES AN OBLIGATION, NOT AN OPTION. The control is still offered - a
-    # repository with no manifest today may still want the discipline - but only above the
-    # floor, behind the `above_floor` tick, which is what `depends_on` encodes. Asserting it is
-    # not PRESENTED would have been the wrong claim, and was the first thing this test asserted.
+    # `F142`: AN OPTION THAT CANNOT BE COMPLETED IS NOT AN OPTION.
+    #
+    # This test first asserted that `dependency_lock` was still *offered* above the floor, on
+    # `DR-73`'s principle that a waiver removes an obligation and not an option. The principle
+    # holds; the consequence was not checked, and the maintainer found it on the third screen of
+    # the next walkthrough. Ticking the offer asked for a lock file, `SP051` requires that file to
+    # exist and be tracked, and there is none - so the offer dead-ended in the same place, in the
+    # same way, as `F132` did before `DR-73`.
+    #
+    # Where the repository declares no dependencies the control is NOT APPLICABLE rather than
+    # merely not required, so it is withheld from the list with the reason shown - the mechanism
+    # `F97`/`DR-59` already built for `documentation_authority` at `essential`.
     plan_ = plan.controls_plan(level="essential", mode="simple", found=found)
-    by_id = {f.id: f for f in plan_.fields}
-    for field_id in ("dependency_lock.rationale", "dependency_lock.implementation_reference"):
-        spec = by_id.get(field_id)
-        check(f"{field_id} is still offered, so the control can be chosen deliberately",
-              spec is not None)
-        check(f"but only above the floor - {field_id} asks nothing unless a human ticks it",
-              spec is not None and spec.depends_on == ("above_floor", ("dependency_lock",)),
-              repr(getattr(spec, "depends_on", None)))
+    above = next((f for f in plan_.fields if f.id == "above_floor"), None)
+    check("an above-floor list is still offered", above is not None)
+    offered = [c for c, _ in above.choices] if above else []
+    check("but dependency_lock is not in it - there is nothing it could name",
+          "dependency_lock" not in offered, str(offered))
+    check("and the list says why it is missing, rather than leaving it unexplained",
+          above is not None and "no dependency manifest of any kind" in above.help,
+          (above.help if above else "")[-200:])
+    check("naming the way back, so it reads as a state and not a refusal",
+          above is not None and "returns on its own" in above.help)
 
     # And the reference field on the decisions screen - the one the maintainer hit - is not
     # asked at all, because that one has no `above_floor` escape and no answer to give.

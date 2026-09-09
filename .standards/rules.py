@@ -536,3 +536,50 @@ SP_TOPICS: dict[str, int] = {
     # Records that carry their own revisit dates: overrides and the lineage family.
     "SP054": 10,
 }
+
+
+# ---------------------------------------------------------------------------
+# Does a CI step's NAME say it runs tests? (`F145`)
+#
+# `F144` stopped the wizard PROPOSING a step whose name says nothing of the sort. It did nothing
+# about the profiles already carrying one, and there was a real adopter with two controls credited
+# to `Check out mnemosyne (shared generator lives there)` - passing conformance, indefinitely,
+# because `SP053` checks that the named step EXISTS and `DR-25` fixes that boundary deliberately.
+#
+# So the checker says so, as an ADVISORY and never a failure. A step can legitimately be named
+# something this list misses, and failing an adopter on a word list would be a worse defect than
+# the one it catches. Held here rather than in `adopt/plan.py` because the wizard's filter and the
+# checker's caution must be one answer to one question (`DR-48`).
+# TWO LISTS, AND THE ASYMMETRY IS THE POINT.
+#
+# `TEST_STEP_WORDS` is what the wizard needs to PROPOSE a step: it must be confident the step IS a
+# test. Narrow is safe there, because a step it misses is asked for instead.
+#
+# `NOT_A_TEST_STEP` is what the checker needs to CAUTION: it must be confident the step is NOT one.
+# The same narrow list read the other way accuses the innocent - this repository's own contract
+# test step is called "Validate the control contracts", which contains neither "test" nor "spec"
+# and is exactly what it claims to be. A checker that told its own author their control was
+# passing while not holding would be the false alarm that trains a reader to skim the real one.
+#
+# So the caution fires only on names that clearly describe something else: fetching the code,
+# preparing the machine, or shipping the result. Ambiguous names are left alone, deliberately.
+TEST_STEP_WORDS: tuple[str, ...] = ("test", "spec")
+NOT_A_TEST_STEP: tuple[str, ...] = (
+    "check out", "checkout", "clone",
+    "set up", "setup", "install", "cache", "restore",
+    "upload", "download", "publish", "deploy", "release", "notify", "comment",
+    "login", "log in", "authenticate", "configure credentials",
+)
+
+
+def step_name_suggests_tests(name: str) -> bool:
+    """Confident this step IS a test - used to propose, where a miss costs only a question."""
+    return any(word in str(name).lower() for word in TEST_STEP_WORDS)
+
+
+def step_name_is_clearly_not_a_test(name: str) -> bool:
+    """Confident this step is NOT a test - used to caution, where a false alarm costs trust."""
+    lowered = str(name).lower()
+    if step_name_suggests_tests(lowered):
+        return False
+    return any(word in lowered for word in NOT_A_TEST_STEP)

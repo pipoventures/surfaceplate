@@ -65,6 +65,27 @@ RELEASE_ROUTE_WRONG = "a route nobody follows is a promise the profile makes on 
 # proposal comes only from a match (`F40`'s rule, applied to controls at `DR-54` (2)).
 FINDINGS_WORDS = ("finding", "assurance")
 
+# `F144`: the same rule for pattern B, and the third time this gap has been closed one pattern at a
+# time. `F93` wrote the sentence about pattern C - *"DR-51 (5) applied the checker's rules to
+# artefacts and scanner workflows; DR-54 (2) applied a name match to pattern-A references; pattern C
+# was left with neither"* - and it was then true of pattern B, which is how a CI **checkout** step
+# came to be proposed as the implementation of `deterministic_tests`, with origin `discovered`.
+#
+# Deliberately narrow, and the safe direction is to propose nothing. A step that runs tests
+# essentially always says so; `pytest` and `unittest` contain "test" already. A step this misses is
+# asked for instead, which is what pattern A does when its word match finds nothing - and asking is
+# never the failure mode that puts a wrong answer in a profile under the word "discovered".
+TEST_STEP_WORDS = rules.TEST_STEP_WORDS
+
+# And within the steps that do run tests, the control's OWN words first - `F84`'s rule, *"the name
+# matches first, as the gates do"*. Without it both test controls take the same first matching step,
+# so a repository with a "Run the contract tests" and a "Run the unit tests" was offered the
+# contract one for `deterministic_tests`: a test step, and still the wrong test step.
+CONTROL_STEP_WORDS: dict[str, tuple[str, ...]] = {
+    "contract_tests": ("contract", "schema", "api", "integration"),
+    "deterministic_tests": ("unit", "determin", "regression", "golden", "snapshot", "replay"),
+}
+
 # `F97` / `DR-59`: controls the checker verifies through a gate, and the gate. Above the floor, such
 # a control is offered only at a level that declares its gate; `SP052` otherwise fails the profile
 # on its first check, and the wizard would have written a profile it knew the checker faults.
@@ -776,16 +797,35 @@ def controls_plan(
     # offered, and a profile declaring it failed `SP052` on its first check: the level declares no
     # `authority_map` gate, so the control would be checked against nothing.
     withheld = {
-        control_id: gate_id
+        control_id: (
+            f"the checker verifies it through the {gate_id} gate, which {level} does not declare "
+            f"(SP052); choose a level that requires both"
+        )
         for control_id, gate_id in WITHHELD_ABOVE_FLOOR.items()
         if control_id not in required and gate_id not in catalogue.LEVEL_REQUIRED_GATES[level]
     }
+    # `F142`, and it is `F132` coming back through a door `DR-73` left open. `DR-73` lifted the
+    # `dependency_lock` FLOOR for a repository that declares no dependency manifest, and kept the
+    # control offerable on the principle that a waiver removes an obligation and not an option.
+    # The principle is right and the consequence was not checked: ticking it here asks for a lock
+    # file, `SP051` requires that file to exist and be tracked, and there is none - so the offer
+    # dead-ends on the same screen, in the same way, as before `DR-73`.
+    #
+    # An option that cannot be completed is not an option. Where the repository declares no
+    # dependencies at all the control is NOT APPLICABLE rather than merely not required, and the
+    # note says so - including the part that matters, which is that adding a manifest brings it
+    # back with no edit to anything.
+    if not found.has_dependency_manifest and "dependency_lock" not in required:
+        withheld["dependency_lock"] = (
+            "this repository tracks no dependency manifest of any kind, so there is no lock file "
+            "to name and SP051 would have nothing to check (DR-73). Add one - a package.json, a "
+            "pyproject.toml, a go.mod - and the control returns on its own, with no edit here"
+        )
     above_floor = [c for c in _in_topic_order(catalogue.CONFORMANCE_LEVELS["full"]) if c not in required and c not in withheld]
     if above_floor:
         withheld_note = "".join(
-            f" {control_id} is not offered at {level}: the checker verifies it through the {gate_id} gate, "
-            f"which {level} does not declare (SP052); choose a level that requires both."
-            for control_id, gate_id in sorted(withheld.items())
+            f" {control_id} is not offered at {level}: {reason}."
+            for control_id, reason in sorted(withheld.items())
         )
         fields.append(
             FieldSpec(

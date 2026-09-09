@@ -1151,6 +1151,52 @@ def test_currency_is_reported_where_integrity_cannot_be(tmp: Path) -> None:
     )
 
 
+def test_a_ci_step_that_is_clearly_not_a_test_is_cautioned(tmp: Path) -> None:
+    """`F145`. `F144` stopped the wizard PROPOSING a step whose name says nothing about tests. It
+    did nothing about the profiles already carrying one - and there was a real adopter with two
+    controls credited to `Check out mnemosyne (shared generator lives there)`, passing every run,
+    because `SP053` establishes that the named step EXISTS and `DR-25` fixes that boundary on
+    purpose.
+
+    TWO LISTS, AND THE ASYMMETRY IS THE POINT. Proposing needs confidence the step IS a test, so a
+    narrow positive list is safe: a miss costs a question. Cautioning needs confidence it is NOT,
+    so the same list read backwards accuses the innocent - this repository's own contract-test step
+    is called "Validate the control contracts", which contains neither "test" nor "spec". A checker
+    that told its own author a control was passing while not holding would be the false alarm that
+    trains a reader to skim the real one.
+    """
+    sys.path.insert(0, str(PAYLOAD))
+    import rules  # noqa: E402
+
+    for name in ("Check out mnemosyne (shared generator lives there)", "Set up Python",
+                 "Upload report", "Install gitleaks"):
+        check(f"cautions on {name!r} - it describes fetching, preparing or shipping",
+              rules.step_name_is_clearly_not_a_test(name))
+    for name in ("Test the installer end to end", "Run the unit tests",
+                 "Validate the control contracts", "Run activity/register.md --check"):
+        check(f"stays quiet on {name!r} - a test, or too ambiguous to accuse",
+              not rules.step_name_is_clearly_not_a_test(name))
+
+    # And by effect, in a real report.
+    repo = make_git_repo(tmp, "step-caution")
+    install(repo, "--no-hooks")
+    (repo / ".github" / "workflows").mkdir(parents=True, exist_ok=True)
+    (repo / ".github" / "workflows" / "ci.yml").write_text(
+        "name: CI\non: [push]\njobs:\n  j:\n    runs-on: ubuntu-latest\n    steps:\n"
+        "      - name: Check out this repo\n        run: true\n", encoding="utf-8")
+    profile = repo / "governance" / "application-profile.yaml"
+    text = profile.read_text(encoding="utf-8")
+    if "contract_tests" in text:
+        text = text.replace("implementation_reference: replace-me",
+                            "implementation_reference: Check out this repo")
+        profile.write_text(text, encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "ci"], check=True, capture_output=True)
+    out = verify(repo).stdout
+    check("the caution never turns a passing repository into a failing one - it is advisory",
+          "Advisory" in out or "PASS" in out or "WARN" in out, out[-200:])
+
+
 def test_a_downgrade_is_reported_as_a_downgrade(tmp: Path) -> None:
     """`F141` (`PW-08`). Installing an older tool over a newer install announced "an UPGRADE" -
     the tool noticed the difference and not its direction. `rules.version_key` orders them, the
@@ -1570,6 +1616,9 @@ def main() -> int:
 
         print("\na declared canon artefact is checked, not trusted (DR-71, WI-2)")
         test_a_declared_canon_artefact_is_checked_for_existence_and_tracking(tmp)
+
+        print("\na CI step that is clearly not a test is cautioned (F145)")
+        test_a_ci_step_that_is_clearly_not_a_test_is_cautioned(tmp)
 
         print("\na downgrade is reported as a downgrade (F141)")
         test_a_downgrade_is_reported_as_a_downgrade(tmp)

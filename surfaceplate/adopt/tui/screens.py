@@ -634,7 +634,17 @@ class FormScreen(_SectionScreenBase):
     @on(Checkbox.Changed)
     @on(Input.Changed)
     @on(RadioSet.Changed)
+    @on(SelectionList.SelectedChanged)
     def _on_change(self, event: events.Event) -> None:
+        # `F143`: `SelectionList.SelectedChanged` was missing, and it is the ONE widget whose
+        # answer reveals other fields. `FieldSpec.applies` had already been generalised so that
+        # "depends on a multiselect" means "is among what was ticked" - the plan side was done and
+        # the screen was never wired to the event. So ticking a control in the above-floor list
+        # left its rationale and reference rows `display=False`, out of the focus chain and
+        # unreachable by any key, while `Ctrl+S` refused the section for their being blank.
+        #
+        # The wizard demanded a value for a field it did not show. Nothing in the scripted suites
+        # could see it: they answer the plan directly and never render a row.
         self._refresh_visibility()
 
     @on(Select.Changed)
@@ -1147,7 +1157,11 @@ class GatesScreen(_SectionScreenBase):
 
     @on(Input.Changed)
     @on(Checkbox.Changed)
+    @on(SelectionList.SelectedChanged)
     def _on_change(self, event: events.Event) -> None:
+        # `F143`, the same omission on this screen. No field here depends on a multiselect today,
+        # so this changes nothing now and stops the two screens differing in a way the next
+        # conditional field would have to rediscover.
         self._set_hint()
 
     @on(Select.Changed)

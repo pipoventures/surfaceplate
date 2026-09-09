@@ -45,12 +45,12 @@
     ".github/skills/review/SKILL.md": "b303e2740d3a0af2d51c671994e8a7d9de84622e21361420a05b7e2d721bb52f",
     ".github/skills/security-review/SKILL.md": "02d0531951ffa751ab9d7ed49d263236ce293cfbb7433d585b9b6e145363654b",
     ".github/workflows/standards-conformance.yml": "98a406a77aec65926a799be990478047f48c79fc1b9c12e4007abc068c3f0ea1",
-    ".standards/MANIFEST.sha256": "be8a3da73d25cb88254295a61c8fcb0a7e5bfc3124934c312fb8936ec305bb08",
-    ".standards/VERSION": "02d38e98e88f4a8dc2ea40dbb769338601066fc94920b52882a14f21ad97f7ee",
+    ".standards/MANIFEST.sha256": "5d1013304368b82f02368dfe12ef4c8698b02cd1a08856153c5b56cf89b2e3bc",
+    ".standards/VERSION": "f5e9382967c9833066a55808829f3750fc8e1181b170cafd222c37048bb49a77",
     ".standards/adapters/python.md": "1ca5607d907f60e29ed9ec843a900384915f20b4fa114c14bd8923bc3e7d72bd",
     ".standards/adapters/r.md": "c4da3094ecbe5cc560a7b7aeb4171c72d7fc8e3e85df723e8ffbc8124049f50f",
     ".standards/adapters/typescript.md": "3f540700ee9647ac9f4a1ea8c6bd4131c948b00d42cdc9ea7f6eb93133727e76",
-    ".standards/check_conformance.py": "6336e706ef855e0b313c13cabbb3da9a3f2a014e376c4d56a68c96b80887bd69",
+    ".standards/check_conformance.py": "3a665351cf38ec8fa59fa6a0d197ed447244d64944615d4b9bfee7cf2053e22e",
     ".standards/conformance-block.md": "0f84e2e23d6d7a12b93f34700aa704349b2e8f8e14a2f347b1d38c0f03ea64f8",
     ".standards/core/CONFORMANCE_LEVELS.md": "7989f0966864eaa17867cf556233e6f6e06fd0cb139ba66bbbe377af4b2c0085",
     ".standards/core/CONTROL_PRINCIPLES.md": "b75e1d03c087c5b75397d483cf60dbf9a010263034d185a8770ddc301f666d2f",
@@ -60,7 +60,7 @@
     ".standards/examples/method-registry-entry.example.yaml": "6479cabd3a6a0014401eb2898130701d99edfed46d7b80413c42e704881439b6",
     ".standards/examples/method-run-lineage.example.yaml": "edb20cbf3697618c82f54bd932ddd9f577ef7131516f94769e3dad63d6205f4d",
     ".standards/examples/override-record.approved.example.yaml": "2e52ffc76fcad38c2949ce9f828c63a6acf28fd02b498d900bb49ccbb1f035eb",
-    ".standards/rules.py": "3bb23bed56861ab3325183d7311303999334f6c2cec2ea8b938c1955ce976a1b",
+    ".standards/rules.py": "e45641535bdba361ecd8e402fe5b4a53abeb9f855e2909b7fe72bf772f14fb97",
     ".standards/schemas/README.md": "4c2531b74d54379ec45af3bdb3cc9c33f7394e2b380ee80432a30741842c58cd",
     ".standards/schemas/application-profile.schema.yaml": "61e3b8fcbdcbe23915d7dc39638537abd0c3c3a5183048ec403b2455b9efa593",
     ".standards/schemas/assurance-evidence.schema.yaml": "efba66a86df68383f5aaff9910146b770e8f39ce8234d48d63d8de1ae3e8ab17",
@@ -103,11 +103,11 @@
     ".standards/topics/12-enforcement-and-change-control.md": "12698df3d9f0d0b4e2523aa06851f9a8e8954fc2385fd2af1455fbce910ee029"
   },
   "first_installed_at": "2026-08-31",
-  "framework_digest": "be8a3da73d25cb88254295a61c8fcb0a7e5bfc3124934c312fb8936ec305bb08",
+  "framework_digest": "5d1013304368b82f02368dfe12ef4c8698b02cd1a08856153c5b56cf89b2e3bc",
   "grace_expires": "2026-09-30",
   "hooks": "chained",
   "installed_at": "2026-09-09",
   "profile_path": "governance/application-profile.yaml",
   "standard": "surfaceplate",
-  "standard_version": "0.17.0"
+  "standard_version": "0.18.0"
 }

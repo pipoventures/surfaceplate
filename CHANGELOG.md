@@ -2161,7 +2161,17 @@ run no longer ends in silence: it states the path it wrote and runs the checker 
 - `surfaceplate doctor --report` assembles a paste-ready problem report locally - tool version and anchor, the installed standard's version and digest, Python and OS, optional-dependency availability, the checker's verdict - and states plainly that nothing is sent; refuses `--online`. `about.ISSUES` threaded to the installer's Next steps and the post-`adopt` failure output; `SUPPORT.md` and two GitHub issue forms added (`F119`, `ACT-062`).
 - The independent review packet is distributed for the first time: a GitHub Release on tag `pypi/0.16.1` carries the three packet files, and a "Reviewing this" section in `README.md` and `audit/REVIEW_INVITATION.md` give `H4`/`H6` an actual route to a reviewer (`ACT-062`, `DR-65`).
 
-## 0.17.0 - unreleased; one version for the whole adoption-readiness programme
+## 0.18.0 - the adoption-readiness programme, in one version
+
+**Not 1.0, and the reservation is a decision rather than caution** (`DR-79`). `1.0` is held back
+until the independent review (`H6`, `RELEASE_PLAN` item 10) has happened, because `DR-61` already
+binds the `Development Status :: 3 - Alpha` classifier to that same gate — and publishing `1.0`
+while the package still declares itself alpha would be the two-answers-in-one-document defect this
+programme spent its whole length removing from everything else.
+
+*(This section was headed `0.17.0 - unreleased` while the programme ran, on the maintainer's
+standing decision to publish once at the end rather than once per phase. The number moved when the
+release did.)*
 
 **Release discipline for this version, decided by the maintainer on 2026-09-08.** `0.17.0`
 accumulates every phase of the programme and is published **once**, at the end, rather than a
@@ -2860,3 +2870,199 @@ has not been shown to distinguish anything. `doctor`'s matching half printed `bo
 **One breaking change, deliberately, before 1.0:** `adopt --edit` without `--because` is an error
 where it used to succeed. Refusing the downgrade was rejected — installing an older version on
 purpose is legitimate; announcing it wrongly was not.
+
+### An option that cannot be completed is not an option (`ACT-085`, `F142`)
+
+Found on the **third screen of the walkthrough**, one day after `F132` was closed, on the same
+repository — and this one is the framework's own doing rather than an old defect resurfacing.
+
+`DR-73` lifted the `dependency_lock` **floor** for a repository that declares no dependency
+manifest, and deliberately kept the control **offerable** above the floor, on the principle that *a
+waiver removes an obligation, not an option*. The principle is right; **the consequence was not
+checked.** Ticking the offer asks for a lock file, `SP051` requires that file to exist and be
+tracked, and there is none — so the offer dead-ended on the same screen, in the same way, as before
+`DR-73`.
+
+**The test that should have caught it is the one written for `F132`.** It asserted the control was
+still *offered*, and that its fields were gated behind the tick. Both were true. It never asserted
+the offer could be **taken** — and asserting that a door exists is not asserting that it opens.
+
+The mechanism for the fix already existed and was not reached for, which is the more useful half:
+`F97`/`DR-59` built exactly this for `documentation_authority` at `essential` — a control that
+cannot be honestly completed here is withheld from the list *and the help says why*.
+`dependency_lock` is now withheld the same way on a repository with no manifest, with the part that
+makes it a state rather than a refusal: *"Add one — a `package.json`, a `pyproject.toml`, a
+`go.mod` — and the control returns on its own, with no edit here."*
+
+Verified in both directions: the no-manifest repository does not offer it and says why; the
+repository with a `package-lock.json` still has it **required in the floor** — two exclusions from
+one list, for opposite reasons.
+
+### The wizard demanded a value for a field it did not show (`ACT-086`, `F143`)
+
+Ticking any control in the above-floor list made its rationale and implementation-reference
+**required** and left them **invisible**. `Ctrl+S` refused the section for their being blank, and no
+key could reach them. *"Blocked again"* was exact: there was no progressing.
+
+`FormScreen._on_change` listened for `Checkbox.Changed`, `Input.Changed` and `RadioSet.Changed` —
+and **not** `SelectionList.SelectedChanged`, which is the one widget on that screen whose answer
+reveals other fields. `FieldSpec.applies` had already been generalised for it, with a comment
+explaining that *"depends on that field"* means *"is among what was ticked"* for a multiselect: the
+plan side was finished and the screen was never wired to the event.
+
+**Why nothing caught it, and it is the same boundary three findings running.** `test_adopt.py` and
+the 208-case matrix answer the plan directly — a `ScriptedInterview` never renders a row, so a row
+that is never shown is invisible to 45,000 checks. `F132` was a repository shape no fixture had;
+`F142` was an offer no test tried to take; this is an event no scripted path emits. **The suites
+cover what the wizard decides and not what it displays**, and all three were found in minutes by a
+person using it.
+
+The regression test therefore lives in `test_adopt_tui.py` and drives real keypresses, because no
+scripted path can reach this. Verified in both directions: with the handler the rows display, both
+fields enter the focus chain and Tab lands on the first; with it removed the test fails naming the
+same two hidden rows.
+
+### A control was verified against a checkout step (`ACT-087`, `F144`)
+
+Found in the profile the wizard actually wrote, on the maintainer's completed walkthrough:
+
+```yaml
+  deterministic_tests:
+    rationale: Outputs must be reproducible before they can be reviewed.
+    implementation_reference: Check out mnemosyne (shared generator lives there)
+```
+
+and the checker then reported it **verified against that step**. A repository credited with
+deterministic tests on the strength of a `git checkout`, with the value's provenance recorded as
+`discovered` — presented as a fact about the repository rather than a question. The workflow held
+eleven steps; not one ran tests, and the one chosen was not even the plausible candidate.
+
+**The same gap for the third time.** `defaults.propose_controls` filters proposals per pattern:
+pattern A by a word match (`F40`, `F84`), pattern C by schema fit (`F93`) — and **pattern B by
+nothing**. `F93` wrote the sentence about pattern C — *"`DR-51` (5) applied the checker's rules to
+artefacts and scanner workflows; `DR-54` (2) applied a name match to pattern-A references; pattern C
+was left with neither"* — and it was then true of pattern B, and stayed true through two releases.
+
+Reach is the ordinary case, not a corner: `deterministic_tests` and `contract_tests` are both in the
+`standard` floor, so this touched every adopter at `standard` or `full` with any CI workflow.
+
+A step is now proposed only where its **name says it runs tests**, and within those the control's own
+words rank first — so a repository with both a "Run the unit tests" and a "Run the contract tests"
+gives each control its own rather than both the same one. **The safe direction is to propose
+nothing:** a step the words miss is *asked* for, exactly as pattern A behaves when its match finds
+nothing, because asking never puts a wrong answer into a profile under the word *discovered*. Every
+step is still **offered** — only the proposal is filtered.
+
+### The fix stopped new bad references and left the existing one passing (`ACT-088`, `F145`)
+
+`F144` stopped the wizard **proposing** a CI step whose name says nothing about tests. It did
+nothing about the profiles already carrying one — and the only real adopter of this standard had
+**two** controls credited to `Check out mnemosyne (shared generator lives there)`, written at
+`0.16.0`, carried through the upgrade untouched, passing every run. Verified as pre-existing rather
+than assumed: the same two references are in `HEAD`'s copy of that profile.
+
+The checker now adds a caution to the note it already prints, and never a failure.
+
+**Two lists, and the asymmetry is the whole design.** Proposing needs confidence a step **is** a
+test, so a narrow positive list is right — a step it misses is asked for, and a question costs
+nothing. Cautioning needs confidence a step is **not** one, and the same list read backwards accuses
+the innocent: this framework's own contract-test step is called *"Validate the control contracts"*,
+which contains neither *test* nor *spec*. **A checker that told its own author a control was passing
+while not holding would be the false alarm that trains a reader to skim the real one.** So the
+caution fires only on names that clearly describe fetching, preparing or shipping, and ambiguous
+names are left alone on purpose. Both lists live in `rules.py`, one answer to one question.
+
+### An upgrade guarantees two findings the adopter must fix by hand (`F146`, open)
+
+Upgrading a real adopter `0.16.0` → `0.18.0`, the installer reports `keep
+governance/application-profile.yaml (yours; never overwritten)` — and the next command reports
+`SP048` and `SP049`, because `framework_version` and `framework_digest` are stale by construction.
+**Every upgrade, every time**, cleared by hand-copying a 64-character digest out of a JSON file the
+installer wrote. This framework's own repository hit it twice in one session.
+
+Left open, because the remedy changes what a profile *asserts*: `DR-45` reads `framework_digest` as
+the adopter's own claim about the distribution they assessed against, and re-pinning it silently
+would let a version change through with nobody re-reading the profile. Three routes are costed in
+`F146` and the decision is `H23`; the recommendation is an explicit `--repin`, which keeps the claim
+the adopter's while removing the part that is merely clerical.
+
+### The properties of a repository, named and covered (`ACT-089`, `DR-80`)
+
+In one afternoon a person driving the wizard by hand found five defects — `F132`, `F142`, `F143`,
+`F144`, `F145`, four of them `high` — that some fifty thousand automated checks could not reach,
+including a 208-case matrix walking every reachable decision.
+
+**The tempting conclusion was "test against more repositories", and it was wrong.** The maintainer's
+objection is recorded in `DR-80` because it changed the work: Surfaceplate is agnostic by design, so
+its behaviour cannot depend on *which* repository it meets — only on a small set of **properties**
+that repository has. Enumerate the properties and a handful of synthetic fixtures covers every
+repository there will ever be. The proof is that all five findings now reproduce from a fixture of a
+few files; the real repositories were needed to **find** them and are not needed to **prevent** them.
+
+The sharper diagnosis followed: the matrix already had a shape axis —
+`SHAPES = ("bare", "rich", "mixed")` — chosen for **how much discovery finds**, not for **which
+properties change behaviour**. `bare` has no dependency manifest and `F132` still got through,
+because the fixture had the property and no oracle asked the question.
+
+So there is now a fifteenth suite, `tests/test_repository_shapes.py`, which declares the axes and
+exercises each in both directions — **and asserts one thing none of the others do: that what the
+tool proposes is capable of implementing the control it is proposed for.** Fixtures alone would not
+have caught `F144`; the `rich` shape *has* CI steps. What was missing was an oracle asking whether
+what was written is **true** rather than whether it matched expectation, because asserting that
+output matches expectation cannot catch an expectation that was wrong.
+
+**Verified by removing the fixes it guards.** Take out `F144`'s proposal filter and the invariant
+fails eight times — including on a shape with *real test steps*, which is the case the matrix
+already covered and still missed. Take out `F142`'s withhold and the dependencies axis fails twice.
+
+`DR-80` states what this is not: three axes are declared, not ten; `installed` is named and covered
+elsewhere rather than pretended at here; and nothing in this file covers what the interface
+**displays**, which is `F143`'s class and lives in `test_adopt_tui.py` driving real keypresses.
+
+### What the interface displays, asserted as an invariant (`ACT-090`)
+
+The second instalment of `DR-80`. `F143` was one missing `@on(...)` decorator; the test beside it
+guards that case. **This asserts the property the decorator was in service of**, so the next
+conditional field cannot rediscover it:
+
+> for every field, on every screen, at every value of the widget that gates it —
+> `spec.applies(answers)` must equal *the row is displayed* must equal *the widget is reachable*.
+
+All three together. A field the plan asks for and the screen hides is `F143`: required, blank,
+invisible, and `Ctrl+S` refusing the section for it. A field the plan does not ask for and the screen
+shows is the opposite defect, caught by the same equality.
+
+**Both gating widgets are covered, and that is the point** — the controls screen's conditional fields
+hang off a **multiselect** (24 checked) and the gates screen's off a **radio set** (12 checked).
+`F143` existed precisely because the screen listened for one kind of change and not the other, so an
+invariant that tested only the kind that worked would have proved nothing.
+
+With `F143` reintroduced the suite reports **51 failures**, naming `asks=True displayed=False` —
+the state a person sat looking at. Restored: 170 checks, up from 96.
+
+Three wrong turns of my own are recorded in the file rather than tidied away, because each is a
+reason the test nearly proved nothing: a target gate guessed twice (a level-mandatory gate has no
+status widget, and a design gate has none when the repository builds no interface), and folding
+mistaken for a defect — a beyond-floor gate's body is hidden until `Ctrl+O`, so the first version
+compared `applies()` against a different visibility axis and blamed the product for six failures of
+its own making. The **"an empty sweep proves nothing"** guard is what caught the first two: it
+reported zero radio-gated fields examined and refused to pass.
+
+### The axis work completed, and a map of where each property is checked (`ACT-091`)
+
+`DR-80`'s first instalment declared three axes and said so. This adds the two properties that were
+asserted **nowhere** — `history` (a repository with no commits, one commit, or a truncated clone
+cannot support a claim that its past is clean) and `registers` (`F93`: a directory of YAML that is
+not this control's records must never be proposed) — and generalises the truth oracle to **all four
+control patterns**, each of which has been wrong at least once: pattern A until `F40`/`F84`, pattern
+B until `F144`, pattern C until `F93`, and `dependency_lock` until `F135`.
+
+The rest of the properties are asserted in other suites, and are now named in a `COVERED_ELSEWHERE`
+map beside the axis table. **That map is the point rather than a courtesy:** an axis covered in
+another suite is covered, and an axis covered nowhere must not be able to hide between two files that
+each assume the other has it. The table states where each property is checked; it does not claim this
+file checks them all.
+
+Verified by removing the fix each axis guards. Take out `F93`'s fit filter and the registers axis
+reports all four pattern-C controls proposed `config/accounts` — a directory of account
+configuration — which is that finding verbatim.
