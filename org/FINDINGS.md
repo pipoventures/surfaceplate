@@ -204,6 +204,9 @@ an unknown number of releases with nothing noticing.
 | F136 | The pathway sweep's remaining fifteen findings (`PW-04` to `PW-18`), reported with evidence and **not yet adjudicated here** — held as one entry so none is lost and none is given a verified finding's status | medium | Open — each splits into its own `F<n>` as it is adjudicated |
 | F137 | The natural completion of a shipped template is invalid: an unquoted `YYYY-MM-DD` parses as a YAML date and every schema here says `type: string` — it defeats the FAQ's own remedy for a bypassed gate, and `adoption_date` for anyone filling the profile by hand | medium | Closed — `ACT-081` (`DR-75`), 2026-09-09; see the body |
 | F138 | There was no way to remove the standard from a repository — no command, no flag, no document | medium | Closed — `ACT-081` (`DR-75`), 2026-09-09; see the body |
+| F139 | `adopt --edit` against the installer's template profile ended in `KeyError: 'scanner'`, exit 4 — a crash where a refusal belongs | medium | Closed — `ACT-083` (`DR-78`), 2026-09-09; see the body |
+| F140 | `adopt --edit` without `--because` was accepted and recorded with boilerplate that reads like a reason, and the CLI said the change was recorded *"with the reason"* | medium | Closed — `ACT-083` (`DR-78`), 2026-09-09; see the body |
+| F141 | Installing an older tool over a newer install announced *"an UPGRADE"*, and `doctor` printed two different installed versions in one run | medium | Closed — `ACT-083` (`DR-78`), 2026-09-09; see the body |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1535,6 +1538,67 @@ field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
 
+## F141 — A downgrade was announced as an upgrade
+
+**Severity: medium. Closed — `ACT-083` (`DR-78`), 2026-09-09.**
+
+From the pathway sweep (`PW-08`). Installing over a newer recorded version printed
+`NOTE: this is an UPGRADE, 99.0.0 -> 0.17.0, not a restore.` **The tool noticed the difference and
+not its direction**, and then replaced the newer files with older ones while saying the opposite of
+what it was doing.
+
+`doctor` had the matching half: its *"tool vs installed"* line printed `both 0.17.0` — true of the
+**digests** — while the currency line two rows below printed `installed 99.0.0`. Two different
+installed versions in one run, neither wrong on its own terms.
+
+**Remedy.** The installer orders the versions with `rules.currency_state`, the same comparison the
+currency check uses (`DR-72`), so this payload has one answer to *"is 0.9.0 newer than 0.17.0"* and
+not two. A downgrade says `a DOWNGRADE`, and adds what installing anyway would do. `doctor` reports
+the disagreement rather than picking a side: the digest is the reliable half, and a recorded version
+that contradicts it has been edited or written by something else — which `SP005` already catches.
+
+Both directions asserted: an older recorded version still reads as an upgrade.
+
+## F140 — An edit with no reason was recorded as though it had one
+
+**Severity: medium. Closed — `ACT-083` (`DR-78`), 2026-09-09.**
+
+From the pathway sweep (`PW-07`). `adopt --edit` without `--because` was accepted, and the
+provenance sidecar gained `reason: edited after the write with \`surfaceplate adopt --edit\``. The
+CLI then said the change was recorded *"with the reason"*.
+
+That is a sentence in a governance record that **reads like a reason and is not one** — the exact
+objection `SP031` makes to a gate deferred without a reason, and `DR-72` restates about
+`currency_check`: *an unexplained value is an omission wearing a decision's clothes*. This framework
+was making it about itself, in the record it asks adopters to trust.
+
+**Remedy, and where it lives is the point.** The invariant is *"an edit to a governance profile is
+recorded with a reason"*, so it belongs with the **writer** — `wizard.edit` refuses a blank or
+whitespace reason — and not only in the argument parser, where it would bind one caller out of
+however many there turn out to be. The CLI keeps a friendlier message and exit 3 for the usage
+case. The fallback string, now unreachable from the CLI, says `NO REASON GIVEN` rather than
+impersonating one.
+
+**Two existing tests had to supply a reason** to keep testing what they are named for — they
+exercise *other* refusals and would otherwise all stop at this one. That is supplying a
+now-required argument, not weakening a test, and it is noted in both.
+
+## F139 — An internal error where a refusal belongs
+
+**Severity: medium. Closed — `ACT-083` (`DR-78`), 2026-09-09.**
+
+From the pathway sweep (`PW-12`). `adopt --edit` against the **installer's template profile** —
+the documented alternative to running the wizard — ended as
+`The wizard could not finish: KeyError: 'scanner'`, exit 4.
+
+`--edit` re-renders the whole file, so it needs the shape `adopt` writes; the template does not
+carry a `scanner` block. **The adopter did nothing wrong, and an internal error tells them nothing
+about what to do instead** — it also leaves a draft and invites a resume that will fail the same way.
+
+**Remedy.** The renderer's `KeyError` becomes a `WriteRefused` naming the missing block, explaining
+that `--edit` re-renders the whole file, and saying the two things that do work: edit the file
+directly, or run `adopt` so it is written from answers first.
+
 ## F138 — There was no way to remove the standard from a repository
 
 **Severity: medium. Closed — `ACT-081` (`DR-75`), 2026-09-09.**
@@ -1638,11 +1702,8 @@ moved. Re-testing against `HEAD` is part of adjudicating each, not an optional e
 |---|---|---|
 | `PW-05` | medium | Under `--chain`, `adopt` proposes no `local_hook` enforcement, so a declared `hook_chain` is never verified and `SP038` cannot fire |
 | `PW-06` | medium | `README.md`'s "Working on the standard itself" block fails as written: its venv lacks `textual` and `build_release.py` then refuses |
-| `PW-07` | medium | `adopt --edit` without `--because` is accepted and recorded with a canned reason, and the CLI says it was recorded "with the reason" |
-| `PW-08` | medium | Installing over a newer recorded version is labelled "an UPGRADE, 99.0.0 -> 0.17.0"; `doctor` prints two different installed versions in one run |
 | `PW-10` | medium | The answers record does not say that `contract_tests`/`deterministic_tests` want a *workflow step name*; a gate answered `not_applicable` still demands an artefact path |
 | `PW-11` | medium | `doctor` crashes with `UnicodeEncodeError` when C-locale coercion is disabled |
-| `PW-12` | medium | `adopt --edit` on the installer's template profile fails with `KeyError: 'scanner'`, exit 4 |
 | `PW-13` | low | `RECONCILIATION.md` cannot be followed literally by a pip adopter. **Its removal half left this table as `F138`** |
 | `PW-14` | low | `RECONCILIATION.md` overstates what the standard owns under `.github/instructions/` |
 | `PW-15` | low | Changing `--agents` leaves empty `.claude/rules` and `.claude/skills` directories |
@@ -1653,7 +1714,8 @@ moved. Re-testing against `HEAD` is part of adjudicating each, not an optional e
 **`PW-04` has left this table.** It was adjudicated with `F133` under `DR-74` as an instance of the
 same class — a negative asserted from an observation that could not have found the thing — and
 `doctor` now reports an unanswerable hooks path as unanswerable. `PW-09` has left it as `F137`, and
-`PW-13`'s removal half as `F138`. Twelve remain, `PW-13`'s reconciliation half among them.
+`PW-13`'s removal half as `F138`, and `PW-07`, `PW-08` and `PW-12` as `F140`, `F141` and `F139`.
+**Nine remain**, `PW-13`'s reconciliation half among them.
 
 **Two of these deserve flagging now, before adjudication, because they are not what their severity
 suggests.** `PW-13`'s second half — *no removal procedure exists anywhere* — is the packet's own

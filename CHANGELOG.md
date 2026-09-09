@@ -2829,3 +2829,34 @@ specific subject, and those are where the axis earns its keep.
 keyed by it) and `DR-76` (so are the conformance levels). What survived the programme unchanged is
 what `DR-69` got right: the twelve topics themselves, and the normative/imperative split that lets
 one authored document serve a human reader and an agent without either getting the other's half.
+
+### Three places the tool said something its behaviour did not support (`ACT-083`, `DR-78`)
+
+One record for three findings because they are one species. Not wrong computations — **wrong things
+said about right ones**, which is the failure this framework exists to refuse.
+
+**`F140` — an edit with no reason was recorded as though it had one.** `adopt --edit` without
+`--because` was accepted, and the provenance sidecar gained `reason: edited after the write with
+` `` `surfaceplate adopt --edit` `` `. The CLI then reported the change as recorded *"with the
+reason"*. A sentence in a governance record that reads like a reason and is not one — `SP031`'s
+objection to a gate deferred without one, made by this framework about itself, in the record it asks
+adopters to trust. **The rule now lives with the writer**, not the argument parser, so every caller
+is bound by it and not only the one that goes through the CLI.
+
+**`F139` — an internal error where a refusal belongs.** `--edit` against the installer's *template*
+profile — the documented alternative to running the wizard — ended as `KeyError: 'scanner'`, exit 4.
+`--edit` re-renders the whole file and so needs the shape `adopt` writes. The adopter did nothing
+wrong, and a traceback tells them nothing about what to do instead; it now refuses, names the
+missing block, and says the two things that work.
+
+**`F141` — a downgrade announced as an upgrade.** Installing over a newer install printed
+`NOTE: this is an UPGRADE, 99.0.0 -> 0.17.0`, then replaced newer files with older ones while saying
+the opposite. The tool noticed the difference and not its direction. It now orders the versions with
+the same comparison the currency check uses, so this payload has one answer to *"is 0.9.0 newer than
+0.17.0"* and not two — **both directions asserted**, since a check that only ever returns one answer
+has not been shown to distinguish anything. `doctor`'s matching half printed `both 0.17.0` beside
+`installed 99.0.0`; it now reports the disagreement and names the reliable half.
+
+**One breaking change, deliberately, before 1.0:** `adopt --edit` without `--because` is an error
+where it used to succeed. Refusing the downgrade was rejected — installing an older version on
+purpose is legitimate; announcing it wrongly was not.

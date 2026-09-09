@@ -696,10 +696,32 @@ def install(
     # Reported, not refused. Upgrading is the ordinary path and must not be blocked; what was
     # missing is that it was indistinguishable from restoring.
     if previous.get("standard_version") and previous["standard_version"] != version:
+        # `F141` (`PW-08`): this said "an UPGRADE" for any difference, so installing an older tool
+        # over a newer install announced a DOWNGRADE as its opposite. The tool noticed the
+        # difference and not its direction. `rules.version_key` orders them - the same comparison
+        # the currency check uses (`DR-72`), so there is one answer to "is 0.9.0 newer than
+        # 0.17.0" in this payload and not two.
+        try:
+            from surfaceplate import rules as _rules
+        except ImportError:  # imported flat, with the payload directory itself on the path
+            import rules as _rules  # type: ignore[no-redef]
+        direction = _rules.currency_state(previous["standard_version"], version)
+        # `currency_state(installed, published)` answers about the INSTALLED side, so `ahead`
+        # means the install is newer than this tool: a downgrade.
+        label = {"behind": "an UPGRADE", "ahead": "a DOWNGRADE"}.get(direction, "a CHANGE")
         print(
-            f"NOTE: this is an UPGRADE, {previous['standard_version']} -> {version}, not a "
+            f"NOTE: this is {label}, {previous['standard_version']} -> {version}, not a "
             f"restore."
         )
+        if direction == "ahead":
+            print(
+                "      The version installed here is NEWER than this tool. Installing anyway "
+                "replaces it"
+            )
+            print(
+                "      with the older files. If that is not what you meant, stop and upgrade the "
+                "tool instead."
+            )
         print(
             "      Standard-owned files will be replaced with this version's files and the"
         )

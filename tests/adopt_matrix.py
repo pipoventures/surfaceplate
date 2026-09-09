@@ -1176,7 +1176,7 @@ def _run_edit(case: Case, o: Outcome, repo: Path) -> None:
                              ("prerequisites[0].status", "deferred", "a gate status"), ("conformance_level", "full", "a not-editable line"),
                              ("ownr", "x", "a path the profile lacks")):
         try:
-            wizard.edit(repo, path, value)
+            wizard.edit(repo, path, value, because="matrix case: exercising --edit")
             outcome = "edited"
         except wizard.WriteRefused as exc:
             outcome = exc.detail

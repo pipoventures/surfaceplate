@@ -1151,6 +1151,36 @@ def test_currency_is_reported_where_integrity_cannot_be(tmp: Path) -> None:
     )
 
 
+def test_a_downgrade_is_reported_as_a_downgrade(tmp: Path) -> None:
+    """`F141` (`PW-08`). Installing an older tool over a newer install announced "an UPGRADE" -
+    the tool noticed the difference and not its direction. `rules.version_key` orders them, the
+    same comparison the currency check uses, so this payload has one answer to "is 0.9.0 newer
+    than 0.17.0" and not two.
+    """
+    repo = make_git_repo(tmp, "downgrade")
+    install(repo, "--no-hooks")
+    record_path = repo / ".standards" / "INSTALL.json"
+    record = json.loads(record_path.read_text(encoding="utf-8"))
+    record["standard_version"] = "99.0.0"
+    record_path.write_text(json.dumps(record, indent=2), encoding="utf-8")
+
+    older = install(repo, "--no-hooks")
+    check("installing over a NEWER recorded version says DOWNGRADE, not UPGRADE",
+          "DOWNGRADE" in older.stdout and "an UPGRADE" not in older.stdout,
+          older.stdout[-400:])
+    check("and says what installing anyway would do",
+          "NEWER than this tool" in older.stdout, older.stdout[-400:])
+
+    # And the ordinary direction still reads as an upgrade.
+    record = json.loads(record_path.read_text(encoding="utf-8"))
+    record["standard_version"] = "0.0.1"
+    record_path.write_text(json.dumps(record, indent=2), encoding="utf-8")
+    newer = install(repo, "--no-hooks")
+    check("and installing over an OLDER one still says UPGRADE",
+          "an UPGRADE" in newer.stdout and "DOWNGRADE" not in newer.stdout,
+          newer.stdout[-400:])
+
+
 def test_every_finding_carries_the_topic_it_is_about(tmp: Path) -> None:
     """`DR-69` surface 5, `DR-77`. A report can be read, filtered and routed by subject rather than
     by code number - *"a field nobody can query is not a field"*.
@@ -1540,6 +1570,9 @@ def main() -> int:
 
         print("\na declared canon artefact is checked, not trusted (DR-71, WI-2)")
         test_a_declared_canon_artefact_is_checked_for_existence_and_tracking(tmp)
+
+        print("\na downgrade is reported as a downgrade (F141)")
+        test_a_downgrade_is_reported_as_a_downgrade(tmp)
 
         print("\nevery finding carries the topic it is about (DR-77)")
         test_every_finding_carries_the_topic_it_is_about(tmp)

@@ -192,6 +192,20 @@ def check_tool_matches_install(repo: Path) -> Line:
     installed = str(record.get("framework_digest", ""))
     installed_version = str(record.get("standard_version", "") or "unknown")
     if installed == about.anchor():
+        # `F141` (`PW-08`): the digests agreeing means the FILES are this tool's. It does not mean
+        # the record's `standard_version` says so, and when it did not this line printed "both
+        # 0.17.0" while the currency line two rows down printed "installed 99.0.0" - two different
+        # installed versions in one run. The digest is the trustworthy half; the version field is
+        # the one a hand edit can move, which is why `_installed_version` reads the record and
+        # `SP005` catches the edit.
+        if installed_version not in (about.version(), "unknown"):
+            return Line(
+                WARN, "tool vs installed",
+                f"the files match this tool ({about.version()}, {about.short(installed)}) but the "
+                f"install record calls them {installed_version}. The digest is the reliable half; "
+                "the recorded version has been edited or written by something else. `check` "
+                "reports this as SP005",
+            )
         return Line(OK, "tool vs installed", f"both {about.version()} ({about.short(installed)}); adopt and check agree on the schema")
     hooks_declined = install_standard.HOOK_TARGET not in (record.get("files") or {})
     return Line(
