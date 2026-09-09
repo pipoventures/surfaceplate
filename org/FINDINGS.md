@@ -197,6 +197,7 @@ an unknown number of releases with nothing noticing.
 | F129 | `F123`'s ruling was applied to the document it was found in and nowhere else: Topic 7 still told every agent that stack-specific commands and test areas belong in `copilot-instructions.md` | medium | Closed — `ACT-073`, 2026-09-08; see the body |
 | F130 | The same dependency version is pinned in five places — `pyproject.toml`, two workflows, the payload's copy of one of them, and `INSTALL.md` — and nothing compared them, so a dependency change was judged green by a CI run that installed the old version | high | Closed — `ACT-074`, 2026-09-08; see the body |
 | F131 | `CVE-2025-71176` in pytest cannot be remediated within the pinned test set: `pytest-textual-snapshot` pins `syrupy==4.8.0`, which caps `pytest<9.0.0`, and the fix is only in `9.0.3` | medium | Open — **accepted, not remediated**: the maintainer took route (1) at `H21`, 2026-09-08. The condition persists |
+| F132 | A repository with no dependency manifest of any kind cannot produce a conformant profile at any level, and the wizard dead-ends on the first screen: `dependency_lock` is the sole `essential` floor control and `SP051` requires it to name a real tracked file | high | Open — the remedy is a contract change; the decision is `H22` |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1527,6 +1528,66 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F132 — A repository with no dependency manifest cannot adopt this standard at any level
+
+**Severity: high. Open — the remedy is a contract change; the decision is `H22`.**
+
+Found on 2026-09-08 by the maintainer, **on the first screen of the first walkthrough**, against a
+real repository. This is `H18`'s method producing `H18`'s result before `H18` had formally begun,
+which is worth recording as its own small vindication of watching someone use the thing.
+
+`dependency_lock` is the **only** control in `CONFORMANCE_LEVELS["essential"]`. `SP021`/`SP022`
+require every control a level names to be decided `required` — `deferred` and `excluded` both raise
+`SP022`. `SP051` then requires its `implementation_reference` to name a file that exists, is
+non-empty, carries no placeholder, and is tracked by git. The adoption wizard implements this
+faithfully: when discovery finds no lock file it asks for one, with `validate="tracked_path"`.
+
+**So a repository with nothing to name has no way forward.** The wizard refuses to continue — which
+is correct behaviour, not the defect. It is refusing to write a profile that its own checker would
+reject. **The defect is upstream of it: the standard's one universal control assumes a property not
+every repository has.**
+
+The repository this was found on is a documentation and knowledge repository — 316 Markdown files,
+16 YAML, 2 Python, **no `package.json`, `pyproject.toml`, `requirements.txt`, `go.mod`, `Gemfile`,
+`pom.xml`, `Cargo.toml` or `composer.json` of any kind**, verified by listing its tracked files. It
+has no dependencies to pin. The class is not exotic: documentation repositories, configuration and
+policy repositories, infrastructure-as-data repositories, monorepo subtrees whose dependencies are
+resolved a level up, and repositories whose runtime comes entirely from a base image all share it.
+The schema's own `stack` field says *"The kit does not require a UI, API, or specific language"* —
+a claim this floor contradicts.
+
+**Why 45,266 matrix checks did not catch it, which is the transferable part.** `test_adopt_matrix.py`
+walks every reachable decision of the wizard across 208 cases, and one of its three repository
+shapes is called `bare` — *"no language, no lock file, no workflow, no artefact matching any gate"*.
+It reaches this very field. But **"there is no valid answer" is not a decision — it is a property of
+the repository**, and every fixture in every suite answers a `tracked_path` field with a path that
+exists in it (`main.py`, `activity/register.md`, and the matrix's own seeded files). A suite that
+walks decisions exhaustively can still never reach a state that is not a decision. That is not a
+gap in the matrix's coverage of what it covers; it is the boundary of what walking decisions can
+establish, and it took a real repository to cross it.
+
+**Proposed remedies, none applied — `H22`.**
+
+1. **Derive applicability, and check it.** `dependency_lock` becomes not applicable where the
+   repository contains no dependency manifest at all — a fact the checker can establish from the
+   tracked file list, the same way `discover.candidate_lock_files` already does. If a manifest ever
+   appears, the control snaps back to required and the check fails until a lock file is named.
+   Nothing is declared and so nothing can be misdeclared. **Recommended.**
+2. **Declare it and verify the declaration.** A `not_applicable` decision with a mandatory
+   rationale, accepted **only** when the checker independently confirms no manifest exists — a new
+   finding code for "declared not applicable, but a manifest is present". This is the
+   `hook_chain` / `adopter_canon` idiom: the adopter states it, the checker verifies it by effect.
+   More audit trail than (1), one more code and one more schema key.
+3. **Allow `excluded` with a rationale, unchecked.** Rejected on sight: it lets any adopter with
+   real dependencies write a sentence and drop the one control this standard applies to everyone.
+   *"Supply-chain exposure exists regardless of output materiality"* is `dependency_lock`'s own
+   stated rationale, and (3) would make it advisory.
+
+Either (1) or (2) is a change to a published contract and to `core/CONFORMANCE_LEVELS.md`, which
+this standard reserves to a human. The wizard change follows the standard's, not the other way
+round — fixing the wizard alone would let it write a profile the checker still rejects, which is
+`F66`'s defect exactly.
 
 ## F131 — A security advisory in a pinned test dependency has no satisfiable remedy, because a plugin pins the package that caps it
 
