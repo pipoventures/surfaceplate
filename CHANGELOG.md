@@ -2161,7 +2161,17 @@ run no longer ends in silence: it states the path it wrote and runs the checker 
 - `surfaceplate doctor --report` assembles a paste-ready problem report locally - tool version and anchor, the installed standard's version and digest, Python and OS, optional-dependency availability, the checker's verdict - and states plainly that nothing is sent; refuses `--online`. `about.ISSUES` threaded to the installer's Next steps and the post-`adopt` failure output; `SUPPORT.md` and two GitHub issue forms added (`F119`, `ACT-062`).
 - The independent review packet is distributed for the first time: a GitHub Release on tag `pypi/0.16.1` carries the three packet files, and a "Reviewing this" section in `README.md` and `audit/REVIEW_INVITATION.md` give `H4`/`H6` an actual route to a reviewer (`ACT-062`, `DR-65`).
 
-## 0.17.0 - unreleased; one version for the whole adoption-readiness programme
+## 0.18.0 - the adoption-readiness programme, in one version
+
+**Not 1.0, and the reservation is a decision rather than caution** (`DR-79`). `1.0` is held back
+until the independent review (`H6`, `RELEASE_PLAN` item 10) has happened, because `DR-61` already
+binds the `Development Status :: 3 - Alpha` classifier to that same gate — and publishing `1.0`
+while the package still declares itself alpha would be the two-answers-in-one-document defect this
+programme spent its whole length removing from everything else.
+
+*(This section was headed `0.17.0 - unreleased` while the programme ran, on the maintainer's
+standing decision to publish once at the end rather than once per phase. The number moved when the
+release did.)*
 
 **Release discipline for this version, decided by the maintainer on 2026-09-08.** `0.17.0`
 accumulates every phase of the programme and is published **once**, at the end, rather than a
