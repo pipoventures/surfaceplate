@@ -1,0 +1,41 @@
+
+$ .venv-noadopt/bin/python -c 'import textual' 2>&1 | tail -1
+ModuleNotFoundError: No module named 'textual'
+exit=0
+
+$ /home/mps2210/surfaceplate-sweep/.venv-noadopt/bin/surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/b3 </dev/null
+`adopt` needs the optional `textual` dependency, which is not installed.
+Run:  pip install 'surfaceplate[adopt] @ git+https://github.com/pipoventures/surfaceplate@main'
+Or, if you have a clone:  pip install 'textual==8.2.8'
+Without it, `surfaceplate adopt --propose` still works and needs no terminal.
+exit=2
+
+$ /home/mps2210/surfaceplate-sweep/.venv-noadopt/bin/surfaceplate adopt --propose --target /home/mps2210/surfaceplate-sweep/repos/b3 --level essential
+Proposed: /home/mps2210/surfaceplate-sweep/repos/b3/governance/application-profile.answers.yaml
+Preview : /home/mps2210/surfaceplate-sweep/repos/b3/governance/application-profile.proposed.yaml
+Nothing else was written. Complete every needs-human line in the answers record, then run:
+    surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/b3 --answers /home/mps2210/surfaceplate-sweep/repos/b3/governance/application-profile.answers.yaml
+exit=0
+
+$ /home/mps2210/surfaceplate-sweep/.venv-noadopt/bin/surfaceplate doctor --repo /home/mps2210/surfaceplate-sweep/repos/b3
+Surfaceplate - doctor
+repository: /home/mps2210/surfaceplate-sweep/repos/b3
+
+ok    python                 3.12.3 at /home/mps2210/surfaceplate-sweep/.venv-noadopt/bin/python3.12
+ok    pip                    importable
+ok    yaml                   importable - needed by install and check
+ok    jsonschema             importable - needed by install and check
+warn  textual                missing - needed by adopt (the adopt extra)
+ok    core.hooksPath (local) unset
+ok    core.hooksPath (worktree) unset
+warn  core.hooksPath (global) /home/mps2210/.config/git/hooks - the installer stops rather than replace it; install with --no-hooks, or unset it for this repository
+ok    core.hooksPath (system) unset
+warn  terminal               not attached; `adopt` needs one, `adopt --propose` does not
+ok    virtualenv on PATH     /usr/bin is on PATH; the hook will find this interpreter
+ok    vendored digest        ceffdcf76ae5… matches the install record
+ok    tool vs installed      both 0.17.0 (ceffdcf76ae5…); adopt and check agree on the schema
+skip  GitHub Actions enabled skipped (offline); run with --online and GITHUB_TOKEN set
+skip  standard is current    skipped (offline); installed 0.17.0, run with --online
+
+DOCTOR=OK  (3 warning, 15 checks)
+exit=0

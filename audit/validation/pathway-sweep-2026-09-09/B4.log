@@ -1,0 +1,8 @@
+
+$ python3.9 -V; ls /usr/bin/python3* /usr/local/bin/python3* 2>/dev/null; ls ~/.pyenv/versions 2>/dev/null; command -v uv; grep -n requires-python /home/mps2210/surfaceplate-sweep/source/pyproject.toml
+bash: line 1: python3.9: command not found
+/usr/bin/python3
+/usr/bin/python3.12
+/home/mps2210/.local/bin/uv
+28:requires-python = ">=3.9"
+exit=0

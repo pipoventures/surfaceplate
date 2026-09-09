@@ -1,0 +1,689 @@
+
+$ git -C /home/mps2210/surfaceplate-sweep/repos/a1 ls-files
+README.md
+config.yaml
+docs/guide.md
+exit=0
+
+$ surfaceplate install --target /home/mps2210/surfaceplate-sweep/repos/a1 --no-hooks
+Surfaceplate 0.17.0 - install
+source: /home/mps2210/surfaceplate-sweep/.venv/lib/python3.12/site-packages/surfaceplate
+target: /home/mps2210/surfaceplate-sweep/repos/a1
+
+  write   .github/instructions/01-authority.instructions.md
+  write   .claude/rules/surfaceplate-01-authority.md
+  write   .github/instructions/02-decision-authority-and-escalation.instructions.md
+  write   .claude/rules/surfaceplate-02-decision-authority-and-escalation.md
+  write   .github/instructions/03-work-definition.instructions.md
+  write   .claude/rules/surfaceplate-03-work-definition.md
+  write   .github/instructions/04-work-tracking.instructions.md
+  write   .claude/rules/surfaceplate-04-work-tracking.md
+  write   .github/instructions/05-risk-and-proportionality.instructions.md
+  write   .claude/rules/surfaceplate-05-risk-and-proportionality.md
+  write   .github/instructions/06-evidence-and-completion.instructions.md
+  write   .claude/rules/surfaceplate-06-evidence-and-completion.md
+  write   .github/instructions/07-testing.instructions.md
+  write   .claude/rules/surfaceplate-07-testing.md
+  write   .github/instructions/08-confidentiality-and-data-boundaries.instructions.md
+  write   .claude/rules/surfaceplate-08-confidentiality-and-data-boundaries.md
+  write   .github/instructions/09-dependencies-and-supply-chain.instructions.md
+  write   .claude/rules/surfaceplate-09-dependencies-and-supply-chain.md
+  write   .github/instructions/10-provenance-and-lineage.instructions.md
+  write   .claude/rules/surfaceplate-10-provenance-and-lineage.md
+  write   .github/instructions/11-concurrency.instructions.md
+  write   .claude/rules/surfaceplate-11-concurrency.md
+  write   .github/instructions/12-enforcement-and-change-control.instructions.md
+  write   .claude/rules/surfaceplate-12-enforcement-and-change-control.md
+  write   .github/skills/bug-fix/SKILL.md
+  write   .claude/skills/bug-fix/SKILL.md
+  write   .github/skills/change/SKILL.md
+  write   .claude/skills/change/SKILL.md
+  write   .github/skills/dependency-update/SKILL.md
+  write   .claude/skills/dependency-update/SKILL.md
+  write   .github/skills/fix-ci/SKILL.md
+  write   .claude/skills/fix-ci/SKILL.md
+  write   .github/skills/release/SKILL.md
+  write   .claude/skills/release/SKILL.md
+  write   .github/skills/review/SKILL.md
+  write   .claude/skills/review/SKILL.md
+  write   .github/skills/security-review/SKILL.md
+  write   .claude/skills/security-review/SKILL.md
+  write   .github/workflows/standards-conformance.yml
+  write   .standards/check_conformance.py
+  write   .standards/rules.py
+  write   .standards/VERSION
+  write   .standards/conformance-block.md
+  write   .standards/topics/01-authority.md
+  write   .standards/topics/02-decision-authority-and-escalation.md
+  write   .standards/topics/03-work-definition.md
+  write   .standards/topics/04-work-tracking.md
+  write   .standards/topics/05-risk-and-proportionality.md
+  write   .standards/topics/06-evidence-and-completion.md
+  write   .standards/topics/07-testing.md
+  write   .standards/topics/08-confidentiality-and-data-boundaries.md
+  write   .standards/topics/09-dependencies-and-supply-chain.md
+  write   .standards/topics/10-provenance-and-lineage.md
+  write   .standards/topics/11-concurrency.md
+  write   .standards/topics/12-enforcement-and-change-control.md
+  write   .standards/schemas/application-profile.schema.yaml
+  write   .standards/schemas/assurance-evidence.schema.yaml
+  write   .standards/schemas/gate-exception.schema.yaml
+  write   .standards/schemas/method-registry-entry.schema.yaml
+  write   .standards/schemas/method-run-lineage.schema.yaml
+  write   .standards/schemas/override-record.schema.yaml
+  write   .standards/schemas/README.md
+  write   .standards/core/CONFORMANCE_LEVELS.md
+  write   .standards/core/CONTROL_PRINCIPLES.md
+  write   .standards/core/PREREQUISITE_GATES.md
+  write   .standards/templates/application-profile.yaml
+  write   .standards/templates/decision-record.md
+  write   .standards/templates/gate-exception.yaml
+  write   .standards/templates/override-record.yaml
+  write   .standards/templates/work-packet.md
+  write   .standards/examples/application-profile.essential.example.yaml
+  write   .standards/examples/application-profile.full.example.yaml
+  write   .standards/examples/method-registry-entry.example.yaml
+  write   .standards/examples/method-run-lineage.example.yaml
+  write   .standards/examples/override-record.approved.example.yaml
+  write   .standards/adapters/python.md
+  write   .standards/adapters/r.md
+  write   .standards/adapters/typescript.md
+  write   .standards/seeds/CHANGELOG.md
+  write   .standards/seeds/activity-register.md
+  write   .standards/seeds/adoption-decision-record.md
+  write   .standards/seeds/data-source-register.md
+  write   .standards/seeds/decision-log.md
+  write   .standards/seeds/dependency-review-log.md
+  write   .standards/seeds/findings-register.md
+  write   .standards/seeds/method-registry-readme.md
+  write   .standards/seeds/options-log.md
+  write   .standards/seeds/output-validation-log.md
+  write   .standards/seeds/overrides-readme.md
+  write   .standards/seeds/release-checklist.md
+  write   .standards/seeds/risk-classification.md
+  write   .standards/seeds/run-lineage-readme.md
+  write   .standards/seeds/source-of-truth-matrix.yaml
+  write   .standards/seeds/test-conventions.md
+  write   .standards/MANIFEST.sha256
+  created .github/copilot-instructions.md
+  created AGENTS.md
+  declined  the pre-commit hook, and core.hooksPath is left as it was
+  create  governance/application-profile.yaml  (from template - you must complete it)
+  write   .standards/INSTALL.json
+
+95 standard-owned file(s); 95 written or updated; 0 removed.
+
+What changed, by review class:
+    3  enforcing  (code that runs - review this closely)
+       .github/workflows/standards-conformance.yml
+       .standards/check_conformance.py
+       .standards/rules.py
+    2  contract   (parsed by the checker - changes what validates)
+       .standards/schemas/application-profile.schema.yaml
+       .standards/schemas/gate-exception.schema.yaml
+   90  reference  (read by people - changes what the rules say)
+       .github/instructions/01-authority.instructions.md
+       .claude/rules/surfaceplate-01-authority.md
+       .github/instructions/02-decision-authority-and-escalation.instructions.md
+       .claude/rules/surfaceplate-02-decision-authority-and-escalation.md
+       .github/instructions/03-work-definition.instructions.md
+       .claude/rules/surfaceplate-03-work-definition.md
+       .github/instructions/04-work-tracking.instructions.md
+       .claude/rules/surfaceplate-04-work-tracking.md
+       .github/instructions/05-risk-and-proportionality.instructions.md
+       .claude/rules/surfaceplate-05-risk-and-proportionality.md
+       .github/instructions/06-evidence-and-completion.instructions.md
+       .claude/rules/surfaceplate-06-evidence-and-completion.md
+       .github/instructions/07-testing.instructions.md
+       .claude/rules/surfaceplate-07-testing.md
+       .github/instructions/08-confidentiality-and-data-boundaries.instructions.md
+       .claude/rules/surfaceplate-08-confidentiality-and-data-boundaries.md
+       .github/instructions/09-dependencies-and-supply-chain.instructions.md
+       .claude/rules/surfaceplate-09-dependencies-and-supply-chain.md
+       .github/instructions/10-provenance-and-lineage.instructions.md
+       .claude/rules/surfaceplate-10-provenance-and-lineage.md
+       .github/instructions/11-concurrency.instructions.md
+       .claude/rules/surfaceplate-11-concurrency.md
+       .github/instructions/12-enforcement-and-change-control.instructions.md
+       .claude/rules/surfaceplate-12-enforcement-and-change-control.md
+       .github/skills/bug-fix/SKILL.md
+       .claude/skills/bug-fix/SKILL.md
+       .github/skills/change/SKILL.md
+       .claude/skills/change/SKILL.md
+       .github/skills/dependency-update/SKILL.md
+       .claude/skills/dependency-update/SKILL.md
+       .github/skills/fix-ci/SKILL.md
+       .claude/skills/fix-ci/SKILL.md
+       .github/skills/release/SKILL.md
+       .claude/skills/release/SKILL.md
+       .github/skills/review/SKILL.md
+       .claude/skills/review/SKILL.md
+       .github/skills/security-review/SKILL.md
+       .claude/skills/security-review/SKILL.md
+       .standards/VERSION
+       .standards/conformance-block.md
+       .standards/topics/01-authority.md
+       .standards/topics/02-decision-authority-and-escalation.md
+       .standards/topics/03-work-definition.md
+       .standards/topics/04-work-tracking.md
+       .standards/topics/05-risk-and-proportionality.md
+       .standards/topics/06-evidence-and-completion.md
+       .standards/topics/07-testing.md
+       .standards/topics/08-confidentiality-and-data-boundaries.md
+       .standards/topics/09-dependencies-and-supply-chain.md
+       .standards/topics/10-provenance-and-lineage.md
+       .standards/topics/11-concurrency.md
+       .standards/topics/12-enforcement-and-change-control.md
+       .standards/schemas/assurance-evidence.schema.yaml
+       .standards/schemas/method-registry-entry.schema.yaml
+       .standards/schemas/method-run-lineage.schema.yaml
+       .standards/schemas/override-record.schema.yaml
+       .standards/schemas/README.md
+       .standards/core/CONFORMANCE_LEVELS.md
+       .standards/core/CONTROL_PRINCIPLES.md
+       .standards/core/PREREQUISITE_GATES.md
+       .standards/templates/application-profile.yaml
+       .standards/templates/decision-record.md
+       .standards/templates/gate-exception.yaml
+       .standards/templates/override-record.yaml
+       .standards/templates/work-packet.md
+       .standards/examples/application-profile.essential.example.yaml
+       .standards/examples/application-profile.full.example.yaml
+       .standards/examples/method-registry-entry.example.yaml
+       .standards/examples/method-run-lineage.example.yaml
+       .standards/examples/override-record.approved.example.yaml
+       .standards/adapters/python.md
+       .standards/adapters/r.md
+       .standards/adapters/typescript.md
+       .standards/seeds/CHANGELOG.md
+       .standards/seeds/activity-register.md
+       .standards/seeds/adoption-decision-record.md
+       .standards/seeds/data-source-register.md
+       .standards/seeds/decision-log.md
+       .standards/seeds/dependency-review-log.md
+       .standards/seeds/findings-register.md
+       .standards/seeds/method-registry-readme.md
+       .standards/seeds/options-log.md
+       .standards/seeds/output-validation-log.md
+       .standards/seeds/overrides-readme.md
+       .standards/seeds/release-checklist.md
+       .standards/seeds/risk-classification.md
+       .standards/seeds/run-lineage-readme.md
+       .standards/seeds/source-of-truth-matrix.yaml
+       .standards/seeds/test-conventions.md
+       .standards/MANIFEST.sha256
+Grace window ends 2026-10-09. After that the check fails.
+
+Next steps:
+  1. Complete governance/application-profile.yaml. Worked examples: .standards/examples/
+  2. Run: python .standards/check_conformance.py
+  3. Stage the installer output.
+  4. Commit the result. No local hook was installed - history_audit and review
+     are what enforces this. Nothing checks staged changes before they commit.
+  5. Open a pull request.
+
+Something wrong, or a check looks wrong? https://github.com/pipoventures/surfaceplate/issues
+exit=0
+
+$ surfaceplate adopt --propose --target /home/mps2210/surfaceplate-sweep/repos/a1 --level essential
+Proposed: /home/mps2210/surfaceplate-sweep/repos/a1/governance/application-profile.answers.yaml
+Preview : /home/mps2210/surfaceplate-sweep/repos/a1/governance/application-profile.proposed.yaml
+Nothing else was written. Complete every needs-human line in the answers record, then run:
+    surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/a1 --answers /home/mps2210/surfaceplate-sweep/repos/a1/governance/application-profile.answers.yaml
+exit=0
+
+$ ls -la /home/mps2210/surfaceplate-sweep/repos/a1/governance
+total 28
+drwxr-xr-x 2 mps2210 mps2210 4096 Sep  9 11:50 .
+drwxr-xr-x 8 mps2210 mps2210 4096 Sep  9 11:50 ..
+-rw-r--r-- 1 mps2210 mps2210 5519 Sep  9 11:50 application-profile.answers.yaml
+-rw-r--r-- 1 mps2210 mps2210 3380 Sep  9 11:50 application-profile.proposed.yaml
+-rw-r--r-- 1 mps2210 mps2210 5864 Sep  9 11:50 application-profile.yaml
+exit=0
+
+$ git -C /home/mps2210/surfaceplate-sweep/repos/a1 status --short
+?? governance/application-profile.answers.yaml
+?? governance/application-profile.proposed.yaml
+exit=0
+
+$ git -C /home/mps2210/surfaceplate-sweep/repos/a1 log --oneline -- governance/application-profile.yaml
+1fbe75c install surfaceplate
+exit=0
+
+$ cat /home/mps2210/surfaceplate-sweep/repos/a1/governance/application-profile.answers.yaml
+# Written by `surfaceplate adopt --propose`. Nothing else was written.
+#
+# Every line that says needs-human is a decision only a human can make. Complete them all,
+# then run:  surfaceplate adopt --answers <this file>
+# A proposed value is shown with where it came from; change it if it is wrong. The origin
+# of every value is recorded beside the profile when it is written.
+# Proposed at level essential, and as though this repository builds no user interface;
+# answer stack.builds_user_interface and run --propose --level again to see the interface gates.
+# accept_proposals: set it to yes once you have read the proposed values below and are
+# content for every one you left unchanged to be written as it stands; nothing is written before.
+# Lines under if_declared_above_floor apply only to a control you list in controls.above_floor;
+# complete those for the controls you list and leave the rest as they are.
+
+format: 1
+framework_version: 0.17.0
+framework_digest: ceffdcf76ae5440ceae16c154893c3771455db0ad7aaa36d245bbe67db4c8d7f
+level: essential
+accept_proposals: needs-human
+answers:
+  identity.application_id:
+    value: null
+    origin: computed
+    detail: = the directory name (filled from your answer at replay)
+  identity.owner: needs-human
+  stack.language: needs-human
+  stack.builds_user_interface: needs-human
+  risk.relied_on_outside_team: needs-human
+  risk.material_quantitative_output: needs-human
+  risk.data_classification: needs-human
+  wrap.release_route: needs-human
+  risk.risk_profile: needs-human
+  controls.scanner.wired_in: needs-human
+  controls.dependency_lock.implementation_reference: needs-human
+  risk.materiality_definition:
+    value: Not stated at adoption.
+    origin: computed
+    detail: not asked before the review; one edit here
+  gates.work_registration.artefact:
+    value: activity/register.md
+    origin: scaffolded
+    detail: created when the profile is written, if create_missing_artefacts is yes
+  gates.work_registration.effective_from:
+    value: null
+    origin: computed
+    detail: = the adoption date; an earlier date audits more history (filled from your answer at replay)
+  gates.work_registration.paths:
+    value: docs/**
+    origin: discovered
+    detail: this repository's main source directory
+  identity.display_name:
+    value: null
+    origin: computed
+    detail: = the directory name (filled from your answer at replay)
+  controls.agent_work_packets.rationale:
+    value: All agent work is bounded, scoped, and reviewable.
+    origin: example
+    detail: this framework's own worked example
+  controls.actual_diff_review.rationale:
+    value: Material changes require actual diff content, not a file list.
+    origin: example
+    detail: this framework's own worked example
+  controls.secret_hygiene.rationale:
+    value: No secrets or customer data may enter the repository or fixtures.
+    origin: example
+    detail: this framework's own worked example
+  controls.scanner.name:
+    value: gitleaks
+    origin: example
+    detail: the scanner the examples name
+  controls.above_floor:
+    value: []
+    origin: computed
+    detail: nothing beyond this level's floor is declared
+  controls.dependency_lock.rationale:
+    value: Supply-chain exposure exists regardless of output materiality.
+    origin: example
+    detail: this framework's own worked example
+  adoption.review_by:
+    value: '2027-03-08'
+    origin: computed
+    detail: 180 days from today, the interval this framework suggests
+  adoption.framework_maintainer:
+    value: null
+    origin: computed
+    detail: = owner (filled from your answer at replay)
+  adoption.repository_classification:
+    value: null
+    origin: computed
+    detail: = data_classification (filled from your answer at replay)
+  adoption.adoption_status:
+    value: in_progress
+    origin: computed
+    detail: adopt has just written the profile; the checker has not yet passed against it
+  adoption.needs_validator:
+    value: false
+    origin: computed
+    detail: no independent review declared
+  wrap.human_roles:
+    value: ''
+    origin: computed
+    detail: none stated; one edit here
+  adoption.decision_record_id:
+    value: DR-0001
+    origin: scaffolded
+    detail: created as docs/decisions/DR-0001-adopt-surfaceplate.md when the profile is written, if create_missing_artefacts is yes
+  create_missing_artefacts: needs-human
+choices:
+  stack.builds_user_interface: yes | no
+  risk.relied_on_outside_team: yes | no
+  risk.material_quantitative_output: yes | no
+  risk.data_classification: public | internal | confidential | restricted
+  create_missing_artefacts: yes | no - whether to create the scaffolded files named above
+if_declared_above_floor:
+  controls.documentation_authority.rationale: needs-human
+  controls.assurance_findings.rationale: needs-human
+  controls.assurance_findings.implementation_reference: needs-human
+  controls.contract_tests.rationale: needs-human
+  controls.contract_tests.implementation_reference: needs-human
+  controls.deterministic_tests.rationale: needs-human
+  controls.deterministic_tests.implementation_reference: needs-human
+  controls.method_registry.rationale: needs-human
+  controls.method_registry.implementation_reference: needs-human
+  controls.overrides.rationale: needs-human
+  controls.overrides.implementation_reference: needs-human
+  controls.provenance.rationale: needs-human
+  controls.provenance.implementation_reference: needs-human
+  controls.run_lineage.rationale: needs-human
+  controls.run_lineage.implementation_reference: needs-human
+exit=0
+
+$ cat /home/mps2210/surfaceplate-sweep/repos/a1/governance/application-profile.proposed.yaml
+# PROPOSED - not the profile. Written by `surfaceplate adopt --propose` as a preview of what the
+# answers record would produce; the checker never reads this file. Every `needs-human` below is a
+# decision for a human, and 0 undecided gate(s) are left out entirely: .
+# Complete the answers record and run `surfaceplate adopt --answers` to write the real profile.
+
+# Application Profile — a1
+#
+# Written by `surfaceplate adopt` on 2026-09-09. The origin of every value below is recorded in
+# application-profile.provenance.yaml beside this file: values marked typed there were entered at
+# the keyboard; the rest were proposed by the tool from the sources recorded there and approved
+# as one document at the review. See core/CONFORMANCE_LEVELS.md and core/PREREQUISITE_GATES.md
+# for what each section means.
+
+schema_version: "1.0"
+application_id: a1
+display_name: a1  # not checked
+owner: needs-human
+
+stack: {language: needs-human}
+
+risk_profile: needs-human
+materiality_definition: Not stated at adoption.
+data_classification: public         # public | internal | confidential | restricted
+
+# Why the level below was chosen (DR-50): recorded, not checked.
+risk:
+  relied_on_outside_team: false
+  material_quantitative_output: false
+
+# See core/CONFORMANCE_LEVELS.md. A level is a floor, not a ceiling.
+conformance_level: essential
+
+adoption:
+  framework_version: 0.17.0
+  framework_digest: ceffdcf76ae5440ceae16c154893c3771455db0ad7aaa36d245bbe67db4c8d7f
+  adoption_date: '2026-09-09'
+  review_by: '2027-03-08'
+  framework_maintainer: needs-human
+  repository_classification: public  # not checked
+  decision_record_id: DR-0001
+  adoption_status: in_progress
+  independent_validator: null  # not checked
+  deferrals: []
+
+# These three cannot be excluded, deferred, or omitted at any conformance level.
+baseline_controls:
+  agent_work_packets:  # DECLARED ONLY - nothing checks this; it is a stated obligation
+    decision: required
+    rationale: All agent work is bounded, scoped, and reviewable.
+  actual_diff_review:  # DECLARED ONLY - nothing checks this; it is a stated obligation
+    decision: required
+    rationale: Material changes require actual diff content, not a file list.
+  secret_hygiene:  # checked against this repository by the conformance checker
+    decision: required
+    rationale: No secrets or customer data may enter the repository or fixtures.
+    scanner:
+      name: gitleaks
+      wired_in: [needs-human]
+
+control_decisions:
+  # ---- Topic 9: Dependencies and supply chain ----
+  dependency_lock:  # checked against this repository by the conformance checker
+    decision: required
+    rationale: Supply-chain exposure exists regardless of output materiality.
+    implementation_reference: needs-human
+
+# Prerequisite gates: "artefact X must exist before activity Y may begin". See
+# core/PREREQUISITE_GATES.md for the 19-gate catalogue and what each one guards.
+builds_user_interface: false
+prerequisites:
+  - id: work_registration
+    status: required
+    effective_from: '2026-09-09'
+    precondition:
+      artefacts: [activity/register.md]
+      description: No work begins until it is registered as an identified activity.
+    gated_activity:
+      paths: [docs/**]
+      description: Changes under docs/**.
+    enforcement: [history_audit, review]
+
+human_roles: []  # not checked
+release_route: needs-human
+exclusions: []  # not checked
+exit=0
+
+$ surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/a1 --answers /home/mps2210/surfaceplate-sweep/repos/a1/governance/answers-i-undecided.yaml
+
+1 line(s) in the answers record still say 'needs-human': controls.dependency_lock.implementation_reference. Complete them - they are the decisions only a human can make - and run --answers again.
+exit=1
+
+$ git -C /home/mps2210/surfaceplate-sweep/repos/a1 status --short
+?? governance/answers-i-undecided.yaml
+?? governance/answers-ii-nonexistent.yaml
+?? governance/answers-iii-tracked-nonmanifest.yaml
+exit=0
+
+$ surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/a1 --answers /home/mps2210/surfaceplate-sweep/repos/a1/governance/answers-ii-nonexistent.yaml
+
+Refusing to write: the answers record is incomplete for this repository at level essential: ScriptedInterview: the review refuses to write: controls.dependency_lock.implementation_reference: Nothing exists at that path in this repository.. Run `surfaceplate adopt --propose --level essential` for a complete record.
+This is the wizard's own safety check, not the checker. Nothing was written.
+exit=1
+
+$ git -C /home/mps2210/surfaceplate-sweep/repos/a1 status --short
+?? .standards/adopt-draft.json
+?? governance/answers-i-undecided.yaml
+?? governance/answers-ii-nonexistent.yaml
+?? governance/answers-iii-tracked-nonmanifest.yaml
+exit=0
+
+$ surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/a1 --answers /home/mps2210/surfaceplate-sweep/repos/a1/governance/answers-iii-tracked-nonmanifest.yaml
+
+Refusing to write: the answers record is incomplete for this repository at level essential: ScriptedInterview: the review refuses to write: controls.dependency_lock.implementation_reference: Nothing exists at that path in this repository.. Run `surfaceplate adopt --propose --level essential` for a complete record.
+This is the wizard's own safety check, not the checker. Nothing was written.
+exit=1
+
+$ git -C /home/mps2210/surfaceplate-sweep/repos/a1 status --short
+?? .standards/adopt-draft.json
+?? governance/answers-i-undecided.yaml
+?? governance/answers-ii-nonexistent.yaml
+?? governance/answers-iii-tracked-nonmanifest.yaml
+exit=0
+
+$ cat /home/mps2210/surfaceplate-sweep/repos/a1/.standards/adopt-draft.json | head -c 600; echo
+{
+  "bulk": [],
+  "done": [
+    "decisions",
+    "level",
+    "gates",
+    "remainder"
+  ],
+  "format": 3,
+  "framework_digest": "ceffdcf76ae5440ceae16c154893c3771455db0ad7aaa36d245bbe67db4c8d7f",
+  "framework_version": "0.17.0",
+  "origins": {
+    "adoption.adoption_status": {
+      "at": "",
+      "detail": "adopt has just written the profile; the checker has not yet passed against it",
+      "kind": "computed"
+    },
+    "adoption.decision_record_id": {
+      "at": "",
+      "detail": "created: docs/decisions/DR-0001-adopt-surfaceplate.md",
+      "kind": "scaffolded"
+    },
+    "adoption.fr
+exit=0
+
+$ surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/a1 --answers /home/mps2210/surfaceplate-sweep/repos/a1/governance/answers-probe.yaml
+
+──────────────────────────────────────────────────────────────────
+  Written: /home/mps2210/surfaceplate-sweep/repos/a1/governance/application-profile.yaml
+  Created: /home/mps2210/surfaceplate-sweep/repos/a1/activity/register.md
+  Created: /home/mps2210/surfaceplate-sweep/repos/a1/docs/decisions/DR-0001-adopt-surfaceplate.md
+
+  Those are real, complete files, and creating them is not the work they are for.
+  A register that exists and stays empty while work happens around it is a finding
+  about this repository - the checker cannot tell the difference, because what it
+  checks is that the file is there.
+──────────────────────────────────────────────────────────────────
+  Checking what you just wrote:
+
+Surfaceplate - conformance check
+repository: /home/mps2210/surfaceplate-sweep/repos/a1
+standard  : 0.17.0 installed 2026-09-09
+
+Advisory (3) - not a failure:
+  - dependency_lock: verified against docs/guide.md
+  - the pre-commit hook was declined at install: nothing checks staged changes before they are committed, and this repository relies on history_audit and review. A gate that claims local_hook enforcement anyway is still a finding (SP038).
+  - gate 'work_registration': activity/register.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (activity-register.md); it holds no entries of this repository's own yet
+
+PASS - all conformance checks satisfied.
+
+  The checker passes against what you just wrote: nothing outstanding.
+  Re-running `adopt` will not overwrite it; edit application-profile.yaml directly from here.
+
+exit=0
+
+$ surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/a1 --answers /home/mps2210/surfaceplate-sweep/repos/a1/governance/answers-probe.yaml
+
+governance/application-profile.yaml already exists and does not look like the untouched template. Edit it directly, or move it aside before running `adopt` again.
+exit=1
+
+$ surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/a1 --answers /home/mps2210/surfaceplate-sweep/repos/a1/governance/answers-probe.yaml
+
+governance/application-profile.yaml already exists and does not look like the untouched template. Edit it directly, or move it aside before running `adopt` again.
+exit=1
+
+$ surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/a1 --answers /home/mps2210/surfaceplate-sweep/repos/a1/governance/answers-probe.yaml
+
+governance/application-profile.yaml already exists and does not look like the untouched template. Edit it directly, or move it aside before running `adopt` again.
+exit=1
+
+$ surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/a1 --answers /home/mps2210/surfaceplate-sweep/repos/a1/governance/answers-probe.yaml
+
+governance/application-profile.yaml already exists and does not look like the untouched template. Edit it directly, or move it aside before running `adopt` again.
+exit=1
+
+$ ls /home/mps2210/surfaceplate-sweep/repos/a1-repro1/.standards/adopt-draft.json 2>&1
+ls: cannot access '/home/mps2210/surfaceplate-sweep/repos/a1-repro1/.standards/adopt-draft.json': No such file or directory
+exit=2
+
+$ surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/a1-repro1 --answers /home/mps2210/surfaceplate-sweep/repos/a1-repro1/governance/answers-iii-tracked-nonmanifest.yaml
+
+──────────────────────────────────────────────────────────────────
+  Written: /home/mps2210/surfaceplate-sweep/repos/a1-repro1/governance/application-profile.yaml
+  Created: /home/mps2210/surfaceplate-sweep/repos/a1-repro1/activity/register.md
+  Created: /home/mps2210/surfaceplate-sweep/repos/a1-repro1/docs/decisions/DR-0001-adopt-surfaceplate.md
+
+  Those are real, complete files, and creating them is not the work they are for.
+  A register that exists and stays empty while work happens around it is a finding
+  about this repository - the checker cannot tell the difference, because what it
+  checks is that the file is there.
+──────────────────────────────────────────────────────────────────
+  Checking what you just wrote:
+
+Surfaceplate - conformance check
+repository: /home/mps2210/surfaceplate-sweep/repos/a1-repro1
+standard  : 0.17.0 installed 2026-09-09
+
+Advisory (3) - not a failure:
+  - dependency_lock: verified against README.md
+  - the pre-commit hook was declined at install: nothing checks staged changes before they are committed, and this repository relies on history_audit and review. A gate that claims local_hook enforcement anyway is still a finding (SP038).
+  - gate 'work_registration': activity/register.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (activity-register.md); it holds no entries of this repository's own yet
+
+PASS - all conformance checks satisfied.
+
+  The checker passes against what you just wrote: nothing outstanding.
+  Re-running `adopt` will not overwrite it; edit application-profile.yaml directly from here.
+
+exit=0
+
+$ surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/a1-repro2 --answers /home/mps2210/surfaceplate-sweep/repos/a1-repro2/governance/answers-ii-nonexistent.yaml
+
+Refusing to write: the answers record is incomplete for this repository at level essential: ScriptedInterview: the review refuses to write: controls.dependency_lock.implementation_reference: Nothing exists at that path in this repository.. Run `surfaceplate adopt --propose --level essential` for a complete record.
+This is the wizard's own safety check, not the checker. Nothing was written.
+exit=1
+
+$ ls -la /home/mps2210/surfaceplate-sweep/repos/a1-repro2/.standards/adopt-draft.json
+-rw-r--r-- 1 mps2210 mps2210 5791 Sep  9 11:52 /home/mps2210/surfaceplate-sweep/repos/a1-repro2/.standards/adopt-draft.json
+exit=0
+
+$ surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/a1-repro2 --answers /home/mps2210/surfaceplate-sweep/repos/a1-repro2/governance/answers-iii-tracked-nonmanifest.yaml
+
+Refusing to write: the answers record is incomplete for this repository at level essential: ScriptedInterview: the review refuses to write: controls.dependency_lock.implementation_reference: Nothing exists at that path in this repository.. Run `surfaceplate adopt --propose --level essential` for a complete record.
+This is the wizard's own safety check, not the checker. Nothing was written.
+exit=1
+
+$ rm -v /home/mps2210/surfaceplate-sweep/repos/a1-repro2/.standards/adopt-draft.json
+removed '/home/mps2210/surfaceplate-sweep/repos/a1-repro2/.standards/adopt-draft.json'
+exit=0
+
+$ surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/a1-repro2 --answers /home/mps2210/surfaceplate-sweep/repos/a1-repro2/governance/answers-iii-tracked-nonmanifest.yaml
+
+──────────────────────────────────────────────────────────────────
+  Written: /home/mps2210/surfaceplate-sweep/repos/a1-repro2/governance/application-profile.yaml
+  Created: /home/mps2210/surfaceplate-sweep/repos/a1-repro2/activity/register.md
+  Created: /home/mps2210/surfaceplate-sweep/repos/a1-repro2/docs/decisions/DR-0001-adopt-surfaceplate.md
+
+  Those are real, complete files, and creating them is not the work they are for.
+  A register that exists and stays empty while work happens around it is a finding
+  about this repository - the checker cannot tell the difference, because what it
+  checks is that the file is there.
+──────────────────────────────────────────────────────────────────
+  Checking what you just wrote:
+
+Surfaceplate - conformance check
+repository: /home/mps2210/surfaceplate-sweep/repos/a1-repro2
+standard  : 0.17.0 installed 2026-09-09
+
+Advisory (3) - not a failure:
+  - dependency_lock: verified against README.md
+  - the pre-commit hook was declined at install: nothing checks staged changes before they are committed, and this repository relies on history_audit and review. A gate that claims local_hook enforcement anyway is still a finding (SP038).
+  - gate 'work_registration': activity/register.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (activity-register.md); it holds no entries of this repository's own yet
+
+PASS - all conformance checks satisfied.
+
+  The checker passes against what you just wrote: nothing outstanding.
+  Re-running `adopt` will not overwrite it; edit application-profile.yaml directly from here.
+
+exit=0
+
+$ surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/a1-repro3 --answers /home/mps2210/surfaceplate-sweep/repos/a1-repro3/governance/answers-ii-nonexistent.yaml
+
+Refusing to write: the answers record is incomplete for this repository at level essential: ScriptedInterview: the review refuses to write: controls.dependency_lock.implementation_reference: Nothing exists at that path in this repository.. Run `surfaceplate adopt --propose --level essential` for a complete record.
+This is the wizard's own safety check, not the checker. Nothing was written.
+exit=1
+
+$ surfaceplate adopt --propose --target /home/mps2210/surfaceplate-sweep/repos/a1-repro3 --level essential
+Proposed: /home/mps2210/surfaceplate-sweep/repos/a1-repro3/governance/application-profile.answers.yaml
+Preview : /home/mps2210/surfaceplate-sweep/repos/a1-repro3/governance/application-profile.proposed.yaml
+Nothing else was written. Complete every needs-human line in the answers record, then run:
+    surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/a1-repro3 --answers /home/mps2210/surfaceplate-sweep/repos/a1-repro3/governance/application-profile.answers.yaml
+exit=0
+
+$ ls -la /home/mps2210/surfaceplate-sweep/repos/a1-repro3/.standards/adopt-draft.json
+-rw-r--r-- 1 mps2210 mps2210 5791 Sep  9 11:52 /home/mps2210/surfaceplate-sweep/repos/a1-repro3/.standards/adopt-draft.json
+exit=0
+
+$ surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/a1-repro3 --answers /home/mps2210/surfaceplate-sweep/repos/a1-repro3/governance/answers-iii-tracked-nonmanifest.yaml
+
+Refusing to write: the answers record is incomplete for this repository at level essential: ScriptedInterview: the review refuses to write: controls.dependency_lock.implementation_reference: Nothing exists at that path in this repository.. Run `surfaceplate adopt --propose --level essential` for a complete record.
+This is the wizard's own safety check, not the checker. Nothing was written.
+exit=1

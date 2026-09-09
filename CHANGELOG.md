@@ -2647,3 +2647,40 @@ is fully accounted for: **82 rows changed, all of shape `bare`, each losing exac
 not ask for, not as a fresh scan — because purity is what makes `--answers` replay deterministic and
 the matrix's report comparable. The omission is gated on a named `WAIVABLE_CONTROLS` set, so a
 missing rationale for any other control still raises loudly rather than dropping it silently.
+
+### The pathway sweep, and what adjudicating it found (`ACT-079`)
+
+A separate session executed `audit/PATHWAY_SWEEP.md` against `30bba44` — 35 scenarios across
+repository shape, environment and command sequence, the axes the 208-case matrix does not vary. All
+three calibration cases fired, so its clean results stand on the packet's own terms. The report and
+its 39 raw logs are in the repository as evidence.
+
+**Three `high` findings, each reproduced here rather than accepted:**
+
+- **`F133`** — the history audit accepts the installed **seed** as a former name of any artefact
+  `adopt` scaffolded from it. Git reports `C100` (a 100% copy) because the scaffold is byte-identical
+  and lands in a later commit; `historical_paths` accepts it; and the audit then treats presence
+  under any historical name as satisfying the gate. **The seed can never be deleted** — it is
+  integrity-checked payload — so this is a permanent alias for every artefact the wizard scaffolds.
+  It falsifies a safety property the code states about itself, and makes `INSTALL.md`'s FAQ claim
+  about `--no-verify` false for exactly those artefacts.
+- **`F134`** — a refused `--answers` replay writes `.standards/adopt-draft.json` while printing
+  *"Nothing was written"*, and that draft then makes a **corrected** record fail with the old value's
+  error. The tool's own advice, re-running `--propose`, does not clear it.
+- **`F135`** — `pyproject.toml` is in the dependency **lock** list, so a manifest is proposed as a
+  lock with origin `discovered`. `DR-73` makes it sharper: `rules.dependency_manifest` calls that
+  file a manifest while `discover.candidate_lock_files` calls it a lock — two modules in one payload
+  answering the same question two ways, which is the drift `DR-48` exists to prevent, introduced by
+  the change that closed `F132`.
+
+The remaining fifteen are held as **`F136`**, at the reporter's severity, recorded but **not
+verified here**. Writing fifteen bodies from a report this session has not reproduced would put
+unverified claims in the register at the same status as verified ones, and the register's value is
+that a reader cannot tell them apart by looking harder.
+
+**One correction of this session's own adjudication is recorded rather than dropped.** `F134`'s
+second half was first called unconfirmed, because an attempt to reproduce it here showed no
+difference when the draft was deleted. That attempt's record still carried an unrelated genuine
+failure, so both runs failed for a real reason and the draft could never have been the deciding
+variable — the observation was incapable of returning the other answer. The reporter's `a1-repro2`
+sequence is a proper controlled comparison and settles it.

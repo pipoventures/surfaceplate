@@ -1,0 +1,29 @@
+
+$ surfaceplate --version
+surfaceplate 0.17.0
+exit=0
+
+$ git config --show-origin --get-all core.hooksPath
+file:/home/mps2210/.gitconfig	/home/mps2210/.config/git/hooks
+exit=0
+
+$ git --version
+git version 2.43.0
+exit=0
+
+$ python3 -V
+Python 3.12.3
+exit=0
+
+$ pip show surfaceplate
+Name: surfaceplate
+Version: 0.17.0
+Summary: A governance framework that installs into a repository and checks it against the standard it publishes.
+Home-page: 
+Author: Pipo Ventures Ltd
+Author-email: 
+License: 
+Location: /home/mps2210/surfaceplate-sweep/.venv/lib/python3.12/site-packages
+Requires: jsonschema, pyyaml
+Required-by: 
+exit=0

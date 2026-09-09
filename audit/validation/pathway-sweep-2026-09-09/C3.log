@@ -1,0 +1,33 @@
+
+$ cd /home/mps2210/surfaceplate-sweep/repos/c3 && surfaceplate doctor | tail -2
+
+DOCTOR=OK  (2 warning, 15 checks)
+exit=0
+
+$ surfaceplate install --target /home/mps2210/surfaceplate-sweep/repos/c3 --dry-run | tail -1
+Nothing has been written.
+exit=4
+
+$ surfaceplate install --target /home/mps2210/surfaceplate-sweep/repos/c3 | grep -E 'STOPPED|Nothing has been written'
+STOPPED - Git hooks for this repository already run from somewhere else.
+Nothing has been written.
+exit=4
+
+$ surfaceplate check --repo /home/mps2210/surfaceplate-sweep/repos/c3 | tail -1
+FAIL - Surfaceplate is not installed in this repository.
+exit=2
+
+$ surfaceplate install --target /home/mps2210/surfaceplate-sweep/repos/c3 --no-hooks | tail -1
+Something wrong, or a check looks wrong? https://github.com/pipoventures/surfaceplate/issues
+exit=0
+
+$ cd /home/mps2210/surfaceplate-sweep/repos/c3 && git add .githooks 2>&1; git update-index --chmod=+x .githooks/pre-commit 2>&1
+fatal: pathspec '.githooks' did not match any files
+error: .githooks/pre-commit: does not exist and --remove not passed
+fatal: Unable to process path .githooks/pre-commit
+exit=128
+
+$ cd /home/mps2210/surfaceplate-sweep/repos/c3 && surfaceplate check --repo . | tail -2
+WARN - adoption is incomplete, but grace expires 2026-10-09 (30 day(s) remaining).
+This check will fail once the grace window ends. Complete the profile before then.
+exit=0

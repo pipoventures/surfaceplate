@@ -1,0 +1,504 @@
+
+$ surfaceplate install --target /home/mps2210/surfaceplate-sweep/repos/c6 --no-hooks --agents claude
+Surfaceplate 0.17.0 - install
+source: /home/mps2210/surfaceplate-sweep/.venv/lib/python3.12/site-packages/surfaceplate
+target: /home/mps2210/surfaceplate-sweep/repos/c6
+
+  write   .claude/rules/surfaceplate-01-authority.md
+  write   .claude/rules/surfaceplate-02-decision-authority-and-escalation.md
+  write   .claude/rules/surfaceplate-03-work-definition.md
+  write   .claude/rules/surfaceplate-04-work-tracking.md
+  write   .claude/rules/surfaceplate-05-risk-and-proportionality.md
+  write   .claude/rules/surfaceplate-06-evidence-and-completion.md
+  write   .claude/rules/surfaceplate-07-testing.md
+  write   .claude/rules/surfaceplate-08-confidentiality-and-data-boundaries.md
+  write   .claude/rules/surfaceplate-09-dependencies-and-supply-chain.md
+  write   .claude/rules/surfaceplate-10-provenance-and-lineage.md
+  write   .claude/rules/surfaceplate-11-concurrency.md
+  write   .claude/rules/surfaceplate-12-enforcement-and-change-control.md
+  write   .claude/skills/bug-fix/SKILL.md
+  write   .claude/skills/change/SKILL.md
+  write   .claude/skills/dependency-update/SKILL.md
+  write   .claude/skills/fix-ci/SKILL.md
+  write   .claude/skills/release/SKILL.md
+  write   .claude/skills/review/SKILL.md
+  write   .claude/skills/security-review/SKILL.md
+  write   .github/workflows/standards-conformance.yml
+  write   .standards/check_conformance.py
+  write   .standards/rules.py
+  write   .standards/VERSION
+  write   .standards/conformance-block.md
+  write   .standards/topics/01-authority.md
+  write   .standards/topics/02-decision-authority-and-escalation.md
+  write   .standards/topics/03-work-definition.md
+  write   .standards/topics/04-work-tracking.md
+  write   .standards/topics/05-risk-and-proportionality.md
+  write   .standards/topics/06-evidence-and-completion.md
+  write   .standards/topics/07-testing.md
+  write   .standards/topics/08-confidentiality-and-data-boundaries.md
+  write   .standards/topics/09-dependencies-and-supply-chain.md
+  write   .standards/topics/10-provenance-and-lineage.md
+  write   .standards/topics/11-concurrency.md
+  write   .standards/topics/12-enforcement-and-change-control.md
+  write   .standards/schemas/application-profile.schema.yaml
+  write   .standards/schemas/assurance-evidence.schema.yaml
+  write   .standards/schemas/gate-exception.schema.yaml
+  write   .standards/schemas/method-registry-entry.schema.yaml
+  write   .standards/schemas/method-run-lineage.schema.yaml
+  write   .standards/schemas/override-record.schema.yaml
+  write   .standards/schemas/README.md
+  write   .standards/core/CONFORMANCE_LEVELS.md
+  write   .standards/core/CONTROL_PRINCIPLES.md
+  write   .standards/core/PREREQUISITE_GATES.md
+  write   .standards/templates/application-profile.yaml
+  write   .standards/templates/decision-record.md
+  write   .standards/templates/gate-exception.yaml
+  write   .standards/templates/override-record.yaml
+  write   .standards/templates/work-packet.md
+  write   .standards/examples/application-profile.essential.example.yaml
+  write   .standards/examples/application-profile.full.example.yaml
+  write   .standards/examples/method-registry-entry.example.yaml
+  write   .standards/examples/method-run-lineage.example.yaml
+  write   .standards/examples/override-record.approved.example.yaml
+  write   .standards/adapters/python.md
+  write   .standards/adapters/r.md
+  write   .standards/adapters/typescript.md
+  write   .standards/seeds/CHANGELOG.md
+  write   .standards/seeds/activity-register.md
+  write   .standards/seeds/adoption-decision-record.md
+  write   .standards/seeds/data-source-register.md
+  write   .standards/seeds/decision-log.md
+  write   .standards/seeds/dependency-review-log.md
+  write   .standards/seeds/findings-register.md
+  write   .standards/seeds/method-registry-readme.md
+  write   .standards/seeds/options-log.md
+  write   .standards/seeds/output-validation-log.md
+  write   .standards/seeds/overrides-readme.md
+  write   .standards/seeds/release-checklist.md
+  write   .standards/seeds/risk-classification.md
+  write   .standards/seeds/run-lineage-readme.md
+  write   .standards/seeds/source-of-truth-matrix.yaml
+  write   .standards/seeds/test-conventions.md
+  write   .standards/MANIFEST.sha256
+  created AGENTS.md
+  declined  the pre-commit hook, and core.hooksPath is left as it was
+  create  governance/application-profile.yaml  (from template - you must complete it)
+  write   .standards/INSTALL.json
+
+76 standard-owned file(s); 76 written or updated; 0 removed.
+
+What changed, by review class:
+    3  enforcing  (code that runs - review this closely)
+       .github/workflows/standards-conformance.yml
+       .standards/check_conformance.py
+       .standards/rules.py
+    2  contract   (parsed by the checker - changes what validates)
+       .standards/schemas/application-profile.schema.yaml
+       .standards/schemas/gate-exception.schema.yaml
+   71  reference  (read by people - changes what the rules say)
+       .claude/rules/surfaceplate-01-authority.md
+       .claude/rules/surfaceplate-02-decision-authority-and-escalation.md
+       .claude/rules/surfaceplate-03-work-definition.md
+       .claude/rules/surfaceplate-04-work-tracking.md
+       .claude/rules/surfaceplate-05-risk-and-proportionality.md
+       .claude/rules/surfaceplate-06-evidence-and-completion.md
+       .claude/rules/surfaceplate-07-testing.md
+       .claude/rules/surfaceplate-08-confidentiality-and-data-boundaries.md
+       .claude/rules/surfaceplate-09-dependencies-and-supply-chain.md
+       .claude/rules/surfaceplate-10-provenance-and-lineage.md
+       .claude/rules/surfaceplate-11-concurrency.md
+       .claude/rules/surfaceplate-12-enforcement-and-change-control.md
+       .claude/skills/bug-fix/SKILL.md
+       .claude/skills/change/SKILL.md
+       .claude/skills/dependency-update/SKILL.md
+       .claude/skills/fix-ci/SKILL.md
+       .claude/skills/release/SKILL.md
+       .claude/skills/review/SKILL.md
+       .claude/skills/security-review/SKILL.md
+       .standards/VERSION
+       .standards/conformance-block.md
+       .standards/topics/01-authority.md
+       .standards/topics/02-decision-authority-and-escalation.md
+       .standards/topics/03-work-definition.md
+       .standards/topics/04-work-tracking.md
+       .standards/topics/05-risk-and-proportionality.md
+       .standards/topics/06-evidence-and-completion.md
+       .standards/topics/07-testing.md
+       .standards/topics/08-confidentiality-and-data-boundaries.md
+       .standards/topics/09-dependencies-and-supply-chain.md
+       .standards/topics/10-provenance-and-lineage.md
+       .standards/topics/11-concurrency.md
+       .standards/topics/12-enforcement-and-change-control.md
+       .standards/schemas/assurance-evidence.schema.yaml
+       .standards/schemas/method-registry-entry.schema.yaml
+       .standards/schemas/method-run-lineage.schema.yaml
+       .standards/schemas/override-record.schema.yaml
+       .standards/schemas/README.md
+       .standards/core/CONFORMANCE_LEVELS.md
+       .standards/core/CONTROL_PRINCIPLES.md
+       .standards/core/PREREQUISITE_GATES.md
+       .standards/templates/application-profile.yaml
+       .standards/templates/decision-record.md
+       .standards/templates/gate-exception.yaml
+       .standards/templates/override-record.yaml
+       .standards/templates/work-packet.md
+       .standards/examples/application-profile.essential.example.yaml
+       .standards/examples/application-profile.full.example.yaml
+       .standards/examples/method-registry-entry.example.yaml
+       .standards/examples/method-run-lineage.example.yaml
+       .standards/examples/override-record.approved.example.yaml
+       .standards/adapters/python.md
+       .standards/adapters/r.md
+       .standards/adapters/typescript.md
+       .standards/seeds/CHANGELOG.md
+       .standards/seeds/activity-register.md
+       .standards/seeds/adoption-decision-record.md
+       .standards/seeds/data-source-register.md
+       .standards/seeds/decision-log.md
+       .standards/seeds/dependency-review-log.md
+       .standards/seeds/findings-register.md
+       .standards/seeds/method-registry-readme.md
+       .standards/seeds/options-log.md
+       .standards/seeds/output-validation-log.md
+       .standards/seeds/overrides-readme.md
+       .standards/seeds/release-checklist.md
+       .standards/seeds/risk-classification.md
+       .standards/seeds/run-lineage-readme.md
+       .standards/seeds/source-of-truth-matrix.yaml
+       .standards/seeds/test-conventions.md
+       .standards/MANIFEST.sha256
+Grace window ends 2026-10-09. After that the check fails.
+
+Next steps:
+  1. Complete governance/application-profile.yaml. Worked examples: .standards/examples/
+  2. Run: python .standards/check_conformance.py
+  3. Stage the installer output.
+  4. Commit the result. No local hook was installed - history_audit and review
+     are what enforces this. Nothing checks staged changes before they commit.
+  5. Open a pull request.
+
+Something wrong, or a check looks wrong? https://github.com/pipoventures/surfaceplate/issues
+exit=0
+
+$ ls -d /home/mps2210/surfaceplate-sweep/repos/c6/.github/instructions /home/mps2210/surfaceplate-sweep/repos/c6/.github/skills /home/mps2210/surfaceplate-sweep/repos/c6/.claude/rules /home/mps2210/surfaceplate-sweep/repos/c6/.claude/skills 2>&1
+ls: cannot access '/home/mps2210/surfaceplate-sweep/repos/c6/.github/instructions': No such file or directory
+ls: cannot access '/home/mps2210/surfaceplate-sweep/repos/c6/.github/skills': No such file or directory
+/home/mps2210/surfaceplate-sweep/repos/c6/.claude/rules
+/home/mps2210/surfaceplate-sweep/repos/c6/.claude/skills
+exit=2
+
+$ surfaceplate check --repo /home/mps2210/surfaceplate-sweep/repos/c6
+Surfaceplate - conformance check
+repository: /home/mps2210/surfaceplate-sweep/repos/c6
+standard  : 0.17.0 installed 2026-09-09
+
+Advisory (2) - not a failure:
+  - the pre-commit hook was declined at install: nothing checks staged changes before they are committed, and this repository relies on history_audit and review. A gate that claims local_hook enforcement anyway is still a finding (SP038).
+  - agent channels declined at install: copilot. Only claude received the instructions and skills; nothing checks that an agent on a declined channel reads them, because it was not given them.
+
+Adoption completeness findings (15):
+  [SP016] The application profile does not satisfy the control contract
+        what: at adoption/framework_digest: 'replace-me' does not match '^[A-Fa-f0-9]{64}$'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at adoption/framework_version: 'replace-me' does not match '^[0-9]+\\.[0-9]+\\.[0-9]+$'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at builds_user_interface: 'replace-me' is not of type 'boolean'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at prerequisites/0/effective_from: 'replace-me' does not match '^\\d{4}-\\d{2}-\\d{2}([T ]\\d{2}:\\d{2}(:\\d{2}(\\.\\d+)?)?(Z|[+-]\\d{2}:\\d{2})?)?$'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at risk/material_quantitative_output: 'replace-me' is not of type 'boolean'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at risk/relied_on_outside_team: 'replace-me' is not of type 'boolean'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP024] The profile review date is unreadable
+        what: adoption.review_by is 'replace-me', which is not an ISO date.
+        fix : Use the YYYY-MM-DD form, for example '2027-02-15'.
+  [SP020] The application profile still contains template placeholders
+        what: application_id = 'replace-me'; display_name = 'replace-me'; owner = 'replace-me'; risk.relied_on_outside_team = 'replace-me'; risk.material_quantitative_output = 'replace-me'; adoption.framework_version = 'replace-me'; adoption.framework_digest = 'replace-me'; adoption.adoption_date = 'replace-me'; adoption.review_by = 'replace-me'; adoption.framework_maintainer = 'replace-me' (and 9 more)
+        fix : Replace every placeholder with a real value. A profile of placeholders records nothing.
+  [SP046] secret_hygiene is declared but no scanner is named
+        what: baseline_controls.secret_hygiene has no scanner block naming a tool and where it is wired.
+        fix : Name the scanner and the file(s) that run it under baseline_controls.secret_hygiene.scanner. This standard requires secret_hygiene at every level; until the scanner is named, the requirement is a declaration with nothing behind it.
+  [SP051] Control 'dependency_lock' is required but names nothing to check
+        what: control_decisions.dependency_lock has no implementation_reference, so the declaration is compared against nothing.
+        fix : Add implementation_reference naming the file that implements this control - a lock file, a findings register. A control checked only against its own declaration is a statement of intent, not a control.
+  [SP048] The profile declares a different version from the one installed
+        what: adoption.framework_version is replace-me, but .standards/INSTALL.json records 0.17.0 as installed.
+        fix : Correct the profile, or re-run the installer. A conformance claim names the version it was assessed against; naming one that is not present makes the claim unverifiable rather than merely wrong.
+  [SP049] The profile's framework digest does not match what is installed
+        what: adoption.framework_digest is replace-me, but the installed standard anchors to ceffdcf76ae5440ceae16c154893c3771455db0ad7aaa36d245bbe67db4c8d7f.
+        fix : Set adoption.framework_digest to the value in .standards/INSTALL.json, or re-run the installer. Note that DR-14 changed this field's meaning: it is now sha256(MANIFEST.sha256), not the release archive's digest, because the archive is not reproducible and so could never be recomputed by anyone checking the claim.
+  [SP032] Gate 'work_registration' requires an artefact that does not exist
+        what: replace-me is named as a precondition but is not present.
+        fix : Create the artefact, correct the path, or change the gate's status. A gate whose precondition cannot be satisfied is not a control.
+  [SP033] Gate 'work_registration' has an unreadable effective date
+        what: effective_from is 'replace-me', which is not an ISO date.
+        fix : Use YYYY-MM-DD, or YYYY-MM-DDThh:mm:ss+hh:mm to bind from an instant.
+  [SP037] 'builds_user_interface' is not a yes or no
+        what: found 'replace-me'.
+        fix : Use true or false.
+
+WARN - adoption is incomplete, but grace expires 2026-10-09 (30 day(s) remaining).
+This check will fail once the grace window ends. Complete the profile before then.
+exit=0
+
+$ grep -c '' /home/mps2210/surfaceplate-sweep/repos/c6/.standards/MANIFEST.sha256; grep -c '^.*\.claude/' /home/mps2210/surfaceplate-sweep/repos/c6/.standards/MANIFEST.sha256; grep -n '"agents"' -A3 /home/mps2210/surfaceplate-sweep/repos/c6/.standards/INSTALL.json
+250
+0
+2:  "agents": [
+3-    "claude"
+4-  ],
+5-  "conformance_block_digest": "0165542de82262b540a9e7b7035150366a2b0b1dc0f06d51fa79141213fd978b",
+exit=0
+
+$ surfaceplate install --target /home/mps2210/surfaceplate-sweep/repos/c6 --no-hooks --agents copilot
+Surfaceplate 0.17.0 - upgrade
+source: /home/mps2210/surfaceplate-sweep/.venv/lib/python3.12/site-packages/surfaceplate
+target: /home/mps2210/surfaceplate-sweep/repos/c6
+currently installed: 0.17.0
+
+  write   .github/instructions/01-authority.instructions.md
+  write   .github/instructions/02-decision-authority-and-escalation.instructions.md
+  write   .github/instructions/03-work-definition.instructions.md
+  write   .github/instructions/04-work-tracking.instructions.md
+  write   .github/instructions/05-risk-and-proportionality.instructions.md
+  write   .github/instructions/06-evidence-and-completion.instructions.md
+  write   .github/instructions/07-testing.instructions.md
+  write   .github/instructions/08-confidentiality-and-data-boundaries.instructions.md
+  write   .github/instructions/09-dependencies-and-supply-chain.instructions.md
+  write   .github/instructions/10-provenance-and-lineage.instructions.md
+  write   .github/instructions/11-concurrency.instructions.md
+  write   .github/instructions/12-enforcement-and-change-control.instructions.md
+  write   .github/skills/bug-fix/SKILL.md
+  write   .github/skills/change/SKILL.md
+  write   .github/skills/dependency-update/SKILL.md
+  write   .github/skills/fix-ci/SKILL.md
+  write   .github/skills/release/SKILL.md
+  write   .github/skills/review/SKILL.md
+  write   .github/skills/security-review/SKILL.md
+  remove  .claude/rules/surfaceplate-01-authority.md  (no longer part of the standard)
+  remove  .claude/rules/surfaceplate-02-decision-authority-and-escalation.md  (no longer part of the standard)
+  remove  .claude/rules/surfaceplate-03-work-definition.md  (no longer part of the standard)
+  remove  .claude/rules/surfaceplate-04-work-tracking.md  (no longer part of the standard)
+  remove  .claude/rules/surfaceplate-05-risk-and-proportionality.md  (no longer part of the standard)
+  remove  .claude/rules/surfaceplate-06-evidence-and-completion.md  (no longer part of the standard)
+  remove  .claude/rules/surfaceplate-07-testing.md  (no longer part of the standard)
+  remove  .claude/rules/surfaceplate-08-confidentiality-and-data-boundaries.md  (no longer part of the standard)
+  remove  .claude/rules/surfaceplate-09-dependencies-and-supply-chain.md  (no longer part of the standard)
+  remove  .claude/rules/surfaceplate-10-provenance-and-lineage.md  (no longer part of the standard)
+  remove  .claude/rules/surfaceplate-11-concurrency.md  (no longer part of the standard)
+  remove  .claude/rules/surfaceplate-12-enforcement-and-change-control.md  (no longer part of the standard)
+  remove  .claude/skills/bug-fix/SKILL.md  (no longer part of the standard)
+  remove  .claude/skills/change/SKILL.md  (no longer part of the standard)
+  remove  .claude/skills/dependency-update/SKILL.md  (no longer part of the standard)
+  remove  .claude/skills/fix-ci/SKILL.md  (no longer part of the standard)
+  remove  .claude/skills/release/SKILL.md  (no longer part of the standard)
+  remove  .claude/skills/review/SKILL.md  (no longer part of the standard)
+  remove  .claude/skills/security-review/SKILL.md  (no longer part of the standard)
+  created .github/copilot-instructions.md
+  unchanged AGENTS.md
+  declined  the pre-commit hook, and core.hooksPath is left as it was
+  keep    governance/application-profile.yaml  (yours; never overwritten)
+  write   .standards/INSTALL.json
+
+76 standard-owned file(s); 19 written or updated; 19 removed.
+
+What changed, by review class:
+    0  enforcing  (code that runs - review this closely)
+    0  contract   (parsed by the checker - changes what validates)
+   19  reference  (read by people - changes what the rules say)
+       .github/instructions/01-authority.instructions.md
+       .github/instructions/02-decision-authority-and-escalation.instructions.md
+       .github/instructions/03-work-definition.instructions.md
+       .github/instructions/04-work-tracking.instructions.md
+       .github/instructions/05-risk-and-proportionality.instructions.md
+       .github/instructions/06-evidence-and-completion.instructions.md
+       .github/instructions/07-testing.instructions.md
+       .github/instructions/08-confidentiality-and-data-boundaries.instructions.md
+       .github/instructions/09-dependencies-and-supply-chain.instructions.md
+       .github/instructions/10-provenance-and-lineage.instructions.md
+       .github/instructions/11-concurrency.instructions.md
+       .github/instructions/12-enforcement-and-change-control.instructions.md
+       .github/skills/bug-fix/SKILL.md
+       .github/skills/change/SKILL.md
+       .github/skills/dependency-update/SKILL.md
+       .github/skills/fix-ci/SKILL.md
+       .github/skills/release/SKILL.md
+       .github/skills/review/SKILL.md
+       .github/skills/security-review/SKILL.md
+
+  Nothing that executes or validates changed in this upgrade.
+Grace window ends 2026-10-09. After that the check fails.
+
+Next steps:
+  1. Complete governance/application-profile.yaml. Worked examples: .standards/examples/
+  2. Run: python .standards/check_conformance.py
+  3. Stage the installer output.
+  4. Commit the result. No local hook was installed - history_audit and review
+     are what enforces this. Nothing checks staged changes before they commit.
+  5. Open a pull request.
+
+Something wrong, or a check looks wrong? https://github.com/pipoventures/surfaceplate/issues
+exit=0
+
+$ ls -d /home/mps2210/surfaceplate-sweep/repos/c6/.github/instructions /home/mps2210/surfaceplate-sweep/repos/c6/.github/skills /home/mps2210/surfaceplate-sweep/repos/c6/.claude/rules /home/mps2210/surfaceplate-sweep/repos/c6/.claude/skills 2>&1; git -C /home/mps2210/surfaceplate-sweep/repos/c6 status --short | head
+/home/mps2210/surfaceplate-sweep/repos/c6/.claude/rules
+/home/mps2210/surfaceplate-sweep/repos/c6/.claude/skills
+/home/mps2210/surfaceplate-sweep/repos/c6/.github/instructions
+/home/mps2210/surfaceplate-sweep/repos/c6/.github/skills
+ D .claude/rules/surfaceplate-01-authority.md
+ D .claude/rules/surfaceplate-02-decision-authority-and-escalation.md
+ D .claude/rules/surfaceplate-03-work-definition.md
+ D .claude/rules/surfaceplate-04-work-tracking.md
+ D .claude/rules/surfaceplate-05-risk-and-proportionality.md
+ D .claude/rules/surfaceplate-06-evidence-and-completion.md
+ D .claude/rules/surfaceplate-07-testing.md
+ D .claude/rules/surfaceplate-08-confidentiality-and-data-boundaries.md
+ D .claude/rules/surfaceplate-09-dependencies-and-supply-chain.md
+ D .claude/rules/surfaceplate-10-provenance-and-lineage.md
+exit=0
+
+$ grep -c '\.claude/' /home/mps2210/surfaceplate-sweep/repos/c6/.standards/MANIFEST.sha256; grep -n '"agents"' -A3 /home/mps2210/surfaceplate-sweep/repos/c6/.standards/INSTALL.json
+0
+2:  "agents": [
+3-    "copilot"
+4-  ],
+5-  "conformance_block_digest": "0165542de82262b540a9e7b7035150366a2b0b1dc0f06d51fa79141213fd978b",
+exit=0
+
+$ surfaceplate check --repo /home/mps2210/surfaceplate-sweep/repos/c6
+Surfaceplate - conformance check
+repository: /home/mps2210/surfaceplate-sweep/repos/c6
+standard  : 0.17.0 installed 2026-09-09
+
+Advisory (2) - not a failure:
+  - the pre-commit hook was declined at install: nothing checks staged changes before they are committed, and this repository relies on history_audit and review. A gate that claims local_hook enforcement anyway is still a finding (SP038).
+  - agent channels declined at install: claude. Only copilot received the instructions and skills; nothing checks that an agent on a declined channel reads them, because it was not given them.
+
+Adoption completeness findings (15):
+  [SP016] The application profile does not satisfy the control contract
+        what: at adoption/framework_digest: 'replace-me' does not match '^[A-Fa-f0-9]{64}$'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at adoption/framework_version: 'replace-me' does not match '^[0-9]+\\.[0-9]+\\.[0-9]+$'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at builds_user_interface: 'replace-me' is not of type 'boolean'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at prerequisites/0/effective_from: 'replace-me' does not match '^\\d{4}-\\d{2}-\\d{2}([T ]\\d{2}:\\d{2}(:\\d{2}(\\.\\d+)?)?(Z|[+-]\\d{2}:\\d{2})?)?$'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at risk/material_quantitative_output: 'replace-me' is not of type 'boolean'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at risk/relied_on_outside_team: 'replace-me' is not of type 'boolean'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP024] The profile review date is unreadable
+        what: adoption.review_by is 'replace-me', which is not an ISO date.
+        fix : Use the YYYY-MM-DD form, for example '2027-02-15'.
+  [SP020] The application profile still contains template placeholders
+        what: application_id = 'replace-me'; display_name = 'replace-me'; owner = 'replace-me'; risk.relied_on_outside_team = 'replace-me'; risk.material_quantitative_output = 'replace-me'; adoption.framework_version = 'replace-me'; adoption.framework_digest = 'replace-me'; adoption.adoption_date = 'replace-me'; adoption.review_by = 'replace-me'; adoption.framework_maintainer = 'replace-me' (and 9 more)
+        fix : Replace every placeholder with a real value. A profile of placeholders records nothing.
+  [SP046] secret_hygiene is declared but no scanner is named
+        what: baseline_controls.secret_hygiene has no scanner block naming a tool and where it is wired.
+        fix : Name the scanner and the file(s) that run it under baseline_controls.secret_hygiene.scanner. This standard requires secret_hygiene at every level; until the scanner is named, the requirement is a declaration with nothing behind it.
+  [SP051] Control 'dependency_lock' is required but names nothing to check
+        what: control_decisions.dependency_lock has no implementation_reference, so the declaration is compared against nothing.
+        fix : Add implementation_reference naming the file that implements this control - a lock file, a findings register. A control checked only against its own declaration is a statement of intent, not a control.
+  [SP048] The profile declares a different version from the one installed
+        what: adoption.framework_version is replace-me, but .standards/INSTALL.json records 0.17.0 as installed.
+        fix : Correct the profile, or re-run the installer. A conformance claim names the version it was assessed against; naming one that is not present makes the claim unverifiable rather than merely wrong.
+  [SP049] The profile's framework digest does not match what is installed
+        what: adoption.framework_digest is replace-me, but the installed standard anchors to ceffdcf76ae5440ceae16c154893c3771455db0ad7aaa36d245bbe67db4c8d7f.
+        fix : Set adoption.framework_digest to the value in .standards/INSTALL.json, or re-run the installer. Note that DR-14 changed this field's meaning: it is now sha256(MANIFEST.sha256), not the release archive's digest, because the archive is not reproducible and so could never be recomputed by anyone checking the claim.
+  [SP032] Gate 'work_registration' requires an artefact that does not exist
+        what: replace-me is named as a precondition but is not present.
+        fix : Create the artefact, correct the path, or change the gate's status. A gate whose precondition cannot be satisfied is not a control.
+  [SP033] Gate 'work_registration' has an unreadable effective date
+        what: effective_from is 'replace-me', which is not an ISO date.
+        fix : Use YYYY-MM-DD, or YYYY-MM-DDThh:mm:ss+hh:mm to bind from an instant.
+  [SP037] 'builds_user_interface' is not a yes or no
+        what: found 'replace-me'.
+        fix : Use true or false.
+
+WARN - adoption is incomplete, but grace expires 2026-10-09 (30 day(s) remaining).
+This check will fail once the grace window ends. Complete the profile before then.
+exit=0
+
+$ surfaceplate check --repo /home/mps2210/surfaceplate-sweep/repos/c6
+Surfaceplate - conformance check
+repository: /home/mps2210/surfaceplate-sweep/repos/c6
+standard  : 0.17.0 installed 2026-09-09
+
+Advisory (2) - not a failure:
+  - the pre-commit hook was declined at install: nothing checks staged changes before they are committed, and this repository relies on history_audit and review. A gate that claims local_hook enforcement anyway is still a finding (SP038).
+  - agent channels declined at install: claude. Only copilot received the instructions and skills; nothing checks that an agent on a declined channel reads them, because it was not given them.
+
+Adoption completeness findings (15):
+  [SP016] The application profile does not satisfy the control contract
+        what: at adoption/framework_digest: 'replace-me' does not match '^[A-Fa-f0-9]{64}$'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at adoption/framework_version: 'replace-me' does not match '^[0-9]+\\.[0-9]+\\.[0-9]+$'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at builds_user_interface: 'replace-me' is not of type 'boolean'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at prerequisites/0/effective_from: 'replace-me' does not match '^\\d{4}-\\d{2}-\\d{2}([T ]\\d{2}:\\d{2}(:\\d{2}(\\.\\d+)?)?(Z|[+-]\\d{2}:\\d{2})?)?$'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at risk/material_quantitative_output: 'replace-me' is not of type 'boolean'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at risk/relied_on_outside_team: 'replace-me' is not of type 'boolean'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP024] The profile review date is unreadable
+        what: adoption.review_by is 'replace-me', which is not an ISO date.
+        fix : Use the YYYY-MM-DD form, for example '2027-02-15'.
+  [SP020] The application profile still contains template placeholders
+        what: application_id = 'replace-me'; display_name = 'replace-me'; owner = 'replace-me'; risk.relied_on_outside_team = 'replace-me'; risk.material_quantitative_output = 'replace-me'; adoption.framework_version = 'replace-me'; adoption.framework_digest = 'replace-me'; adoption.adoption_date = 'replace-me'; adoption.review_by = 'replace-me'; adoption.framework_maintainer = 'replace-me' (and 9 more)
+        fix : Replace every placeholder with a real value. A profile of placeholders records nothing.
+  [SP046] secret_hygiene is declared but no scanner is named
+        what: baseline_controls.secret_hygiene has no scanner block naming a tool and where it is wired.
+        fix : Name the scanner and the file(s) that run it under baseline_controls.secret_hygiene.scanner. This standard requires secret_hygiene at every level; until the scanner is named, the requirement is a declaration with nothing behind it.
+  [SP051] Control 'dependency_lock' is required but names nothing to check
+        what: control_decisions.dependency_lock has no implementation_reference, so the declaration is compared against nothing.
+        fix : Add implementation_reference naming the file that implements this control - a lock file, a findings register. A control checked only against its own declaration is a statement of intent, not a control.
+  [SP048] The profile declares a different version from the one installed
+        what: adoption.framework_version is replace-me, but .standards/INSTALL.json records 0.17.0 as installed.
+        fix : Correct the profile, or re-run the installer. A conformance claim names the version it was assessed against; naming one that is not present makes the claim unverifiable rather than merely wrong.
+  [SP049] The profile's framework digest does not match what is installed
+        what: adoption.framework_digest is replace-me, but the installed standard anchors to ceffdcf76ae5440ceae16c154893c3771455db0ad7aaa36d245bbe67db4c8d7f.
+        fix : Set adoption.framework_digest to the value in .standards/INSTALL.json, or re-run the installer. Note that DR-14 changed this field's meaning: it is now sha256(MANIFEST.sha256), not the release archive's digest, because the archive is not reproducible and so could never be recomputed by anyone checking the claim.
+  [SP032] Gate 'work_registration' requires an artefact that does not exist
+        what: replace-me is named as a precondition but is not present.
+        fix : Create the artefact, correct the path, or change the gate's status. A gate whose precondition cannot be satisfied is not a control.
+  [SP033] Gate 'work_registration' has an unreadable effective date
+        what: effective_from is 'replace-me', which is not an ISO date.
+        fix : Use YYYY-MM-DD, or YYYY-MM-DDThh:mm:ss+hh:mm to bind from an instant.
+  [SP037] 'builds_user_interface' is not a yes or no
+        what: found 'replace-me'.
+        fix : Use true or false.
+
+WARN - adoption is incomplete, but grace expires 2026-10-09 (30 day(s) remaining).
+This check will fail once the grace window ends. Complete the profile before then.
+exit=0
+
+$ head -3 /home/mps2210/surfaceplate-sweep/repos/c6/.standards/MANIFEST.sha256; grep -c 'claude' /home/mps2210/surfaceplate-sweep/repos/c6/.standards/MANIFEST.sha256; grep -c 'github/instructions' /home/mps2210/surfaceplate-sweep/repos/c6/.standards/MANIFEST.sha256; grep -n -iE 'agents|channel|claude' /home/mps2210/surfaceplate-sweep/repos/c6/.standards/INSTALL.json | head; ls -la /home/mps2210/surfaceplate-sweep/repos/c6/.claude/rules | head -3
+f24a4f672a633fe38bc15b233e3cb2a24065f95a561423e6d510ffe891694e24  surfaceplate-0.17.0/.gitattributes
+f460de93555069ddb6d6f9ec9b0f234c76d6290ff47682fbde697c11b891ab01  surfaceplate-0.17.0/.github/ISSUE_TEMPLATE/bug_report.yml
+bc46343e6f92dd2b43d17a51aa1db8bf1da4f1705b6cf5e649155c46b97d5af7  surfaceplate-0.17.0/.github/ISSUE_TEMPLATE/config.yml
+0
+0
+2:  "agents": [
+total 8
+drwxr-xr-x 2 mps2210 mps2210 4096 Sep  9 11:55 .
+drwxr-xr-x 4 mps2210 mps2210 4096 Sep  9 11:55 ..
+exit=0

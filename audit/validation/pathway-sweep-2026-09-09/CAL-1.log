@@ -1,0 +1,23 @@
+
+$ surfaceplate doctor --repo /home/mps2210/surfaceplate-sweep/repos/cal1
+Surfaceplate - doctor
+repository: /home/mps2210/surfaceplate-sweep/repos/cal1
+
+ok    python                 3.12.3 at /home/mps2210/surfaceplate-sweep/.venv/bin/python3
+ok    pip                    importable
+ok    yaml                   importable - needed by install and check
+ok    jsonschema             importable - needed by install and check
+ok    textual                importable - needed by adopt (the adopt extra)
+ok    core.hooksPath (local) unset
+ok    core.hooksPath (worktree) unset
+warn  core.hooksPath (global) /home/mps2210/.config/git/hooks - the installer stops rather than replace it; install with --no-hooks, or unset it for this repository
+ok    core.hooksPath (system) unset
+warn  terminal               not attached; `adopt` needs one, `adopt --propose` does not
+ok    virtualenv on PATH     /usr/bin is on PATH; the hook will find this interpreter
+skip  vendored digest        /home/mps2210/surfaceplate-sweep/repos/cal1 has no .standards/INSTALL.json; not installed here
+skip  tool vs installed      /home/mps2210/surfaceplate-sweep/repos/cal1 has no .standards/INSTALL.json; not installed here
+skip  GitHub Actions enabled skipped (offline); run with --online and GITHUB_TOKEN set
+skip  standard is current    skipped: no standard installed here
+
+DOCTOR=OK  (2 warning, 15 checks)
+exit=0

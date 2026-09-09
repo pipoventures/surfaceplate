@@ -1,0 +1,103 @@
+
+$ env PATH=/home/mps2210/surfaceplate-sweep/.venv/bin bash -c 'command -v git; echo git-lookup-exit=$?'
+env: ‘bash’: No such file or directory
+exit=127
+
+$ env PATH=/home/mps2210/surfaceplate-sweep/.venv/bin surfaceplate check --repo /home/mps2210/surfaceplate-sweep/repos/b7
+Surfaceplate - conformance check
+repository: /home/mps2210/surfaceplate-sweep/repos/b7
+standard  : 0.17.0 installed 2026-09-09
+
+Advisory (2) - not a failure:
+  - the pre-commit hook was declined at install: nothing checks staged changes before they are committed, and this repository relies on history_audit and review. A gate that claims local_hook enforcement anyway is still a finding (SP038).
+  - Git history was not available, so none of the 1 auditable gate(s) were checked against the commits that crossed them. This is an absence of evidence, not evidence of conformance.
+
+Adoption completeness findings (15):
+  [SP016] The application profile does not satisfy the control contract
+        what: at adoption/framework_digest: 'replace-me' does not match '^[A-Fa-f0-9]{64}$'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at adoption/framework_version: 'replace-me' does not match '^[0-9]+\\.[0-9]+\\.[0-9]+$'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at builds_user_interface: 'replace-me' is not of type 'boolean'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at prerequisites/0/effective_from: 'replace-me' does not match '^\\d{4}-\\d{2}-\\d{2}([T ]\\d{2}:\\d{2}(:\\d{2}(\\.\\d+)?)?(Z|[+-]\\d{2}:\\d{2})?)?$'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at risk/material_quantitative_output: 'replace-me' is not of type 'boolean'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at risk/relied_on_outside_team: 'replace-me' is not of type 'boolean'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP024] The profile review date is unreadable
+        what: adoption.review_by is 'replace-me', which is not an ISO date.
+        fix : Use the YYYY-MM-DD form, for example '2027-02-15'.
+  [SP020] The application profile still contains template placeholders
+        what: application_id = 'replace-me'; display_name = 'replace-me'; owner = 'replace-me'; risk.relied_on_outside_team = 'replace-me'; risk.material_quantitative_output = 'replace-me'; adoption.framework_version = 'replace-me'; adoption.framework_digest = 'replace-me'; adoption.adoption_date = 'replace-me'; adoption.review_by = 'replace-me'; adoption.framework_maintainer = 'replace-me' (and 9 more)
+        fix : Replace every placeholder with a real value. A profile of placeholders records nothing.
+  [SP046] secret_hygiene is declared but no scanner is named
+        what: baseline_controls.secret_hygiene has no scanner block naming a tool and where it is wired.
+        fix : Name the scanner and the file(s) that run it under baseline_controls.secret_hygiene.scanner. This standard requires secret_hygiene at every level; until the scanner is named, the requirement is a declaration with nothing behind it.
+  [SP051] Control 'dependency_lock' is required but names nothing to check
+        what: control_decisions.dependency_lock has no implementation_reference, so the declaration is compared against nothing.
+        fix : Add implementation_reference naming the file that implements this control - a lock file, a findings register. A control checked only against its own declaration is a statement of intent, not a control.
+  [SP048] The profile declares a different version from the one installed
+        what: adoption.framework_version is replace-me, but .standards/INSTALL.json records 0.17.0 as installed.
+        fix : Correct the profile, or re-run the installer. A conformance claim names the version it was assessed against; naming one that is not present makes the claim unverifiable rather than merely wrong.
+  [SP049] The profile's framework digest does not match what is installed
+        what: adoption.framework_digest is replace-me, but the installed standard anchors to ceffdcf76ae5440ceae16c154893c3771455db0ad7aaa36d245bbe67db4c8d7f.
+        fix : Set adoption.framework_digest to the value in .standards/INSTALL.json, or re-run the installer. Note that DR-14 changed this field's meaning: it is now sha256(MANIFEST.sha256), not the release archive's digest, because the archive is not reproducible and so could never be recomputed by anyone checking the claim.
+  [SP032] Gate 'work_registration' requires an artefact that does not exist
+        what: replace-me is named as a precondition but is not present.
+        fix : Create the artefact, correct the path, or change the gate's status. A gate whose precondition cannot be satisfied is not a control.
+  [SP033] Gate 'work_registration' has an unreadable effective date
+        what: effective_from is 'replace-me', which is not an ISO date.
+        fix : Use YYYY-MM-DD, or YYYY-MM-DDThh:mm:ss+hh:mm to bind from an instant.
+  [SP037] 'builds_user_interface' is not a yes or no
+        what: found 'replace-me'.
+        fix : Use true or false.
+
+WARN - adoption is incomplete, but grace expires 2026-10-09 (30 day(s) remaining).
+This check will fail once the grace window ends. Complete the profile before then.
+exit=0
+
+$ env PATH=/home/mps2210/surfaceplate-sweep/.venv/bin surfaceplate doctor --repo /home/mps2210/surfaceplate-sweep/repos/b7
+Surfaceplate - doctor
+repository: /home/mps2210/surfaceplate-sweep/repos/b7
+
+ok    python                 3.12.3 at /home/mps2210/surfaceplate-sweep/.venv/bin/python3
+ok    pip                    importable
+ok    yaml                   importable - needed by install and check
+ok    jsonschema             importable - needed by install and check
+ok    textual                importable - needed by adopt (the adopt extra)
+ok    core.hooksPath (local) unset
+ok    core.hooksPath (worktree) unset
+ok    core.hooksPath (global) unset
+ok    core.hooksPath (system) unset
+warn  terminal               not attached; `adopt` needs one, `adopt --propose` does not
+warn  virtualenv on PATH     /usr/bin is not on PATH; the hook resolves python3 from PATH and will not find this interpreter
+ok    vendored digest        ceffdcf76ae5… matches the install record
+ok    tool vs installed      both 0.17.0 (ceffdcf76ae5…); adopt and check agree on the schema
+skip  GitHub Actions enabled skipped (offline); run with --online and GITHUB_TOKEN set
+skip  standard is current    skipped (offline); installed 0.17.0, run with --online
+
+DOCTOR=OK  (2 warning, 15 checks)
+exit=0
+
+$ env PATH=/home/mps2210/surfaceplate-sweep/.venv/bin /home/mps2210/surfaceplate-sweep/.venv/bin/python -c 'import shutil,os;print("PATH=",os.environ["PATH"]);print("which git ->",shutil.which("git"))'
+PATH= /home/mps2210/surfaceplate-sweep/.venv/bin
+which git -> None
+exit=0
+
+$ env PATH=/home/mps2210/surfaceplate-sweep/.venv/bin surfaceplate doctor --repo /home/mps2210/surfaceplate-sweep/repos/b7 | grep -n hooksPath
+9:ok    core.hooksPath (local) unset
+10:ok    core.hooksPath (worktree) unset
+11:ok    core.hooksPath (global) unset
+12:ok    core.hooksPath (system) unset
+exit=0
+
+$ git config --global --get core.hooksPath
+/home/mps2210/.config/git/hooks
+exit=0

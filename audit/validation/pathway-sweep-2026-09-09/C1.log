@@ -1,0 +1,21 @@
+
+$ surfaceplate adopt --propose --target /home/mps2210/surfaceplate-sweep/repos/c12 --level essential
+
+.standards/INSTALL.json does not exist. Run `surfaceplate install` first - `adopt` fills in the profile the installer creates; it does not install the standard itself.
+exit=2
+
+$ surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/c12 </dev/null
+`adopt` is an interactive, full-screen wizard and needs a real terminal; this one is not attached to a TTY (output is piped, redirected, or running in CI).
+
+  Run it directly in a terminal:  surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/c12
+  Or without one:                 surfaceplate adopt --propose --target /home/mps2210/surfaceplate-sweep/repos/c12
+
+Nothing was read or written, and any saved draft in that repository is untouched.
+exit=3
+
+$ git -C /home/mps2210/surfaceplate-sweep/repos/c12 status --short; ls -a /home/mps2210/surfaceplate-sweep/repos/c12
+.
+..
+.git
+README.md
+exit=0

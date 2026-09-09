@@ -1,0 +1,15 @@
+start_time=2026-09-09T10:50:05Z
+sp_head=30bba4405fce4f49510f54bc8a824513face1d35
+sp_branch=claude/act-076-h21-and-walkthrough
+sp_status_short:
+ M surfaceplate/adopt/defaults.py
+ M surfaceplate/adopt/discover.py
+ M surfaceplate/adopt/plan.py
+ M surfaceplate/adopt/render.py
+ M surfaceplate/adopt/sections.py
+ M surfaceplate/check_conformance.py
+ M surfaceplate/rules.py
+ M surfaceplate/schemas/application-profile.schema.yaml
+ M tests/test_adopt.py
+gitconfig_sha_start=645f73285b7bc755b2bb4c0343435c83c1212c39086a38dd5f189a68283d930b
+global_hooksPath_start=/home/mps2210/.config/git/hooks

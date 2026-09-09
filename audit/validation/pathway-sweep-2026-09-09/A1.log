@@ -1,0 +1,51 @@
+
+$ git -C /home/mps2210/surfaceplate-sweep/repos/a1 status --short
+ M governance/application-profile.yaml
+?? activity/
+?? docs/decisions/
+?? governance/answers-i-undecided.yaml
+?? governance/answers-ii-nonexistent.yaml
+?? governance/answers-iii-tracked-nonmanifest.yaml
+?? governance/answers-probe.yaml
+?? governance/application-profile.provenance.yaml
+exit=0
+
+$ grep -n -A4 'dependency_lock:' /home/mps2210/surfaceplate-sweep/repos/a1/governance/application-profile.yaml
+57:  dependency_lock:  # checked against this repository by the conformance checker
+58-    decision: required
+59-    rationale: Supply-chain exposure exists regardless of output materiality.
+60-    implementation_reference: docs/guide.md
+61-
+exit=0
+
+$ grep -n -B1 -A4 'dependency_lock' /home/mps2210/surfaceplate-sweep/repos/a1/governance/application-profile.provenance.yaml | head -30
+100-    detail: 'found: .github/workflows/secret-scan.yml'
+101:  control_decisions.dependency_lock.decision:
+102-    origin: computed
+103-    detail: the level's floor, or declared above it by you
+104:  control_decisions.dependency_lock.rationale:
+105-    origin: example
+106-    detail: this framework's own worked example
+107:  control_decisions.dependency_lock.implementation_reference:
+108-    origin: typed
+109-  prerequisites[0].id:
+110-    origin: computed
+111-    detail: the gate catalogue
+exit=0
+
+$ cat /home/mps2210/surfaceplate-sweep/repos/a1/docs/guide.md
+# Guide
+exit=0
+
+$ surfaceplate check --repo /home/mps2210/surfaceplate-sweep/repos/a1
+Surfaceplate - conformance check
+repository: /home/mps2210/surfaceplate-sweep/repos/a1
+standard  : 0.17.0 installed 2026-09-09
+
+Advisory (3) - not a failure:
+  - dependency_lock: verified against docs/guide.md
+  - the pre-commit hook was declined at install: nothing checks staged changes before they are committed, and this repository relies on history_audit and review. A gate that claims local_hook enforcement anyway is still a finding (SP038).
+  - gate 'work_registration': activity/register.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (activity-register.md); it holds no entries of this repository's own yet
+
+PASS - all conformance checks satisfied.
+exit=0
