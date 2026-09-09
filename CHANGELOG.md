@@ -2952,3 +2952,36 @@ gives each control its own rather than both the same one. **The safe direction i
 nothing:** a step the words miss is *asked* for, exactly as pattern A behaves when its match finds
 nothing, because asking never puts a wrong answer into a profile under the word *discovered*. Every
 step is still **offered** — only the proposal is filtered.
+
+### The fix stopped new bad references and left the existing one passing (`ACT-088`, `F145`)
+
+`F144` stopped the wizard **proposing** a CI step whose name says nothing about tests. It did
+nothing about the profiles already carrying one — and the only real adopter of this standard had
+**two** controls credited to `Check out mnemosyne (shared generator lives there)`, written at
+`0.16.0`, carried through the upgrade untouched, passing every run. Verified as pre-existing rather
+than assumed: the same two references are in `HEAD`'s copy of that profile.
+
+The checker now adds a caution to the note it already prints, and never a failure.
+
+**Two lists, and the asymmetry is the whole design.** Proposing needs confidence a step **is** a
+test, so a narrow positive list is right — a step it misses is asked for, and a question costs
+nothing. Cautioning needs confidence a step is **not** one, and the same list read backwards accuses
+the innocent: this framework's own contract-test step is called *"Validate the control contracts"*,
+which contains neither *test* nor *spec*. **A checker that told its own author a control was passing
+while not holding would be the false alarm that trains a reader to skim the real one.** So the
+caution fires only on names that clearly describe fetching, preparing or shipping, and ambiguous
+names are left alone on purpose. Both lists live in `rules.py`, one answer to one question.
+
+### An upgrade guarantees two findings the adopter must fix by hand (`F146`, open)
+
+Upgrading a real adopter `0.16.0` → `0.18.0`, the installer reports `keep
+governance/application-profile.yaml (yours; never overwritten)` — and the next command reports
+`SP048` and `SP049`, because `framework_version` and `framework_digest` are stale by construction.
+**Every upgrade, every time**, cleared by hand-copying a 64-character digest out of a JSON file the
+installer wrote. This framework's own repository hit it twice in one session.
+
+Left open, because the remedy changes what a profile *asserts*: `DR-45` reads `framework_digest` as
+the adopter's own claim about the distribution they assessed against, and re-pinning it silently
+would let a version change through with nobody re-reading the profile. Three routes are costed in
+`F146` and the decision is `H23`; the recommendation is an explicit `--repin`, which keeps the claim
+the adopter's while removing the part that is merely clerical.

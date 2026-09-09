@@ -1417,7 +1417,21 @@ def check_pattern_b_controls(
             )
             continue
 
-        notes.append(f"{control_id}: verified against step {reference!r} in {workflow}")
+        # `F145`: the step exists - that is all `SP053` establishes, and `DR-25` fixes that
+        # boundary on purpose. What can be said cheaply is whether its NAME suggests it runs
+        # tests, because the one real adopter of this standard had two controls credited to
+        # `Check out mnemosyne (shared generator lives there)` and passed every run.
+        caution = (
+            ""
+            if not rules.step_name_is_clearly_not_a_test(reference)
+            else (
+                " - but that step's NAME describes fetching, preparing or shipping rather "
+                "than testing. The check confirms the step exists and cannot confirm what it "
+                "does (DR-25); if it really is not a test step, this control is passing while "
+                "not holding and the reference should be corrected"
+            )
+        )
+        notes.append(f"{control_id}: verified against step {reference!r} in {workflow}{caution}")
 
 
 

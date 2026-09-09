@@ -75,7 +75,7 @@ FINDINGS_WORDS = ("finding", "assurance")
 # essentially always says so; `pytest` and `unittest` contain "test" already. A step this misses is
 # asked for instead, which is what pattern A does when its word match finds nothing - and asking is
 # never the failure mode that puts a wrong answer in a profile under the word "discovered".
-TEST_STEP_WORDS = ("test", "spec")
+TEST_STEP_WORDS = rules.TEST_STEP_WORDS
 
 # And within the steps that do run tests, the control's OWN words first - `F84`'s rule, *"the name
 # matches first, as the gates do"*. Without it both test controls take the same first matching step,

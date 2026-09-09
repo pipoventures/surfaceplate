@@ -210,6 +210,8 @@ an unknown number of releases with nothing noticing.
 | F142 | `F132` returned through the door `DR-73` left open: `dependency_lock` stayed *offerable* above the floor on a repository with no manifest, and ticking it demanded a lock file that cannot exist | high | Closed — `ACT-085`, 2026-09-09; see the body |
 | F143 | Ticking a control in the above-floor list never revealed the fields it makes required: the screen listened for every widget's change event except the multiselect's, so the wizard demanded a value for a field it did not show and no key could reach | high | Closed — `ACT-086`, 2026-09-09; see the body |
 | F144 | Any CI step was proposed as the implementation of `deterministic_tests` and `contract_tests`: on the maintainer's walkthrough a **checkout** step was written into the profile as `discovered`, and the checker reported the control verified against it | high | Closed — `ACT-087`, 2026-09-09; see the body |
+| F145 | `F144` fixed the proposal and not the profiles already carrying a bad one: the only real adopter had two controls credited to a checkout step and passed every run | medium | Closed — `ACT-088`, 2026-09-09; see the body |
+| F146 | An upgrade leaves `framework_version` and `framework_digest` stale by construction, so every upgrading adopter is handed `SP048` and `SP049` and must hand-copy a 64-character digest | medium | Open — the remedy changes what a profile asserts; the decision is `H23` |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1540,6 +1542,76 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F146 — An upgrade guarantees two findings the adopter must fix by hand
+
+**Severity: medium. Open — the remedy changes what a profile asserts; the decision is `H23`.**
+
+Observed on the maintainer's walkthrough, upgrading a real adopter from `0.16.0` to `0.18.0`. The
+installer reports `keep governance/application-profile.yaml (yours; never overwritten)` — correct,
+and then the very next command says:
+
+```
+[SP048] adoption.framework_version is 0.16.0, but .standards/INSTALL.json records 0.18.0
+[SP049] adoption.framework_digest is 7d5b7a44…, but the installed standard anchors to 84aa014d…
+```
+
+**Every upgrade produces exactly these two, every time**, and the adopter clears them by hand-copying
+a 64-character digest out of a JSON file. The installer knew both values; it wrote them into the
+profile at first install, from the template, and declines to touch them afterwards. This session hit
+it twice on this framework's own repository.
+
+**Why it is not simply a bug to fix.** The two fields are arguably *not* decisions — they are the
+installer's own record of what it installed — which argues for re-pinning them automatically. But
+`DR-45` gives `framework_digest` a stronger reading: it is **the adopter's claim** about which
+distribution they assessed against, and `SP049` exists to catch a profile claiming an install that
+is not present. On that reading, re-pinning silently would let a version change through without
+anyone re-reading the profile, which is the assertion `review_by` exists to make.
+
+**Three routes, none applied:**
+
+1. **The installer re-pins both fields on upgrade and says it did.** Removes the friction entirely.
+   `SP048`/`SP049` still catch a hand-edited profile, which is the case they are actually for.
+2. **A `surfaceplate adopt --repin` (or an installer flag)** that does it on request. The adopter
+   acts deliberately; the digest is never typed by hand.
+3. **Leave it and document it** — the upgrade's "Next steps" names the two fields and where the
+   values are, instead of the generic *"Complete governance/application-profile.yaml"*.
+
+**Recommendation: (2).** It keeps `DR-45`'s reading — the claim stays the adopter's, made
+deliberately — while removing the part that is merely clerical and error-prone. (1) is defensible
+and quietly weakens an assertion; (3) leaves a guaranteed two-finding tax on every upgrade forever.
+
+**Not decided here**, because it changes what a profile asserts and `DR-45` is the record it would
+be read against.
+
+## F145 — The fix stopped new bad references and left the existing one passing
+
+**Severity: medium. Closed — `ACT-088`, 2026-09-09.**
+
+`F144` stopped the wizard **proposing** a CI step whose name says nothing about tests. It did
+nothing about the profiles already carrying one — and the only real adopter of this standard had
+**two** controls credited to `Check out mnemosyne (shared generator lives there)`, written at
+`0.16.0`, carried through the upgrade untouched, passing every run. `SP053` establishes that the
+named step exists; `DR-25` fixes that boundary deliberately.
+
+Verified as pre-existing rather than assumed: `git show HEAD:governance/application-profile.yaml`
+carries the same two references, so the upgrade neither introduced nor repaired them.
+
+**Remedy: the checker says so, as an advisory and never a failure.** The note that already reads
+`contract_tests: verified against step 'X'` now adds a caution where `X` describes fetching,
+preparing or shipping.
+
+**Two lists, and the asymmetry is the whole design.** Proposing needs confidence the step **is** a
+test, so a narrow positive list is right: a step it misses is asked for instead, and a question
+costs nothing. Cautioning needs confidence the step is **not** one — and the same list read
+backwards accuses the innocent. This framework's own contract-test step is called *"Validate the
+control contracts"*, which contains neither *test* nor *spec*. **A checker that told its own author
+a control was passing while not holding would be the false alarm that trains a reader to skim the
+real one.** So the caution fires only on names that clearly describe something else, and ambiguous
+names — *"Run activity/register.md --check"* — are left alone on purpose.
+
+Both lists live in `rules.py`, so the wizard's filter and the checker's caution are one answer to
+one question (`DR-48`).
 
 ## F144 — A control was verified against a checkout step
 
