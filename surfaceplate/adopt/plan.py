@@ -776,16 +776,35 @@ def controls_plan(
     # offered, and a profile declaring it failed `SP052` on its first check: the level declares no
     # `authority_map` gate, so the control would be checked against nothing.
     withheld = {
-        control_id: gate_id
+        control_id: (
+            f"the checker verifies it through the {gate_id} gate, which {level} does not declare "
+            f"(SP052); choose a level that requires both"
+        )
         for control_id, gate_id in WITHHELD_ABOVE_FLOOR.items()
         if control_id not in required and gate_id not in catalogue.LEVEL_REQUIRED_GATES[level]
     }
+    # `F142`, and it is `F132` coming back through a door `DR-73` left open. `DR-73` lifted the
+    # `dependency_lock` FLOOR for a repository that declares no dependency manifest, and kept the
+    # control offerable on the principle that a waiver removes an obligation and not an option.
+    # The principle is right and the consequence was not checked: ticking it here asks for a lock
+    # file, `SP051` requires that file to exist and be tracked, and there is none - so the offer
+    # dead-ends on the same screen, in the same way, as before `DR-73`.
+    #
+    # An option that cannot be completed is not an option. Where the repository declares no
+    # dependencies at all the control is NOT APPLICABLE rather than merely not required, and the
+    # note says so - including the part that matters, which is that adding a manifest brings it
+    # back with no edit to anything.
+    if not found.has_dependency_manifest and "dependency_lock" not in required:
+        withheld["dependency_lock"] = (
+            "this repository tracks no dependency manifest of any kind, so there is no lock file "
+            "to name and SP051 would have nothing to check (DR-73). Add one - a package.json, a "
+            "pyproject.toml, a go.mod - and the control returns on its own, with no edit here"
+        )
     above_floor = [c for c in _in_topic_order(catalogue.CONFORMANCE_LEVELS["full"]) if c not in required and c not in withheld]
     if above_floor:
         withheld_note = "".join(
-            f" {control_id} is not offered at {level}: the checker verifies it through the {gate_id} gate, "
-            f"which {level} does not declare (SP052); choose a level that requires both."
-            for control_id, gate_id in sorted(withheld.items())
+            f" {control_id} is not offered at {level}: {reason}."
+            for control_id, reason in sorted(withheld.items())
         )
         fields.append(
             FieldSpec(

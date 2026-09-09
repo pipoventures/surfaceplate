@@ -45,7 +45,7 @@
     ".github/skills/review/SKILL.md": "b303e2740d3a0af2d51c671994e8a7d9de84622e21361420a05b7e2d721bb52f",
     ".github/skills/security-review/SKILL.md": "02d0531951ffa751ab9d7ed49d263236ce293cfbb7433d585b9b6e145363654b",
     ".github/workflows/standards-conformance.yml": "98a406a77aec65926a799be990478047f48c79fc1b9c12e4007abc068c3f0ea1",
-    ".standards/MANIFEST.sha256": "61b8c0a8e676f20b988cabd7b24d359917793030e7281c981f45625cb9ab9f84",
+    ".standards/MANIFEST.sha256": "7513bf2403bb48491470b905e3d7dc16fcc6e4774c84eaf829381f329d0c485d",
     ".standards/VERSION": "f5e9382967c9833066a55808829f3750fc8e1181b170cafd222c37048bb49a77",
     ".standards/adapters/python.md": "1ca5607d907f60e29ed9ec843a900384915f20b4fa114c14bd8923bc3e7d72bd",
     ".standards/adapters/r.md": "c4da3094ecbe5cc560a7b7aeb4171c72d7fc8e3e85df723e8ffbc8124049f50f",
@@ -103,7 +103,7 @@
     ".standards/topics/12-enforcement-and-change-control.md": "12698df3d9f0d0b4e2523aa06851f9a8e8954fc2385fd2af1455fbce910ee029"
   },
   "first_installed_at": "2026-08-31",
-  "framework_digest": "61b8c0a8e676f20b988cabd7b24d359917793030e7281c981f45625cb9ab9f84",
+  "framework_digest": "7513bf2403bb48491470b905e3d7dc16fcc6e4774c84eaf829381f329d0c485d",
   "grace_expires": "2026-09-30",
   "hooks": "chained",
   "installed_at": "2026-09-09",

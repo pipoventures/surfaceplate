@@ -207,6 +207,7 @@ an unknown number of releases with nothing noticing.
 | F139 | `adopt --edit` against the installer's template profile ended in `KeyError: 'scanner'`, exit 4 — a crash where a refusal belongs | medium | Closed — `ACT-083` (`DR-78`), 2026-09-09; see the body |
 | F140 | `adopt --edit` without `--because` was accepted and recorded with boilerplate that reads like a reason, and the CLI said the change was recorded *"with the reason"* | medium | Closed — `ACT-083` (`DR-78`), 2026-09-09; see the body |
 | F141 | Installing an older tool over a newer install announced *"an UPGRADE"*, and `doctor` printed two different installed versions in one run | medium | Closed — `ACT-083` (`DR-78`), 2026-09-09; see the body |
+| F142 | `F132` returned through the door `DR-73` left open: `dependency_lock` stayed *offerable* above the floor on a repository with no manifest, and ticking it demanded a lock file that cannot exist | high | Closed — `ACT-085`, 2026-09-09; see the body |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1537,6 +1538,42 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F142 — An option that cannot be completed is not an option
+
+**Severity: high. Closed — `ACT-085`, 2026-09-09.**
+
+Found by the maintainer on the **third screen of the walkthrough**, one day after `F132` was closed,
+on the same repository — and this one is the framework's own doing rather than an old defect
+resurfacing.
+
+`DR-73` lifted the `dependency_lock` **floor** for a repository that declares no dependency
+manifest, and deliberately kept the control **offerable** above the floor, on the principle that
+*a waiver removes an obligation, not an option*. **The principle is right. The consequence was not
+checked.** Ticking the offer asks for its `implementation_reference`; `SP051` requires that file to
+exist, be non-empty and be tracked; and on such a repository there is nothing to name. The offer
+dead-ends on the same screen, in the same way, as `F132` did before `DR-73` — the maintainer's
+report was verbatim *"I can't progress"*, twice, one day apart.
+
+**The test that should have caught it is the one I wrote for `F132`.** It asserted the control was
+still *offered* above the floor, and that its fields were gated behind the `above_floor` tick. Both
+were true. **It never asserted the offer could be taken.** Asserting that a door exists is not
+asserting that it opens, and the gap between those two is exactly where this lived.
+
+**Remedy — the mechanism already existed.** `F97`/`DR-59` built exactly this for
+`documentation_authority` at `essential`: a control the checker verifies through a gate the level
+does not declare is **withheld from the list, and the help says why**. `dependency_lock` on a
+repository with no manifest is now withheld the same way, with its own reason — including the part
+that makes it a state rather than a refusal: *"Add one — a `package.json`, a `pyproject.toml`, a
+`go.mod` — and the control returns on its own, with no edit here."*
+
+That the mechanism was already there, and was not reached for, is the more useful half of this
+finding. `DR-73` reasoned about whether the control should remain *available* and never asked what
+taking it would do.
+
+**Verified in both directions**: the no-manifest repository does not offer it and says why; the
+repository with a `package-lock.json` still has it **required in the floor**, which is a different
+exclusion from the same list for the opposite reason.
 
 ## F141 — A downgrade was announced as an upgrade
 
