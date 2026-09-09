@@ -163,6 +163,71 @@ def test_a_repository_git_cannot_read_yields_nothing(tmp: Path) -> None:
     )
 
 
+def test_a_ci_step_is_proposed_only_where_it_runs_tests(tmp: Path) -> None:
+    """`F144`, and the third time this gap has been closed one pattern at a time.
+
+    `F93` wrote the sentence about pattern C: *"DR-51 (5) applied the checker's rules to artefacts
+    and scanner workflows; DR-54 (2) applied a name match to pattern-A references; pattern C was
+    left with neither."* It was then true of **pattern B** - so the first CI step in the first
+    workflow was proposed as the implementation of `deterministic_tests` and `contract_tests`
+    alike, with origin `discovered`.
+
+    On the maintainer's own walkthrough that step was *"Check out mnemosyne (shared generator lives
+    there)"*, and the checker then reported `deterministic_tests: verified against step 'Check out
+    mnemosyne …'`. **A control passing while not holding** - a repository credited with
+    deterministic tests on the strength of a `git checkout`.
+    """
+    import subprocess
+
+    from surfaceplate.adopt import defaults  # noqa: E402
+
+    def repo_with(steps: list[str]) -> Path:
+        repo = tmp / ("steps-" + str(abs(hash(tuple(steps))))[:8])
+        repo.mkdir(parents=True)
+        for args in (["init", "-q"], ["config", "user.email", "t@e.invalid"],
+                     ["config", "user.name", "T"], ["config", "commit.gpgsign", "false"]):
+            subprocess.run(["git", "-C", str(repo), *args], check=True)
+        (repo / ".github" / "workflows").mkdir(parents=True)
+        body = "name: CI\non: [push]\njobs:\n  j:\n    runs-on: ubuntu-latest\n    steps:\n"
+        body += "".join(f"      - name: {s}\n        run: true\n" for s in steps)
+        (repo / ".github" / "workflows" / "ci.yml").write_text(body, encoding="utf-8")
+        (repo / "src.py").write_text("x = 1\n", encoding="utf-8")
+        subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+        subprocess.run(["git", "-C", str(repo), "commit", "-qm", "fixture"], check=True,
+                       capture_output=True)
+        return repo
+
+    def proposals(repo: Path) -> dict:
+        found = discover.scan(repo)
+        return {
+            p.field.split(".")[1]: p.value
+            for p in defaults.propose_controls(level="standard", mode="simple", found=found)
+            if "implementation_reference" in str(p.field)
+        }
+
+    # The maintainer's case: steps exist, none of them runs tests.
+    none_run_tests = repo_with([
+        "Check out this repo",
+        "Check out mnemosyne (shared generator lives there)",
+        "Set up Python",
+        "Run activity/register.md --check",
+    ])
+    got = proposals(none_run_tests)
+    check("a checkout step is never proposed as a test control's implementation",
+          "deterministic_tests" not in got and "contract_tests" not in got, str(got))
+    check("and the steps are still OFFERED, so a human can pick one the words missed",
+          len(discover.scan(none_run_tests).ci_steps) == 4,
+          str(discover.scan(none_run_tests).ci_steps))
+
+    # And the direction that keeps the feature useful.
+    real = repo_with(["Check out this repo", "Run the unit tests", "Run the contract tests"])
+    got = proposals(real)
+    check("a step that runs tests is still proposed", "deterministic_tests" in got, str(got))
+    check("and each control gets ITS OWN step, not merely the first test-shaped one (F84's rule)",
+          got.get("deterministic_tests") == "Run the unit tests"
+          and got.get("contract_tests") == "Run the contract tests", str(got))
+
+
 def test_a_manifest_is_never_proposed_as_a_lock(tmp: Path) -> None:
     """`F135`. `pyproject.toml` was in the lock list, so the wizard PROPOSED a manifest as a lock
     and showed it with origin `discovered` - a fact about the adopter's repository rather than a
@@ -588,6 +653,7 @@ def main() -> int:
         test_discovery_cannot_find_the_framework_in_the_mirror(tmp)
         test_ranking_happens_before_the_cap(tmp)
         test_a_non_ascii_path_is_offered_verbatim(tmp)
+        test_a_ci_step_is_proposed_only_where_it_runs_tests(tmp)
         test_a_manifest_is_never_proposed_as_a_lock(tmp)
         test_is_empty_is_true_when_git_cannot_answer(tmp)
 

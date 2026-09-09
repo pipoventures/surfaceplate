@@ -159,6 +159,18 @@ def propose_controls(*, level: str, mode: str, found: discover.Discovered) -> li
             if control_id in catalogue.PATTERN_A_CONTROLS and control_id != "dependency_lock":
                 # `F40`, `F84`: the offer ranks every artefact, but a proposal needs a match.
                 found_only = [v for v in found_only if any(w in v.lower() for w in plan.FINDINGS_WORDS)]
+            elif control_id in catalogue.PATTERN_B_CONTROLS:
+                # `F144`: a CI step is proposed only where its NAME says it runs tests. Without
+                # this the first step in the first workflow was proposed for `deterministic_tests`
+                # and `contract_tests` alike - on the maintainer's own walkthrough that was
+                # "Check out mnemosyne (shared generator lives there)", a checkout step, written
+                # into the profile as `discovered` and then reported by the checker as the control
+                # verified. A control passing while not holding, which is the defect this framework
+                # exists to refuse.
+                found_only = [v for v in found_only if any(w in v.lower() for w in plan.TEST_STEP_WORDS)]
+                own = plan.CONTROL_STEP_WORDS.get(control_id, ())
+                matched = [v for v in found_only if any(w in v.lower() for w in own)]
+                found_only = matched + [v for v in found_only if v not in matched]
             elif control_id in catalogue.PATTERN_C_CONTROLS:
                 # `F93`: a record directory is proposed only where its name matches the control
                 # and its records pass the control's schema - never merely because it holds YAML.

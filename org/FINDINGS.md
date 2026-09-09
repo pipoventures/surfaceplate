@@ -209,6 +209,7 @@ an unknown number of releases with nothing noticing.
 | F141 | Installing an older tool over a newer install announced *"an UPGRADE"*, and `doctor` printed two different installed versions in one run | medium | Closed — `ACT-083` (`DR-78`), 2026-09-09; see the body |
 | F142 | `F132` returned through the door `DR-73` left open: `dependency_lock` stayed *offerable* above the floor on a repository with no manifest, and ticking it demanded a lock file that cannot exist | high | Closed — `ACT-085`, 2026-09-09; see the body |
 | F143 | Ticking a control in the above-floor list never revealed the fields it makes required: the screen listened for every widget's change event except the multiselect's, so the wizard demanded a value for a field it did not show and no key could reach | high | Closed — `ACT-086`, 2026-09-09; see the body |
+| F144 | Any CI step was proposed as the implementation of `deterministic_tests` and `contract_tests`: on the maintainer's walkthrough a **checkout** step was written into the profile as `discovered`, and the checker reported the control verified against it | high | Closed — `ACT-087`, 2026-09-09; see the body |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1539,6 +1540,54 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F144 — A control was verified against a checkout step
+
+**Severity: high. Closed — `ACT-087`, 2026-09-09.**
+
+Found on the maintainer's completed walkthrough, in the profile the wizard wrote. `deterministic_tests`
+was recorded as:
+
+```yaml
+  deterministic_tests:  # checked against this repository by the conformance checker
+    decision: required
+    rationale: Outputs must be reproducible before they can be reviewed.
+    implementation_reference: Check out mnemosyne (shared generator lives there)
+```
+
+and the checker then reported `deterministic_tests: verified against step 'Check out mnemosyne
+(shared generator lives there)'`. **A repository credited with deterministic tests on the strength
+of a `git checkout`.** The provenance sidecar records the value's origin as `discovered` — the tool
+presented it as a fact about the repository, not as a question.
+
+The workflow held eleven steps. Not one of them ran tests, and the one proposed was not even the
+plausible candidate (`Run activity/register.md --check`) but the second of four checkouts.
+
+**Cause, and it is the same gap for the third time.** `defaults.propose_controls` filters proposals
+per pattern: pattern A by a word match (`F40`, `F84`), pattern C by schema fit (`F93`) — and
+**pattern B by nothing**, so the first CI step discovered was proposed. `F93` wrote the sentence
+about pattern C: *"`DR-51` (5) applied the checker's rules to artefacts and scanner workflows;
+`DR-54` (2) applied a name match to pattern-A references; pattern C was left with neither."* It was
+then true of pattern B, and stayed true through two more releases.
+
+**Reach: high, and it is the ordinary case rather than a corner.** `deterministic_tests` and
+`contract_tests` are both pattern B and both in the `standard` floor, so this reaches every adopter
+at `standard` or `full` who has any CI workflow at all.
+
+**Remedy.** A CI step is proposed only where its **name says it runs tests**
+(`plan.TEST_STEP_WORDS`), and within those, the control's own words rank first
+(`plan.CONTROL_STEP_WORDS`) — `F84`'s rule, *"the name matches first, as the gates do"*. Without the
+second half both test controls took the same first matching step, so a repository with a
+"Run the contract tests" and a "Run the unit tests" was offered the contract one for
+`deterministic_tests`: a test step, and still the wrong test step.
+
+**Deliberately narrow, and the safe direction is to propose nothing.** A step this misses is
+**asked** for instead, which is exactly what pattern A does when its word match finds nothing.
+Asking is never the failure mode that puts a wrong answer into a profile under the word
+*"discovered"*. Every step remains **offered** — only the proposal is filtered.
+
+**Verified in both directions.** The maintainer's repository proposes nothing for either control and
+still offers all eleven steps; a repository with real test steps gets each control its own.
 
 ## F143 — The wizard demanded a value for a field it did not show
 

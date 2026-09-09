@@ -2921,3 +2921,34 @@ The regression test therefore lives in `test_adopt_tui.py` and drives real keypr
 scripted path can reach this. Verified in both directions: with the handler the rows display, both
 fields enter the focus chain and Tab lands on the first; with it removed the test fails naming the
 same two hidden rows.
+
+### A control was verified against a checkout step (`ACT-087`, `F144`)
+
+Found in the profile the wizard actually wrote, on the maintainer's completed walkthrough:
+
+```yaml
+  deterministic_tests:
+    rationale: Outputs must be reproducible before they can be reviewed.
+    implementation_reference: Check out mnemosyne (shared generator lives there)
+```
+
+and the checker then reported it **verified against that step**. A repository credited with
+deterministic tests on the strength of a `git checkout`, with the value's provenance recorded as
+`discovered` — presented as a fact about the repository rather than a question. The workflow held
+eleven steps; not one ran tests, and the one chosen was not even the plausible candidate.
+
+**The same gap for the third time.** `defaults.propose_controls` filters proposals per pattern:
+pattern A by a word match (`F40`, `F84`), pattern C by schema fit (`F93`) — and **pattern B by
+nothing**. `F93` wrote the sentence about pattern C — *"`DR-51` (5) applied the checker's rules to
+artefacts and scanner workflows; `DR-54` (2) applied a name match to pattern-A references; pattern C
+was left with neither"* — and it was then true of pattern B, and stayed true through two releases.
+
+Reach is the ordinary case, not a corner: `deterministic_tests` and `contract_tests` are both in the
+`standard` floor, so this touched every adopter at `standard` or `full` with any CI workflow.
+
+A step is now proposed only where its **name says it runs tests**, and within those the control's own
+words rank first — so a repository with both a "Run the unit tests" and a "Run the contract tests"
+gives each control its own rather than both the same one. **The safe direction is to propose
+nothing:** a step the words miss is *asked* for, exactly as pattern A behaves when its match finds
+nothing, because asking never puts a wrong answer into a profile under the word *discovered*. Every
+step is still **offered** — only the proposal is filtered.

@@ -65,6 +65,27 @@ RELEASE_ROUTE_WRONG = "a route nobody follows is a promise the profile makes on 
 # proposal comes only from a match (`F40`'s rule, applied to controls at `DR-54` (2)).
 FINDINGS_WORDS = ("finding", "assurance")
 
+# `F144`: the same rule for pattern B, and the third time this gap has been closed one pattern at a
+# time. `F93` wrote the sentence about pattern C - *"DR-51 (5) applied the checker's rules to
+# artefacts and scanner workflows; DR-54 (2) applied a name match to pattern-A references; pattern C
+# was left with neither"* - and it was then true of pattern B, which is how a CI **checkout** step
+# came to be proposed as the implementation of `deterministic_tests`, with origin `discovered`.
+#
+# Deliberately narrow, and the safe direction is to propose nothing. A step that runs tests
+# essentially always says so; `pytest` and `unittest` contain "test" already. A step this misses is
+# asked for instead, which is what pattern A does when its word match finds nothing - and asking is
+# never the failure mode that puts a wrong answer in a profile under the word "discovered".
+TEST_STEP_WORDS = ("test", "spec")
+
+# And within the steps that do run tests, the control's OWN words first - `F84`'s rule, *"the name
+# matches first, as the gates do"*. Without it both test controls take the same first matching step,
+# so a repository with a "Run the contract tests" and a "Run the unit tests" was offered the
+# contract one for `deterministic_tests`: a test step, and still the wrong test step.
+CONTROL_STEP_WORDS: dict[str, tuple[str, ...]] = {
+    "contract_tests": ("contract", "schema", "api", "integration"),
+    "deterministic_tests": ("unit", "determin", "regression", "golden", "snapshot", "replay"),
+}
+
 # `F97` / `DR-59`: controls the checker verifies through a gate, and the gate. Above the floor, such
 # a control is offered only at a level that declares its gate; `SP052` otherwise fails the profile
 # on its first check, and the wizard would have written a profile it knew the checker faults.

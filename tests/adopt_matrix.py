@@ -644,7 +644,15 @@ def _compose_reference(case: Case, s: Script, spec: plan.FieldSpec, control: str
         s.expect[path] = ("config/accounts", provenance.TYPED)
         return
     if control in catalogue.PATTERN_B_CONTROLS:
-        step = f"Step for {control}"
+        # `F144`: this case exists to exercise a step name the human TYPES because discovery
+        # proposed none. It used to be `Step for {control}` - a name that now MATCHES, because a
+        # CI step is proposed only where its name says it runs tests and the control's own words
+        # rank first. So the fixture had quietly stopped testing what it is named for: the flow
+        # proposed the step and the case recorded `discovered` where it asserts `typed`.
+        #
+        # Renamed so it does not match, which restores the case's intent rather than adjusting its
+        # expectation. The proposal path is covered by `tests/test_discover.py`.
+        step = f"Nightly job for {control.replace('_tests', '')} work"
         s.answers[key] = step
         s.lazy_workflow_steps.append(step)
         s.expect[path] = (step, provenance.TYPED)
