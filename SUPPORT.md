@@ -21,6 +21,13 @@ happened instead — is more useful to a part-time maintainer than a large unrev
 Do not open a public issue. See [`SECURITY.md`](SECURITY.md) for the current reporting route and
 its limitations.
 
+## You want it out
+
+`surfaceplate uninstall --target <repo>`, or `--dry-run` first to see the list. It removes what the
+install record says it wrote and nothing else; your profile and everything outside the managed
+blocks stay. If something of yours went with it, that is a defect — [open an
+issue](https://github.com/pipoventures/surfaceplate/issues) and say what.
+
 ## A question about your own repository's conformance
 
 Start with [`INSTALL.md`](INSTALL.md)'s "Frequently asked" section and

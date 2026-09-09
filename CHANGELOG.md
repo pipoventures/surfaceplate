@@ -2722,3 +2722,43 @@ unanswerable question is reported as unanswerable. With `PATH=/nonexistent`, `do
 `SP051` is deliberately unchanged: naming a Markdown page as a lock still passes, because `DR-25`
 records that checking existence and not honesty is permanent. What is fixed is the tool proposing
 the wrong file as a discovered fact.
+
+### You can complete a template, and you can leave (`ACT-081`, `DR-75`)
+
+The two adoption-facing findings of the pathway sweep's held set, resolved before 1.0.
+
+**`F137` — the natural completion of a shipped template was invalid.** The gate-exception template
+says `raised_on: replace-me  # YYYY-MM-DD`. Doing exactly that writes a YAML **date**, which every
+schema here rejects as `not of type 'string'` — defeating the FAQ's own stated remedy for a bypassed
+gate on first use. The template warns about quoting a SHA and not about quoting a date, and that
+asymmetry is the tell.
+
+Adjudicating it found more than was reported: **the application profile has the same trap** on
+`adoption_date`, which is the path of an adopter filling the template *by hand* — the documented
+alternative to the wizard. The wizard's own output was never affected, because it quotes, so the
+defect fell precisely on the manual adopter and the fixture-based suites never saw it.
+
+Fixed by **normalising dates on load** rather than by asking adopters to quote them: quoting works
+and relies on someone reading a comment; a normaliser does not. Nothing is lost — a `datetime.date`
+can only have come from a date-shaped scalar, and `.isoformat()` is the value `format: date` wanted.
+
+**`F138` — there was no way out.** No `uninstall`, no flag, no document. Established rather than
+assumed: the search that found nothing did find the installer's own *"remove … (no longer part of
+the standard)"* line, so it could have found a removal path had one existed. It had a sharper edge
+than it looks: every installed file is integrity-checked, so an adopter deleting them by hand would
+fail their own conformance check on the way out.
+
+`surfaceplate uninstall [--target] [--dry-run]` now exists, and **the install record is the
+authority, not the current payload**. `.standards/INSTALL.json` already recorded every file the
+installer wrote, so removal takes out exactly what was installed — including files a newer version
+no longer ships, and excluding anything the adopter added since.
+
+Three things are never removed, each said in the output rather than left to be noticed: the
+adopter's own content (the managed block is stripped from `AGENTS.md` and
+`.github/copilot-instructions.md`, the rest stays verbatim), **their application profile** — those
+are their decisions, not this framework's — and anything not in the record. A file edited since
+install is removed, because it is standard-owned by contract, but is **named** so anything of theirs
+inside it can be recovered from git.
+
+`INSTALL.md` and `SUPPORT.md` now say how to leave, which is the half `PW-13` was actually about.
+A standard a repository cannot leave is a harder thing to adopt than one it can.

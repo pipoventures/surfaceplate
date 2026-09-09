@@ -230,11 +230,38 @@ def verdict_sentence(report) -> str:
     )
 
 
+def _cmd_uninstall(argv: list[str]) -> int:
+    """`F138`: there was no way out. No command, no flag, no document - the pathway sweep found
+    that by looking for one.
+
+    The install record is the authority, not the current payload: it names every file this
+    installer wrote, so removal takes out exactly what was installed rather than what a newer
+    version would have installed. The adopter's profile is never removed, and neither is anything
+    outside the record.
+    """
+    from surfaceplate import install_standard
+
+    parser = _Parser(prog="surfaceplate uninstall", description="Remove the standard from a repository.")
+    parser.add_argument("--target", default=".", help="Repository to remove it from (default: current directory).")
+    parser.add_argument("--dry-run", action="store_true", help="Show what would be removed, write nothing.")
+    args = parser.parse_args(argv)
+
+    target = Path(args.target).resolve()
+    if not target.is_dir():
+        print(f"error: {target} is not a directory", file=sys.stderr)
+        return 3
+    code, lines = install_standard.uninstall(target, dry_run=args.dry_run)
+    for line in lines:
+        print(line)
+    return code
+
+
 _COMMANDS = {
     "install": (_cmd_install, "Install or upgrade the standard into a repository."),
     "check": (_cmd_check, "Check a repository against the standard (--format text|json|sarif)."),
     "adopt": (_cmd_adopt, "Fill in the application profile: interactively, or --propose then --answers."),
     "doctor": (_cmd_doctor, "Report what would stop the first command on this machine; --report assembles a problem report to paste, offline."),
+    "uninstall": (_cmd_uninstall, "Remove the standard, using the install record so exactly what was installed is removed."),
 }
 
 
@@ -244,7 +271,7 @@ def _parser() -> _Parser:
         description="The Pipo Ventures software delivery standard, installed rather than copied.",
     )
     parser.add_argument("--version", action="version", version=f"surfaceplate {version()}")
-    subparsers = parser.add_subparsers(dest="command", metavar="{install,check,adopt,doctor}")
+    subparsers = parser.add_subparsers(dest="command", metavar="{install,check,adopt,doctor,uninstall}")
     for name, (_handler, help_text) in _COMMANDS.items():
         subparsers.add_parser(name, help=help_text, add_help=False)
     return parser
@@ -257,14 +284,14 @@ def main(argv: list[str] | None = None) -> int:
     # own flags, so everything after the command name is handed over untouched.
     if not argv:
         parser.print_usage(sys.stderr)
-        print("error: a command is required: install, check, adopt or doctor", file=sys.stderr)
+        print("error: a command is required: install, check, adopt, doctor or uninstall", file=sys.stderr)
         return 3
     if argv[0] in _COMMANDS:
         handler, _ = _COMMANDS[argv[0]]
         return handler(argv[1:])
     parser.parse_args(argv[:1])  # -h, --help, --version, or a usage error (exit 3)
     parser.print_usage(sys.stderr)
-    print(f"error: unknown command {argv[0]!r}; expected install, check, adopt or doctor", file=sys.stderr)
+    print(f"error: unknown command {argv[0]!r}; expected install, check, adopt, doctor or uninstall", file=sys.stderr)
     return 3
 
 

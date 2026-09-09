@@ -459,3 +459,35 @@ def dependency_manifest(repo: Path) -> tuple[str | None, str]:
         ):
             return path, "found"
     return None, "none"
+
+
+# ---------------------------------------------------------------------------
+# YAML turns a date-shaped scalar into a date object, and every schema here says `type: string`
+# (`F137`, `DR-75`).
+#
+# The templates this framework ships say `raised_on: replace-me  # YYYY-MM-DD`. An adopter who
+# does exactly that - replaces the token with `2026-09-09` - writes a valid YAML date, which
+# `yaml.safe_load` returns as `datetime.date`, which the schema rejects as "not of type 'string'".
+# **The natural completion of a shipped template fails the shipped schema**, on the FAQ's own
+# stated remedy for a bypassed gate, and on `adoption_date` for anyone filling the profile by hand
+# rather than running the wizard. The wizard's own output is unaffected: it quotes.
+#
+# Normalising here rather than only quoting the templates, because quoting relies on the adopter
+# reading a comment and a normaliser does not. Nothing is lost: a `datetime.date` can only have
+# come from a date-shaped scalar, and `.isoformat()` is the value the schema's `format: date`
+# wanted. Where the intent really is "not a date", the value was never a date scalar to begin with.
+
+
+def dates_as_strings(value):
+    """Recursively replace `date`/`datetime`/`time` with their ISO 8601 text.
+
+    Applied to every hand-written record this checker loads, immediately after parsing and before
+    anything looks at it, so no later code has to know which YAML scalars auto-typed.
+    """
+    if isinstance(value, dict):
+        return {k: dates_as_strings(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [dates_as_strings(v) for v in value]
+    if isinstance(value, (_dt.datetime, _dt.date, _dt.time)):
+        return value.isoformat()
+    return value
