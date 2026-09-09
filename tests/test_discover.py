@@ -163,6 +163,48 @@ def test_a_repository_git_cannot_read_yields_nothing(tmp: Path) -> None:
     )
 
 
+def test_a_manifest_is_never_proposed_as_a_lock(tmp: Path) -> None:
+    """`F135`. `pyproject.toml` was in the lock list, so the wizard PROPOSED a manifest as a lock
+    and showed it with origin `discovered` - a fact about the adopter's repository rather than a
+    question about it.
+
+    The point is not that naming `pyproject.toml` is wrong. **This repository names it, and is
+    right to**: its dependencies are pinned exactly there and it has no separate lock file. A name
+    cannot distinguish a `pyproject.toml` that pins from one that declares ranges, and a tool that
+    cannot distinguish them must ask rather than assert. So the file stays typeable and stops being
+    proposed.
+    """
+    import subprocess
+
+    from surfaceplate import rules  # noqa: E402
+
+    check("one module owns the lock list, so the checker and the wizard cannot disagree (DR-48)",
+          discover._LOCK_FILES is rules.LOCK_FILES)
+    check("a manifest is not in it", "pyproject.toml" not in rules.LOCK_FILES)
+    check("a real lock is", "poetry.lock" in rules.LOCK_FILES)
+
+    repo = tmp / "pins-in-the-manifest"
+    repo.mkdir(parents=True)
+    for args in (["init", "-q"], ["config", "user.email", "t@e.invalid"],
+                 ["config", "user.name", "T"], ["config", "commit.gpgsign", "false"]):
+        subprocess.run(["git", "-C", str(repo), *args], check=True)
+    (repo / "pyproject.toml").write_text(
+        '[project]\nname = "x"\ndependencies = ["PyYAML==6.0.3"]\n', encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "pins"], check=True,
+                   capture_output=True)
+
+    check("a repository whose only pins are in its manifest offers NO lock candidate, so the "
+          "field is asked rather than answered for it",
+          discover.candidate_lock_files(repo) == [],
+          str(discover.candidate_lock_files(repo)))
+    # And the manifest question - a different question - still answers yes, which is what keeps
+    # `DR-73` from waiving the control for a repository that plainly has dependencies.
+    check("but the manifest question still finds it, so the dependency_lock floor still applies",
+          rules.dependency_manifest(repo) == ("pyproject.toml", "found"),
+          str(rules.dependency_manifest(repo)))
+
+
 def test_a_proposal_needs_evidence_not_merely_a_candidate(tmp: Path) -> None:
     """`F40`. Ranking orders candidates; it never establishes that any of them are right.
 
@@ -546,6 +588,7 @@ def main() -> int:
         test_discovery_cannot_find_the_framework_in_the_mirror(tmp)
         test_ranking_happens_before_the_cap(tmp)
         test_a_non_ascii_path_is_offered_verbatim(tmp)
+        test_a_manifest_is_never_proposed_as_a_lock(tmp)
         test_is_empty_is_true_when_git_cannot_answer(tmp)
 
         print("\nlist sizes")

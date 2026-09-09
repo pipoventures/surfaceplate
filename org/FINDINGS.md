@@ -198,9 +198,9 @@ an unknown number of releases with nothing noticing.
 | F130 | The same dependency version is pinned in five places — `pyproject.toml`, two workflows, the payload's copy of one of them, and `INSTALL.md` — and nothing compared them, so a dependency change was judged green by a CI run that installed the old version | high | Closed — `ACT-074`, 2026-09-08; see the body |
 | F131 | `CVE-2025-71176` in pytest cannot be remediated within the pinned test set: `pytest-textual-snapshot` pins `syrupy==4.8.0`, which caps `pytest<9.0.0`, and the fix is only in `9.0.3` | medium | Open — **accepted, not remediated**: the maintainer took route (1) at `H21`, 2026-09-08. The condition persists |
 | F132 | A repository with no dependency manifest of any kind cannot produce a conformant profile at any level, and the wizard dead-ends on the first screen: `dependency_lock` is the sole `essential` floor control and `SP051` requires it to name a real tracked file | high | Closed — `ACT-078` (`DR-73`), 2026-09-09; see the body |
-| F133 | The history audit accepts the installed **seed** as a former name of any artefact `adopt` scaffolded from it, so deleting the artefact never registers as a gate violation — and the seed can never be deleted | high | Open — `PW-01`; confirmed at `HEAD` by the maintainer's session |
-| F134 | A refused `--answers` replay writes `.standards/adopt-draft.json` while printing *"Nothing was written"*, and that draft then makes a corrected record fail with the old value's error | high | Open — `PW-02`; confirmed on the sweep's controlled isolation |
-| F135 | `pyproject.toml` is offered and proposed as a dependency **lock** file, and `SP051` accepts any tracked non-empty file as one — a manifest is not a lock | high | Open — `PW-03`; confirmed at `HEAD` |
+| F133 | The history audit accepts the installed **seed** as a former name of any artefact `adopt` scaffolded from it, so deleting the artefact never registers as a gate violation — and the seed can never be deleted | high | Closed — `ACT-080` (`DR-74`), 2026-09-09; raised as `PW-01`; confirmed at `HEAD` by the maintainer's session |
+| F134 | A refused `--answers` replay writes `.standards/adopt-draft.json` while printing *"Nothing was written"*, and that draft then makes a corrected record fail with the old value's error | high | Closed — `ACT-080` (`DR-74`), 2026-09-09; raised as `PW-02`; confirmed on the sweep's controlled isolation |
+| F135 | `pyproject.toml` is offered and proposed as a dependency **lock** file, and `SP051` accepts any tracked non-empty file as one — a manifest is not a lock | high | Closed — `ACT-080` (`DR-74`), 2026-09-09; raised as `PW-03`; confirmed at `HEAD` |
 | F136 | The pathway sweep's remaining fifteen findings (`PW-04` to `PW-18`), reported with evidence and **not yet adjudicated here** — held as one entry so none is lost and none is given a verified finding's status | medium | Open — each splits into its own `F<n>` as it is adjudicated |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -1557,7 +1557,6 @@ moved. Re-testing against `HEAD` is part of adjudicating each, not an optional e
 
 | | Claimed | Reported |
 |---|---|---|
-| `PW-04` | medium | `doctor` reports `core.hooksPath` as `unset` at every scope when `git` is not on `PATH` — a negative asserted from a command that could not run |
 | `PW-05` | medium | Under `--chain`, `adopt` proposes no `local_hook` enforcement, so a declared `hook_chain` is never verified and `SP038` cannot fire |
 | `PW-06` | medium | `README.md`'s "Working on the standard itself" block fails as written: its venv lacks `textual` and `build_release.py` then refuses |
 | `PW-07` | medium | `adopt --edit` without `--because` is accepted and recorded with a canned reason, and the CLI says it was recorded "with the reason" |
@@ -1573,6 +1572,10 @@ moved. Re-testing against `HEAD` is part of adjudicating each, not an optional e
 | `PW-17` | low | Documentation drift in the install block, `SP001`'s `fix`, and the documented `pip install` resolving to `main` rather than a release |
 | `PW-18` | low | The history audit's window includes commits made in the same second as `effective_from` |
 
+**`PW-04` has left this table.** It was adjudicated with `F133` under `DR-74` as an instance of the
+same class — a negative asserted from an observation that could not have found the thing — and
+`doctor` now reports an unanswerable hooks path as unanswerable. Fourteen remain.
+
 **Two of these deserve flagging now, before adjudication, because they are not what their severity
 suggests.** `PW-13`'s second half — *no removal procedure exists anywhere* — is the packet's own
 "the absence of an answer is the finding", and it is an adoption question rather than a defect: a
@@ -1582,7 +1585,7 @@ establish.
 
 ## F135 — A dependency manifest is offered, and accepted, as a dependency lock
 
-**Severity: high. Open — raised 2026-09-09 from the pathway sweep (`PW-03`).**
+**Severity: high. Closed — `ACT-080` (`DR-74`), 2026-09-09.**
 
 Two halves, both confirmed against `HEAD` (`0d5612e`) by the maintainer's session rather than taken
 from the report.
@@ -1623,9 +1626,20 @@ same question about the same file two different ways. That is precisely the drif
 two classifications in `rules.py` — is available and small. Whether `SP051` should also constrain
 what *kind* of file a lock may be is a larger question against `DR-25`, and is the maintainer's.
 
+**Closed by `ACT-080` (`DR-74`), 2026-09-09**, on the narrow fix, and **not** by banning the file.
+`rules.LOCK_FILES` is now the single list and `pyproject.toml` is not in it, so a repository whose
+only pins are in its manifest is **asked** rather than told. It remains typeable, because naming it
+can be correct — this repository names it, and is right to: its dependencies are pinned exactly
+there and it has no separate lock. A name cannot distinguish a `pyproject.toml` that pins from one
+that declares ranges, and a tool that cannot distinguish them must ask.
+
+**`SP051` is deliberately unchanged**, so naming a Markdown page still passes. `DR-25` records that
+boundary as permanent. What is fixed is the tool proposing the wrong file as a *discovered fact*;
+what an adopter deliberately declares remains theirs.
+
 ## F134 — A refused `--answers` replay writes a draft while saying nothing was written, and the draft then blocks the corrected record
 
-**Severity: high. Open — raised 2026-09-09 from the pathway sweep (`PW-02`).**
+**Severity: high. Closed — `ACT-080` (`DR-74`), 2026-09-09.**
 
 The documented `--propose` → complete → `--answers` path cannot be completed after one wrong answer,
 and the message that results is about a value the adopter has already corrected.
@@ -1666,9 +1680,17 @@ given. The second is probably right — a replay is meant to be a pure function 
 interacts with the resume-from-draft behaviour the interactive wizard depends on, which is why this
 is recorded rather than patched in passing.
 
+**Closed by `ACT-080` (`DR-74`), 2026-09-09**, with the second treatment: `wizard.run` takes
+`use_draft`, and the `--answers` path passes `False`, so a replay neither reads nor writes a draft.
+Not "clear it afterwards" but "never involve it" — a draft protects a human mid-interview from
+losing an hour of answers, and a replay has nothing to protect, its answers already being in a file
+the adopter wrote and still holds. The same reasoning that keeps `sections.build_profile` pure.
+Verified on the sweep's own sequence: the refusal now leaves no draft, so its *"Nothing was
+written"* is true, and the next replay's error moves on rather than repeating the last attempt's.
+
 ## F133 — The history audit treats the installed seed as a former name of the artefact scaffolded from it
 
-**Severity: high. Open — raised 2026-09-09 from the pathway sweep (`PW-01`).**
+**Severity: high. Closed — `ACT-080` (`DR-74`), 2026-09-09.**
 
 **Confirmed by effect at `HEAD` in the maintainer's session**, reproducing from a clean start rather
 than reading the report:

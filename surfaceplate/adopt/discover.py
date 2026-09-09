@@ -29,26 +29,25 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+# `DR-48`: the rules the checker and the wizard must not answer differently. Imported at module
+# level because `_LOCK_FILES` below is a module-level constant derived from it.
+try:
+    from surfaceplate import rules
+except ImportError:  # imported flat, with the payload directory itself on the path
+    import rules  # type: ignore[no-redef]
+
 # Directories whose contents are plausible governance artefacts. Not exhaustive, and not a
 # judgement about the adopter's layout - just the places this framework's own documents, and both
 # worked examples, actually put things.
 _ARTEFACT_DIRS = ("docs", "governance", "activity", "adr", "decisions", ".github")
 _ARTEFACT_SUFFIXES = (".md", ".yaml", ".yml")
 
-# Files that are a lock file by name. `dependency_lock` names one of these.
-_LOCK_FILES = (
-    "requirements.txt",
-    "requirements.lock",
-    "poetry.lock",
-    "Pipfile.lock",
-    "package-lock.json",
-    "yarn.lock",
-    "pnpm-lock.yaml",
-    "Cargo.lock",
-    "go.sum",
-    "gemfile.lock",
-    "pyproject.toml",
-)
+# Files that are a lock file by name, held once in `rules.py` (`F135`, `DR-48`). `pyproject.toml`
+# was in this list and is not a lock: it declares dependencies, and may or may not pin them. The
+# wizard therefore proposed a manifest as a lock, with origin `discovered`. A manifest is still
+# TYPEABLE - this repository's own profile names `pyproject.toml`, correctly, because it pins
+# exactly there - it is simply never proposed, because a name cannot establish which it is.
+_LOCK_FILES = rules.LOCK_FILES
 
 # Top-level directories that usually hold the code a gate would guard.
 _SOURCE_DIRS = ("src", "lib", "app", "pkg", "internal", "cmd", "services", "packages")
@@ -371,10 +370,6 @@ def _manifest_state(repo: Path) -> tuple[str | None, str]:
     `DR-48`: the checker and the wizard must not answer "does this repository have dependencies"
     two different ways, or the wizard writes a profile the checker rejects - `F66`'s defect.
     """
-    try:
-        from surfaceplate import rules
-    except ImportError:  # imported flat, with the payload directory itself on the path
-        import rules  # type: ignore[no-redef]
     return rules.dependency_manifest(repo)
 
 

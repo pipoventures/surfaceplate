@@ -2684,3 +2684,41 @@ difference when the draft was deleted. That attempt's record still carried an un
 failure, so both runs failed for a real reason and the draft could never have been the deciding
 variable — the observation was incapable of returning the other answer. The reporter's `a1-repro2`
 sequence is a proper controlled comparison and settles it.
+
+### A check may not report a negative it was not in a position to establish (`ACT-080`, `DR-74`)
+
+The pathway sweep's three `high` findings, fixed as a class rather than as three instances.
+
+**`F133` — a copy is not a rename.** `adopt` scaffolds a gate artefact by copying a file out of
+`.standards/seeds/`. The copy is byte-identical and lands in a later commit, so `git log --follow`
+reports `C100` and `F30`'s rename-following accepted the **seed** as a former name of the artefact.
+The seed is installed payload and is never deleted, so the audit found the artefact "present" at
+every commit — including ones that deleted it and changed a gated path. Two rules now: `C` records
+are rejected outright, correcting git's own classification, **and** a candidate that still exists in
+the tree today is not a former name of anything — a rename leaves the old path gone, a copy leaves
+both. `F30`'s remedy survives, verified on a genuine `git mv` and on this repository's own
+two-rename `test_convention` chain.
+
+**`F134` — a replay is a pure function of its record.** `wizard.run` takes `use_draft`, and the
+`--answers` path passes `False`. Not "clear the draft afterwards" but "never involve it": a draft
+protects a human mid-interview from losing an hour of answers, and a replay has nothing to protect,
+its answers already being in a file the adopter wrote and still holds. Its *"Nothing was written"*
+is now true.
+
+**`F135` — one module owns "is this file a lock".** `rules.LOCK_FILES` is the single list and
+`pyproject.toml` is not in it. **Not a ban** — this repository names it, and is right to: its
+dependencies are pinned exactly there and it has no separate lock. A name cannot distinguish a
+`pyproject.toml` that pins from one that declares ranges, and a tool that cannot distinguish them
+must ask rather than assert. Offered, never proposed.
+
+**And the rule behind them, applied where it was already broken.** `F133` and the sweep's `PW-04`
+are one defect in two places: the audit said *"the artefact was present"* having found a seed under
+an alias, and `doctor` said *"`core.hooksPath` is unset"* having found no `git` to ask.
+`_git_config`'s own docstring read *"or `None` when unset **or** git cannot answer"* — the
+conflation was written down and passed over. It now returns `set` / `unset` / `unknown`, and an
+unanswerable question is reported as unanswerable. With `PATH=/nonexistent`, `doctor` reports
+*"could not be established … this is not the same as unset"* and the checker prints no clean bill.
+
+`SP051` is deliberately unchanged: naming a Markdown page as a lock still passes, because `DR-25`
+records that checking existence and not honesty is permanent. What is fixed is the tool proposing
+the wrong file as a discovered fact.

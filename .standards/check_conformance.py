@@ -2745,6 +2745,15 @@ def historical_paths(repo: Path, path: str) -> list[str]:
         parts = line.split("\t")
         if not parts or not parts[0]:
             continue
+        # `F133`: a COPY is not a rename, and admitting its source was a control passing while not
+        # holding. `--follow` emits `C100\tsource\tnew` when a file is created byte-identical to
+        # one already tracked - which is exactly what `adopt` does when it scaffolds an artefact
+        # from `.standards/seeds/`. The source fell through to the branch below, which takes
+        # `parts[1]`, so the SEED became a former name of the register. The seed is installed
+        # payload and is never deleted, so the audit then found the artefact "present" at every
+        # commit, including ones that deleted it and changed a gated path.
+        if parts[0].startswith("C"):
+            continue
         # `R100\told\tnew` for a rename; `A`/`M`/`D` carry a single path.
         if parts[0].startswith("R") and len(parts) >= 3:
             candidates = [parts[1], parts[2]]
@@ -2755,7 +2764,18 @@ def historical_paths(repo: Path, path: str) -> list[str]:
         for candidate in candidates:
             if candidate and candidate not in found:
                 found.append(candidate)
-    return found
+
+    # And the general property behind that specific fix, because rejecting `C` records corrects
+    # git's classification and this states what a former name IS: **a rename leaves the old path
+    # gone; a copy leaves both.** A candidate that still exists in the tree today is therefore not
+    # a former name of anything, whatever `--follow` called it.
+    #
+    # This errs toward REPORTING, which the docstring above argues is the right direction for a
+    # control: if a path was genuinely renamed away and something unrelated later took its old
+    # name, that name stops being trusted and the strict, pre-`F30` behaviour returns for it. A
+    # false violation can be cleared by a person; a violation never reported cannot.
+    surviving = [name for name in found[1:] if not blob_exists(repo, "HEAD", name)]
+    return [path, *surviving]
 
 
 def commit_subject(repo: Path, sha: str) -> str:

@@ -349,6 +349,30 @@ DEPENDENCY_MANIFESTS: frozenset[str] = frozenset({
     "conanfile.txt", "conanfile.py", "conan.lock", "vcpkg.json",
 })
 
+# `F135`: the files that RECORD RESOLVED VERSIONS, as against those that merely declare
+# dependencies. The distinction is the finding: `pyproject.toml` was in the lock list, so the
+# wizard proposed a MANIFEST as a LOCK and showed it to the adopter with origin `discovered` -
+# a fact about their repository rather than a question.
+#
+# It is not that naming `pyproject.toml` is wrong. THIS repository names it, legitimately: its
+# dependencies are pinned exactly there (`PyYAML==6.0.3`) and it has no separate lock. A name
+# cannot tell those apart - a `pyproject.toml` may pin exactly or may declare ranges - and a tool
+# that cannot tell must ask rather than assert. So a manifest is still typeable, and is never
+# proposed.
+#
+# Held here rather than in `adopt/discover.py` because `DR-73` put the manifest question here and
+# two modules answering "is this file a lock" differently is the drift `DR-48` created this module
+# to prevent. That split was live for one day, introduced by the change that closed `F132`.
+LOCK_FILES: tuple[str, ...] = (
+    "requirements.txt",     # conventionally the pinned set; genuinely ambiguous, kept as a lock
+    "requirements.lock", "poetry.lock", "Pipfile.lock", "uv.lock", "pdm.lock",
+    "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "npm-shrinkwrap.json", "bun.lockb",
+    "deno.lock", "Cargo.lock", "go.sum", "gemfile.lock", "composer.lock", "mix.lock",
+    "pubspec.lock", "Package.resolved", "podfile.lock", "paket.lock", "conan.lock",
+    "renv.lock", "flake.lock", ".terraform.lock.hcl",
+)
+
+
 # Suffixes that are a manifest whatever the file is called.
 DEPENDENCY_MANIFEST_SUFFIXES: tuple[str, ...] = (
     ".gemspec", ".csproj", ".fsproj", ".vbproj", ".cabal",

@@ -508,16 +508,29 @@ def assemble(state: dict, record: dict) -> dict:
     )
 
 
-def run(repo: Path, interview: Interview) -> Path:
+def run(repo: Path, interview: Interview, *, use_draft: bool = True) -> Path:
     """Runs the whole wizard. Returns the path written. Raises `Cancelled`, `NotInstalled`,
     `AlreadyAdopted`, `InstallMismatch` or `WriteRefused` - every one of them leaves the repository untouched, except
     that `Cancelled` (and any other failure) may leave a resumable draft behind - see
-    `_save_draft`. A completed write clears it (below)."""
+    `_save_draft`. A completed write clears it (below).
+
+    `use_draft=False` makes the run a PURE FUNCTION OF ITS INPUT: no draft is read, and none is
+    written, whatever happens. `F134` is why. A `--answers` replay saved progress as it went, so a
+    refusal left a draft behind while printing "Nothing was written"; the next replay then resumed
+    from that draft rather than from the record it was given, and failed with the PREVIOUS
+    attempt's error about a value the adopter had already corrected. Re-running `--propose`, the
+    advice the refusal itself gives, does not clear it.
+
+    A draft exists to protect a human mid-interview from losing an hour of answers. A replay has
+    nothing to protect: its answers are already in a file the adopter wrote and still holds. So
+    the draft is not merely cleared for a replay, it is never involved - the same reasoning that
+    keeps `sections.build_profile` pure.
+    """
     _refuse_if_already_adopted(repo)
     record = _read_install_record(repo)
     _refuse_if_mismatched(repo, record)
 
-    draft = _open(repo, record, interview)
+    draft = _open(repo, record, interview) if use_draft else {}
     flow = _flow.Flow(
         repo,
         record,
@@ -528,7 +541,8 @@ def run(repo: Path, interview: Interview) -> Path:
     )
 
     def on_progress() -> None:
-        _save_draft(repo, record, flow.draft())
+        if use_draft:
+            _save_draft(repo, record, flow.draft())
 
     approved_at = interview.collect(flow, on_progress=on_progress)
 
@@ -922,7 +936,7 @@ def replay(repo: Path, answers_path: Path) -> Path:
     create = str(record["answers"].get("create_missing_artefacts", "yes")).strip().lower() in ("yes", "true", "y")
     interview = ScriptedInterview(answers=scripted, accept_scaffold=create)
     try:
-        return run(repo, interview)
+        return run(repo, interview, use_draft=False)
     except AssertionError as exc:
         # The scripted interview objects to a presented field the record lacks: say which, and
         # how to get a complete record.

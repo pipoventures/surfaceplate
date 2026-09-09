@@ -989,6 +989,58 @@ def test_full_ui_end_to_end(tmp: Path) -> None:
     check("the full profile validates against its own schema", _schema_ok(repo, written))
 
 
+def test_a_replay_neither_reads_nor_writes_a_draft(tmp: Path) -> None:
+    """`F134`. A refused `--answers` replay wrote `.standards/adopt-draft.json` while printing
+    "Nothing was written", and the next replay then resumed from that draft rather than from the
+    record it was handed - failing with the PREVIOUS attempt's error, about a value the adopter had
+    already corrected. Re-running `--propose`, the advice the refusal itself gives, did not clear it.
+
+    A draft exists to protect a human mid-interview from losing an hour of answers. A replay has
+    nothing to protect: its answers are already in a file the adopter wrote and still holds. So the
+    fix is not to clear the draft afterwards but never to involve it - the replay becomes a pure
+    function of its record, the same property `sections.build_profile` already has.
+    """
+    from surfaceplate.adopt.interview import DRAFT_FORMAT  # noqa: E402
+
+    repo = make_installed_repo(tmp, "replay-draft")
+    draft_path = repo / wizard.DRAFT_FILENAME
+
+    # A draft that would poison the run if it were read at all: not merely stale, but junk.
+    draft_path.parent.mkdir(parents=True, exist_ok=True)
+    draft_path.write_text(json.dumps({
+        "format": DRAFT_FORMAT,
+        "framework_version": "0.0.0",
+        "sections": {"identity": {"owner": "FROM THE DRAFT, NOT THE RECORD"}},
+        "done": ["identity", "stack", "risk", "level", "controls", "gates", "adoption", "wrap"],
+    }), encoding="utf-8")
+
+    proposed = wizard.propose(repo, level="essential")
+    answers = yaml.safe_load(Path(proposed.answers).read_text(encoding="utf-8"))
+    check("the draft this test planted is still on disk before the replay", draft_path.is_file())
+
+    # A record that the review will refuse: a path that does not exist.
+    bad = dict(answers)
+    bad_answers = dict(bad.get("answers") or {})
+    bad_answers["controls.dependency_lock.implementation_reference"] = "no/such/lock.file"
+    for key, value in list(bad_answers.items()):
+        if value == "needs-human":
+            bad_answers[key] = "README.md" if key.endswith(".artefact") else "Stated by the harness."
+    bad["answers"] = bad_answers
+    bad_path = repo / "bad-answers.yaml"
+    bad_path.write_text(yaml.safe_dump(bad, sort_keys=False), encoding="utf-8")
+
+    draft_path.unlink()
+    try:
+        wizard.replay(repo, bad_path)
+    except Exception:
+        pass
+    check(
+        "a refused replay writes NO draft, so its own 'Nothing was written' is true",
+        not draft_path.is_file(),
+        "a draft was left behind",
+    )
+
+
 def test_a_repository_with_no_dependencies_can_still_conform(tmp: Path) -> None:
     """`F132` / `DR-73` / `H22`. The regression test for the defect a person found on the wizard's
     first screen, on a real repository, after 45,266 matrix checks had passed.
@@ -2557,6 +2609,7 @@ def main() -> int:
         test_full_ui_end_to_end(tmp)
 
         print("\nstandard-level, no-UI (ACT-022: DESIGN_GATES rationale is asked)")
+        test_a_replay_neither_reads_nor_writes_a_draft(tmp)
         test_a_repository_with_no_dependencies_can_still_conform(tmp)
         test_design_gates_are_asked_not_invented(tmp)
 
