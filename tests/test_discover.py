@@ -471,21 +471,36 @@ def test_is_empty_is_true_when_git_cannot_answer(tmp: Path) -> None:
 
 def test_the_cap_is_on_the_offer_not_on_the_answer(repo: Path) -> None:
     """`F75` moved the cap from the scan to the field: the scan keeps everything so ranking has
-    everything to promote, and what an adopter is offered is cut to `SHOWN` afterwards."""
+    everything to promote, and what an adopter is offered is cut to `SHOWN` afterwards.
+
+    **The cap counts candidates, never rows.** `F147` added an escape row and `DR-54` (1) a
+    "create it" row; both are actions rather than things discovery found, and counting them here
+    would let the real cap drift upward one action at a time without this check noticing.
+    """
     from surfaceplate.adopt import plan
 
     found = discover.scan(repo)
     gates = plan.gate_plan(level="full", builds_ui=True, mode="simple", found=found)
+    fields = [f for spec in gates for f in spec.fields if f.kind == "select"]
     offers = [
-        len(f.choices)
-        for spec in gates
-        for f in spec.fields
-        if f.kind == "select"
+        sum(1 for value, _label in f.choices if value not in (plan.TYPE_A_PATH, f.seed))
+        for f in fields
     ]
     check(
         "every dropdown an adopter is offered is short enough to pick from",
-        offers and all(n <= discover.SHOWN for n in offers),
+        bool(offers) and all(n <= discover.SHOWN for n in offers),
         str(offers),
+    )
+    check(
+        "and every one of them carries the escape from its own list (F147)",
+        bool(fields) and all(plan.TYPE_A_PATH in [v for v, _l in f.choices] for f in fields),
+        str([f.id for f in fields if plan.TYPE_A_PATH not in [v for v, _l in f.choices]]),
+    )
+    check(
+        "and states how many were found, not only how many it shows",
+        all(f.found_total >= sum(1 for v, _l in f.choices if v not in (plan.TYPE_A_PATH, f.seed))
+            for f in fields),
+        str([(f.id, f.found_total, len(f.choices)) for f in fields[:3]]),
     )
     check(
         "and the ranked-first candidate survives whatever the cap removes",

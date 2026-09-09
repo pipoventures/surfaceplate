@@ -633,6 +633,113 @@ def _spec_behind(repo: Path, profile: dict, answer_key: str) -> plan.FieldSpec |
     return next((s for s in section_plan.fields if s.id == field_id), None)
 
 
+def repin(repo: Path) -> tuple[Path | None, list[str]]:
+    """Re-pin `adoption.framework_version` and `framework_digest` to what is installed (`F146`).
+
+    `(path_written_or_None, lines)`. `None` when nothing needed changing.
+
+    WHY THIS IS A COMMAND AND NOT SOMETHING THE INSTALLER DOES. `DR-45` reads `framework_digest`
+    as **the adopter's claim** about the distribution they assessed against, and `SP049` exists to
+    catch a profile claiming an install that is not present. An installer that re-pinned silently
+    would let a version change through with nobody re-reading the profile - which is the assertion
+    `review_by` exists to make.
+
+    But the clerical half is not a claim. Every upgrade left both fields stale by construction and
+    handed the adopter `SP048` and `SP049`, cleared by hand-copying a 64-character digest out of a
+    JSON file the installer itself wrote. This framework's own repository did it twice in one day.
+
+    So the act stays deliberate - a person runs this - and the typing goes. The values come from
+    the install record, so the sidecar records them as `fact of record` rather than as typed: the
+    adopter chose to re-pin, and did not choose the digest.
+    """
+    import json
+
+    import yaml
+
+    record_path = repo / ".standards" / "INSTALL.json"
+    if not record_path.is_file():
+        raise NotInstalled(f"{record_path} is absent: there is no install to pin to.")
+    record = json.loads(record_path.read_text(encoding="utf-8"))
+    version, digest = record.get("standard_version"), record.get("framework_digest")
+    if not version or not digest:
+        raise WriteRefused("the install record names no version or digest to pin to.", path="")
+
+    target = repo / str(record.get("profile_path") or PROFILE_PATH)
+    if not target.is_file():
+        raise WriteRefused(f"{target} does not exist; there is nothing to re-pin.", path="")
+    profile = yaml.safe_load(target.read_text(encoding="utf-8")) or {}
+    adoption = profile.get("adoption")
+    if not isinstance(adoption, dict):
+        raise WriteRefused("the profile has no adoption block to re-pin.", path="adoption")
+
+    was = (adoption.get("framework_version"), adoption.get("framework_digest"))
+    if was == (version, digest):
+        return None, [f"Already pinned to {version} ({digest[:12]}…); nothing to change."]
+
+    # A SURGICAL SUBSTITUTION, NOT A RE-RENDER, and this repository's own profile is why.
+    #
+    # The first version re-rendered the whole file through the wizard's renderer, as `--edit` does.
+    # Run against this framework's own profile it refused: *"the rendered YAML does not round-trip
+    # to what was assembled"*. That guard was right and the design was wrong. A hand-maintained
+    # profile carries whatever its adopter put there, and re-rendering it means passing every line
+    # through a renderer that only knows what `adopt` writes - so the population that most needs
+    # `--repin` (anyone who has edited their profile directly, which after an upgrade is anyone who
+    # cleared `SP048` by hand) is exactly the population it would refuse.
+    #
+    # These are two scalar values whose correctness is defined entirely by the install record.
+    # Replacing the two lines cannot disturb anything else, and what replaces them is then parsed
+    # back and checked rather than assumed.
+    text = target.read_text(encoding="utf-8")
+    rendered, moved = text, 0
+    for key, value in (("framework_version", version), ("framework_digest", digest)):
+        rendered, hits = re.subn(
+            rf"^(\s*{key}:\s*)\S.*$", lambda m, v=value: m.group(1) + v, rendered,
+            count=1, flags=re.MULTILINE,
+        )
+        moved += hits
+    if moved != 2:
+        raise WriteRefused(
+            f"expected one `framework_version:` and one `framework_digest:` line to re-pin and "
+            f"found {moved}. Nothing was changed; correct them by hand, or run "
+            "`surfaceplate adopt` if this profile has not been written yet.",
+            path="adoption",
+        )
+    reparsed = yaml.safe_load(rendered) or {}
+    back = reparsed.get("adoption") or {}
+    if (back.get("framework_version"), back.get("framework_digest")) != (version, digest):
+        raise WriteRefused(
+            "the re-pinned profile does not read back with the values it was given; nothing was "
+            "written.",
+            path="adoption",
+        )
+    _verify(reparsed, rendered, repo)
+
+    record_path_side = repo / provenance.PROVENANCE_PATH
+    try:
+        sidecar = yaml.safe_load(record_path_side.read_text(encoding="utf-8")) if record_path_side.is_file() else {}
+    except (OSError, yaml.YAMLError):
+        sidecar = {}
+    if not isinstance(sidecar, dict):
+        sidecar = {}
+    at = provenance.now_iso()
+    reason = (
+        f"re-pinned to the installed standard: {was[0]} -> {version}, "
+        f"{str(was[1])[:12]}… -> {digest[:12]}…, read from .standards/INSTALL.json"
+    )
+    for field in ("adoption.framework_version", "adoption.framework_digest"):
+        provenance.record_edit(sidecar, field, reason=reason, at=at)
+        sidecar.setdefault("fields", {})[field]["origin"] = provenance.FACT
+    _write_atomically(target, rendered)
+    _write_atomically(record_path_side, provenance.render_record(sidecar))
+    return target, [
+        f"Re-pinned {target.relative_to(repo)} to the installed standard:",
+        f"  framework_version  {was[0]} -> {version}",
+        f"  framework_digest   {str(was[1])[:12]}… -> {digest[:12]}…",
+        "Recorded beside the profile as a fact of record: you chose to re-pin, and the values came",
+        "from .standards/INSTALL.json rather than from you.",
+    ]
+
+
 def edit(repo: Path, path: str, value: str, *, because: str = "") -> Path:
     """Change one line of the written profile, through the same renderer and verification as
     the wizard, and record it in the provenance sidecar as typed with a timestamp and the reason.

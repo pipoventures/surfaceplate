@@ -989,6 +989,67 @@ def test_full_ui_end_to_end(tmp: Path) -> None:
     check("the full profile validates against its own schema", _schema_ok(repo, written))
 
 
+def test_repin_clears_the_two_findings_an_upgrade_guarantees(tmp: Path) -> None:
+    """`F146` / `H23`. Every upgrade left `adoption.framework_version` and `framework_digest` stale
+    **by construction**, so the installer said *"keep … (yours; never overwritten)"* and the very
+    next command reported `SP048` and `SP049` — cleared by hand-copying a 64-character digest out
+    of a JSON file the installer itself wrote. This repository did it twice in one day.
+
+    The maintainer chose route (2): an explicit command rather than a silent re-pin. `DR-45` reads
+    `framework_digest` as **the adopter's claim** about the distribution they assessed against, and
+    an installer that re-pinned on its own would let a version change through with nobody re-reading
+    the profile. So the act stays deliberate and only the typing goes — and the sidecar records the
+    values as **fact of record**, not typed, because the adopter chose to re-pin and did not choose
+    the digest.
+    """
+    import json
+
+    from surfaceplate.adopt import provenance  # noqa: E402
+
+    repo = make_installed_repo(tmp, "repin")
+    profile_path = repo / wizard.PROFILE_PATH
+    record = json.loads((repo / ".standards" / "INSTALL.json").read_text(encoding="utf-8"))
+
+    # A profile that is complete but stale, which is exactly what an upgrade leaves behind.
+    answers = answers_for(repo, level="essential", builds_ui=False, mode="simple",
+                          overrides={"controls.above_floor": []})
+    wizard.run(repo, ScriptedInterview(answers=answers))
+    text = profile_path.read_text(encoding="utf-8")
+    stale = text.replace(record["framework_digest"], "0" * 64).replace(
+        f"framework_version: {record['standard_version']}", "framework_version: 0.0.1")
+    profile_path.write_text(stale, encoding="utf-8")
+    check("the fixture really is stale - the premise, not an assumption",
+          "0" * 64 in profile_path.read_text(encoding="utf-8"))
+
+    written, lines = wizard.repin(repo)
+    report = "\n".join(lines)
+    check("re-pinning writes the profile", written == profile_path, str(written))
+    check("and names both values it moved, from and to",
+          "framework_version" in report and "framework_digest" in report, report)
+
+    after = yaml.safe_load(profile_path.read_text(encoding="utf-8"))["adoption"]
+    check("the version now matches the install record",
+          after["framework_version"] == record["standard_version"], str(after["framework_version"]))
+    check("and so does the digest",
+          after["framework_digest"] == record["framework_digest"], str(after["framework_digest"]))
+
+    sidecar = yaml.safe_load((repo / provenance.PROVENANCE_PATH).read_text(encoding="utf-8"))
+    for field in ("adoption.framework_version", "adoption.framework_digest"):
+        entry = sidecar["fields"][field]
+        check(f"{field} is recorded as a FACT OF RECORD, not as typed - the adopter chose to "
+              "re-pin and did not choose the value",
+              entry["origin"] == provenance.FACT, str(entry))
+        check(f"{field}'s reason says where the value came from",
+              "INSTALL.json" in entry["detail"], str(entry))
+    check("and the edit joins the history the sidecar keeps",
+          any(e["path"].startswith("adoption.framework_") for e in sidecar.get("edits", [])),
+          str(sidecar.get("edits")))
+
+    again = wizard.repin(repo)
+    check("running it again changes nothing and says so",
+          again[0] is None and "Already pinned" in "\n".join(again[1]), str(again))
+
+
 def test_an_edit_needs_a_reason_and_a_template_profile_gets_a_refusal(tmp: Path) -> None:
     """`F140` and `F139`, both from the pathway sweep, both cases of the tool saying something
     that was not true of what it did.
@@ -2664,6 +2725,7 @@ def main() -> int:
         test_full_ui_end_to_end(tmp)
 
         print("\nstandard-level, no-UI (ACT-022: DESIGN_GATES rationale is asked)")
+        test_repin_clears_the_two_findings_an_upgrade_guarantees(tmp)
         test_an_edit_needs_a_reason_and_a_template_profile_gets_a_refusal(tmp)
         test_a_replay_neither_reads_nor_writes_a_draft(tmp)
         test_a_repository_with_no_dependencies_can_still_conform(tmp)

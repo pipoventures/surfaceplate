@@ -3066,3 +3066,72 @@ file checks them all.
 Verified by removing the fix each axis guards. Take out `F93`'s fit filter and the registers axis
 reports all four pattern-C controls proposed `config/accounts` — a directory of account
 configuration — which is that finding verbatim.
+
+### `adopt --repin`, and the difference between a claim and a clerk (`ACT-092`, `DR-81`, closing `F146`)
+
+Every upgrade left `adoption.framework_version` and `framework_digest` stale **by construction**: the
+installer reports `keep governance/application-profile.yaml (yours; never overwritten)` and the next
+command reports `SP048` and `SP049`. The adopter cleared them by hand-copying a 64-character digest
+out of a JSON file the installer itself wrote. This repository did it twice in one day.
+
+**The installer still does not re-pin, and that is the decision.** `DR-45` reads `framework_digest`
+as the **adopter's claim** about the distribution they assessed against, and `SP049` exists to catch
+a profile claiming an install that is not present. An installer that re-pinned silently would let a
+version change through with nobody re-reading the profile — the assertion `review_by` exists to make.
+
+So the claim and the clerk are separated. **Running `surfaceplate adopt --repin` is the deliberate
+act**, which is what `DR-45` wants asserted; the *value* was never the adopter's contribution — it is
+the installer's own record of what it wrote — so typing it accomplishes nothing but the chance of
+typing it wrong. That is also why the sidecar records both fields as **`fact of record`, not
+`typed`**: the adopter chose to re-pin, and did not choose the digest.
+
+Verified on the real adopter that produced the finding — the one repository that has adopted this
+standard, upgraded `0.16.0` → `0.18.0`: `WARN` with two findings, one command,
+`PASS - all conformance checks satisfied`. Idempotent: run it again and it says
+`Already pinned … nothing to change.`
+
+`DR-81` states the honest limit: it moves the clerical half and cannot move the reading half.
+Nothing here asserts an adopter has read what changed — `review_by` remains the field for that.
+
+### A discovered list is an offer, not the only permitted answer (`ACT-093`, `DR-82`, closing `F147`)
+
+The maintainer reached a gate on a real 30-document repository and could not name the file he meant.
+The dropdown showed twelve `activity/ACT-nnn.md` files; `activity/register.md` — the repository's
+actual governance artefact — was the seventeenth candidate and never shown. That gate is one of the
+four the seed catalogue deliberately excludes, so there was no *"create it"* row either, and a
+Textual `Select` cannot be typed into. The only exits were to declare the gate `not_applicable`, a
+different answer from the true one, or to abandon the run.
+
+**The constraint was never this standard's, and nothing but one widget held it.** `flow.py` does not
+check an answer against a field's choices; the only gate is the field's validator, and each one
+re-reads the repository independently — `tracked_path` requires a path that exists, is tracked, is
+non-empty, carries no placeholder and is not one this framework installed. So a *scripted* adoption
+could always name any tracked file, and a *human at the keyboard* could not. `DR-38` decided **never
+offer something that isn't there**; what shipped was **never accept anything else**, which is a
+different and much stronger rule that no record states.
+
+Every dropdown now carries a row that reveals a text box, above the candidates rather than below
+them — the adopter who found this could not see a way out, and an escape below the fold is one he
+would not have seen either. The validator still rules: a typed path that does not exist is refused
+at the field, in the checker's own words. And a dropdown says how many candidates were **found**,
+not only how many it shows: `(12 of 30 found)`. It could not have said so before, because
+`rank_for_gate` cut to the cap as well, discarding the total before the field ever saw it — a second
+cap beside the one whose comment claimed to be the only one.
+
+**`SHOWN` stays at twelve, and the reasoning is recorded because raising it was proposed and
+declined.** `F38` set it at twelve on this maintainer's own evidence — *"too many options to know
+which one is the right one"*. Measurement then settled it against the raise on its own terms: the
+four trial repositories hold **30, 186, 239 and 267** candidates, so forty would have shown all of
+one and 40 of 267 on another, moving the truncation rather than removing it. Ranking does not rescue
+it either — one gate's keywords match 205 of 239 candidates on one of them. **No cap is the
+mechanism for naming a file the list omits; typing is.**
+
+Two things fell out of the same code. `adopt --edit` had been **silently dropping** a pre-filled
+value that was not among the choices, so a hand-maintained profile lost an off-list artefact path and
+was re-asked for it; it is held now. And the reveal is wired **on the widget, not on either
+screen** — `F143` was one missing handler on one of the two screens that needed it, and a rule
+living with the widget cannot be half-installed.
+
+`DR-82` states what this does not fix: at 186–267 candidates neither a cap nor keyword ranking
+discriminates, and a type-to-filter list would. That is recorded as a known limitation rather than
+built on a guess about how adopters would use it.

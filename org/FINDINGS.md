@@ -211,7 +211,8 @@ an unknown number of releases with nothing noticing.
 | F143 | Ticking a control in the above-floor list never revealed the fields it makes required: the screen listened for every widget's change event except the multiselect's, so the wizard demanded a value for a field it did not show and no key could reach | high | Closed — `ACT-086`, 2026-09-09; see the body |
 | F144 | Any CI step was proposed as the implementation of `deterministic_tests` and `contract_tests`: on the maintainer's walkthrough a **checkout** step was written into the profile as `discovered`, and the checker reported the control verified against it | high | Closed — `ACT-087`, 2026-09-09; see the body |
 | F145 | `F144` fixed the proposal and not the profiles already carrying a bad one: the only real adopter had two controls credited to a checkout step and passed every run | medium | Closed — `ACT-088`, 2026-09-09; see the body |
-| F146 | An upgrade leaves `framework_version` and `framework_digest` stale by construction, so every upgrading adopter is handed `SP048` and `SP049` and must hand-copy a 64-character digest | medium | Open — the remedy changes what a profile asserts; the decision is `H23` |
+| F146 | An upgrade leaves `framework_version` and `framework_digest` stale by construction, so every upgrading adopter is handed `SP048` and `SP049` and must hand-copy a 64-character digest | medium | Closed — `ACT-092` (`DR-81`), 2026-09-09; see the body |
+| F147 | A dropdown of discovered candidates was the only answer a human could give, though nothing but the widget held that rule: the validator was always the real gate and a scripted adoption could name any tracked file. The list was also truncated 12-of-30 while claiming to be the finding | high | Closed — `ACT-093` (`DR-82`), 2026-09-09; see the body |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1543,9 +1544,75 @@ field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
 
+## F147 — A discovered list was offered as the only permitted answer
+
+**Severity: high. Closed — `ACT-093` (`DR-82`), 2026-09-09.**
+
+Found by the maintainer, driving the wizard by hand against `A-stranger`, a real 30-document
+repository. At the `prerequisite_state_ui` gate: *"I only see as options for files the ACTIVITY XXX
+ones. No options for creating new file."*
+
+Reproduced exactly:
+
+```
+total candidate artefacts: 30
+prerequisite_state_ui   matched: []          seed: (none)
+                        offered: activity/ACT-001.md … activity/ACT-012.md   (12 rows)
+```
+
+**Three faults, one class.**
+
+1. **No answer could be given that was not on the list.** `plan._from_candidates` set
+   `kind="select"` whenever discovery found anything, and a Textual `Select` cannot be typed into.
+   `prerequisite_state_ui` is one of the four interface gates `scaffold.SEEDABLE` deliberately
+   excludes (`DR-55`), so there was no *"create it"* row either. The only exits were to declare the
+   gate `not_applicable` — a different answer from the true one — or to abandon the run.
+2. **The offer was truncated and the count misstated it.** `discover.SHOWN` cut 30 candidates to 12
+   while the dropdown read `Choose precondition artefact (12 found)`. Thirty were found.
+   `activity/register.md` — the repository's actual governance artefact — sat at index 16, behind
+   sixteen `activity/ACT-nnn.md` files, and was never shown.
+3. **A second, undeclared cap made the first invisible.** `rank_for_gate` cut to `SHOWN` as well as
+   `_from_candidates`, whose own comment claimed to be the only cut (`F75`). With the total already
+   discarded upstream, the field could not have reported what it was hiding even had it tried.
+
+**The class: the widget's rule was stricter than the standard's, and the standard's rule was
+already enforced elsewhere.** Nothing in the model held the constraint the interface imposed —
+`flow.py` never checks an answer against `spec.choices`, and every field `_from_candidates` builds
+carries a validator that re-checks the repository independently (`tracked_path` requires the path to
+exist, be tracked, be non-empty, carry no placeholder and not be one this framework installed;
+`ci_step` and `scanner_workflow:<name>` likewise). So **a scripted adoption (`--answers`) could
+always name any tracked file, and a human at the keyboard could not.**
+
+`DR-38` decided *never offer something that isn't there*. What shipped was *never accept anything
+else* — a different and much stronger rule, which nobody decided and no record states.
+
+**Why no suite could see it.** `test_adopt_matrix.py` walks every reachable decision — 208 cases,
+44,774 checks — through `flow`, and never renders a widget. `test_adopt_tui.py`'s `F143` invariant
+asserts every field is *displayed and reachable*; neither of those is *answerable*, and the gap
+between them is exactly where this lived. The same blind spot as `F143`, one layer along.
+
+**A second defect fell out of the same code.** `_widget_for` silently dropped a pre-filled value
+that was not among the choices, so `adopt --edit` on a hand-maintained profile lost an off-list
+artefact path and re-asked for it as though it had never been given.
+
+**Closed by `ACT-093` (`DR-82`).** Every dropdown carries `plan.TYPE_A_PATH`, a row that reveals a
+text box; the field's own validator still rules, so a typed path that does not exist is refused in
+the checker's own words. The count states both numbers whenever they differ. `rank_for_gate` ranks
+and no longer cuts.
+
+**`SHOWN` stays at 12, and the reasoning is recorded because raising it was proposed and
+declined.** The agent recommended 40 on the stated ground that 12 had been sized for an 80×24
+terminal. **That ground was wrong**: `F38` set it at twelve on this maintainer's own Plutos
+evidence — *"too many options to know which one is the right one"*, about forty candidates.
+Measurement then settled it against both positions: the four trial repositories hold 30, 186, 239
+and 267 candidates, so forty would have shown all of one and 40 of 267 on another — moving the
+truncation rather than removing it, while re-creating the complaint that set the number. Keyword
+ranking does not rescue it either: `work_registration`'s keywords match 205 of 239 candidates on
+`B-no-deps`. **No cap is the mechanism for naming a file the list omits; the escape row is.**
+
 ## F146 — An upgrade guarantees two findings the adopter must fix by hand
 
-**Severity: medium. Open — the remedy changes what a profile asserts; the decision is `H23`.**
+**Severity: medium. Closed — `ACT-092` (`DR-81`), 2026-09-09.**
 
 Observed on the maintainer's walkthrough, upgrading a real adopter from `0.16.0` to `0.18.0`. The
 installer reports `keep governance/application-profile.yaml (yours; never overwritten)` — correct,
@@ -1583,6 +1650,18 @@ and quietly weakens an assertion; (3) leaves a guaranteed two-finding tax on eve
 
 **Not decided here**, because it changes what a profile asserts and `DR-45` is the record it would
 be read against.
+
+**Closed by `ACT-092` (`DR-81`), 2026-09-09 — the maintainer chose route (2).**
+`surfaceplate adopt --repin` reads `.standards/INSTALL.json` and sets both fields. **The act stays
+deliberate and only the typing goes**: a person runs it, which is the assertion `DR-45` wants, and
+nobody copies a 64-character digest by hand, which was never a claim about anything.
+
+The sidecar records both as **`fact of record`, not `typed`** — the adopter chose to re-pin and did
+not choose the value — with a reason naming what moved and where it was read from. Running it again
+changes nothing and says so.
+
+Verified on the real adopter that produced this finding: `WARN` with `SP048` and `SP049` → one
+command → `PASS`.
 
 ## F145 — The fix stopped new bad references and left the existing one passing
 

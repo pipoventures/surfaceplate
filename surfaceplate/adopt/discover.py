@@ -57,8 +57,18 @@ _CI_DIRS = (".github/workflows", ".gitlab-ci.d")
 # Short enough to read. Forty was "too many options to know which one is the right one", and a list
 # nobody can scan is a list nobody uses. **The cap is applied per field, after ranking, and never
 # to the scan** (`F75`): `scan` used to keep 200 and a repository with 300 files under `docs/` lost
-# its real `activity/register.md` before any gate had ranked it. `plan._from_candidates` and
-# `rank_for_gate` cut to `SHOWN` once the field at hand has put its best candidate first.
+# its real `activity/register.md` before any gate had ranked it. `plan._from_candidates` is now the
+# ONE place that cuts, once the field at hand has put its best candidate first - `rank_for_gate`
+# used to cut as well, and the duplicate is `F147` (a field could not report how many it was
+# hiding, so a dropdown said "12 found" in front of twelve of thirty).
+#
+# **This stays at twelve on `F38`'s evidence, and `F147` did not disturb it.** Real repositories
+# hold far more than any readable cap could show - 30, 186, 239 and 267 candidates across the four
+# trial repositories - so no value of `SHOWN` is the mechanism for naming a file the list omits.
+# The escape row is (`DR-82`), and the count beside it says what is being hidden. Raising the cap
+# was considered and declined: forty would have shown all of one trial repository and 40 of 267 on
+# another, moving the truncation rather than removing it, while re-creating the complaint that set
+# this number in the first place.
 SHOWN = 12              # what an adopter is actually offered, once ranked for the field at hand
 
 
@@ -266,13 +276,18 @@ def register_dirs_that_fit(repo: Path, directories, control_id: str) -> list[str
 
 
 def rank_for_gate(
-    candidates: tuple[str, ...] | list[str], gate_id: str, limit: int = SHOWN
+    candidates: tuple[str, ...] | list[str], gate_id: str, limit: int | None = None
 ) -> list[str]:
-    """The same candidates, most plausible for THIS gate first.
+    """The same candidates, most plausible for THIS gate first. **Ranks; does not cut.**
 
     A precondition list is only useful if the right answer is near the top; forty alphabetical
     paths is a haystack. Keyword matching is a hint, not a decision - nothing is removed, and the
     adopter still chooses.
+
+    `F147`: this used to cut to `SHOWN` as well, so there were TWO caps - one here and one in
+    `plan._from_candidates`, whose own comment already claimed to be the only one. The duplicate
+    made the true number of candidates unknowable at the field, which is how a dropdown came to
+    say *"12 found"* in front of twelve of thirty. One cut, at the field, as `F75` intended.
     """
     hit = matched_for_gate(candidates, gate_id, limit=None)
     if not GATE_KEYWORDS.get(gate_id, ()):

@@ -30,7 +30,13 @@ from typing import Callable
 from textual import events, on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, HorizontalGroup, Vertical, VerticalScroll
+from textual.containers import (
+    Horizontal,
+    HorizontalGroup,
+    Vertical,
+    VerticalGroup,
+    VerticalScroll,
+)
 from textual.screen import Screen
 from textual.suggester import SuggestFromList
 from textual.widgets import (
@@ -260,6 +266,83 @@ class EditableInput(Input):
             self.screen.focus_previous()
 
 
+class EscapableSelect(OneClickSelect):
+    """A dropdown whose list is an OFFER, never the set of permitted answers (`F147`, `DR-82`).
+
+    `DR-38` decided *never offer something that isn't there*. What shipped was *never accept
+    anything else* - a different and much stronger rule, which nobody decided and which the model
+    never held: `flow.py` does not check an answer against `spec.choices`, and every field
+    `plan._from_candidates` builds carries a validator that re-checks the repository on its own.
+    So a scripted adoption could always name a tracked file that a human at the keyboard could not.
+
+    Choosing `plan.TYPE_A_PATH` reveals the sibling box, and this widget then answers with what
+    was typed there. `_read_widget` asks it, so every screen collects the answer exactly as before.
+    """
+
+    def typed_box(self) -> Input | None:
+        """The box beside this dropdown, or `None` before it is mounted."""
+        if self.parent is None:
+            return None
+        boxes = self.parent.query(Input)
+        return boxes.first() if boxes else None
+
+    def is_typing(self) -> bool:
+        return not self.is_blank() and self.value == plan.TYPE_A_PATH
+
+    def chosen(self) -> object:
+        """The answer, from whichever half of the widget holds it."""
+        if self.is_blank():
+            return None
+        if not self.is_typing():
+            return self.value
+        box = self.typed_box()
+        return box.value if box is not None else ""
+
+
+class SelectOrType(VerticalGroup):
+    """An `EscapableSelect` and the box its escape row reveals.
+
+    **The reveal is wired here, on the widget, not on either screen.** `F143` was one missing
+    `@on(...)` on one of the two screens that needed it - the same omission twice is exactly what
+    a rule living on a screen invites. A rule that lives with the widget cannot be half-installed:
+    the controls form, the gate catalogue and the single-field change screen all get this without
+    a line of their own. The event still bubbles afterwards, so each screen's own handler runs as
+    it always did.
+
+    `VerticalGroup`, not `Vertical`: the latter is `height: 1fr` and would give one field the whole
+    screen - the same trap `FormScreen.compose` records for `Horizontal`.
+    """
+
+    @on(Select.Changed)
+    def _reveal(self, event: Select.Changed) -> None:
+        box = self.typed_box()
+        if box is None:
+            return
+        typing = isinstance(event.value, str) and event.value == plan.TYPE_A_PATH
+        box.display = typing
+        if typing:
+            box.focus()
+
+    def typed_box(self) -> Input | None:
+        boxes = self.query(Input)
+        return boxes.first() if boxes else None
+
+
+def _select_prompt(spec: plan.FieldSpec) -> str:
+    """What the closed dropdown says before anything is chosen.
+
+    `F147`: this read `(12 found)` while thirty had been found and twelve were being shown. A count
+    that names the offer and calls it the finding is a claim stronger than its evidence - the
+    defect this framework exists to refuse, in its own interface. So both numbers, whenever they
+    differ. The escape row is not a candidate and is not counted in either.
+    """
+    shown = sum(1 for value, _label in spec.choices if value != plan.TYPE_A_PATH)
+    total = max(spec.found_total, shown)
+    if total > shown:
+        return f"Choose {spec.label.lower()} ({shown} of {total} found)"
+    return f"Choose {spec.label.lower()} ({total} found)"
+
+
 def _widget_for(spec: plan.FieldSpec, value: object = None):
     """One field, as the widget its kind calls for. `id` carries the field id so a screen's widgets
     and its plan's fields can be joined by `tests/test_adopt_tui.py`.
@@ -286,15 +369,30 @@ def _widget_for(spec: plan.FieldSpec, value: object = None):
     if spec.kind == "select":
         # Discovered candidates, and nothing pre-selected: `Select.BLANK` keeps the same rule the
         # level screen states out loud - a value nobody picked is not an answer.
-        widget = OneClickSelect(
+        widget = EscapableSelect(
             [(label, choice_value) for choice_value, label in spec.choices],
-            prompt=f"Choose {spec.label.lower()} ({len(spec.choices)} found)",
+            prompt=_select_prompt(spec),
             allow_blank=True,
             id=widget_id,
         )
-        if isinstance(value, str) and any(value == v for v, _ in spec.choices):
-            widget.value = value
-        return widget
+        widget.add_class("field-widget")
+        box = EditableInput(
+            id=f"typed-{spec.id.replace('.', '--')}",
+            placeholder="a path in this repository",
+        )
+        box.display = False
+        if isinstance(value, str) and value:
+            if any(value == v for v, _ in spec.choices):
+                widget.value = value
+            else:
+                # `F147`, the other half: a value already in the profile that discovery does not
+                # offer was SILENTLY DROPPED here, so `adopt --edit` on a hand-maintained profile
+                # lost an off-list artefact path and re-asked for it as though it had never been
+                # given. The escape row is what lets the interface hold it at all.
+                widget.value = plan.TYPE_A_PATH
+                box.value = value
+                box.display = True
+        return SelectOrType(widget, box, id=f"sel-{spec.id.replace('.', '--')}")
     if spec.kind == "multiselect":
         chosen = {v.strip() for v in str(spec.default).split(",") if v.strip()}
         return VisibleSelectionList(
@@ -430,6 +528,10 @@ def _widget_kind(widget) -> str:
 def _read_widget(widget) -> object:
     if isinstance(widget, SelectionList):
         return list(widget.selected)
+    # BEFORE the `Select` branch, because an `EscapableSelect` IS one: when its escape row is
+    # chosen, `value` is `plan.TYPE_A_PATH` and the answer is in the box beside it (`F147`).
+    if isinstance(widget, EscapableSelect):
+        return widget.chosen()
     if isinstance(widget, Select):
         # `is_blank()`, not a comparison against a constant: `Select` exposes BOTH `BLANK` and
         # `NULL` and they are different objects, so `value is Select.BLANK` is silently always

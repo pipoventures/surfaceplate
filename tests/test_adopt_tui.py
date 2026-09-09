@@ -37,6 +37,7 @@ from surfaceplate.adopt.tui.screens import (  # noqa: E402
     FormScreen,
     GatesScreen,
     LevelScreen,
+    _read_widget,
 )
 
 FAILURES: list[str] = []
@@ -327,6 +328,128 @@ def test_every_field_the_plan_asks_for_is_displayed_and_reachable() -> None:
     check("and it examined BOTH gating widgets, not only the one that worked",
           gate_checked > 0, f"{gate_checked} radio-gated field(s)")
     print(f"  {checked} multiselect-gated and {gate_checked} radio-gated conditional field(s) checked")
+
+
+def test_every_select_field_can_be_answered_off_the_list() -> None:
+    """`F147`. The invariant above asserts every field is DISPLAYED and REACHABLE. Neither of those
+    is *answerable*, and that gap is the whole defect.
+
+        for every `select` field, on every screen that renders one, a value the field's own
+        validator accepts must be givable - whether or not discovery offered it.
+
+    The maintainer reached `prerequisite_state_ui` on a real repository and could not name the file
+    they meant. Thirty candidates existed; twelve were offered; the one they wanted was the
+    thirteenth. Textual's `Select` cannot be typed into, that gate is one of the four
+    `scaffold.SEEDABLE` deliberately excludes, so there was no "create it" row either - and the
+    only remaining exits were to declare the gate `not_applicable`, which is a different answer
+    from the true one, or to abandon the run.
+
+    **The constraint was never the standard's.** `flow.py` does not check an answer against
+    `spec.choices`; the only gate is the field's validator, and `tracked_path` independently
+    requires the path to exist, be tracked, be non-empty, carry no placeholder and not be one this
+    framework installed. A scripted adoption (`--answers`) could always name any tracked file. A
+    human driving the interface could not. `DR-38`'s rule was *never offer something that isn't
+    there*; it had been implemented as the much stronger *never accept anything else*.
+
+    **Why no scripted suite could see it.** The matrix drives `flow`, not the screens - 44,774
+    checks, none of which renders a widget. Same blind spot as `F143`, one layer along.
+
+    Both directions, because an escape that accepts anything is a hole and not an escape: a real
+    tracked file off the list is accepted, and a path that does not exist is refused in
+    `tracked_path`'s own words.
+    """
+    import subprocess
+    import tempfile
+
+    from surfaceplate.adopt import discover
+
+    # More candidates than the cap, so truncation genuinely bites, and a target that sorts BEYOND
+    # it: `_ARTEFACT_RANK` puts `docs/` first, and a root-level file after every ranked directory.
+    repo = Path(tempfile.mkdtemp(prefix="surfaceplate-offlist-")) / "repo"
+    (repo / "docs").mkdir(parents=True)
+    for args in (["init", "-q"], ["config", "user.email", "h@example.invalid"],
+                 ["config", "user.name", "H"], ["config", "commit.gpgsign", "false"]):
+        subprocess.run(["git", "-C", str(repo), *args], check=True)
+    for index in range(discover.SHOWN + 5):
+        (repo / "docs" / f"note-{index:03d}.md").write_text(f"# Note {index}\n", encoding="utf-8")
+    target = "the-file-they-actually-meant.md"
+    (repo / target).write_text("# The register\n\nReal content.\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "fixture"], check=True,
+                   capture_output=True)
+    found = discover.scan(repo)
+
+    specs = plan.gate_plan(level="essential", builds_ui=False, mode="simple", found=found)
+    section = plan.gates_plan(level="essential", builds_ui=False, mode="simple", found=found)
+    artefact = next(f for s in specs if s.id == "work_registration" for f in s.fields if f.id == "artefact")
+
+    check("the fixture truncates - the target is genuinely not among what is offered",
+          target not in [value for value, _label in artefact.choices],
+          f"{len(artefact.choices)} offered of {len(found.artefacts)} found")
+
+    # THE PLAN SIDE. Every field answered by picking carries the escape, on every section, so the
+    # property cannot hold for the one field this test drives and quietly fail for the rest.
+    escaped = 0
+    for name, built in (
+        ("gates", section),
+        ("controls", plan.controls_plan(level="full", mode="simple", found=found)),
+    ):
+        for spec in built.fields:
+            if spec.kind != "select":
+                continue
+            escaped += 1
+            check(f"{name}/{spec.id} offers a way off the list",
+                  plan.TYPE_A_PATH in [value for value, _label in spec.choices],
+                  f"choices: {[v for v, _l in spec.choices][:3]}")
+    check("the sweep examined some dropdowns - an empty sweep proves nothing", escaped > 0,
+          f"{escaped} select field(s)")
+
+    # AND THE COUNT IT STATES. The prompt said "(12 found)" while thirty were found, and the help
+    # said "these are simply the files found here" while showing twelve of them.
+    check("the field records how many were found, not only how many it shows",
+          artefact.found_total == len(found.artefacts),
+          f"found_total={getattr(artefact, 'found_total', None)} found={len(found.artefacts)}")
+
+    async def drive(typed: str) -> tuple[object, object, str]:
+        app = Host(GatesScreen(specs, section, repo=repo))
+        async with app.run_test(size=(120, 60)) as pilot:
+            await pilot.pause()
+            widget = app.screen.query_one("#f-work_registration--artefact")
+            widget.focus()
+            await pilot.pause()
+            widget.value = plan.TYPE_A_PATH
+            await pilot.pause()
+            await pilot.pause()
+            box = app.screen.query_one("#typed-work_registration--artefact")
+            reachable = bool(box.display) and box in app.screen.focus_chain
+            box.value = typed
+            await pilot.pause()
+            read_back = _read_widget(widget) if reachable else "(the box was not reachable)"
+            app.screen.query_one("#f-work_registration--paths").value = "**"
+            await pilot.pause()
+            await pilot.press("ctrl+s")
+            for _ in range(3):
+                await pilot.pause()
+            committed = app.result
+            hint = ""
+            if isinstance(app.screen, GatesScreen) and committed is None:
+                hint = str(app.screen.query_one("#hint").content)
+                app.exit(None)
+            return committed, read_back, hint
+
+    committed, read_back, _hint = asyncio.run(drive(target))
+    check("choosing the escape row reveals a box that reads back what was typed",
+          read_back == target, f"read back {read_back!r}")
+    check("and Ctrl+S commits the off-list value the validator accepts",
+          isinstance(committed, dict) and committed.get("work_registration.artefact") == target,
+          repr(committed)[:200])
+
+    # THE NEGATIVE CONTROL. The escape must be an escape, not a hole - the validator still rules.
+    committed, _read_back, hint = asyncio.run(drive("nowhere/at/all.md"))
+    check("a typed path that does not exist is refused, not committed",
+          committed is None, repr(committed)[:200])
+    check("and the refusal is the checker's own reason, at the field",
+          "nothing exists at that path" in hint.lower(), f"hint: {hint!r}")
 
 
 def test_ticking_a_control_reveals_the_fields_it_makes_required() -> None:
@@ -945,11 +1068,22 @@ def test_discovered_candidates_are_offered_as_choices() -> None:
                 isinstance(artefact, Select),
                 type(artefact).__name__,
             )
-            offered = [v for _prompt, v in artefact._options if isinstance(v, str)]
+            # The escape row is an ACTION, not a file, so it is excluded here rather than the rule
+            # being loosened to admit it (`F147`). `DR-38`'s "never offer something that isn't
+            # there" governs what is offered as a candidate; typing a path is not an offer.
+            offered = [
+                v for _prompt, v in artefact._options
+                if isinstance(v, str) and v != plan.TYPE_A_PATH
+            ]
             check(
                 "and every file it offers actually exists in the repository",
-                offered and all((ROOT / str(v)).exists() for v in offered),
+                bool(offered) and all((ROOT / str(v)).exists() for v in offered),
                 str(offered[:3]),
+            )
+            check(
+                "and the escape from the list is offered alongside them (F147)",
+                plan.TYPE_A_PATH in [v for _prompt, v in artefact._options],
+                str([v for _prompt, v in artefact._options][:2]),
             )
             check(
                 "nothing is pre-selected, so a value nobody picked is not an answer",
@@ -1767,6 +1901,9 @@ def main() -> int:
     print("\ngate catalogue (mockup frame 03)")
     test_gate_catalogue_behaviour()
     test_mandatory_and_masked_gates_are_stated_not_asked()
+
+    print("\nF147: a discovered list is an offer, not the only permitted answer")
+    test_every_select_field_can_be_answered_off_the_list()
 
     print("\nF64: an empty choice or dropdown is refused where it is made")
     test_an_empty_choice_is_refused_at_the_field()
