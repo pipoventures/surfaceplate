@@ -185,6 +185,15 @@ def _render_controls_by_topic(decisions: dict) -> str:
     dropped. A renderer that silently omitted a declaration would be the worst failure available
     to this function, and "unmapped" is a condition someone can see and fix.
     """
+    # `F132` / `DR-73`: at `essential`, `dependency_lock` is the whole floor, so a repository
+    # with no dependencies declares no selectable control at all. Written as an explicit empty
+    # map, never as a bare key: YAML reads `control_decisions:` with nothing after it as `null`,
+    # which the schema rejects as "None is not of type 'object'" - a confusing finding about a
+    # profile that is in fact correct. The three baseline controls are a separate block and are
+    # unaffected; this map is the SELECTABLE controls, and empty is a truthful answer for one.
+    if not decisions:
+        return "  {}"
+
     by_topic: dict[int, list[str]] = {}
     unmapped: list[str] = []
     for control_id in decisions:
@@ -194,7 +203,7 @@ def _render_controls_by_topic(decisions: dict) -> str:
         else:
             by_topic.setdefault(topic, []).append(control_id)
 
-    blocks: list[str] = []
+    blocks: list[str] = [""]
     for topic in sorted(by_topic):
         blocks.append(f"  # ---- Topic {topic}: {rules.TOPIC_NAMES[topic]} ----")
         blocks.extend(_render_control(cid, decisions[cid]) for cid in by_topic[topic])
@@ -305,8 +314,7 @@ baseline_controls:
       name: {_scalar(scanner['name'])}
       wired_in: {_flow_list(scanner['wired_in'])}
 {scanner_notes}
-control_decisions:
-{controls_text}
+control_decisions:{controls_text}
 
 # Prerequisite gates: "artefact X must exist before activity Y may begin". See
 # core/PREREQUISITE_GATES.md for the 19-gate catalogue and what each one guards.

@@ -1,0 +1,167 @@
+
+$ pip install 'git+https://github.com/pipoventures/surfaceplate@main' 2>&1 | tail -3
+Successfully built surfaceplate
+Installing collected packages: typing-extensions, rpds-py, pyyaml, attrs, referencing, jsonschema-specifications, jsonschema, surfaceplate
+Successfully installed attrs-26.1.0 jsonschema-4.26.0 jsonschema-specifications-2025.9.1 pyyaml-6.0.3 referencing-0.37.0 rpds-py-2026.6.3 surfaceplate-0.17.0 typing-extensions-4.16.0
+exit=0
+
+$ pip show surfaceplate | grep -E '^(Version|Location)'; pip freeze | grep -i surfaceplate
+Version: 0.17.0
+Location: /home/mps2210/surfaceplate-sweep/.venv-doc/lib/python3.12/site-packages
+surfaceplate @ git+https://github.com/pipoventures/surfaceplate@16b26fc79cb856b80cb97d04a4304a773dd71ecb
+exit=0
+
+$ cd /home/mps2210/surfaceplate-sweep/repos/d1 && surfaceplate --version
+surfaceplate 0.17.0
+exit=0
+
+$ cd /home/mps2210/surfaceplate-sweep/repos/d1 && surfaceplate doctor | tail -12
+ok    core.hooksPath (local) unset
+ok    core.hooksPath (worktree) unset
+warn  core.hooksPath (global) /home/mps2210/.config/git/hooks - the installer stops rather than replace it; install with --no-hooks, or unset it for this repository
+ok    core.hooksPath (system) unset
+warn  terminal               not attached; `adopt` needs one, `adopt --propose` does not
+ok    virtualenv on PATH     /usr/bin is on PATH; the hook will find this interpreter
+skip  vendored digest        /home/mps2210/surfaceplate-sweep/repos/d1 has no .standards/INSTALL.json; not installed here
+skip  tool vs installed      /home/mps2210/surfaceplate-sweep/repos/d1 has no .standards/INSTALL.json; not installed here
+skip  GitHub Actions enabled skipped (offline); run with --online and GITHUB_TOKEN set
+skip  standard is current    skipped: no standard installed here
+
+DOCTOR=OK  (3 warning, 15 checks)
+exit=0
+
+$ surfaceplate install --target /home/mps2210/surfaceplate-sweep/repos/d1 --dry-run | tail -4
+     rather than enforcing anything itself. If yours already does this, installing
+     the standard hook at that default path - not .githooks - and configuring
+     nothing further would work without touching the existing setting at all.
+Nothing has been written.
+exit=0
+
+$ surfaceplate install --target /home/mps2210/surfaceplate-sweep/repos/d1 | grep -n -E 'STOPPED|Nothing has been written'
+5:STOPPED - Git hooks for this repository already run from somewhere else.
+28:Nothing has been written.
+exit=0
+
+$ surfaceplate check --repo /home/mps2210/surfaceplate-sweep/repos/d1 | tail -3
+        fix : Run install_standard.py from the surfaceplate repository.
+
+FAIL - Surfaceplate is not installed in this repository.
+exit=0
+
+$ pip install 'surfaceplate[adopt] @ git+https://github.com/pipoventures/surfaceplate@main' 2>&1 | tail -2
+Installing collected packages: pygments, platformdirs, mdurl, linkify-it-py, markdown-it-py, rich, mdit-py-plugins, textual
+Successfully installed linkify-it-py-2.2.0 markdown-it-py-4.2.0 mdit-py-plugins-0.6.1 mdurl-0.1.2 platformdirs-4.11.8 pygments-2.21.0 rich-15.0.0 textual-8.2.8
+exit=0
+
+$ surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/d1 </dev/null | tail -4
+`adopt` is an interactive, full-screen wizard and needs a real terminal; this one is not attached to a TTY (output is piped, redirected, or running in CI).
+
+  Run it directly in a terminal:  surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/d1
+  Or without one:                 surfaceplate adopt --propose --target /home/mps2210/surfaceplate-sweep/repos/d1
+
+Nothing was read or written, and any saved draft in that repository is untouched.
+exit=0
+
+$ cd /home/mps2210/surfaceplate-sweep/doc && python3 -m venv .venv && . .venv/bin/activate && pip install 'git+https://github.com/pipoventures/surfaceplate@main' 2>&1 | tail -1 && cd /home/mps2210/surfaceplate-sweep/repos/d1 && surfaceplate doctor | tail -3 && surfaceplate install --target /home/mps2210/surfaceplate-sweep/repos/d1 --dry-run | tail -2; surfaceplate install --target /home/mps2210/surfaceplate-sweep/repos/d1 | tail -2; surfaceplate check --repo /home/mps2210/surfaceplate-sweep/repos/d1 | tail -2
+Successfully installed attrs-26.1.0 jsonschema-4.26.0 jsonschema-specifications-2025.9.1 pyyaml-6.0.3 referencing-0.37.0 rpds-py-2026.6.3 surfaceplate-0.17.0 typing-extensions-4.16.0
+skip  standard is current    skipped: no standard installed here
+
+DOCTOR=OK  (3 warning, 15 checks)
+     nothing further would work without touching the existing setting at all.
+Nothing has been written.
+     nothing further would work without touching the existing setting at all.
+Nothing has been written.
+
+FAIL - Surfaceplate is not installed in this repository.
+exit=0
+
+$ cd /home/mps2210/surfaceplate-sweep/repos/c7 && surfaceplate check --repo . | tail -2
+WARN - adoption is incomplete, but grace expires 2026-10-09 (30 day(s) remaining).
+This check will fail once the grace window ends. Complete the profile before then.
+exit=0
+
+$ cd /home/mps2210/surfaceplate-sweep/repos/c7 && python .standards/check_conformance.py | tail -2
+WARN - adoption is incomplete, but grace expires 2026-10-09 (30 day(s) remaining).
+This check will fail once the grace window ends. Complete the profile before then.
+exit=0
+
+$ cd /home/mps2210/surfaceplate-sweep/doc/surfaceplate && git pull 2>&1 | tail -2 && git rev-parse HEAD
+Already up to date.
+30bba4405fce4f49510f54bc8a824513face1d35
+exit=0
+
+$ cd /home/mps2210/surfaceplate-sweep/doc/surfaceplate && python surfaceplate/install_standard.py --target /home/mps2210/surfaceplate-sweep/repos/d1 --dry-run | tail -3
+     the standard hook at that default path - not .githooks - and configuring
+     nothing further would work without touching the existing setting at all.
+Nothing has been written.
+exit=0
+
+$ cd /home/mps2210/surfaceplate-sweep/repos/d1-i5 && git add .githooks && git update-index --chmod=+x .githooks/pre-commit && git ls-files -s .githooks/pre-commit
+100755 d90ac98f0927b9e9fdf6a4bde9da6167d544ab02 0	.githooks/pre-commit
+exit=0
+
+$ git ls-remote https://github.com/pipoventures/surfaceplate refs/heads/main
+16b26fc79cb856b80cb97d04a4304a773dd71ecb	refs/heads/main
+exit=0
+
+$ cd /home/mps2210/surfaceplate-sweep/doc/source-r3 && python3 -m venv .venv && .venv/bin/python -m pip install pyyaml jsonschema 2>&1 | tail -1
+Successfully installed attrs-26.1.0 jsonschema-4.26.0 jsonschema-specifications-2025.9.1 pyyaml-6.0.3 referencing-0.37.0 rpds-py-2026.6.3 typing-extensions-4.16.0
+exit=0
+
+$ cd /home/mps2210/surfaceplate-sweep/doc/source-r3 && . .venv/bin/activate && python tests/validate_contracts.py 2>&1 | tail -4
+  DR-50: never-checked fields optional; the two reliance answers round-trip
+CONTRACT_CONFORMANCE=PASS  (241 checks)
+exit=0
+
+$ cd /home/mps2210/surfaceplate-sweep/doc/source-r3 && . .venv/bin/activate && python tests/test_install_and_check.py 2>&1 | tail -4
+  - adopt without a terminal exits 3 and names --propose: rc=2 te[adopt] @ git+https://github.com/pipoventures/surfaceplate@main'
+Or, if you have a clone:  pip install 'textual==8.2.8'
+Without it, `surfaceplate adopt --propose` still works and needs no terminal.
+
+exit=0
+
+$ cd /home/mps2210/surfaceplate-sweep/doc/source-r3 && . .venv/bin/activate && python scripts/build_release.py 2>&1 | tail -6
+INSTALL_CONFORMANCE=FAIL  (1 failed, 309 passed)
+  - adopt without a terminal exits 3 and names --propose: rc=2 te[adopt] @ git+https://github.com/pipoventures/surfaceplate@main'
+Or, if you have a clone:  pip install 'textual==8.2.8'
+Without it, `surfaceplate adopt --propose` still works and needs no terminal.
+
+REFUSING TO BUILD: test_install_and_check.py did not pass. A release archive must not be produced from a failing payload.
+exit=0
+
+$ cd /home/mps2210/surfaceplate-sweep/doc/source-r3 && git status --short | head -5
+exit=0
+
+$ surfaceplate --version
+surfaceplate 0.17.0
+exit=0
+
+$ cd /home/mps2210/surfaceplate-sweep/repos/d1 && surfaceplate doctor >/dev/null
+exit=0
+
+$ surfaceplate install --target /home/mps2210/surfaceplate-sweep/repos/d1 --dry-run >/dev/null
+exit=4
+
+$ surfaceplate install --target /home/mps2210/surfaceplate-sweep/repos/d1 >/dev/null
+exit=4
+
+$ surfaceplate check --repo /home/mps2210/surfaceplate-sweep/repos/d1 >/dev/null
+exit=2
+
+$ surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/d1 </dev/null >/dev/null
+`adopt` is an interactive, full-screen wizard and needs a real terminal; this one is not attached to a TTY (output is piped, redirected, or running in CI).
+
+  Run it directly in a terminal:  surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/d1
+  Or without one:                 surfaceplate adopt --propose --target /home/mps2210/surfaceplate-sweep/repos/d1
+
+Nothing was read or written, and any saved draft in that repository is untouched.
+exit=3
+
+$ cd /home/mps2210/surfaceplate-sweep/repos/c7 && surfaceplate check --repo . >/dev/null
+exit=0
+
+$ cd /home/mps2210/surfaceplate-sweep/repos/c7 && python .standards/check_conformance.py >/dev/null
+exit=0
+
+$ cd /home/mps2210/surfaceplate-sweep/doc/surfaceplate && git pull >/dev/null && python surfaceplate/install_standard.py --target /home/mps2210/surfaceplate-sweep/repos/d1 --dry-run >/dev/null
+exit=4

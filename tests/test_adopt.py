@@ -82,6 +82,18 @@ def make_installed_repo(tmp: Path, name: str) -> Path:
         text=True,
     )
     assert result.returncode == 0, f"fixture install failed:\n{result.stdout}\n{result.stderr}"
+    # `F132` / `DR-73`: a dependency MANIFEST, deliberately not a LOCK file. Until this line the
+    # shared fixture declared no dependencies at all, which is the state `DR-73` now waives the
+    # `dependency_lock` floor for - so every scripted answer about that control would go unasked
+    # and this suite would be testing a repository shape it never meant to. `package.json` is a
+    # manifest and is not in `discover._LOCK_FILES`, so the floor applies AND the reference is
+    # still asked, which is what these scripts describe.
+    (repo / "package.json").write_text('{"name": "harness"}\n', encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "package.json"], check=True)
+    subprocess.run(
+        ["git", "-C", str(repo), "commit", "-qm", "dependency manifest"],
+        check=True, capture_output=True,
+    )
     return repo
 
 
@@ -975,6 +987,157 @@ def test_full_ui_end_to_end(tmp: Path) -> None:
         str(sorted(data["control_decisions"])),
     )
     check("the full profile validates against its own schema", _schema_ok(repo, written))
+
+
+def test_a_replay_neither_reads_nor_writes_a_draft(tmp: Path) -> None:
+    """`F134`. A refused `--answers` replay wrote `.standards/adopt-draft.json` while printing
+    "Nothing was written", and the next replay then resumed from that draft rather than from the
+    record it was handed - failing with the PREVIOUS attempt's error, about a value the adopter had
+    already corrected. Re-running `--propose`, the advice the refusal itself gives, did not clear it.
+
+    A draft exists to protect a human mid-interview from losing an hour of answers. A replay has
+    nothing to protect: its answers are already in a file the adopter wrote and still holds. So the
+    fix is not to clear the draft afterwards but never to involve it - the replay becomes a pure
+    function of its record, the same property `sections.build_profile` already has.
+    """
+    from surfaceplate.adopt.interview import DRAFT_FORMAT  # noqa: E402
+
+    repo = make_installed_repo(tmp, "replay-draft")
+    draft_path = repo / wizard.DRAFT_FILENAME
+
+    # A draft that would poison the run if it were read at all: not merely stale, but junk.
+    draft_path.parent.mkdir(parents=True, exist_ok=True)
+    draft_path.write_text(json.dumps({
+        "format": DRAFT_FORMAT,
+        "framework_version": "0.0.0",
+        "sections": {"identity": {"owner": "FROM THE DRAFT, NOT THE RECORD"}},
+        "done": ["identity", "stack", "risk", "level", "controls", "gates", "adoption", "wrap"],
+    }), encoding="utf-8")
+
+    proposed = wizard.propose(repo, level="essential")
+    answers = yaml.safe_load(Path(proposed.answers).read_text(encoding="utf-8"))
+    check("the draft this test planted is still on disk before the replay", draft_path.is_file())
+
+    # A record that the review will refuse: a path that does not exist.
+    bad = dict(answers)
+    bad_answers = dict(bad.get("answers") or {})
+    bad_answers["controls.dependency_lock.implementation_reference"] = "no/such/lock.file"
+    for key, value in list(bad_answers.items()):
+        if value == "needs-human":
+            bad_answers[key] = "README.md" if key.endswith(".artefact") else "Stated by the harness."
+    bad["answers"] = bad_answers
+    bad_path = repo / "bad-answers.yaml"
+    bad_path.write_text(yaml.safe_dump(bad, sort_keys=False), encoding="utf-8")
+
+    draft_path.unlink()
+    try:
+        wizard.replay(repo, bad_path)
+    except Exception:
+        pass
+    check(
+        "a refused replay writes NO draft, so its own 'Nothing was written' is true",
+        not draft_path.is_file(),
+        "a draft was left behind",
+    )
+
+
+def test_a_repository_with_no_dependencies_can_still_conform(tmp: Path) -> None:
+    """`F132` / `DR-73` / `H22`. The regression test for the defect a person found on the wizard's
+    first screen, on a real repository, after 45,266 matrix checks had passed.
+
+    `dependency_lock` is the only control in the `essential` floor and `SP051` requires it to name
+    a real tracked file. A repository with no dependency manifest of any kind - documentation,
+    policy, a monorepo subtree whose dependencies resolve a level up - had nothing to name and so
+    could not conform at ANY level. `H22` chose to derive applicability rather than let it be
+    declared, so nothing is written in the profile and nothing can be misdeclared.
+
+    BOTH DIRECTIONS ARE ASSERTED HERE, and the second is what makes the first safe. A waiver that
+    could not come back would be a permanent escape from the one control this standard applies to
+    everyone.
+    """
+    repo = make_installed_repo(tmp, "no-deps-repo")
+    # make_installed_repo now seeds a manifest; this case is about its absence.
+    (repo / "package.json").unlink()
+    subprocess.run(["git", "-C", str(repo), "rm", "-q", "--cached", "package.json"], check=True)
+    subprocess.run(
+        ["git", "-C", str(repo), "commit", "-qm", "no dependencies here"],
+        check=True, capture_output=True,
+    )
+
+    from surfaceplate import rules  # noqa: E402
+    from surfaceplate.adopt import discover  # noqa: E402
+
+    manifest, state = rules.dependency_manifest(repo)
+    check("with no manifest tracked, the state is 'none' and no path is named",
+          (manifest, state) == (None, "none"), f"{manifest!r}, {state!r}")
+
+    found = discover.scan(repo)
+    check("discovery reports the repository declares no dependencies",
+          found.has_dependency_manifest is False)
+    check("the level floor the wizard uses no longer names the control",
+          "dependency_lock" not in plan.level_floor("essential", found))
+
+    # THE WAIVER REMOVES AN OBLIGATION, NOT AN OPTION. The control is still offered - a
+    # repository with no manifest today may still want the discipline - but only above the
+    # floor, behind the `above_floor` tick, which is what `depends_on` encodes. Asserting it is
+    # not PRESENTED would have been the wrong claim, and was the first thing this test asserted.
+    plan_ = plan.controls_plan(level="essential", mode="simple", found=found)
+    by_id = {f.id: f for f in plan_.fields}
+    for field_id in ("dependency_lock.rationale", "dependency_lock.implementation_reference"):
+        spec = by_id.get(field_id)
+        check(f"{field_id} is still offered, so the control can be chosen deliberately",
+              spec is not None)
+        check(f"but only above the floor - {field_id} asks nothing unless a human ticks it",
+              spec is not None and spec.depends_on == ("above_floor", ("dependency_lock",)),
+              repr(getattr(spec, "depends_on", None)))
+
+    # And the reference field on the decisions screen - the one the maintainer hit - is not
+    # asked at all, because that one has no `above_floor` escape and no answer to give.
+    decisions = plan.decisions_plan(repo, found=found, proposals={})
+    check("the decisions screen does not demand a lock file that cannot exist (F132)",
+          "controls.dependency_lock.implementation_reference" not in {f.id for f in decisions.fields},
+          sorted(f.id for f in decisions.fields))
+
+    # `above_floor` empty on purpose: this case is about the FLOOR, and `answers_for` otherwise
+    # ticks every above-floor control on to exercise that branch.
+    answers = answers_for(repo, level="essential", builds_ui=False, mode="simple",
+                          overrides={"controls.above_floor": []})
+    for dead in ("controls.dependency_lock.rationale",
+                 "controls.dependency_lock.implementation_reference"):
+        answers.pop(dead, None)
+    interview = ScriptedInterview(answers=answers)
+    written = wizard.run(repo, interview)
+    interview.assert_no_unused_keys()
+
+    import yaml  # noqa: E402
+
+    data = yaml.safe_load(written.read_text(encoding="utf-8"))
+    check("the profile declares no selectable control, written as an empty map and not as null",
+          data["control_decisions"] == {}, repr(data["control_decisions"]))
+    check("and it validates against the schema, which permitted minProperties 1 until DR-73",
+          _schema_ok(repo, written))
+
+    # THE OTHER DIRECTION. A waiver that cannot be revoked is not a waiver, it is a hole.
+    (repo / "package.json").write_text('{"name": "x"}\n', encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "package.json"], check=True)
+    subprocess.run(
+        ["git", "-C", str(repo), "commit", "-qm", "a dependency appears"],
+        check=True, capture_output=True,
+    )
+    check("the moment a manifest appears the state flips back, with the file named",
+          rules.dependency_manifest(repo) == ("package.json", "found"))
+    check("and the floor returns without anyone editing the profile",
+          "dependency_lock" in plan.level_floor("essential", discover.scan(repo)))
+    result = subprocess.run(
+        [sys.executable, str(repo / ".standards" / "check_conformance.py"), "--repo", str(repo)],
+        capture_output=True, text=True,
+    )
+    check("so the same profile that passed now reports SP021 against the control",
+          "[SP021]" in result.stdout and "dependency_lock" in result.stdout,
+          result.stdout[-600:])
+    check("and the remedy does not tell an `essential` adopter to declare a lower level, "
+          "because there is not one",
+          "lower level" not in result.stdout, result.stdout[-600:])
 
 
 def test_design_gates_are_asked_not_invented(tmp: Path) -> None:
@@ -2446,6 +2609,8 @@ def main() -> int:
         test_full_ui_end_to_end(tmp)
 
         print("\nstandard-level, no-UI (ACT-022: DESIGN_GATES rationale is asked)")
+        test_a_replay_neither_reads_nor_writes_a_draft(tmp)
+        test_a_repository_with_no_dependencies_can_still_conform(tmp)
         test_design_gates_are_asked_not_invented(tmp)
 
         print("\ninterrupt and resume")

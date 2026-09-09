@@ -1151,6 +1151,83 @@ def test_currency_is_reported_where_integrity_cannot_be(tmp: Path) -> None:
     )
 
 
+def test_a_copy_is_not_a_former_name_and_a_missing_git_asserts_nothing(tmp: Path) -> None:
+    """`F133`, and the class it belongs to.
+
+    `adopt` scaffolds a gate artefact by copying a file out of `.standards/seeds/`. The copy is
+    byte-identical and lands in a LATER commit, so `git log --follow` reports `C100` and `F30`'s
+    rename-following accepted the SEED as a former name of the artefact. **The seed is installed
+    payload and is never deleted**, so the audit then found the artefact "present" at every commit
+    - including ones that deleted it and changed a gated path. A control passing while not holding,
+    for every artefact the wizard scaffolds.
+
+    Two rules now, and they are different in kind. Rejecting `C` records corrects git's own
+    classification. The second states what a former name IS: **a rename leaves the old path gone;
+    a copy leaves both**, so a candidate that still exists today is not a former name of anything.
+
+    The last case here is the class rather than the instance. `F133` and the sweep's `PW-04` are
+    the same defect - a negative asserted from an observation that could not have found the thing.
+    With `git` off `PATH` nothing may report an absence.
+    """
+    import os as _os
+
+    repo = make_git_repo(tmp, "copy-not-rename")
+    install(repo, "--no-hooks")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "install"], check=True,
+                   capture_output=True)
+    # Scaffold exactly as `adopt` does: copy the seed, in a later commit.
+    seed = repo / ".standards" / "seeds" / "activity-register.md"
+    (repo / "activity").mkdir(exist_ok=True)
+    (repo / "activity" / "register.md").write_bytes(seed.read_bytes())
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "scaffold from the seed"], check=True,
+                   capture_output=True)
+
+    raw = subprocess.run(
+        ["git", "-C", str(repo), "log", "--follow", "--name-status", "--format=", "--",
+         "activity/register.md"],
+        capture_output=True, text=True,
+    ).stdout
+    check("git really does report the scaffold as a copy of the seed - the premise, not an "
+          "assumption", "C100" in raw and "seeds/activity-register.md" in raw, raw[:200])
+
+    paths = _checker.historical_paths(repo, "activity/register.md")
+    check("but the seed is NOT accepted as a former name of the artefact",
+          ".standards/seeds/activity-register.md" not in paths, str(paths))
+    check("and the artefact's own path is still there", paths[0] == "activity/register.md")
+
+    # The other direction: F30's remedy must survive. A genuine rename leaves the old path gone.
+    (repo / "docs").mkdir(exist_ok=True)
+    (repo / "docs" / "OLD.md").write_text("# old\n\nrows\nmore rows\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "a document"], check=True,
+                   capture_output=True)
+    subprocess.run(["git", "-C", str(repo), "mv", "docs/OLD.md", "docs/NEW.md"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "rename it"], check=True,
+                   capture_output=True)
+    renamed = _checker.historical_paths(repo, "docs/NEW.md")
+    check("a genuine rename is still followed, so F30's remedy survives",
+          "docs/OLD.md" in renamed, str(renamed))
+
+    # ---- the class: with git unavailable, nothing may assert an absence ----
+    stripped = dict(_os.environ, PATH="/nonexistent")
+    out = run([str(repo / ".standards" / "check_conformance.py"), "--repo", str(repo)], env=stripped)
+    combined = out.stdout + out.stderr
+    check(
+        "with git off PATH the checker does not report a clean bill it could not have earned",
+        "PASS - all conformance checks satisfied." not in combined,
+        combined[-400:],
+    )
+    doc = run([str(PAYLOAD / "doctor.py"), "--repo", str(repo)], env=stripped) if (PAYLOAD / "doctor.py").exists() else None
+    if doc is not None:
+        check(
+            "and doctor does not report core.hooksPath as `unset` when it could not ask (PW-04)",
+            "unset" not in doc.stdout or "could not" in doc.stdout.lower(),
+            doc.stdout[-400:],
+        )
+
+
 def test_a_declared_canon_artefact_is_checked_for_existence_and_tracking(tmp: Path) -> None:
     """`WI-2` / `DR-71`. What an adopter declares governs their repository, verified not trusted.
 
@@ -1359,6 +1436,9 @@ def main() -> int:
 
         print("\na declared canon artefact is checked, not trusted (DR-71, WI-2)")
         test_a_declared_canon_artefact_is_checked_for_existence_and_tracking(tmp)
+
+        print("\na copy is not a former name, and a missing git asserts nothing (F133)")
+        test_a_copy_is_not_a_former_name_and_a_missing_git_asserts_nothing(tmp)
 
         print("\ncurrency is reported where integrity cannot be (DR-68, F124)")
         test_currency_is_reported_where_integrity_cannot_be(tmp)

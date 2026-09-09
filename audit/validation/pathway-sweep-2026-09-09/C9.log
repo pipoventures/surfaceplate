@@ -1,0 +1,169 @@
+
+$ grep -n '^owner:' /home/mps2210/surfaceplate-sweep/repos/c8/governance/application-profile.yaml
+21:owner: replace-me                     # named human, not a team alias
+exit=0
+
+$ surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/c8 --edit owner Sweep Team (renamed) --because team renamed after reorg
+
+The wizard could not finish: KeyError: 'scanner'
+Nothing was written. Your answers are kept in the draft, so re-running `adopt` offers to resume from where this stopped.
+exit=4
+
+$ grep -n '^owner:' /home/mps2210/surfaceplate-sweep/repos/c8/governance/application-profile.yaml; git -C /home/mps2210/surfaceplate-sweep/repos/c8 status --short; grep -n -B2 -A6 'renamed' /home/mps2210/surfaceplate-sweep/repos/c8/governance/application-profile.provenance.yaml | head -30
+21:owner: replace-me                     # named human, not a team alias
+grep: /home/mps2210/surfaceplate-sweep/repos/c8/governance/application-profile.provenance.yaml: No such file or directory
+exit=0
+
+$ surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/c8 --edit owner Sweep Team (unexplained)
+
+The wizard could not finish: KeyError: 'scanner'
+Nothing was written. Your answers are kept in the draft, so re-running `adopt` offers to resume from where this stopped.
+exit=4
+
+$ grep -n '^owner:' /home/mps2210/surfaceplate-sweep/repos/c8/governance/application-profile.yaml; grep -n -B2 -A6 'unexplained' /home/mps2210/surfaceplate-sweep/repos/c8/governance/application-profile.provenance.yaml | head -30
+21:owner: replace-me                     # named human, not a team alias
+grep: /home/mps2210/surfaceplate-sweep/repos/c8/governance/application-profile.provenance.yaml: No such file or directory
+exit=0
+
+$ surfaceplate check --repo /home/mps2210/surfaceplate-sweep/repos/c8
+Surfaceplate - conformance check
+repository: /home/mps2210/surfaceplate-sweep/repos/c8
+standard  : 0.17.0 installed 2026-09-09
+
+Advisory (1) - not a failure:
+  - the pre-commit hook was declined at install: nothing checks staged changes before they are committed, and this repository relies on history_audit and review. A gate that claims local_hook enforcement anyway is still a finding (SP038).
+
+Adoption completeness findings (15):
+  [SP016] The application profile does not satisfy the control contract
+        what: at adoption/framework_digest: 'replace-me' does not match '^[A-Fa-f0-9]{64}$'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at adoption/framework_version: 'replace-me' does not match '^[0-9]+\\.[0-9]+\\.[0-9]+$'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at builds_user_interface: 'replace-me' is not of type 'boolean'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at prerequisites/0/effective_from: 'replace-me' does not match '^\\d{4}-\\d{2}-\\d{2}([T ]\\d{2}:\\d{2}(:\\d{2}(\\.\\d+)?)?(Z|[+-]\\d{2}:\\d{2})?)?$'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at risk/material_quantitative_output: 'replace-me' is not of type 'boolean'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at risk/relied_on_outside_team: 'replace-me' is not of type 'boolean'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP024] The profile review date is unreadable
+        what: adoption.review_by is 'replace-me', which is not an ISO date.
+        fix : Use the YYYY-MM-DD form, for example '2027-02-15'.
+  [SP020] The application profile still contains template placeholders
+        what: application_id = 'replace-me'; display_name = 'replace-me'; owner = 'replace-me'; risk.relied_on_outside_team = 'replace-me'; risk.material_quantitative_output = 'replace-me'; adoption.framework_version = 'replace-me'; adoption.framework_digest = 'replace-me'; adoption.adoption_date = 'replace-me'; adoption.review_by = 'replace-me'; adoption.framework_maintainer = 'replace-me' (and 9 more)
+        fix : Replace every placeholder with a real value. A profile of placeholders records nothing.
+  [SP046] secret_hygiene is declared but no scanner is named
+        what: baseline_controls.secret_hygiene has no scanner block naming a tool and where it is wired.
+        fix : Name the scanner and the file(s) that run it under baseline_controls.secret_hygiene.scanner. This standard requires secret_hygiene at every level; until the scanner is named, the requirement is a declaration with nothing behind it.
+  [SP051] Control 'dependency_lock' is required but names nothing to check
+        what: control_decisions.dependency_lock has no implementation_reference, so the declaration is compared against nothing.
+        fix : Add implementation_reference naming the file that implements this control - a lock file, a findings register. A control checked only against its own declaration is a statement of intent, not a control.
+  [SP048] The profile declares a different version from the one installed
+        what: adoption.framework_version is replace-me, but .standards/INSTALL.json records 0.17.0 as installed.
+        fix : Correct the profile, or re-run the installer. A conformance claim names the version it was assessed against; naming one that is not present makes the claim unverifiable rather than merely wrong.
+  [SP049] The profile's framework digest does not match what is installed
+        what: adoption.framework_digest is replace-me, but the installed standard anchors to ceffdcf76ae5440ceae16c154893c3771455db0ad7aaa36d245bbe67db4c8d7f.
+        fix : Set adoption.framework_digest to the value in .standards/INSTALL.json, or re-run the installer. Note that DR-14 changed this field's meaning: it is now sha256(MANIFEST.sha256), not the release archive's digest, because the archive is not reproducible and so could never be recomputed by anyone checking the claim.
+  [SP032] Gate 'work_registration' requires an artefact that does not exist
+        what: replace-me is named as a precondition but is not present.
+        fix : Create the artefact, correct the path, or change the gate's status. A gate whose precondition cannot be satisfied is not a control.
+  [SP033] Gate 'work_registration' has an unreadable effective date
+        what: effective_from is 'replace-me', which is not an ISO date.
+        fix : Use YYYY-MM-DD, or YYYY-MM-DDThh:mm:ss+hh:mm to bind from an instant.
+  [SP037] 'builds_user_interface' is not a yes or no
+        what: found 'replace-me'.
+        fix : Use true or false.
+
+WARN - adoption is incomplete, but grace expires 2026-10-09 (30 day(s) remaining).
+This check will fail once the grace window ends. Complete the profile before then.
+exit=0
+
+$ grep -n '^owner:' /home/mps2210/surfaceplate-sweep/repos/c8/governance/application-profile.yaml
+12:owner: Sweep Team
+exit=0
+
+$ surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/c8 --edit owner Sweep Team (renamed) --because team renamed after reorg
+Edited owner in /home/mps2210/surfaceplate-sweep/repos/c8/governance/application-profile.yaml; the change is recorded beside it as typed, with the reason.
+exit=0
+
+$ grep -n '^owner:' /home/mps2210/surfaceplate-sweep/repos/c8/governance/application-profile.yaml; git -C /home/mps2210/surfaceplate-sweep/repos/c8 status --short; grep -n -B3 -A8 'renamed' /home/mps2210/surfaceplate-sweep/repos/c8/governance/application-profile.provenance.yaml | head -40
+12:owner: Sweep Team (renamed)
+ M governance/application-profile.provenance.yaml
+ M governance/application-profile.yaml
+27-    detail: = the directory name
+28-  owner:
+29-    origin: typed
+30:    detail: team renamed after reorg
+31-    typed_at: '2026-09-09T11:58:57+01:00'
+32-  stack.language:
+33-    origin: discovered
+34-    detail: language markers found in this repository
+35-  builds_user_interface:
+36-    origin: typed
+37-  risk_profile:
+38-    origin: typed
+--
+484-edits:
+485-- path: owner
+486-  at: '2026-09-09T11:58:57+01:00'
+487:  reason: team renamed after reorg
+exit=0
+
+$ surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/c8 --edit owner Sweep Team (unexplained)
+Edited owner in /home/mps2210/surfaceplate-sweep/repos/c8/governance/application-profile.yaml; the change is recorded beside it as typed, with the reason.
+exit=0
+
+$ grep -n '^owner:' /home/mps2210/surfaceplate-sweep/repos/c8/governance/application-profile.yaml; grep -n -B3 -A8 'unexplained' /home/mps2210/surfaceplate-sweep/repos/c8/governance/application-profile.provenance.yaml | head -40
+12:owner: Sweep Team (unexplained)
+exit=0
+
+$ surfaceplate check --repo /home/mps2210/surfaceplate-sweep/repos/c8
+Surfaceplate - conformance check
+repository: /home/mps2210/surfaceplate-sweep/repos/c8
+standard  : 0.17.0 installed 2026-09-09
+
+Advisory (25) - not a failure:
+  - dependency_lock: verified against requirements.txt
+  - documentation_authority: verified via the authority_map gate
+  - contract_tests: verified against step 'contract tests' in .github/workflows/tests.yml
+  - deterministic_tests: verified against step 'deterministic tests' in .github/workflows/tests.yml
+  - the pre-commit hook was declined at install: nothing checks staged changes before they are committed, and this repository relies on history_audit and review. A gate that claims local_hook enforcement anyway is still a finding (SP038).
+  - gate 'work_registration': activity/register.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (activity-register.md); it holds no entries of this repository's own yet
+  - work_registration: precondition activity/register.md followed through 1 rename(s): activity/register.md <- .standards/seeds/activity-register.md
+  - gate 'risk_classification': governance/RISK_CLASSIFICATION.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (risk-classification.md); it holds no entries of this repository's own yet
+  - risk_classification: precondition governance/RISK_CLASSIFICATION.md followed through 1 rename(s): governance/RISK_CLASSIFICATION.md <- .standards/seeds/risk-classification.md
+  - gate 'decision_before_implementation': docs/decisions/decision-log.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (decision-log.md); it holds no entries of this repository's own yet
+  - decision_before_implementation: precondition docs/decisions/decision-log.md followed through 1 rename(s): docs/decisions/decision-log.md <- .standards/seeds/decision-log.md
+  - gate 'authority_map': documentation/governance/inventory/source_of_truth_matrix.yaml is seeded - byte-identical to the seed `surfaceplate adopt` creates (source-of-truth-matrix.yaml); it holds no entries of this repository's own yet
+  - authority_map: precondition documentation/governance/inventory/source_of_truth_matrix.yaml followed through 1 rename(s): documentation/governance/inventory/source_of_truth_matrix.yaml <- .standards/seeds/source-of-truth-matrix.yaml
+  - gate 'test_convention': docs/testing/TEST_CONVENTIONS.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (test-conventions.md); it holds no entries of this repository's own yet
+  - test_convention: precondition docs/testing/TEST_CONVENTIONS.md followed through 1 rename(s): docs/testing/TEST_CONVENTIONS.md <- .standards/seeds/test-conventions.md
+  - gate 'data_source_lifecycle': governance/DATA_SOURCES.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (data-source-register.md); it holds no entries of this repository's own yet
+  - data_source_lifecycle: precondition governance/DATA_SOURCES.md followed through 1 rename(s): governance/DATA_SOURCES.md <- .standards/seeds/data-source-register.md
+  - gate 'output_validation_before_external_use': docs/OUTPUT_VALIDATION.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (output-validation-log.md); it holds no entries of this repository's own yet
+  - output_validation_before_external_use: precondition docs/OUTPUT_VALIDATION.md followed through 1 rename(s): docs/OUTPUT_VALIDATION.md <- .standards/seeds/output-validation-log.md
+  - gate 'dependency_output_delta': docs/DEPENDENCY_REVIEW.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (dependency-review-log.md); it holds no entries of this repository's own yet
+  - dependency_output_delta: precondition docs/DEPENDENCY_REVIEW.md followed through 1 rename(s): docs/DEPENDENCY_REVIEW.md <- .standards/seeds/dependency-review-log.md
+  - gate 'records_before_release': docs/RELEASE_CHECKLIST.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (release-checklist.md); it holds no entries of this repository's own yet
+  - records_before_release: precondition docs/RELEASE_CHECKLIST.md followed through 1 rename(s): docs/RELEASE_CHECKLIST.md <- .standards/seeds/release-checklist.md
+  - gate 'change_record_before_completion': CHANGELOG.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (CHANGELOG.md); it holds no entries of this repository's own yet
+  - change_record_before_completion: precondition CHANGELOG.md followed through 1 rename(s): CHANGELOG.md <- .standards/seeds/CHANGELOG.md
+
+PASS - all conformance checks satisfied.
+exit=0
+
+$ sed -n '/^edits:/,$p' /home/mps2210/surfaceplate-sweep/repos/c8/governance/application-profile.provenance.yaml
+edits:
+- path: owner
+  at: '2026-09-09T11:58:57+01:00'
+  reason: team renamed after reorg
+- path: owner
+  at: '2026-09-09T11:58:57+01:00'
+  reason: edited after the write with `surfaceplate adopt --edit`
+exit=0

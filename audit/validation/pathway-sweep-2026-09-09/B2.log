@@ -1,0 +1,707 @@
+
+$ surfaceplate install --target /home/mps2210/surfaceplate-sweep/repos/b2 --chain
+Surfaceplate 0.17.0 - install
+source: /home/mps2210/surfaceplate-sweep/.venv/lib/python3.12/site-packages/surfaceplate
+target: /home/mps2210/surfaceplate-sweep/repos/b2
+
+  write   .github/instructions/01-authority.instructions.md
+  write   .claude/rules/surfaceplate-01-authority.md
+  write   .github/instructions/02-decision-authority-and-escalation.instructions.md
+  write   .claude/rules/surfaceplate-02-decision-authority-and-escalation.md
+  write   .github/instructions/03-work-definition.instructions.md
+  write   .claude/rules/surfaceplate-03-work-definition.md
+  write   .github/instructions/04-work-tracking.instructions.md
+  write   .claude/rules/surfaceplate-04-work-tracking.md
+  write   .github/instructions/05-risk-and-proportionality.instructions.md
+  write   .claude/rules/surfaceplate-05-risk-and-proportionality.md
+  write   .github/instructions/06-evidence-and-completion.instructions.md
+  write   .claude/rules/surfaceplate-06-evidence-and-completion.md
+  write   .github/instructions/07-testing.instructions.md
+  write   .claude/rules/surfaceplate-07-testing.md
+  write   .github/instructions/08-confidentiality-and-data-boundaries.instructions.md
+  write   .claude/rules/surfaceplate-08-confidentiality-and-data-boundaries.md
+  write   .github/instructions/09-dependencies-and-supply-chain.instructions.md
+  write   .claude/rules/surfaceplate-09-dependencies-and-supply-chain.md
+  write   .github/instructions/10-provenance-and-lineage.instructions.md
+  write   .claude/rules/surfaceplate-10-provenance-and-lineage.md
+  write   .github/instructions/11-concurrency.instructions.md
+  write   .claude/rules/surfaceplate-11-concurrency.md
+  write   .github/instructions/12-enforcement-and-change-control.instructions.md
+  write   .claude/rules/surfaceplate-12-enforcement-and-change-control.md
+  write   .github/skills/bug-fix/SKILL.md
+  write   .claude/skills/bug-fix/SKILL.md
+  write   .github/skills/change/SKILL.md
+  write   .claude/skills/change/SKILL.md
+  write   .github/skills/dependency-update/SKILL.md
+  write   .claude/skills/dependency-update/SKILL.md
+  write   .github/skills/fix-ci/SKILL.md
+  write   .claude/skills/fix-ci/SKILL.md
+  write   .github/skills/release/SKILL.md
+  write   .claude/skills/release/SKILL.md
+  write   .github/skills/review/SKILL.md
+  write   .claude/skills/review/SKILL.md
+  write   .github/skills/security-review/SKILL.md
+  write   .claude/skills/security-review/SKILL.md
+  write   .github/workflows/standards-conformance.yml
+  write   .githooks/.gitattributes
+  write   .githooks/pre-commit
+  write   .standards/check_conformance.py
+  write   .standards/rules.py
+  write   .standards/VERSION
+  write   .standards/conformance-block.md
+  write   .standards/topics/01-authority.md
+  write   .standards/topics/02-decision-authority-and-escalation.md
+  write   .standards/topics/03-work-definition.md
+  write   .standards/topics/04-work-tracking.md
+  write   .standards/topics/05-risk-and-proportionality.md
+  write   .standards/topics/06-evidence-and-completion.md
+  write   .standards/topics/07-testing.md
+  write   .standards/topics/08-confidentiality-and-data-boundaries.md
+  write   .standards/topics/09-dependencies-and-supply-chain.md
+  write   .standards/topics/10-provenance-and-lineage.md
+  write   .standards/topics/11-concurrency.md
+  write   .standards/topics/12-enforcement-and-change-control.md
+  write   .standards/schemas/application-profile.schema.yaml
+  write   .standards/schemas/assurance-evidence.schema.yaml
+  write   .standards/schemas/gate-exception.schema.yaml
+  write   .standards/schemas/method-registry-entry.schema.yaml
+  write   .standards/schemas/method-run-lineage.schema.yaml
+  write   .standards/schemas/override-record.schema.yaml
+  write   .standards/schemas/README.md
+  write   .standards/core/CONFORMANCE_LEVELS.md
+  write   .standards/core/CONTROL_PRINCIPLES.md
+  write   .standards/core/PREREQUISITE_GATES.md
+  write   .standards/templates/application-profile.yaml
+  write   .standards/templates/decision-record.md
+  write   .standards/templates/gate-exception.yaml
+  write   .standards/templates/override-record.yaml
+  write   .standards/templates/work-packet.md
+  write   .standards/examples/application-profile.essential.example.yaml
+  write   .standards/examples/application-profile.full.example.yaml
+  write   .standards/examples/method-registry-entry.example.yaml
+  write   .standards/examples/method-run-lineage.example.yaml
+  write   .standards/examples/override-record.approved.example.yaml
+  write   .standards/adapters/python.md
+  write   .standards/adapters/r.md
+  write   .standards/adapters/typescript.md
+  write   .standards/seeds/CHANGELOG.md
+  write   .standards/seeds/activity-register.md
+  write   .standards/seeds/adoption-decision-record.md
+  write   .standards/seeds/data-source-register.md
+  write   .standards/seeds/decision-log.md
+  write   .standards/seeds/dependency-review-log.md
+  write   .standards/seeds/findings-register.md
+  write   .standards/seeds/method-registry-readme.md
+  write   .standards/seeds/options-log.md
+  write   .standards/seeds/output-validation-log.md
+  write   .standards/seeds/overrides-readme.md
+  write   .standards/seeds/release-checklist.md
+  write   .standards/seeds/risk-classification.md
+  write   .standards/seeds/run-lineage-readme.md
+  write   .standards/seeds/source-of-truth-matrix.yaml
+  write   .standards/seeds/test-conventions.md
+  write   .standards/MANIFEST.sha256
+  created .github/copilot-instructions.md
+  created AGENTS.md
+  write   .githooks/pre-commit, and core.hooksPath is left as it was
+            your own hook must call it; the conformance check verifies that
+  create  governance/application-profile.yaml  (from template - you must complete it)
+  write   .standards/INSTALL.json
+
+97 standard-owned file(s); 97 written or updated; 0 removed.
+
+What changed, by review class:
+    4  enforcing  (code that runs - review this closely)
+       .github/workflows/standards-conformance.yml
+       .githooks/pre-commit
+       .standards/check_conformance.py
+       .standards/rules.py
+    2  contract   (parsed by the checker - changes what validates)
+       .standards/schemas/application-profile.schema.yaml
+       .standards/schemas/gate-exception.schema.yaml
+   91  reference  (read by people - changes what the rules say)
+       .github/instructions/01-authority.instructions.md
+       .claude/rules/surfaceplate-01-authority.md
+       .github/instructions/02-decision-authority-and-escalation.instructions.md
+       .claude/rules/surfaceplate-02-decision-authority-and-escalation.md
+       .github/instructions/03-work-definition.instructions.md
+       .claude/rules/surfaceplate-03-work-definition.md
+       .github/instructions/04-work-tracking.instructions.md
+       .claude/rules/surfaceplate-04-work-tracking.md
+       .github/instructions/05-risk-and-proportionality.instructions.md
+       .claude/rules/surfaceplate-05-risk-and-proportionality.md
+       .github/instructions/06-evidence-and-completion.instructions.md
+       .claude/rules/surfaceplate-06-evidence-and-completion.md
+       .github/instructions/07-testing.instructions.md
+       .claude/rules/surfaceplate-07-testing.md
+       .github/instructions/08-confidentiality-and-data-boundaries.instructions.md
+       .claude/rules/surfaceplate-08-confidentiality-and-data-boundaries.md
+       .github/instructions/09-dependencies-and-supply-chain.instructions.md
+       .claude/rules/surfaceplate-09-dependencies-and-supply-chain.md
+       .github/instructions/10-provenance-and-lineage.instructions.md
+       .claude/rules/surfaceplate-10-provenance-and-lineage.md
+       .github/instructions/11-concurrency.instructions.md
+       .claude/rules/surfaceplate-11-concurrency.md
+       .github/instructions/12-enforcement-and-change-control.instructions.md
+       .claude/rules/surfaceplate-12-enforcement-and-change-control.md
+       .github/skills/bug-fix/SKILL.md
+       .claude/skills/bug-fix/SKILL.md
+       .github/skills/change/SKILL.md
+       .claude/skills/change/SKILL.md
+       .github/skills/dependency-update/SKILL.md
+       .claude/skills/dependency-update/SKILL.md
+       .github/skills/fix-ci/SKILL.md
+       .claude/skills/fix-ci/SKILL.md
+       .github/skills/release/SKILL.md
+       .claude/skills/release/SKILL.md
+       .github/skills/review/SKILL.md
+       .claude/skills/review/SKILL.md
+       .github/skills/security-review/SKILL.md
+       .claude/skills/security-review/SKILL.md
+       .githooks/.gitattributes
+       .standards/VERSION
+       .standards/conformance-block.md
+       .standards/topics/01-authority.md
+       .standards/topics/02-decision-authority-and-escalation.md
+       .standards/topics/03-work-definition.md
+       .standards/topics/04-work-tracking.md
+       .standards/topics/05-risk-and-proportionality.md
+       .standards/topics/06-evidence-and-completion.md
+       .standards/topics/07-testing.md
+       .standards/topics/08-confidentiality-and-data-boundaries.md
+       .standards/topics/09-dependencies-and-supply-chain.md
+       .standards/topics/10-provenance-and-lineage.md
+       .standards/topics/11-concurrency.md
+       .standards/topics/12-enforcement-and-change-control.md
+       .standards/schemas/assurance-evidence.schema.yaml
+       .standards/schemas/method-registry-entry.schema.yaml
+       .standards/schemas/method-run-lineage.schema.yaml
+       .standards/schemas/override-record.schema.yaml
+       .standards/schemas/README.md
+       .standards/core/CONFORMANCE_LEVELS.md
+       .standards/core/CONTROL_PRINCIPLES.md
+       .standards/core/PREREQUISITE_GATES.md
+       .standards/templates/application-profile.yaml
+       .standards/templates/decision-record.md
+       .standards/templates/gate-exception.yaml
+       .standards/templates/override-record.yaml
+       .standards/templates/work-packet.md
+       .standards/examples/application-profile.essential.example.yaml
+       .standards/examples/application-profile.full.example.yaml
+       .standards/examples/method-registry-entry.example.yaml
+       .standards/examples/method-run-lineage.example.yaml
+       .standards/examples/override-record.approved.example.yaml
+       .standards/adapters/python.md
+       .standards/adapters/r.md
+       .standards/adapters/typescript.md
+       .standards/seeds/CHANGELOG.md
+       .standards/seeds/activity-register.md
+       .standards/seeds/adoption-decision-record.md
+       .standards/seeds/data-source-register.md
+       .standards/seeds/decision-log.md
+       .standards/seeds/dependency-review-log.md
+       .standards/seeds/findings-register.md
+       .standards/seeds/method-registry-readme.md
+       .standards/seeds/options-log.md
+       .standards/seeds/output-validation-log.md
+       .standards/seeds/overrides-readme.md
+       .standards/seeds/release-checklist.md
+       .standards/seeds/risk-classification.md
+       .standards/seeds/run-lineage-readme.md
+       .standards/seeds/source-of-truth-matrix.yaml
+       .standards/seeds/test-conventions.md
+       .standards/MANIFEST.sha256
+Grace window ends 2026-10-09. After that the check fails.
+
+Next steps:
+  1. Complete governance/application-profile.yaml. Worked examples: .standards/examples/
+  2. Run: python .standards/check_conformance.py
+  3. Stage the installer output.
+  4. Run: git update-index --chmod=+x .githooks/pre-commit
+  5. Make your own pre-commit hook run .githooks/pre-commit and propagate its exit
+     code. core.hooksPath was left as it was; nothing here changed it.
+  6. Declare it in the profile so the check can verify it:
+       adoption:
+         hook_chain:
+           delegates_to: .githooks/pre-commit
+           rationale: <why this repository keeps its own hook system>
+  7. Commit the result. The check runs your hook with SURFACEPLATE_HOOK_PROBE
+     set and reports SP038 if it does not reach the gate.
+  8. Open a pull request.
+
+Something wrong, or a check looks wrong? https://github.com/pipoventures/surfaceplate/issues
+exit=0
+
+$ surfaceplate adopt --propose --target /home/mps2210/surfaceplate-sweep/repos/b2 --level standard
+Proposed: /home/mps2210/surfaceplate-sweep/repos/b2/governance/application-profile.answers.yaml
+Preview : /home/mps2210/surfaceplate-sweep/repos/b2/governance/application-profile.proposed.yaml
+Nothing else was written. Complete every needs-human line in the answers record, then run:
+    surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/b2 --answers /home/mps2210/surfaceplate-sweep/repos/b2/governance/application-profile.answers.yaml
+exit=0
+
+$ surfaceplate adopt --target /home/mps2210/surfaceplate-sweep/repos/b2 --answers /home/mps2210/surfaceplate-sweep/repos/b2/governance/application-profile.answers.yaml
+
+──────────────────────────────────────────────────────────────────
+  Written: /home/mps2210/surfaceplate-sweep/repos/b2/governance/application-profile.yaml
+  Created: /home/mps2210/surfaceplate-sweep/repos/b2/activity/register.md
+  Created: /home/mps2210/surfaceplate-sweep/repos/b2/governance/RISK_CLASSIFICATION.md
+  Created: /home/mps2210/surfaceplate-sweep/repos/b2/docs/decisions/decision-log.md
+  Created: /home/mps2210/surfaceplate-sweep/repos/b2/documentation/governance/inventory/source_of_truth_matrix.yaml
+  Created: /home/mps2210/surfaceplate-sweep/repos/b2/docs/testing/TEST_CONVENTIONS.md
+  Created: /home/mps2210/surfaceplate-sweep/repos/b2/governance/DATA_SOURCES.md
+  Created: /home/mps2210/surfaceplate-sweep/repos/b2/docs/OUTPUT_VALIDATION.md
+  Created: /home/mps2210/surfaceplate-sweep/repos/b2/docs/DEPENDENCY_REVIEW.md
+  Created: /home/mps2210/surfaceplate-sweep/repos/b2/docs/RELEASE_CHECKLIST.md
+  Created: /home/mps2210/surfaceplate-sweep/repos/b2/CHANGELOG.md
+  Created: /home/mps2210/surfaceplate-sweep/repos/b2/docs/decisions/DR-0001-adopt-surfaceplate.md
+
+  Those are real, complete files, and creating them is not the work they are for.
+  A register that exists and stays empty while work happens around it is a finding
+  about this repository - the checker cannot tell the difference, because what it
+  checks is that the file is there.
+──────────────────────────────────────────────────────────────────
+  Checking what you just wrote:
+
+Surfaceplate - conformance check
+repository: /home/mps2210/surfaceplate-sweep/repos/b2
+standard  : 0.17.0 installed 2026-09-09
+
+Advisory (14) - not a failure:
+  - dependency_lock: verified against requirements.txt
+  - documentation_authority: verified via the authority_map gate
+  - contract_tests: verified against step 'contract tests' in .github/workflows/tests.yml
+  - deterministic_tests: verified against step 'deterministic tests' in .github/workflows/tests.yml
+  - gate 'work_registration': activity/register.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (activity-register.md); it holds no entries of this repository's own yet
+  - gate 'risk_classification': governance/RISK_CLASSIFICATION.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (risk-classification.md); it holds no entries of this repository's own yet
+  - gate 'decision_before_implementation': docs/decisions/decision-log.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (decision-log.md); it holds no entries of this repository's own yet
+  - gate 'authority_map': documentation/governance/inventory/source_of_truth_matrix.yaml is seeded - byte-identical to the seed `surfaceplate adopt` creates (source-of-truth-matrix.yaml); it holds no entries of this repository's own yet
+  - gate 'test_convention': docs/testing/TEST_CONVENTIONS.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (test-conventions.md); it holds no entries of this repository's own yet
+  - gate 'data_source_lifecycle': governance/DATA_SOURCES.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (data-source-register.md); it holds no entries of this repository's own yet
+  - gate 'output_validation_before_external_use': docs/OUTPUT_VALIDATION.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (output-validation-log.md); it holds no entries of this repository's own yet
+  - gate 'dependency_output_delta': docs/DEPENDENCY_REVIEW.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (dependency-review-log.md); it holds no entries of this repository's own yet
+  - gate 'records_before_release': docs/RELEASE_CHECKLIST.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (release-checklist.md); it holds no entries of this repository's own yet
+  - gate 'change_record_before_completion': CHANGELOG.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (CHANGELOG.md); it holds no entries of this repository's own yet
+
+Adoption completeness findings (10):
+  [SP035] Gate 'work_registration' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing activity/register.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'risk_classification' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing governance/RISK_CLASSIFICATION.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'decision_before_implementation' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/decisions/decision-log.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'authority_map' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing documentation/governance/inventory/source_of_truth_matrix.yaml)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'test_convention' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/testing/TEST_CONVENTIONS.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'data_source_lifecycle' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing governance/DATA_SOURCES.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'output_validation_before_external_use' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/OUTPUT_VALIDATION.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'dependency_output_delta' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/DEPENDENCY_REVIEW.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'records_before_release' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/RELEASE_CHECKLIST.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'change_record_before_completion' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing CHANGELOG.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+
+WARN - adoption is incomplete, but grace expires 2026-10-09 (30 day(s) remaining).
+This check will fail once the grace window ends. Complete the profile before then.
+
+  The checker reports 10 finding(s) under grace until 2026-10-09; it will fail after that date.
+  The output above says which artefacts it could not find. That is normal for a first adoption.
+  Re-running `adopt` will not overwrite it; edit application-profile.yaml directly from here.
+
+exit=0
+
+$ grep -n 'enforcement' /home/mps2210/surfaceplate-sweep/repos/b2/governance/application-profile.yaml | sort | uniq -c | head -5; grep -n -A3 '^adoption:' /home/mps2210/surfaceplate-sweep/repos/b2/governance/application-profile.yaml | head -6
+      1 100:    enforcement: [history_audit, review]
+      1 113:    enforcement: [history_audit, review]
+      1 123:    enforcement: [history_audit, review]
+      1 136:    enforcement: [history_audit, review]
+      1 149:    enforcement: [history_audit, review]
+28:adoption:
+29-  framework_version: 0.17.0
+30-  framework_digest: ceffdcf76ae5440ceae16c154893c3771455db0ad7aaa36d245bbe67db4c8d7f
+31-  adoption_date: '2026-09-09'
+exit=0
+
+$ grep -n -A3 'hook_chain' /home/mps2210/surfaceplate-sweep/repos/b2/governance/application-profile.yaml
+29:  hook_chain:
+30-    delegates_to: .githooks/pre-commit
+31-    rationale: this machine's global hook delegates to .git/hooks, and we chain from there
+32-  framework_version: 0.17.0
+exit=0
+
+$ ls -la .git/hooks/pre-commit 2>&1 | tail -1
+ls: cannot access '.git/hooks/pre-commit': No such file or directory
+exit=2
+
+$ surfaceplate check --repo /home/mps2210/surfaceplate-sweep/repos/b2
+Surfaceplate - conformance check
+repository: /home/mps2210/surfaceplate-sweep/repos/b2
+standard  : 0.17.0 installed 2026-09-09
+
+Advisory (24) - not a failure:
+  - dependency_lock: verified against requirements.txt
+  - documentation_authority: verified via the authority_map gate
+  - contract_tests: verified against step 'contract tests' in .github/workflows/tests.yml
+  - deterministic_tests: verified against step 'deterministic tests' in .github/workflows/tests.yml
+  - gate 'work_registration': activity/register.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (activity-register.md); it holds no entries of this repository's own yet
+  - work_registration: precondition activity/register.md followed through 1 rename(s): activity/register.md <- .standards/seeds/activity-register.md
+  - gate 'risk_classification': governance/RISK_CLASSIFICATION.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (risk-classification.md); it holds no entries of this repository's own yet
+  - risk_classification: precondition governance/RISK_CLASSIFICATION.md followed through 1 rename(s): governance/RISK_CLASSIFICATION.md <- .standards/seeds/risk-classification.md
+  - gate 'decision_before_implementation': docs/decisions/decision-log.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (decision-log.md); it holds no entries of this repository's own yet
+  - decision_before_implementation: precondition docs/decisions/decision-log.md followed through 1 rename(s): docs/decisions/decision-log.md <- .standards/seeds/decision-log.md
+  - gate 'authority_map': documentation/governance/inventory/source_of_truth_matrix.yaml is seeded - byte-identical to the seed `surfaceplate adopt` creates (source-of-truth-matrix.yaml); it holds no entries of this repository's own yet
+  - authority_map: precondition documentation/governance/inventory/source_of_truth_matrix.yaml followed through 1 rename(s): documentation/governance/inventory/source_of_truth_matrix.yaml <- .standards/seeds/source-of-truth-matrix.yaml
+  - gate 'test_convention': docs/testing/TEST_CONVENTIONS.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (test-conventions.md); it holds no entries of this repository's own yet
+  - test_convention: precondition docs/testing/TEST_CONVENTIONS.md followed through 1 rename(s): docs/testing/TEST_CONVENTIONS.md <- .standards/seeds/test-conventions.md
+  - gate 'data_source_lifecycle': governance/DATA_SOURCES.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (data-source-register.md); it holds no entries of this repository's own yet
+  - data_source_lifecycle: precondition governance/DATA_SOURCES.md followed through 1 rename(s): governance/DATA_SOURCES.md <- .standards/seeds/data-source-register.md
+  - gate 'output_validation_before_external_use': docs/OUTPUT_VALIDATION.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (output-validation-log.md); it holds no entries of this repository's own yet
+  - output_validation_before_external_use: precondition docs/OUTPUT_VALIDATION.md followed through 1 rename(s): docs/OUTPUT_VALIDATION.md <- .standards/seeds/output-validation-log.md
+  - gate 'dependency_output_delta': docs/DEPENDENCY_REVIEW.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (dependency-review-log.md); it holds no entries of this repository's own yet
+  - dependency_output_delta: precondition docs/DEPENDENCY_REVIEW.md followed through 1 rename(s): docs/DEPENDENCY_REVIEW.md <- .standards/seeds/dependency-review-log.md
+  - gate 'records_before_release': docs/RELEASE_CHECKLIST.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (release-checklist.md); it holds no entries of this repository's own yet
+  - records_before_release: precondition docs/RELEASE_CHECKLIST.md followed through 1 rename(s): docs/RELEASE_CHECKLIST.md <- .standards/seeds/release-checklist.md
+  - gate 'change_record_before_completion': CHANGELOG.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (CHANGELOG.md); it holds no entries of this repository's own yet
+  - change_record_before_completion: precondition CHANGELOG.md followed through 1 rename(s): CHANGELOG.md <- .standards/seeds/CHANGELOG.md
+
+Adoption completeness findings (10):
+  [SP035] Gate 'work_registration' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing activity/register.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'risk_classification' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing governance/RISK_CLASSIFICATION.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'decision_before_implementation' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/decisions/decision-log.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'authority_map' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing documentation/governance/inventory/source_of_truth_matrix.yaml)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'test_convention' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/testing/TEST_CONVENTIONS.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'data_source_lifecycle' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing governance/DATA_SOURCES.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'output_validation_before_external_use' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/OUTPUT_VALIDATION.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'dependency_output_delta' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/DEPENDENCY_REVIEW.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'records_before_release' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/RELEASE_CHECKLIST.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'change_record_before_completion' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing CHANGELOG.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+
+WARN - adoption is incomplete, but grace expires 2026-10-09 (30 day(s) remaining).
+This check will fail once the grace window ends. Complete the profile before then.
+exit=0
+
+$ surfaceplate check --repo /home/mps2210/surfaceplate-sweep/repos/b2
+Surfaceplate - conformance check
+repository: /home/mps2210/surfaceplate-sweep/repos/b2
+standard  : 0.17.0 installed 2026-09-09
+
+Advisory (24) - not a failure:
+  - dependency_lock: verified against requirements.txt
+  - documentation_authority: verified via the authority_map gate
+  - contract_tests: verified against step 'contract tests' in .github/workflows/tests.yml
+  - deterministic_tests: verified against step 'deterministic tests' in .github/workflows/tests.yml
+  - gate 'work_registration': activity/register.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (activity-register.md); it holds no entries of this repository's own yet
+  - work_registration: precondition activity/register.md followed through 1 rename(s): activity/register.md <- .standards/seeds/activity-register.md
+  - gate 'risk_classification': governance/RISK_CLASSIFICATION.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (risk-classification.md); it holds no entries of this repository's own yet
+  - risk_classification: precondition governance/RISK_CLASSIFICATION.md followed through 1 rename(s): governance/RISK_CLASSIFICATION.md <- .standards/seeds/risk-classification.md
+  - gate 'decision_before_implementation': docs/decisions/decision-log.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (decision-log.md); it holds no entries of this repository's own yet
+  - decision_before_implementation: precondition docs/decisions/decision-log.md followed through 1 rename(s): docs/decisions/decision-log.md <- .standards/seeds/decision-log.md
+  - gate 'authority_map': documentation/governance/inventory/source_of_truth_matrix.yaml is seeded - byte-identical to the seed `surfaceplate adopt` creates (source-of-truth-matrix.yaml); it holds no entries of this repository's own yet
+  - authority_map: precondition documentation/governance/inventory/source_of_truth_matrix.yaml followed through 1 rename(s): documentation/governance/inventory/source_of_truth_matrix.yaml <- .standards/seeds/source-of-truth-matrix.yaml
+  - gate 'test_convention': docs/testing/TEST_CONVENTIONS.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (test-conventions.md); it holds no entries of this repository's own yet
+  - test_convention: precondition docs/testing/TEST_CONVENTIONS.md followed through 1 rename(s): docs/testing/TEST_CONVENTIONS.md <- .standards/seeds/test-conventions.md
+  - gate 'data_source_lifecycle': governance/DATA_SOURCES.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (data-source-register.md); it holds no entries of this repository's own yet
+  - data_source_lifecycle: precondition governance/DATA_SOURCES.md followed through 1 rename(s): governance/DATA_SOURCES.md <- .standards/seeds/data-source-register.md
+  - gate 'output_validation_before_external_use': docs/OUTPUT_VALIDATION.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (output-validation-log.md); it holds no entries of this repository's own yet
+  - output_validation_before_external_use: precondition docs/OUTPUT_VALIDATION.md followed through 1 rename(s): docs/OUTPUT_VALIDATION.md <- .standards/seeds/output-validation-log.md
+  - gate 'dependency_output_delta': docs/DEPENDENCY_REVIEW.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (dependency-review-log.md); it holds no entries of this repository's own yet
+  - dependency_output_delta: precondition docs/DEPENDENCY_REVIEW.md followed through 1 rename(s): docs/DEPENDENCY_REVIEW.md <- .standards/seeds/dependency-review-log.md
+  - gate 'records_before_release': docs/RELEASE_CHECKLIST.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (release-checklist.md); it holds no entries of this repository's own yet
+  - records_before_release: precondition docs/RELEASE_CHECKLIST.md followed through 1 rename(s): docs/RELEASE_CHECKLIST.md <- .standards/seeds/release-checklist.md
+  - gate 'change_record_before_completion': CHANGELOG.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (CHANGELOG.md); it holds no entries of this repository's own yet
+  - change_record_before_completion: precondition CHANGELOG.md followed through 1 rename(s): CHANGELOG.md <- .standards/seeds/CHANGELOG.md
+
+Adoption completeness findings (10):
+  [SP035] Gate 'work_registration' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing activity/register.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'risk_classification' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing governance/RISK_CLASSIFICATION.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'decision_before_implementation' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/decisions/decision-log.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'authority_map' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing documentation/governance/inventory/source_of_truth_matrix.yaml)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'test_convention' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/testing/TEST_CONVENTIONS.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'data_source_lifecycle' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing governance/DATA_SOURCES.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'output_validation_before_external_use' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/OUTPUT_VALIDATION.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'dependency_output_delta' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/DEPENDENCY_REVIEW.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'records_before_release' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/RELEASE_CHECKLIST.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'change_record_before_completion' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing CHANGELOG.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+
+WARN - adoption is incomplete, but grace expires 2026-10-09 (30 day(s) remaining).
+This check will fail once the grace window ends. Complete the profile before then.
+exit=0
+
+$ cd /home/mps2210/surfaceplate-sweep/repos/b2 && printf 'x\n' >> README.md && SURFACEPLATE_HOOK_PROBE=1 .githooks/pre-commit; echo probe-direct-exit=$?
+surfaceplate-hook-probe-ok
+probe-direct-exit=0
+exit=0
+
+$ cd /home/mps2210/surfaceplate-sweep/repos/b2 && git add README.md && git commit -qm 'probe commit' 2>&1 | tail -3; echo commit-exit=$?; git log --oneline -1
+
+WARN - adoption is incomplete, but grace expires 2026-10-09 (30 day(s) remaining).
+This check will fail once the grace window ends. Complete the profile before then.
+commit-exit=0
+fa3c0fa probe commit
+exit=0
+
+$ grep -n -B12 'enforcement: \[local_hook' /home/mps2210/surfaceplate-sweep/repos/b2/governance/application-profile.yaml | grep -E 'id:|enforcement'
+91-  - id: prerequisite_state_ui
+94-  - id: work_registration
+103:    enforcement: [local_hook, history_audit, review]
+exit=0
+
+$ surfaceplate check --repo /home/mps2210/surfaceplate-sweep/repos/b2
+Surfaceplate - conformance check
+repository: /home/mps2210/surfaceplate-sweep/repos/b2
+standard  : 0.17.0 installed 2026-09-09
+
+Advisory (24) - not a failure:
+  - dependency_lock: verified against requirements.txt
+  - documentation_authority: verified via the authority_map gate
+  - contract_tests: verified against step 'contract tests' in .github/workflows/tests.yml
+  - deterministic_tests: verified against step 'deterministic tests' in .github/workflows/tests.yml
+  - gate 'work_registration': activity/register.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (activity-register.md); it holds no entries of this repository's own yet
+  - work_registration: precondition activity/register.md followed through 1 rename(s): activity/register.md <- .standards/seeds/activity-register.md
+  - gate 'risk_classification': governance/RISK_CLASSIFICATION.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (risk-classification.md); it holds no entries of this repository's own yet
+  - risk_classification: precondition governance/RISK_CLASSIFICATION.md followed through 1 rename(s): governance/RISK_CLASSIFICATION.md <- .standards/seeds/risk-classification.md
+  - gate 'decision_before_implementation': docs/decisions/decision-log.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (decision-log.md); it holds no entries of this repository's own yet
+  - decision_before_implementation: precondition docs/decisions/decision-log.md followed through 1 rename(s): docs/decisions/decision-log.md <- .standards/seeds/decision-log.md
+  - gate 'authority_map': documentation/governance/inventory/source_of_truth_matrix.yaml is seeded - byte-identical to the seed `surfaceplate adopt` creates (source-of-truth-matrix.yaml); it holds no entries of this repository's own yet
+  - authority_map: precondition documentation/governance/inventory/source_of_truth_matrix.yaml followed through 1 rename(s): documentation/governance/inventory/source_of_truth_matrix.yaml <- .standards/seeds/source-of-truth-matrix.yaml
+  - gate 'test_convention': docs/testing/TEST_CONVENTIONS.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (test-conventions.md); it holds no entries of this repository's own yet
+  - test_convention: precondition docs/testing/TEST_CONVENTIONS.md followed through 1 rename(s): docs/testing/TEST_CONVENTIONS.md <- .standards/seeds/test-conventions.md
+  - gate 'data_source_lifecycle': governance/DATA_SOURCES.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (data-source-register.md); it holds no entries of this repository's own yet
+  - data_source_lifecycle: precondition governance/DATA_SOURCES.md followed through 1 rename(s): governance/DATA_SOURCES.md <- .standards/seeds/data-source-register.md
+  - gate 'output_validation_before_external_use': docs/OUTPUT_VALIDATION.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (output-validation-log.md); it holds no entries of this repository's own yet
+  - output_validation_before_external_use: precondition docs/OUTPUT_VALIDATION.md followed through 1 rename(s): docs/OUTPUT_VALIDATION.md <- .standards/seeds/output-validation-log.md
+  - gate 'dependency_output_delta': docs/DEPENDENCY_REVIEW.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (dependency-review-log.md); it holds no entries of this repository's own yet
+  - dependency_output_delta: precondition docs/DEPENDENCY_REVIEW.md followed through 1 rename(s): docs/DEPENDENCY_REVIEW.md <- .standards/seeds/dependency-review-log.md
+  - gate 'records_before_release': docs/RELEASE_CHECKLIST.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (release-checklist.md); it holds no entries of this repository's own yet
+  - records_before_release: precondition docs/RELEASE_CHECKLIST.md followed through 1 rename(s): docs/RELEASE_CHECKLIST.md <- .standards/seeds/release-checklist.md
+  - gate 'change_record_before_completion': CHANGELOG.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (CHANGELOG.md); it holds no entries of this repository's own yet
+  - change_record_before_completion: precondition CHANGELOG.md followed through 1 rename(s): CHANGELOG.md <- .standards/seeds/CHANGELOG.md
+
+Adoption completeness findings (11):
+  [SP038] Gate 'work_registration' claims hook enforcement that is not in place
+        what: enforcement lists 'local_hook', but default hooks path: /home/mps2210/.config/git/hooks/pre-commit: the declared delegation ran (exit 0) but did not reach this standard's gate.
+        fix : Re-run the installer so .githooks/pre-commit is installed and core.hooksPath is set to .githooks, or remove the claim and rely on the history audit. If this repository keeps its own hook system, two routes stay open (DR-66): install with --chain, have your own hook run .githooks/pre-commit, and declare adoption.hook_chain - this check then verifies by effect that your chain reaches the gate; or install with --no-hooks and do not claim local_hook. Claiming an inactive control is worse than not having it.
+  [SP035] Gate 'work_registration' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing activity/register.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'risk_classification' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing governance/RISK_CLASSIFICATION.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'decision_before_implementation' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/decisions/decision-log.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'authority_map' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing documentation/governance/inventory/source_of_truth_matrix.yaml)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'test_convention' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/testing/TEST_CONVENTIONS.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'data_source_lifecycle' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing governance/DATA_SOURCES.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'output_validation_before_external_use' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/OUTPUT_VALIDATION.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'dependency_output_delta' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/DEPENDENCY_REVIEW.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'records_before_release' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/RELEASE_CHECKLIST.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'change_record_before_completion' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing CHANGELOG.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+
+WARN - adoption is incomplete, but grace expires 2026-10-09 (30 day(s) remaining).
+This check will fail once the grace window ends. Complete the profile before then.
+exit=0
+
+$ surfaceplate check --repo /home/mps2210/surfaceplate-sweep/repos/b2
+Surfaceplate - conformance check
+repository: /home/mps2210/surfaceplate-sweep/repos/b2
+standard  : 0.17.0 installed 2026-09-09
+
+Advisory (24) - not a failure:
+  - dependency_lock: verified against requirements.txt
+  - documentation_authority: verified via the authority_map gate
+  - contract_tests: verified against step 'contract tests' in .github/workflows/tests.yml
+  - deterministic_tests: verified against step 'deterministic tests' in .github/workflows/tests.yml
+  - gate 'work_registration': activity/register.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (activity-register.md); it holds no entries of this repository's own yet
+  - work_registration: precondition activity/register.md followed through 1 rename(s): activity/register.md <- .standards/seeds/activity-register.md
+  - gate 'risk_classification': governance/RISK_CLASSIFICATION.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (risk-classification.md); it holds no entries of this repository's own yet
+  - risk_classification: precondition governance/RISK_CLASSIFICATION.md followed through 1 rename(s): governance/RISK_CLASSIFICATION.md <- .standards/seeds/risk-classification.md
+  - gate 'decision_before_implementation': docs/decisions/decision-log.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (decision-log.md); it holds no entries of this repository's own yet
+  - decision_before_implementation: precondition docs/decisions/decision-log.md followed through 1 rename(s): docs/decisions/decision-log.md <- .standards/seeds/decision-log.md
+  - gate 'authority_map': documentation/governance/inventory/source_of_truth_matrix.yaml is seeded - byte-identical to the seed `surfaceplate adopt` creates (source-of-truth-matrix.yaml); it holds no entries of this repository's own yet
+  - authority_map: precondition documentation/governance/inventory/source_of_truth_matrix.yaml followed through 1 rename(s): documentation/governance/inventory/source_of_truth_matrix.yaml <- .standards/seeds/source-of-truth-matrix.yaml
+  - gate 'test_convention': docs/testing/TEST_CONVENTIONS.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (test-conventions.md); it holds no entries of this repository's own yet
+  - test_convention: precondition docs/testing/TEST_CONVENTIONS.md followed through 1 rename(s): docs/testing/TEST_CONVENTIONS.md <- .standards/seeds/test-conventions.md
+  - gate 'data_source_lifecycle': governance/DATA_SOURCES.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (data-source-register.md); it holds no entries of this repository's own yet
+  - data_source_lifecycle: precondition governance/DATA_SOURCES.md followed through 1 rename(s): governance/DATA_SOURCES.md <- .standards/seeds/data-source-register.md
+  - gate 'output_validation_before_external_use': docs/OUTPUT_VALIDATION.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (output-validation-log.md); it holds no entries of this repository's own yet
+  - output_validation_before_external_use: precondition docs/OUTPUT_VALIDATION.md followed through 1 rename(s): docs/OUTPUT_VALIDATION.md <- .standards/seeds/output-validation-log.md
+  - gate 'dependency_output_delta': docs/DEPENDENCY_REVIEW.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (dependency-review-log.md); it holds no entries of this repository's own yet
+  - dependency_output_delta: precondition docs/DEPENDENCY_REVIEW.md followed through 1 rename(s): docs/DEPENDENCY_REVIEW.md <- .standards/seeds/dependency-review-log.md
+  - gate 'records_before_release': docs/RELEASE_CHECKLIST.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (release-checklist.md); it holds no entries of this repository's own yet
+  - records_before_release: precondition docs/RELEASE_CHECKLIST.md followed through 1 rename(s): docs/RELEASE_CHECKLIST.md <- .standards/seeds/release-checklist.md
+  - gate 'change_record_before_completion': CHANGELOG.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (CHANGELOG.md); it holds no entries of this repository's own yet
+  - change_record_before_completion: precondition CHANGELOG.md followed through 1 rename(s): CHANGELOG.md <- .standards/seeds/CHANGELOG.md
+
+Adoption completeness findings (10):
+  [SP035] Gate 'work_registration' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing activity/register.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'risk_classification' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing governance/RISK_CLASSIFICATION.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'decision_before_implementation' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/decisions/decision-log.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'authority_map' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing documentation/governance/inventory/source_of_truth_matrix.yaml)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'test_convention' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/testing/TEST_CONVENTIONS.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'data_source_lifecycle' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing governance/DATA_SOURCES.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'output_validation_before_external_use' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/OUTPUT_VALIDATION.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'dependency_output_delta' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/DEPENDENCY_REVIEW.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'records_before_release' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/RELEASE_CHECKLIST.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'change_record_before_completion' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing CHANGELOG.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+
+WARN - adoption is incomplete, but grace expires 2026-10-09 (30 day(s) remaining).
+This check will fail once the grace window ends. Complete the profile before then.
+exit=0
+
+$ surfaceplate check --repo /home/mps2210/surfaceplate-sweep/repos/b2
+Surfaceplate - conformance check
+repository: /home/mps2210/surfaceplate-sweep/repos/b2
+standard  : 0.17.0 installed 2026-09-09
+
+Advisory (24) - not a failure:
+  - dependency_lock: verified against requirements.txt
+  - documentation_authority: verified via the authority_map gate
+  - contract_tests: verified against step 'contract tests' in .github/workflows/tests.yml
+  - deterministic_tests: verified against step 'deterministic tests' in .github/workflows/tests.yml
+  - gate 'work_registration': activity/register.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (activity-register.md); it holds no entries of this repository's own yet
+  - work_registration: precondition activity/register.md followed through 1 rename(s): activity/register.md <- .standards/seeds/activity-register.md
+  - gate 'risk_classification': governance/RISK_CLASSIFICATION.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (risk-classification.md); it holds no entries of this repository's own yet
+  - risk_classification: precondition governance/RISK_CLASSIFICATION.md followed through 1 rename(s): governance/RISK_CLASSIFICATION.md <- .standards/seeds/risk-classification.md
+  - gate 'decision_before_implementation': docs/decisions/decision-log.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (decision-log.md); it holds no entries of this repository's own yet
+  - decision_before_implementation: precondition docs/decisions/decision-log.md followed through 1 rename(s): docs/decisions/decision-log.md <- .standards/seeds/decision-log.md
+  - gate 'authority_map': documentation/governance/inventory/source_of_truth_matrix.yaml is seeded - byte-identical to the seed `surfaceplate adopt` creates (source-of-truth-matrix.yaml); it holds no entries of this repository's own yet
+  - authority_map: precondition documentation/governance/inventory/source_of_truth_matrix.yaml followed through 1 rename(s): documentation/governance/inventory/source_of_truth_matrix.yaml <- .standards/seeds/source-of-truth-matrix.yaml
+  - gate 'test_convention': docs/testing/TEST_CONVENTIONS.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (test-conventions.md); it holds no entries of this repository's own yet
+  - test_convention: precondition docs/testing/TEST_CONVENTIONS.md followed through 1 rename(s): docs/testing/TEST_CONVENTIONS.md <- .standards/seeds/test-conventions.md
+  - gate 'data_source_lifecycle': governance/DATA_SOURCES.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (data-source-register.md); it holds no entries of this repository's own yet
+  - data_source_lifecycle: precondition governance/DATA_SOURCES.md followed through 1 rename(s): governance/DATA_SOURCES.md <- .standards/seeds/data-source-register.md
+  - gate 'output_validation_before_external_use': docs/OUTPUT_VALIDATION.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (output-validation-log.md); it holds no entries of this repository's own yet
+  - output_validation_before_external_use: precondition docs/OUTPUT_VALIDATION.md followed through 1 rename(s): docs/OUTPUT_VALIDATION.md <- .standards/seeds/output-validation-log.md
+  - gate 'dependency_output_delta': docs/DEPENDENCY_REVIEW.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (dependency-review-log.md); it holds no entries of this repository's own yet
+  - dependency_output_delta: precondition docs/DEPENDENCY_REVIEW.md followed through 1 rename(s): docs/DEPENDENCY_REVIEW.md <- .standards/seeds/dependency-review-log.md
+  - gate 'records_before_release': docs/RELEASE_CHECKLIST.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (release-checklist.md); it holds no entries of this repository's own yet
+  - records_before_release: precondition docs/RELEASE_CHECKLIST.md followed through 1 rename(s): docs/RELEASE_CHECKLIST.md <- .standards/seeds/release-checklist.md
+  - gate 'change_record_before_completion': CHANGELOG.md is seeded - byte-identical to the seed `surfaceplate adopt` creates (CHANGELOG.md); it holds no entries of this repository's own yet
+  - change_record_before_completion: precondition CHANGELOG.md followed through 1 rename(s): CHANGELOG.md <- .standards/seeds/CHANGELOG.md
+
+Adoption completeness findings (11):
+  [SP038] Gate 'work_registration' claims hook enforcement that is not in place
+        what: enforcement lists 'local_hook', but default hooks path: /home/mps2210/.config/git/hooks/pre-commit: the declared delegation ran (exit 0) but did not reach this standard's gate.
+        fix : Re-run the installer so .githooks/pre-commit is installed and core.hooksPath is set to .githooks, or remove the claim and rely on the history audit. If this repository keeps its own hook system, two routes stay open (DR-66): install with --chain, have your own hook run .githooks/pre-commit, and declare adoption.hook_chain - this check then verifies by effect that your chain reaches the gate; or install with --no-hooks and do not claim local_hook. Claiming an inactive control is worse than not having it.
+  [SP035] Gate 'work_registration' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing activity/register.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'risk_classification' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing governance/RISK_CLASSIFICATION.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'decision_before_implementation' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/decisions/decision-log.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'authority_map' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing documentation/governance/inventory/source_of_truth_matrix.yaml)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'test_convention' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/testing/TEST_CONVENTIONS.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'data_source_lifecycle' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing governance/DATA_SOURCES.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'output_validation_before_external_use' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/OUTPUT_VALIDATION.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'dependency_output_delta' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/DEPENDENCY_REVIEW.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'records_before_release' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing docs/RELEASE_CHECKLIST.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+  [SP035] Gate 'change_record_before_completion' was crossed without its precondition
+        what: 1 commit(s) since 2026-09-09T12:02:37+01:00 changed a gated path while a required artefact was absent: b15ca92 2026-09-09 app shape (missing CHANGELOG.md)
+        fix : Either the gate was not honoured, or it is declared over paths it should not cover. Correct the gate, or record the exception in governance/exceptions/ with a gate_id, the commit SHAs, an owner and a rationale.
+
+WARN - adoption is incomplete, but grace expires 2026-10-09 (30 day(s) remaining).
+This check will fail once the grace window ends. Complete the profile before then.
+exit=0

@@ -53,8 +53,19 @@ class Line:
         return f"{self.status:<5} {self.name:<22} {self.detail}"
 
 
-def _git_config(repo: Path, scope: str) -> str | None:
-    """`core.hooksPath` at one scope, or `None` when unset or git cannot answer."""
+def _git_config(repo: Path, scope: str) -> tuple[str | None, str]:
+    """`(value, state)` for `core.hooksPath` at one scope. `state` is `set`, `unset` or `unknown`.
+
+    **This returned a bare `None` for both "unset" and "git could not answer", and said so in its
+    own docstring without remarking on it.** `doctor` then printed `core.hooksPath (global) unset`
+    on a machine where it was set, because `git` was not on `PATH` to be asked - a diagnostic
+    asserting a negative from an observation that could not have found the thing, on the exact
+    line an adopter consults before installing (`PW-04`, the class `F133` belongs to).
+
+    `git config --get-all` exits 1 when the key is genuinely absent, which is an ANSWER. Anything
+    else - the binary missing, a timeout, a broken repository - is not, and must not be reported
+    as one.
+    """
     try:
         result = subprocess.run(
             ["git", "-C", str(repo), "config", f"--{scope}", "--get-all", "core.hooksPath"],
@@ -62,10 +73,14 @@ def _git_config(repo: Path, scope: str) -> str | None:
             text=True,
             timeout=10,
         )
-    except (OSError, subprocess.TimeoutExpired):
-        return None
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return None, f"unknown: {type(exc).__name__}"
+    if result.returncode == 1:
+        return None, "unset"
+    if result.returncode != 0:
+        return None, f"unknown: git exited {result.returncode}"
     value = result.stdout.strip()
-    return value or None
+    return (value, "set") if value else (None, "unset")
 
 
 def check_python() -> list[Line]:
@@ -88,10 +103,19 @@ def check_python() -> list[Line]:
 
 def check_hooks_path(repo: Path) -> list[Line]:
     lines: list[Line] = []
-    local = _git_config(repo, "local")
+    local, _ = _git_config(repo, "local")
     for scope in ("local", "worktree", "global", "system"):
-        value = _git_config(repo, scope)
-        if value is None:
+        value, state = _git_config(repo, scope)
+        if state.startswith("unknown"):
+            # Never `unset`, and never `ok`. An unanswered question is not a passing one, and this
+            # is the line a stranger reads before their first install (`PW-04`).
+            lines.append(
+                Line(WARN, f"core.hooksPath ({scope})",
+                     f"could not be established ({state.partition(': ')[2] or 'git did not answer'}) "
+                     "- this is not the same as unset, and nothing here should be read as saying "
+                     "no hooks path is configured")
+            )
+        elif value is None:
             lines.append(Line(OK, f"core.hooksPath ({scope})", "unset"))
         elif scope == "worktree" and value == local:
             # Without `extensions.worktreeConfig`, git answers the worktree scope with the

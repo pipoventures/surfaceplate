@@ -504,7 +504,12 @@ def compose(case: Case, repo: Path) -> Script:
 
     # --- remainder --------------------------------------------------------------------------
     ticked = sorted(_ticked(case))
-    floor = set(catalogue.CONFORMANCE_LEVELS[case.level])
+    # `DR-73`: the floor a repository is actually held to, which for a shape declaring no
+    # dependency manifest is the catalogue's floor less `dependency_lock`. Derived through
+    # `plan.level_floor`, the same function the wizard and the checker use, so this oracle still
+    # fails if the control goes missing from a shape that DOES declare dependencies - which is
+    # the property that matters and the one a hard-coded exception would have thrown away.
+    floor = set(plan.level_floor(case.level, flow.found))
     local: dict = {}
     for spec in flow.remainder_plan().fields:
         if not spec.applies(local):
@@ -795,7 +800,10 @@ def judge_written(o: Outcome, s: Script, repo: Path, written, *, commit: bool = 
                  "deferred": {"owner", "revisit_by", "rationale"}, "not_applicable": {"rationale"}}[gate["status"]]
         o.check(f"{gate['id']} carries exactly the fields {gate['status']} calls for", keys == shape, str(sorted(keys)))
     declared = set(profile["control_decisions"])
-    wanted_controls = set(catalogue.CONFORMANCE_LEVELS[s.answers["level.conformance_level"]]) | set(s.answers.get("controls.above_floor") or [])
+    # `DR-73`: derived from the repository being judged, through the same function the wizard
+    # and the checker use. A hard-coded exception here would have stopped this oracle failing
+    # when the control goes missing from a shape that DOES declare dependencies.
+    wanted_controls = set(plan.level_floor(s.answers["level.conformance_level"], discover.scan(repo))) | set(s.answers.get("controls.above_floor") or [])
     o.check("control_decisions is exactly the floor plus what was ticked", declared == wanted_controls, f"{sorted(declared)} vs {sorted(wanted_controls)}")
     o.check("the three baseline controls are declared", set(profile["baseline_controls"]) == set(plan.BASELINE_CONTROL_IDS))
     o.check("adoption.review_by is 180 days from the adoption date",

@@ -130,7 +130,7 @@ def propose_controls(*, level: str, mode: str, found: discover.Discovered) -> li
     """Rationales from the worked examples; references from what is really in the repository."""
     out: list[Proposal] = []
     section = plan.controls_plan(level=level, mode=mode, found=found)
-    floor = catalogue.CONFORMANCE_LEVELS[level]
+    floor = plan.level_floor(level, found)
 
     for spec in section.fields:
         key = f"controls.{spec.id}"

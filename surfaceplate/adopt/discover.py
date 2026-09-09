@@ -29,26 +29,25 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+# `DR-48`: the rules the checker and the wizard must not answer differently. Imported at module
+# level because `_LOCK_FILES` below is a module-level constant derived from it.
+try:
+    from surfaceplate import rules
+except ImportError:  # imported flat, with the payload directory itself on the path
+    import rules  # type: ignore[no-redef]
+
 # Directories whose contents are plausible governance artefacts. Not exhaustive, and not a
 # judgement about the adopter's layout - just the places this framework's own documents, and both
 # worked examples, actually put things.
 _ARTEFACT_DIRS = ("docs", "governance", "activity", "adr", "decisions", ".github")
 _ARTEFACT_SUFFIXES = (".md", ".yaml", ".yml")
 
-# Files that are a lock file by name. `dependency_lock` names one of these.
-_LOCK_FILES = (
-    "requirements.txt",
-    "requirements.lock",
-    "poetry.lock",
-    "Pipfile.lock",
-    "package-lock.json",
-    "yarn.lock",
-    "pnpm-lock.yaml",
-    "Cargo.lock",
-    "go.sum",
-    "gemfile.lock",
-    "pyproject.toml",
-)
+# Files that are a lock file by name, held once in `rules.py` (`F135`, `DR-48`). `pyproject.toml`
+# was in this list and is not a lock: it declares dependencies, and may or may not pin them. The
+# wizard therefore proposed a manifest as a lock, with origin `discovered`. A manifest is still
+# TYPEABLE - this repository's own profile names `pyproject.toml`, correctly, because it pins
+# exactly there - it is simply never proposed, because a name cannot establish which it is.
+_LOCK_FILES = rules.LOCK_FILES
 
 # Top-level directories that usually hold the code a gate would guard.
 _SOURCE_DIRS = ("src", "lib", "app", "pkg", "internal", "cmd", "services", "packages")
@@ -365,6 +364,15 @@ def candidate_register_dirs(repo: Path) -> list[str]:
     return _dedupe(_adopter_first(sorted(dirs)))
 
 
+def _manifest_state(repo: Path) -> tuple[str | None, str]:
+    """`rules.dependency_manifest`, imported the way this package reaches its sibling modules.
+
+    `DR-48`: the checker and the wizard must not answer "does this repository have dependencies"
+    two different ways, or the wizard writes a profile the checker rejects - `F66`'s defect.
+    """
+    return rules.dependency_manifest(repo)
+
+
 def candidate_lock_files(repo: Path) -> list[str]:
     """Dependency lock files, for `dependency_lock`'s implementation reference."""
     tracked = _adopters_own(repo)
@@ -569,6 +577,17 @@ class Discovered:
     free_control_seeds: dict[str, str] = None  # type: ignore[assignment]
     # `F93`: per pattern-C control, the register directories it may be proposed.
     register_fit: dict[str, tuple[str, ...]] = None  # type: ignore[assignment]
+    # `F132` / `DR-73`: does this repository declare dependencies at ALL? Not the same question
+    # as `lock_files`, which asks whether it has a lock. A repository with a `pyproject.toml` and
+    # no lock is asked for one; a repository with neither is not asked, because there is no
+    # honest answer and the checker has lifted the floor for exactly that case.
+    #
+    # DEFAULTS TO TRUE, and the default is the safe direction: a `Discovered()` nobody scanned
+    # into behaves as it always has, and only a real scan that establishes the absence lifts
+    # anything. `rules.dependency_manifest` is the one implementation, shared with the checker,
+    # so the wizard cannot stop asking for something the checker will still demand (`F66`).
+    has_dependency_manifest: bool = True
+    dependency_manifest: str | None = None
 
     def __post_init__(self) -> None:
         for name in ("rejected", "free_seeds", "free_control_seeds", "register_fit"):
@@ -604,6 +623,8 @@ def scan(repo: Path, scanner: str = DEFAULT_SCANNER) -> Discovered:
         artefacts=artefacts,
         register_dirs=register_dirs,
         lock_files=tuple(candidate_lock_files(repo)),
+        has_dependency_manifest=_manifest_state(repo)[1] != "none",
+        dependency_manifest=_manifest_state(repo)[0],
         paths=tuple(candidate_paths(repo)),
         ci_steps=tuple(candidate_ci_steps(repo)),
         scanner_workflows=tuple(scanner_workflows(repo, scanner)),

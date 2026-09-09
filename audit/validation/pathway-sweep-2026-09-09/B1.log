@@ -1,0 +1,43 @@
+
+$ git config --global --get-all core.hooksPath; sha256sum ~/.gitconfig
+/home/mps2210/.config/git/hooks
+645f73285b7bc755b2bb4c0343435c83c1212c39086a38dd5f189a68283d930b  /home/mps2210/.gitconfig
+exit=0
+
+$ surfaceplate install --target /home/mps2210/surfaceplate-sweep/repos/b1
+Surfaceplate 0.17.0 - install
+source: /home/mps2210/surfaceplate-sweep/.venv/lib/python3.12/site-packages/surfaceplate
+target: /home/mps2210/surfaceplate-sweep/repos/b1
+
+STOPPED - Git hooks for this repository already run from somewhere else.
+
+Git runs hooks from one location per repository, chosen by the `core.hooksPath` setting. That setting is currently set
+  at the --global level, to '/home/mps2210/.config/git/hooks' - which affects every repository on this machine, not just this one.
+
+Installing here would set core.hooksPath=.githooks for this repository, which would
+silently stop whatever is already configured at '/home/mps2210/.config/git/hooks' from running.
+
+Three ways forward:
+  1. Keep what you have, skip the local hook: re-run with --no-hooks. Everything
+     else installs; this repository relies on history_audit and review instead of a
+     local hook, and the conformance check says so on every run. Fully reversible,
+     and touches nothing outside this repository.
+  2. Remove the --global setting, once you've decided it's no longer needed:
+       git config --global --unset core.hooksPath
+     This affects every repository on this machine, not just this one.
+  3. Reconcile: keep both. Read what's actually at the configured path first - don't
+     assume. A common pattern (this machine's own global hook, if that's what's set,
+     may already use it) is a delegation wrapper that forwards to this repository's
+     own default hook path ($(git -C <repo> rev-parse --git-path hooks)/pre-commit)
+     rather than enforcing anything itself. If yours already does this, installing
+     the standard hook at that default path - not .githooks - and configuring
+     nothing further would work without touching the existing setting at all.
+Nothing has been written.
+exit=4
+
+$ git -C /home/mps2210/surfaceplate-sweep/repos/b1 status --short; ls -A /home/mps2210/surfaceplate-sweep/repos/b1; git config --global --get-all core.hooksPath; sha256sum ~/.gitconfig
+.git
+README.md
+/home/mps2210/.config/git/hooks
+645f73285b7bc755b2bb4c0343435c83c1212c39086a38dd5f189a68283d930b  /home/mps2210/.gitconfig
+exit=0

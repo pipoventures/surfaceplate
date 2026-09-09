@@ -196,7 +196,12 @@ an unknown number of releases with nothing noticing.
 | F128 | A skill shipped to every adopter pointed at `activity.instructions.md`, a filename the twelve-topic restructure stopped writing and a Copilot-only emitted name before that; nothing checked what the payload says about itself | medium | Closed — `ACT-073`, 2026-09-08; see the body |
 | F129 | `F123`'s ruling was applied to the document it was found in and nowhere else: Topic 7 still told every agent that stack-specific commands and test areas belong in `copilot-instructions.md` | medium | Closed — `ACT-073`, 2026-09-08; see the body |
 | F130 | The same dependency version is pinned in five places — `pyproject.toml`, two workflows, the payload's copy of one of them, and `INSTALL.md` — and nothing compared them, so a dependency change was judged green by a CI run that installed the old version | high | Closed — `ACT-074`, 2026-09-08; see the body |
-| F131 | `CVE-2025-71176` in pytest cannot be remediated within the pinned test set: `pytest-textual-snapshot` pins `syrupy==4.8.0`, which caps `pytest<9.0.0`, and the fix is only in `9.0.3` | medium | Open — no satisfiable upgrade exists; the decision is `H21` |
+| F131 | `CVE-2025-71176` in pytest cannot be remediated within the pinned test set: `pytest-textual-snapshot` pins `syrupy==4.8.0`, which caps `pytest<9.0.0`, and the fix is only in `9.0.3` | medium | Open — **accepted, not remediated**: the maintainer took route (1) at `H21`, 2026-09-08. The condition persists |
+| F132 | A repository with no dependency manifest of any kind cannot produce a conformant profile at any level, and the wizard dead-ends on the first screen: `dependency_lock` is the sole `essential` floor control and `SP051` requires it to name a real tracked file | high | Closed — `ACT-078` (`DR-73`), 2026-09-09; see the body |
+| F133 | The history audit accepts the installed **seed** as a former name of any artefact `adopt` scaffolded from it, so deleting the artefact never registers as a gate violation — and the seed can never be deleted | high | Closed — `ACT-080` (`DR-74`), 2026-09-09; raised as `PW-01`; confirmed at `HEAD` by the maintainer's session |
+| F134 | A refused `--answers` replay writes `.standards/adopt-draft.json` while printing *"Nothing was written"*, and that draft then makes a corrected record fail with the old value's error | high | Closed — `ACT-080` (`DR-74`), 2026-09-09; raised as `PW-02`; confirmed on the sweep's controlled isolation |
+| F135 | `pyproject.toml` is offered and proposed as a dependency **lock** file, and `SP051` accepts any tracked non-empty file as one — a manifest is not a lock | high | Closed — `ACT-080` (`DR-74`), 2026-09-09; raised as `PW-03`; confirmed at `HEAD` |
+| F136 | The pathway sweep's remaining fifteen findings (`PW-04` to `PW-18`), reported with evidence and **not yet adjudicated here** — held as one entry so none is lost and none is given a verified finding's status | medium | Open — each splits into its own `F<n>` as it is adjudicated |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1528,9 +1533,298 @@ field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
 
+## F136 — The pathway sweep's remaining fifteen findings, held pending adjudication
+
+**Severity: medium (the holding entry; individual severities below are the reporter's).
+Open — raised 2026-09-09.**
+
+`audit/PATHWAY_SWEEP_REPORT_2026-09-09.md` reports eighteen findings from 35 scenarios executed by a
+separate session against `30bba44`, with raw logs under
+`audit/validation/pathway-sweep-2026-09-09/`. Three were adjudicated here and carry their own
+numbers — `F133` (`PW-01`), `F134` (`PW-02`), `F135` (`PW-03`). **The other fifteen are recorded, not
+verified.**
+
+**Why one entry and not fifteen.** Writing fifteen bodies from a report this session has not
+reproduced would put unverified claims in this register at the same status as verified ones, and the
+register's whole value is that a reader cannot tell them apart only by looking harder. Each becomes
+its own `F<n>` when it has been reproduced or refuted here, and this entry closes when the last one
+has. **The claimed severity below is the reporter's, not this register's.**
+
+**A standing caveat on all fifteen: they were observed against `30bba44`, and `ACT-078` landed
+after.** Anything touching `dependency_lock`, the `essential` floor, or `control_decisions` may have
+moved. Re-testing against `HEAD` is part of adjudicating each, not an optional extra —
+`PW-03`'s two halves already behaved differently before and after that commit.
+
+| | Claimed | Reported |
+|---|---|---|
+| `PW-05` | medium | Under `--chain`, `adopt` proposes no `local_hook` enforcement, so a declared `hook_chain` is never verified and `SP038` cannot fire |
+| `PW-06` | medium | `README.md`'s "Working on the standard itself" block fails as written: its venv lacks `textual` and `build_release.py` then refuses |
+| `PW-07` | medium | `adopt --edit` without `--because` is accepted and recorded with a canned reason, and the CLI says it was recorded "with the reason" |
+| `PW-08` | medium | Installing over a newer recorded version is labelled "an UPGRADE, 99.0.0 -> 0.17.0"; `doctor` prints two different installed versions in one run |
+| `PW-09` | medium | The gate-exception template's natural completion is invalid — an unquoted `raised_on` parses as a date and fails the schema |
+| `PW-10` | medium | The answers record does not say that `contract_tests`/`deterministic_tests` want a *workflow step name*; a gate answered `not_applicable` still demands an artefact path |
+| `PW-11` | medium | `doctor` crashes with `UnicodeEncodeError` when C-locale coercion is disabled |
+| `PW-12` | medium | `adopt --edit` on the installer's template profile fails with `KeyError: 'scanner'`, exit 4 |
+| `PW-13` | low / medium | `RECONCILIATION.md` cannot be followed literally by a pip adopter; **and there is no removal procedure anywhere** |
+| `PW-14` | low | `RECONCILIATION.md` overstates what the standard owns under `.github/instructions/` |
+| `PW-15` | low | Changing `--agents` leaves empty `.claude/rules` and `.claude/skills` directories |
+| `PW-16` | low | The `--propose` preview substitutes silent defaults for undecided answers |
+| `PW-17` | low | Documentation drift in the install block, `SP001`'s `fix`, and the documented `pip install` resolving to `main` rather than a release |
+| `PW-18` | low | The history audit's window includes commits made in the same second as `effective_from` |
+
+**`PW-04` has left this table.** It was adjudicated with `F133` under `DR-74` as an instance of the
+same class — a negative asserted from an observation that could not have found the thing — and
+`doctor` now reports an unanswerable hooks path as unanswerable. Fourteen remain.
+
+**Two of these deserve flagging now, before adjudication, because they are not what their severity
+suggests.** `PW-13`'s second half — *no removal procedure exists anywhere* — is the packet's own
+"the absence of an answer is the finding", and it is an adoption question rather than a defect: a
+standard a repository cannot leave is a harder thing to adopt than one it can. And `PW-04` is the
+same shape as `F133` one layer out: a diagnostic reporting a negative it was not in a position to
+establish.
+
+## F135 — A dependency manifest is offered, and accepted, as a dependency lock
+
+**Severity: high. Closed — `ACT-080` (`DR-74`), 2026-09-09.**
+
+Two halves, both confirmed against `HEAD` (`0d5612e`) by the maintainer's session rather than taken
+from the report.
+
+**`discover._LOCK_FILES` contains `pyproject.toml`.** Read directly:
+
+```
+('requirements.txt', 'requirements.lock', 'poetry.lock', 'Pipfile.lock', 'package-lock.json',
+ 'yarn.lock', 'pnpm-lock.yaml', 'Cargo.lock', 'go.sum', 'gemfile.lock', 'pyproject.toml')
+```
+
+A `pyproject.toml` is a **manifest**: it declares dependency *ranges*. A lock file records the exact
+resolved versions. The wizard therefore proposes it — the sweep observed `value: pyproject.toml /
+origin: discovered / detail: 'found: pyproject.toml'` — and, because it was *discovered* rather than
+asked, the adopter is shown it as a fact about their repository rather than a question. `SP051` then
+confirms the file exists, is tracked, is non-empty and holds no placeholder, and the control reports
+verified. **Nothing at any point asks whether the named file pins anything.**
+
+`requirements.txt` sits in the same list and is genuinely ambiguous — often a pin file, often a
+range list. `pyproject.toml` is not ambiguous.
+
+**The second half: `SP051` accepts any tracked non-empty file.** The sweep completed a record with
+`controls.dependency_lock.implementation_reference: docs/guide.md` and the checker printed
+`dependency_lock: verified against docs/guide.md` and `PASS`. `DR-25` records that boundary as
+permanent and deliberate — this framework checks that a named artefact exists, never that its
+contents are honest — so this half is **not** a defect against the design. What is a defect is the
+combination: a control whose evidence is unconstrained *and* whose value is proposed as discovered.
+One or the other is defensible; together they mean the tool can put the wrong file in front of an
+adopter, call it discovered, and then verify it.
+
+**`DR-73` makes it sharper, and this is the part that must be fixed regardless of anything else.**
+`rules.dependency_manifest` — added yesterday — classifies `pyproject.toml` as a **manifest**, and
+`discover.candidate_lock_files` classifies it as a **lock**. Two modules in one payload answer the
+same question about the same file two different ways. That is precisely the drift `DR-48` created
+`rules.py` to prevent, and it was introduced by the change that closed `F132`.
+
+**Not yet remedied.** The narrow fix — remove `pyproject.toml` from the lock list, and reconcile the
+two classifications in `rules.py` — is available and small. Whether `SP051` should also constrain
+what *kind* of file a lock may be is a larger question against `DR-25`, and is the maintainer's.
+
+**Closed by `ACT-080` (`DR-74`), 2026-09-09**, on the narrow fix, and **not** by banning the file.
+`rules.LOCK_FILES` is now the single list and `pyproject.toml` is not in it, so a repository whose
+only pins are in its manifest is **asked** rather than told. It remains typeable, because naming it
+can be correct — this repository names it, and is right to: its dependencies are pinned exactly
+there and it has no separate lock. A name cannot distinguish a `pyproject.toml` that pins from one
+that declares ranges, and a tool that cannot distinguish them must ask.
+
+**`SP051` is deliberately unchanged**, so naming a Markdown page still passes. `DR-25` records that
+boundary as permanent. What is fixed is the tool proposing the wrong file as a *discovered fact*;
+what an adopter deliberately declares remains theirs.
+
+## F134 — A refused `--answers` replay writes a draft while saying nothing was written, and the draft then blocks the corrected record
+
+**Severity: high. Closed — `ACT-080` (`DR-74`), 2026-09-09.**
+
+The documented `--propose` → complete → `--answers` path cannot be completed after one wrong answer,
+and the message that results is about a value the adopter has already corrected.
+
+**Half one, confirmed independently.** A refusal prints:
+
+> `This is the wizard's own safety check, not the checker. Nothing was written.`
+
+and `.standards/adopt-draft.json` is on disk immediately afterwards. Reproduced from a clean start in
+the maintainer's session: install, `--propose`, complete the record with one path that does not
+exist, replay → refused with that text → `ls .standards/adopt-draft.json` → present. **The sentence
+is false**, and it matters because the file it denies writing is the one that changes the next run.
+
+**Half two, confirmed on the sweep's controlled isolation.** In `a1-repro2` the *only* thing that
+changed between a failing run and a passing one was the draft:
+
+```
+--answers answers-ii-nonexistent.yaml        → refused: "Nothing exists at that path"; draft written
+--answers answers-iii-tracked-nonmanifest.yaml → refused with answers-ii's error, about a path
+                                                  answers-iii does not contain
+rm .standards/adopt-draft.json
+--answers answers-iii-tracked-nonmanifest.yaml → WRITTEN; checker PASS          (record unchanged)
+```
+
+The tool's own advice — *"Run `surfaceplate adopt --propose` for a complete record"* — does not clear
+the draft, so following the instruction the refusal gives does not recover the situation.
+
+**An attempt to reproduce half two in the maintainer's session did not show the difference, and that
+is recorded rather than dropped.** That attempt's record still carried an unrelated genuine failure
+(a blank gate artefact), so both runs failed for a real reason and the draft could never have been
+the deciding variable. The observation was incapable of returning the other answer — the negative
+result establishes nothing, which is the rule this repository applies to its own checks and applies
+here to its own adjudication.
+
+**Not yet remedied.** Two candidate treatments, neither chosen: do not persist the draft on a
+refusal that wrote nothing else, or have `--answers` ignore any draft and read only the record it was
+given. The second is probably right — a replay is meant to be a pure function of its record — but it
+interacts with the resume-from-draft behaviour the interactive wizard depends on, which is why this
+is recorded rather than patched in passing.
+
+**Closed by `ACT-080` (`DR-74`), 2026-09-09**, with the second treatment: `wizard.run` takes
+`use_draft`, and the `--answers` path passes `False`, so a replay neither reads nor writes a draft.
+Not "clear it afterwards" but "never involve it" — a draft protects a human mid-interview from
+losing an hour of answers, and a replay has nothing to protect, its answers already being in a file
+the adopter wrote and still holds. The same reasoning that keeps `sections.build_profile` pure.
+Verified on the sweep's own sequence: the refusal now leaves no draft, so its *"Nothing was
+written"* is true, and the next replay's error moves on rather than repeating the last attempt's.
+
+## F133 — The history audit treats the installed seed as a former name of the artefact scaffolded from it
+
+**Severity: high. Closed — `ACT-080` (`DR-74`), 2026-09-09.**
+
+**Confirmed by effect at `HEAD` in the maintainer's session**, reproducing from a clean start rather
+than reading the report:
+
+```
+$ git log --follow --name-status --format= -- activity/register.md
+C100    .standards/seeds/activity-register.md   activity/register.md
+
+>>> historical_paths(repo, "activity/register.md")
+['activity/register.md', '.standards/seeds/activity-register.md']
+
+>>> blob_exists(repo, "HEAD", "activity/register.md")            False
+>>> blob_exists(repo, "HEAD", ".standards/seeds/activity-register.md")   True
+```
+
+The scaffolded register is byte-identical to the seed it was copied from, and the copy lands in a
+*later* commit than the seed. Git's copy detection reports `C100`; `F30`'s rename-following accepts
+it; and the audit then treats presence under **any** historical name as satisfying the gate. The
+artefact was deleted and a gated path changed, and the gate reports satisfied.
+
+**What makes this high rather than a curiosity: the seed can never be deleted.** It is installed
+payload under `.standards/`, integrity-checked, and an adopter who removes it fails `SP` integrity
+instead. So this is not a former name that happens to still exist — it is a permanent alias,
+guaranteed present, for every artefact `adopt` scaffolds: the activity register, the risk
+classification, the decision log, the authority map, the test conventions, the data sources, the
+output validation and dependency review documents, the release checklist.
+
+**It falsifies a safety property the code states about itself.** `historical_paths`'s docstring
+argues the function is safe because *"it only ever ADDS paths to look for, so it can clear a false
+violation and can never hide a commit where nothing existed under any name."* For a scaffolded
+artefact, something always exists under one of those names. The invariant does not hold, and the
+docstring is the strongest available evidence that the case was not anticipated.
+
+**And it makes a published claim false.** `INSTALL.md`'s FAQ states that *"a bypassed prerequisite
+violation remains in the commit graph and causes later conformance checks to fail until a specific,
+attributable exception is recorded."* For a scaffolded artefact it does not: `--no-verify` past the
+hook, delete the artefact, and the history audit never reports it.
+
+**Reach: every adopter who let the wizard scaffold their gate artefacts**, which is the path the
+wizard offers by default and the one the two trial installs took.
+
+**Not yet remedied**, and the remedy needs a decision rather than a patch. The obvious narrowing —
+never accept a `.standards/`-owned path as a historical name of an adopter's artefact — is small,
+correct as far as it goes, and does not address the general case of a byte-identical file elsewhere
+in the tree. Whether `historical_paths` should require the historical name to be *absent now* as
+well as present then, or should disable copy detection entirely and accept only renames, is a change
+to what `F30`'s remedy means, and belongs to the maintainer.
+
+## F132 — A repository with no dependency manifest cannot adopt this standard at any level
+
+**Severity: high. Closed — `ACT-078` (`DR-73`), 2026-09-09.**
+
+Found on 2026-09-08 by the maintainer, **on the first screen of the first walkthrough**, against a
+real repository. This is `H18`'s method producing `H18`'s result before `H18` had formally begun,
+which is worth recording as its own small vindication of watching someone use the thing.
+
+`dependency_lock` is the **only** control in `CONFORMANCE_LEVELS["essential"]`. `SP021`/`SP022`
+require every control a level names to be decided `required` — `deferred` and `excluded` both raise
+`SP022`. `SP051` then requires its `implementation_reference` to name a file that exists, is
+non-empty, carries no placeholder, and is tracked by git. The adoption wizard implements this
+faithfully: when discovery finds no lock file it asks for one, with `validate="tracked_path"`.
+
+**So a repository with nothing to name has no way forward.** The wizard refuses to continue — which
+is correct behaviour, not the defect. It is refusing to write a profile that its own checker would
+reject. **The defect is upstream of it: the standard's one universal control assumes a property not
+every repository has.**
+
+The repository this was found on is a documentation and knowledge repository — 316 Markdown files,
+16 YAML, 2 Python, **no `package.json`, `pyproject.toml`, `requirements.txt`, `go.mod`, `Gemfile`,
+`pom.xml`, `Cargo.toml` or `composer.json` of any kind**, verified by listing its tracked files. It
+has no dependencies to pin. The class is not exotic: documentation repositories, configuration and
+policy repositories, infrastructure-as-data repositories, monorepo subtrees whose dependencies are
+resolved a level up, and repositories whose runtime comes entirely from a base image all share it.
+The schema's own `stack` field says *"The kit does not require a UI, API, or specific language"* —
+a claim this floor contradicts.
+
+**Why 45,266 matrix checks did not catch it, which is the transferable part.** `test_adopt_matrix.py`
+walks every reachable decision of the wizard across 208 cases, and one of its three repository
+shapes is called `bare` — *"no language, no lock file, no workflow, no artefact matching any gate"*.
+It reaches this very field. But **"there is no valid answer" is not a decision — it is a property of
+the repository**, and every fixture in every suite answers a `tracked_path` field with a path that
+exists in it (`main.py`, `activity/register.md`, and the matrix's own seeded files). A suite that
+walks decisions exhaustively can still never reach a state that is not a decision. That is not a
+gap in the matrix's coverage of what it covers; it is the boundary of what walking decisions can
+establish, and it took a real repository to cross it.
+
+**Proposed remedies, none applied — `H22`.**
+
+1. **Derive applicability, and check it.** `dependency_lock` becomes not applicable where the
+   repository contains no dependency manifest at all — a fact the checker can establish from the
+   tracked file list, the same way `discover.candidate_lock_files` already does. If a manifest ever
+   appears, the control snaps back to required and the check fails until a lock file is named.
+   Nothing is declared and so nothing can be misdeclared. **Recommended.**
+2. **Declare it and verify the declaration.** A `not_applicable` decision with a mandatory
+   rationale, accepted **only** when the checker independently confirms no manifest exists — a new
+   finding code for "declared not applicable, but a manifest is present". This is the
+   `hook_chain` / `adopter_canon` idiom: the adopter states it, the checker verifies it by effect.
+   More audit trail than (1), one more code and one more schema key.
+3. **Allow `excluded` with a rationale, unchecked.** Rejected on sight: it lets any adopter with
+   real dependencies write a sentence and drop the one control this standard applies to everyone.
+   *"Supply-chain exposure exists regardless of output materiality"* is `dependency_lock`'s own
+   stated rationale, and (3) would make it advisory.
+
+Either (1) or (2) is a change to a published contract and to `core/CONFORMANCE_LEVELS.md`, which
+this standard reserves to a human. The wizard change follows the standard's, not the other way
+round — fixing the wizard alone would let it write a profile the checker still rejects, which is
+`F66`'s defect exactly.
+
+**Closed by `ACT-078` (`DR-73`), 2026-09-09 — the maintainer chose route (1).** The floor is lifted
+by the checker, from the repository's own tracked files, and never by a declaration. Only the floor
+moves: a repository that decides `dependency_lock` required anyway is checked by `SP051` exactly as
+before, and the report says on every run that the waiver applied and why.
+
+**What makes it a waiver rather than a hole is the second direction, and it is asserted.** Adding a
+`package.json` restores the floor with no edit to the profile, and `SP021` fires naming the control.
+Both directions are in `tests/test_adopt.py::test_a_repository_with_no_dependencies_can_still_conform`,
+which fails without the fix in exactly the way the maintainer's run failed.
+
+**Three consequences that were not obvious when this was raised:**
+
+- **`control_decisions` may now be empty**, because at `essential` the waived control was the whole
+  floor. `minProperties` moves `1` → `0` — a relaxation, so no existing profile becomes invalid —
+  and the renderer writes `{}` rather than a bare key, which YAML reads as `null`.
+- **`SP021`'s remedy told an `essential` adopter to "declare a lower level".** There is not one.
+  This finding is precisely the case where that advice sent a reader nowhere, and it is corrected.
+- **The shared test fixture had been in this finding's state all along**, and every scripted answer
+  supplied a lock-file path pointing at a file that did not exist. The suite was green because the
+  script answered a question no repository of that shape could answer. That is the same shape as
+  the finding itself, one layer in, and it is recorded in `DR-73`'s Limitations rather than quietly
+  fixed.
+
 ## F131 — A security advisory in a pinned test dependency has no satisfiable remedy, because a plugin pins the package that caps it
 
-**Severity: medium. Open — the decision is `H21`.**
+**Severity: medium. Open — accepted by the maintainer at `H21`, 2026-09-08. Not remediated; the condition persists.**
 
 Recorded on 2026-09-08 in this session, from GitHub's Dependabot alert 1 on `main`.
 **`GHSA-6w46-j5rx-g56g` / `CVE-2025-71176`** — *"pytest through 9.0.2 on UNIX relies on directories
@@ -1594,6 +1888,29 @@ are the maintainer's:
 
 **Recommendation: (1)**, on the exposure reading above and on the absence of any upstream date. Not
 a decision this session can take. Recorded as **`H21`**.
+
+**Decided 2026-09-08: route (1), accept and defer.** The maintainer accepted the residual risk on
+the reading above. **This finding therefore stays `Open`, and the distinction is not pedantry: an
+accepted risk and a fixed defect are different states, and a register that recorded them the same
+way would be unable to answer "what is still wrong here?" — which is the only question it exists
+to answer.** `pytest 8.4.2` is still pinned and still carries `CVE-2025-71176`. What changed is that
+someone with the authority to accept it has, on the record, with a reason.
+
+**Review trigger, so this is a deferral and not an abandonment:** a `pytest-textual-snapshot`
+release that permits `syrupy >= 5`. At that point the whole chain unblocks in one bump and this
+finding closes by remediation rather than by acceptance.
+
+**What the acceptance does not extend to.** It covers this advisory, in this dependency, at this
+severity, on this exposure reading. A new advisory in the same package, or a change that puts
+`pytest` on a path an adopter installs, is a new decision — not one this record has already taken.
+
+**Corrected in the same change (`ACT-076`):** the costing offered to the maintainer said the
+suppression would be *"three lines in `.github/dependabot.yml`"*. That file does not exist, and
+creating one requires an `updates:` block that would **enable scheduled version-update pull
+requests** this repository has never had — a behaviour change nobody asked for, offered as though it
+were a formality. The alert came from Dependabot **security updates**, a repository setting, so the
+instrument is dismissing the alert with a recorded reason. Stated here because the wrong instrument
+was in the costing the decision was taken on, even though the decision itself is unaffected.
 
 ## F130 — The same dependency version is pinned in five places, and nothing compared them
 

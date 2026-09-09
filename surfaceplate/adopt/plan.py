@@ -298,7 +298,10 @@ def decisions_plan(repo: Path, *, found: discover.Discovered, proposals: dict) -
                 wrong=SCANNER_WIRED_WRONG,
             )
         )
-    if not found.lock_files:
+    # `F132` / `DR-73`: asked only where there is an answer to give. A repository that declares
+    # no dependencies anywhere has no lock file to name, and the checker has lifted the floor for
+    # it - so asking would be demanding a value the tool itself has decided it does not need.
+    if not found.lock_files and found.has_dependency_manifest:
         fields.append(
             FieldSpec(
                 id="controls.dependency_lock.implementation_reference",
@@ -694,6 +697,19 @@ def _in_topic_order(control_ids) -> list[str]:
     return sorted(control_ids, key=lambda c: (rules.CONTROL_TOPICS.get(c, 99), c))
 
 
+def level_floor(level: str, found: discover.Discovered) -> frozenset[str]:
+    """The level's controls, less any whose floor this repository cannot be held to (`DR-73`).
+
+    One function, called by the plan and by the proposals, so the wizard cannot ask for a control
+    on one screen and omit it on another. `check_conformance.report_waived_controls` derives the
+    same fact from the same `rules` function; this is the wizard's half of that agreement.
+    """
+    floor = set(catalogue.CONFORMANCE_LEVELS[level])
+    if not found.has_dependency_manifest:
+        floor.discard("dependency_lock")
+    return frozenset(floor)
+
+
 def controls_plan(
     *, level: str, mode: str, found: discover.Discovered | None = None, scanner: str = discover.DEFAULT_SCANNER
 ) -> SectionPlan:
@@ -706,7 +722,7 @@ def controls_plan(
     shape. Nothing above the floor is declared unless a human turns it on.
     """
     found = found or discover.Discovered()
-    required = catalogue.CONFORMANCE_LEVELS[level]
+    required = level_floor(level, found)
     fields: list[FieldSpec] = []
 
     for control_id in BASELINE_CONTROL_IDS:

@@ -1,0 +1,19 @@
+
+$ surfaceplate install --target /home/mps2210/surfaceplate-sweep/repos/a6/sub/project --no-hooks
+error: target /home/mps2210/surfaceplate-sweep/repos/a6/sub/project is not the root of a readable Git working tree
+exit=2
+
+$ git -C /home/mps2210/surfaceplate-sweep/repos/a6 status --short | head; find /home/mps2210/surfaceplate-sweep/repos/a6 -path '*/.git' -prune -o -type f -name '*.yml' -print | grep -i workflow
+exit=1
+
+$ surfaceplate check --repo /home/mps2210/surfaceplate-sweep/repos/a6/sub/project
+Surfaceplate - conformance check
+repository: /home/mps2210/surfaceplate-sweep/repos/a6/sub/project
+
+Blocking findings (1) - never graced:
+  [SP001] Surfaceplate is not installed
+        what: .standards/INSTALL.json is missing.
+        fix : Run install_standard.py from the surfaceplate repository.
+
+FAIL - Surfaceplate is not installed in this repository.
+exit=2

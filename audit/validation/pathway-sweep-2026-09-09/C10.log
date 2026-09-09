@@ -1,0 +1,34 @@
+
+$ surfaceplate uninstall --target /home/mps2210/surfaceplate-sweep/repos/b7
+usage: surfaceplate [-h] [--version] {install,check,adopt,doctor} ...
+error: argument {install,check,adopt,doctor}: invalid choice: 'uninstall' (choose from 'install', 'check', 'adopt', 'doctor')
+exit=3
+
+$ surfaceplate --help
+usage: surfaceplate [-h] [--version] {install,check,adopt,doctor} ...
+
+The Pipo Ventures software delivery standard, installed rather than copied.
+
+positional arguments:
+  {install,check,adopt,doctor}
+    install             Install or upgrade the standard into a repository.
+    check               Check a repository against the standard (--format
+                        text|json|sarif).
+    adopt               Fill in the application profile: interactively, or
+                        --propose then --answers.
+    doctor              Report what would stop the first command on this
+                        machine; --report assembles a problem report to paste,
+                        offline.
+
+options:
+  -h, --help            show this help message and exit
+  --version             show program's version number and exit
+exit=0
+
+$ surfaceplate install --help 2>&1 | grep -n -iE 'remov|uninstall|revert|undo' ; echo grep-exit=$?
+grep-exit=1
+exit=0
+
+$ grep -rn -iE 'uninstall|remove surfaceplate|removing surfaceplate|to leave the standard|opt out' /home/mps2210/surfaceplate-sweep/source/README.md /home/mps2210/surfaceplate-sweep/source/INSTALL.md /home/mps2210/surfaceplate-sweep/source/SETUP_GUIDE.md /home/mps2210/surfaceplate-sweep/source/SUPPORT.md /home/mps2210/surfaceplate-sweep/source/RECONCILIATION.md; echo grep-exit=$?
+grep-exit=1
+exit=0

@@ -1,0 +1,12 @@
+
+$ surfaceplate check --repo /home/mps2210/surfaceplate-sweep/repos/c12
+Surfaceplate - conformance check
+repository: /home/mps2210/surfaceplate-sweep/repos/c12
+
+Blocking findings (1) - never graced:
+  [SP001] Surfaceplate is not installed
+        what: .standards/INSTALL.json is missing.
+        fix : Run install_standard.py from the surfaceplate repository.
+
+FAIL - Surfaceplate is not installed in this repository.
+exit=2

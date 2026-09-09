@@ -1,0 +1,213 @@
+
+$ sed -n '1,72p' /home/mps2210/surfaceplate-sweep/source/RECONCILIATION.md
+# Reconciling a repository that already has its own instructions and skills
+
+The installer stops rather than overwrite files you wrote. This is how to resolve that.
+
+## Why it stops
+
+The standard owns fixed paths: `.github/instructions/*.instructions.md` and
+`.github/skills/<name>/SKILL.md`. If your repository already has a file at one of those paths, the
+installer cannot tell whether it is a rough draft or the most carefully considered document in the
+repository. So it refuses, lists the conflicts, and writes nothing.
+
+The case this exists for is a repository that already carries some or all of the seven skill names
+and the twelve topic document names, with its own stack and methodology detail in them that the
+stack-neutral standard deliberately does not reproduce. Overwriting those would be a regression
+presented as an installation.
+
+## The distinction that resolves it
+
+Separate two things that tend to sit in the same file:
+
+- **How work is controlled** — what must be true before a change merges; when to stop and ask; what
+  evidence to produce. This is common across every repository, and it belongs to the standard.
+- **How work is done here** — the language, the package layout, the test runner, the methodology,
+  your branching model, the deployment target. This is specific, and it belongs to you.
+
+Almost every existing skill file is a blend. Split it.
+
+## Procedure
+
+1. **Diff, don't assume.** For each conflicting file, compare it with the standard's version:
+
+   ```bash
+   diff .github/skills/change/SKILL.md ../surfaceplate/surfaceplate/standard/.github/skills/change/SKILL.md
+   ```
+
+2. **Classify every paragraph** as control or stack-specific.
+
+3. **Anything genuinely missing from the standard** — a gate, a stop condition, a required input
+   that applies to any repository — should be raised against the standard, not kept locally. If it
+   was worth having in one repository it is probably worth having in all of them.
+
+4. **Move the stack-specific content out of the standard-owned paths.** Put it in an instruction
+   file the standard does not own — for example `r-package.instructions.md`,
+   `data.instructions.md`, `docs.instructions.md` — or in your own `copilot-instructions.md`.
+   Copilot loads all of them, so nothing is lost. Adding an `applyTo:` frontmatter pattern lets you
+   scope it to the relevant files.
+
+5. **Re-run the installer** with `--replace-existing` once the conflicting files contain nothing
+   you still need.
+
+6. **Record what you did.** The reconciliation is a change to how the repository is controlled.
+   Note it in the application profile's decision record.
+
+## What must not happen
+
+- Do not keep two skills with near-identical names. If both a `change` and a `local-change` skill
+  exist, the assistant will pick one unpredictably, and you will have two authorities for one
+  control — the exact failure the standard exists to prevent.
+- Do not resolve a conflict by weakening the standard's version to match the local one.
+- Do not mark the repository as conformant while the reconciliation is outstanding. Record the
+  adoption status as `deferred`, with a rationale, and complete it.
+
+## The shape that needs a decision, not a merge
+
+The hardest case is not a naming collision but two mandates that overlap without being identical —
+an adopter that mandates an activity-register gate, say, where the standard mandates a work-packet
+gate. Two canonical authorities for one control is a defect under the standard's own principles, so
+**one of them must give way**, explicitly and on the record.
+
+Do not resolve this by merging the two into a single document that satisfies neither. Decide which
+is authoritative, record the decision, and demote the other to guidance. A repository with this
+conflict outstanding should not be marked in scope until it is settled.
+exit=0
+
+$ cd /home/mps2210/surfaceplate-sweep/repos/a7 && diff .github/skills/change/SKILL.md ../surfaceplate/surfaceplate/standard/.github/skills/change/SKILL.md
+diff: ../surfaceplate/surfaceplate/standard/.github/skills/change/SKILL.md: No such file or directory
+exit=2
+
+$ cd /home/mps2210/surfaceplate-sweep/repos/a7 && diff .githooks/pre-commit ../surfaceplate/surfaceplate/standard/.githooks/pre-commit
+diff: ../surfaceplate/surfaceplate/standard/.githooks/pre-commit: No such file or directory
+exit=2
+
+$ cd /home/mps2210/surfaceplate-sweep/repos/a7 && ls /home/mps2210/surfaceplate-sweep/.venv/lib/python3.12/site-packages/surfaceplate/standard/.githooks/ && diff .githooks/pre-commit /home/mps2210/surfaceplate-sweep/.venv/lib/python3.12/site-packages/surfaceplate/standard/.githooks/pre-commit | head -8
+pre-commit
+2c2,46
+< echo "our own pre-commit"
+---
+> 
+> repo_root=$(git rev-parse --show-toplevel 2>/dev/null)
+> if [ -z "$repo_root" ]; then
+>     echo "Surfaceplate: cannot determine the repository root." >&2
+>     exit 2
+exit=0
+
+$ surfaceplate install --target /home/mps2210/surfaceplate-sweep/repos/a7 --chain --replace-existing
+Surfaceplate 0.17.0 - upgrade
+source: /home/mps2210/surfaceplate-sweep/.venv/lib/python3.12/site-packages/surfaceplate
+target: /home/mps2210/surfaceplate-sweep/repos/a7
+currently installed: 0.17.0
+
+  write   .githooks/.gitattributes
+  write   .githooks/pre-commit
+  unchanged .github/copilot-instructions.md
+  unchanged AGENTS.md
+  write   .githooks/pre-commit, and core.hooksPath is left as it was
+            your own hook must call it; the conformance check verifies that
+  keep    governance/application-profile.yaml  (yours; never overwritten)
+  write   .standards/INSTALL.json
+
+97 standard-owned file(s); 2 written or updated; 0 removed.
+
+What changed, by review class:
+    1  enforcing  (code that runs - review this closely)
+       .githooks/pre-commit
+    0  contract   (parsed by the checker - changes what validates)
+    1  reference  (read by people - changes what the rules say)
+       .githooks/.gitattributes
+Grace window ends 2026-10-09. After that the check fails.
+
+Next steps:
+  1. Complete governance/application-profile.yaml. Worked examples: .standards/examples/
+  2. Run: python .standards/check_conformance.py
+  3. Stage the installer output.
+  4. Run: git update-index --chmod=+x .githooks/pre-commit
+  5. Make your own pre-commit hook run .githooks/pre-commit and propagate its exit
+     code. core.hooksPath was left as it was; nothing here changed it.
+  6. Declare it in the profile so the check can verify it:
+       adoption:
+         hook_chain:
+           delegates_to: .githooks/pre-commit
+           rationale: <why this repository keeps its own hook system>
+  7. Commit the result. The check runs your hook with SURFACEPLATE_HOOK_PROBE
+     set and reports SP038 if it does not reach the gate.
+  8. Open a pull request.
+
+Something wrong, or a check looks wrong? https://github.com/pipoventures/surfaceplate/issues
+exit=0
+
+$ cd /home/mps2210/surfaceplate-sweep/repos/a7 && git status --short | head; sha256sum AGENTS.md .github/instructions/team.instructions.md scripts/our-pre-commit.sh; grep -c 'Never delete a migration' AGENTS.md; head -3 .githooks/pre-commit
+ M .standards/INSTALL.json
+?? .githooks/
+623f5bb4fe4fcf8966a48a6e0328395c749d28078d631bb0bedfd53dc4b1b779  AGENTS.md
+d6a67f22ca8eda8611c5d2b0296d526b38ec03c9f07696da2d8e9c6dacd2b2f7  .github/instructions/team.instructions.md
+816b375ac95bd5f28245762f079fd66bd988b3aea6635881880365f1f25b04fd  scripts/our-pre-commit.sh
+1
+#!/bin/sh
+
+repo_root=$(git rev-parse --show-toplevel 2>/dev/null)
+exit=0
+
+$ grep -n -iE 'decision_record|decision record' /home/mps2210/surfaceplate-sweep/repos/a7/governance/application-profile.yaml | head -5; ls /home/mps2210/surfaceplate-sweep/repos/a7/docs/decisions 2>&1 | head -3
+39:# Recorded here, rather than only in a free-text decision record, so that adoption
+50:  decision_record_id: replace-me      # ID of the adoption decision record
+ls: cannot access '/home/mps2210/surfaceplate-sweep/repos/a7/docs/decisions': No such file or directory
+exit=0
+
+$ surfaceplate check --repo /home/mps2210/surfaceplate-sweep/repos/a7
+Surfaceplate - conformance check
+repository: /home/mps2210/surfaceplate-sweep/repos/a7
+standard  : 0.17.0 installed 2026-09-09
+
+Adoption completeness findings (15):
+  [SP016] The application profile does not satisfy the control contract
+        what: at adoption/framework_digest: 'replace-me' does not match '^[A-Fa-f0-9]{64}$'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at adoption/framework_version: 'replace-me' does not match '^[0-9]+\\.[0-9]+\\.[0-9]+$'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at builds_user_interface: 'replace-me' is not of type 'boolean'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at prerequisites/0/effective_from: 'replace-me' does not match '^\\d{4}-\\d{2}-\\d{2}([T ]\\d{2}:\\d{2}(:\\d{2}(\\.\\d+)?)?(Z|[+-]\\d{2}:\\d{2})?)?$'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at risk/material_quantitative_output: 'replace-me' is not of type 'boolean'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP016] The application profile does not satisfy the control contract
+        what: at risk/relied_on_outside_team: 'replace-me' is not of type 'boolean'
+        fix : Correct the profile. See the worked examples in examples/.
+  [SP024] The profile review date is unreadable
+        what: adoption.review_by is 'replace-me', which is not an ISO date.
+        fix : Use the YYYY-MM-DD form, for example '2027-02-15'.
+  [SP020] The application profile still contains template placeholders
+        what: application_id = 'replace-me'; display_name = 'replace-me'; owner = 'replace-me'; risk.relied_on_outside_team = 'replace-me'; risk.material_quantitative_output = 'replace-me'; adoption.framework_version = 'replace-me'; adoption.framework_digest = 'replace-me'; adoption.adoption_date = 'replace-me'; adoption.review_by = 'replace-me'; adoption.framework_maintainer = 'replace-me' (and 9 more)
+        fix : Replace every placeholder with a real value. A profile of placeholders records nothing.
+  [SP046] secret_hygiene is declared but no scanner is named
+        what: baseline_controls.secret_hygiene has no scanner block naming a tool and where it is wired.
+        fix : Name the scanner and the file(s) that run it under baseline_controls.secret_hygiene.scanner. This standard requires secret_hygiene at every level; until the scanner is named, the requirement is a declaration with nothing behind it.
+  [SP051] Control 'dependency_lock' is required but names nothing to check
+        what: control_decisions.dependency_lock has no implementation_reference, so the declaration is compared against nothing.
+        fix : Add implementation_reference naming the file that implements this control - a lock file, a findings register. A control checked only against its own declaration is a statement of intent, not a control.
+  [SP048] The profile declares a different version from the one installed
+        what: adoption.framework_version is replace-me, but .standards/INSTALL.json records 0.17.0 as installed.
+        fix : Correct the profile, or re-run the installer. A conformance claim names the version it was assessed against; naming one that is not present makes the claim unverifiable rather than merely wrong.
+  [SP049] The profile's framework digest does not match what is installed
+        what: adoption.framework_digest is replace-me, but the installed standard anchors to ceffdcf76ae5440ceae16c154893c3771455db0ad7aaa36d245bbe67db4c8d7f.
+        fix : Set adoption.framework_digest to the value in .standards/INSTALL.json, or re-run the installer. Note that DR-14 changed this field's meaning: it is now sha256(MANIFEST.sha256), not the release archive's digest, because the archive is not reproducible and so could never be recomputed by anyone checking the claim.
+  [SP032] Gate 'work_registration' requires an artefact that does not exist
+        what: replace-me is named as a precondition but is not present.
+        fix : Create the artefact, correct the path, or change the gate's status. A gate whose precondition cannot be satisfied is not a control.
+  [SP033] Gate 'work_registration' has an unreadable effective date
+        what: effective_from is 'replace-me', which is not an ISO date.
+        fix : Use YYYY-MM-DD, or YYYY-MM-DDThh:mm:ss+hh:mm to bind from an instant.
+  [SP037] 'builds_user_interface' is not a yes or no
+        what: found 'replace-me'.
+        fix : Use true or false.
+
+WARN - adoption is incomplete, but grace expires 2026-10-09 (30 day(s) remaining).
+This check will fail once the grace window ends. Complete the profile before then.
+exit=0

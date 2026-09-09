@@ -2589,3 +2589,136 @@ hold is that asking the question cannot change the answer. Run live against this
 
 `DR-72` records what this does not establish: nothing verifies that the index's answer is genuine,
 and a fork publishing elsewhere would report its own installs as behind.
+
+### A repository with no dependencies can adopt this standard (`ACT-078`, `DR-73`, closing `F132`)
+
+Found by the maintainer on the **first screen of the first walkthrough**, against a real 257-file
+documentation repository, after 45,266 matrix checks had passed.
+
+`dependency_lock` was the only control in the `essential` floor. `SP021`/`SP022` require a level's
+controls to be decided `required`, so `deferred` and `excluded` both failed; `SP051` then required a
+real, tracked, non-empty file. **A repository with no dependency manifest of any kind had nothing to
+name and could not conform at any level** — while the profile schema's own `stack` field says *"The
+kit does not require a UI, API, or specific language"*. Documentation repositories, policy
+repositories, and monorepo subtrees whose dependencies resolve a level up all share the shape.
+
+**The wizard was not the defect.** It refused to continue because it was declining to write a
+profile its own checker would reject, which is correct. The defect was upstream of it.
+
+The floor is now lifted for such a repository, **derived by the checker from the adopter's own
+tracked files and never declared in the profile**. `H22` chose derivation over a declared
+`not_applicable` on a narrow ground: whether a repository has a manifest is a fact about their tree,
+not a judgement about their risk, and a declaration that adds no information adds only ways to be
+wrong.
+
+Four properties, each of which is what stops this being a hole rather than a waiver:
+
+- **Only the floor moves, never a check.** A repository that decides `dependency_lock` required
+  anyway is checked by `SP051` exactly as before.
+- **It is re-derived on every run, and both directions are asserted.** Adding a `package.json`
+  restores the floor with no edit to any profile, and `SP021` fires naming the control.
+- **The manifest list is deliberately generous**, because the two errors are not symmetrical.
+  Believing a manifest exists where none does returns a repository to the dead end — visible to
+  whoever hits it. Believing none exists where one does silently waives the one control this
+  standard applies to everyone. `CMakeLists.txt` and `Dockerfile` are excluded on purpose: both
+  imply a supply chain and neither has a lock file an adopter could name.
+- **An unanswered question lifts nothing.** If git cannot list the files, the floor stands.
+
+Three consequences that were not obvious when the finding was raised. **`control_decisions` may now
+be empty**, since at `essential` the waived control was the whole floor — `minProperties` moves
+`1` → `0` (a relaxation; no existing profile becomes invalid, `schema_version` stays `"1.0"`) and
+the renderer writes `{}` rather than a bare key, which YAML reads as `null`. **`SP021`'s remedy told
+an `essential` adopter to "declare a lower level"** — there is not one, and this finding is exactly
+the case where that advice sent a reader nowhere. And **the shared test fixture had been in the
+finding's state all along**: every scripted answer supplied a lock-file path pointing at a file that
+did not exist, so the suite was green because the script answered a question no repository of that
+shape could answer. The fixture now seeds a manifest, and the new test removes it.
+
+**The first version of this waived a repository that had real dependencies, and the matrix caught
+it.** Its `mixed` shape is built as *"a pinned-dependency file no lock-file rule names"* —
+`deps/pins.txt` holding `PyYAML==6.0.3` — which a list of standard manifest names cannot see. The
+floor lifted for a repository that pins its dependencies and had been naming that very file as its
+implementation reference. The list now also recognises a plain file whose name says it pins things,
+or that sits in a `deps/`, `requirements/` or `constraints/` directory. The regenerated matrix report
+is fully accounted for: **82 rows changed, all of shape `bare`, each losing exactly six checks**, and
+`rich` and `mixed` untouched.
+
+`sections.build_controls` stays pure — the waiver arrives as the absence of an answer the plan did
+not ask for, not as a fresh scan — because purity is what makes `--answers` replay deterministic and
+the matrix's report comparable. The omission is gated on a named `WAIVABLE_CONTROLS` set, so a
+missing rationale for any other control still raises loudly rather than dropping it silently.
+
+### The pathway sweep, and what adjudicating it found (`ACT-079`)
+
+A separate session executed `audit/PATHWAY_SWEEP.md` against `30bba44` — 35 scenarios across
+repository shape, environment and command sequence, the axes the 208-case matrix does not vary. All
+three calibration cases fired, so its clean results stand on the packet's own terms. The report and
+its 39 raw logs are in the repository as evidence.
+
+**Three `high` findings, each reproduced here rather than accepted:**
+
+- **`F133`** — the history audit accepts the installed **seed** as a former name of any artefact
+  `adopt` scaffolded from it. Git reports `C100` (a 100% copy) because the scaffold is byte-identical
+  and lands in a later commit; `historical_paths` accepts it; and the audit then treats presence
+  under any historical name as satisfying the gate. **The seed can never be deleted** — it is
+  integrity-checked payload — so this is a permanent alias for every artefact the wizard scaffolds.
+  It falsifies a safety property the code states about itself, and makes `INSTALL.md`'s FAQ claim
+  about `--no-verify` false for exactly those artefacts.
+- **`F134`** — a refused `--answers` replay writes `.standards/adopt-draft.json` while printing
+  *"Nothing was written"*, and that draft then makes a **corrected** record fail with the old value's
+  error. The tool's own advice, re-running `--propose`, does not clear it.
+- **`F135`** — `pyproject.toml` is in the dependency **lock** list, so a manifest is proposed as a
+  lock with origin `discovered`. `DR-73` makes it sharper: `rules.dependency_manifest` calls that
+  file a manifest while `discover.candidate_lock_files` calls it a lock — two modules in one payload
+  answering the same question two ways, which is the drift `DR-48` exists to prevent, introduced by
+  the change that closed `F132`.
+
+The remaining fifteen are held as **`F136`**, at the reporter's severity, recorded but **not
+verified here**. Writing fifteen bodies from a report this session has not reproduced would put
+unverified claims in the register at the same status as verified ones, and the register's value is
+that a reader cannot tell them apart by looking harder.
+
+**One correction of this session's own adjudication is recorded rather than dropped.** `F134`'s
+second half was first called unconfirmed, because an attempt to reproduce it here showed no
+difference when the draft was deleted. That attempt's record still carried an unrelated genuine
+failure, so both runs failed for a real reason and the draft could never have been the deciding
+variable — the observation was incapable of returning the other answer. The reporter's `a1-repro2`
+sequence is a proper controlled comparison and settles it.
+
+### A check may not report a negative it was not in a position to establish (`ACT-080`, `DR-74`)
+
+The pathway sweep's three `high` findings, fixed as a class rather than as three instances.
+
+**`F133` — a copy is not a rename.** `adopt` scaffolds a gate artefact by copying a file out of
+`.standards/seeds/`. The copy is byte-identical and lands in a later commit, so `git log --follow`
+reports `C100` and `F30`'s rename-following accepted the **seed** as a former name of the artefact.
+The seed is installed payload and is never deleted, so the audit found the artefact "present" at
+every commit — including ones that deleted it and changed a gated path. Two rules now: `C` records
+are rejected outright, correcting git's own classification, **and** a candidate that still exists in
+the tree today is not a former name of anything — a rename leaves the old path gone, a copy leaves
+both. `F30`'s remedy survives, verified on a genuine `git mv` and on this repository's own
+two-rename `test_convention` chain.
+
+**`F134` — a replay is a pure function of its record.** `wizard.run` takes `use_draft`, and the
+`--answers` path passes `False`. Not "clear the draft afterwards" but "never involve it": a draft
+protects a human mid-interview from losing an hour of answers, and a replay has nothing to protect,
+its answers already being in a file the adopter wrote and still holds. Its *"Nothing was written"*
+is now true.
+
+**`F135` — one module owns "is this file a lock".** `rules.LOCK_FILES` is the single list and
+`pyproject.toml` is not in it. **Not a ban** — this repository names it, and is right to: its
+dependencies are pinned exactly there and it has no separate lock. A name cannot distinguish a
+`pyproject.toml` that pins from one that declares ranges, and a tool that cannot distinguish them
+must ask rather than assert. Offered, never proposed.
+
+**And the rule behind them, applied where it was already broken.** `F133` and the sweep's `PW-04`
+are one defect in two places: the audit said *"the artefact was present"* having found a seed under
+an alias, and `doctor` said *"`core.hooksPath` is unset"* having found no `git` to ask.
+`_git_config`'s own docstring read *"or `None` when unset **or** git cannot answer"* — the
+conflation was written down and passed over. It now returns `set` / `unset` / `unknown`, and an
+unanswerable question is reported as unanswerable. With `PATH=/nonexistent`, `doctor` reports
+*"could not be established … this is not the same as unset"* and the checker prints no clean bill.
+
+`SP051` is deliberately unchanged: naming a Markdown page as a lock still passes, because `DR-25`
+records that checking existence and not honesty is permanent. What is fixed is the tool proposing
+the wrong file as a discovered fact.

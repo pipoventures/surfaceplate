@@ -1,0 +1,53 @@
+end_time=2026-09-09T11:05:05Z
+sp_head_end=30bba4405fce4f49510f54bc8a824513face1d35
+sp_branch_end=claude/act-076-h21-and-walkthrough
+sp_status_short_end:
+ M .standards/INSTALL.json
+ M .standards/MANIFEST.sha256
+ M .standards/check_conformance.py
+ M .standards/core/CONFORMANCE_LEVELS.md
+ M .standards/rules.py
+ M .standards/schemas/application-profile.schema.yaml
+ M CHANGELOG.md
+ M activity/register.md
+ M governance/application-profile.yaml
+ M org/FINDINGS.md
+ M org/HUMAN_ACTIONS.md
+ M surfaceplate/MANIFEST.sha256
+ M surfaceplate/adopt/defaults.py
+ M surfaceplate/adopt/discover.py
+ M surfaceplate/adopt/plan.py
+ M surfaceplate/adopt/render.py
+ M surfaceplate/adopt/sections.py
+ M surfaceplate/check_conformance.py
+ M surfaceplate/core/CONFORMANCE_LEVELS.md
+ M surfaceplate/rules.py
+ M surfaceplate/schemas/application-profile.schema.yaml
+ M tests/adopt_matrix.py
+ M tests/test_adopt.py
+?? org/decisions/DR-73.md
+gitconfig_sha_end=645f73285b7bc755b2bb4c0343435c83c1212c39086a38dd5f189a68283d930b
+global_hooksPath_end=/home/mps2210/.config/git/hooks
+pinned_clone_head=30bba4405fce4f49510f54bc8a824513face1d35 status=[]
+files under ~/github modified since sweep start (any author):
+/home/mps2210/github/surfaceplate/CHANGELOG.md
+/home/mps2210/github/plyego-lane-c/.gitignore
+/home/mps2210/github/surfaceplate/activity/register.md
+/home/mps2210/github/surfaceplate/tests/test_adopt.py
+/home/mps2210/github/surfaceplate/tests/adopt_matrix.py
+/home/mps2210/github/surfaceplate/surfaceplate/rules.py
+/home/mps2210/github/surfaceplate/surfaceplate/MANIFEST.sha256
+/home/mps2210/github/surfaceplate/governance/application-profile.yaml
+/home/mps2210/github/surfaceplate/.standards/rules.py
+/home/mps2210/github/surfaceplate/.standards/INSTALL.json
+/home/mps2210/github/surfaceplate/.standards/check_conformance.py
+/home/mps2210/github/surfaceplate/.standards/MANIFEST.sha256
+/home/mps2210/github/surfaceplate/org/HUMAN_ACTIONS.md
+/home/mps2210/github/surfaceplate/org/FINDINGS.md
+/home/mps2210/github/surfaceplate/dist/surfaceplate-0.17.0.zip
+/home/mps2210/github/plyego/activity/ACT-660.md
+/home/mps2210/github/plyego/activity/ACT-659.md
+/home/mps2210/github/plyego/activity/ACT-610.md
+/home/mps2210/github/plyego/activity/register.md
+/home/mps2210/github/plyego-lane-b/activity/ACT-654.md
+mnemosyne/plyego referenced by this sweep: 1 log files (expected 0)
