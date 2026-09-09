@@ -1715,7 +1715,12 @@ moved. Re-testing against `HEAD` is part of adjudicating each, not an optional e
 same class — a negative asserted from an observation that could not have found the thing — and
 `doctor` now reports an unanswerable hooks path as unanswerable. `PW-09` has left it as `F137`, and
 `PW-13`'s removal half as `F138`, and `PW-07`, `PW-08` and `PW-12` as `F140`, `F141` and `F139`.
-**Nine remain**, `PW-13`'s reconciliation half among them.
+**Ten remain**, `PW-13`'s reconciliation half among them.
+
+*(This sentence said "nine" until it was counted. The table below is the authority and the prose was
+wrong — which is the defect this register exists to catch, so it is corrected in place and the
+error noted rather than quietly overwritten. `check_code_registers.py` counts `F` codes and `SP`
+codes and does not count these, because they are not codes this register has issued.)*
 
 **Two of these deserve flagging now, before adjudication, because they are not what their severity
 suggests.** `PW-13`'s second half — *no removal procedure exists anywhere* — is the packet's own
