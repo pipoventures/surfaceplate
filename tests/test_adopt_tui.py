@@ -169,6 +169,166 @@ def test_the_opening_app_returns_the_three_answers() -> None:
     check("with a draft, Enter then Ctrl+Q quits (None)", asyncio.run(drive(welcome(draft), ["enter", "ctrl+q"])) is None)
 
 
+def test_every_field_the_plan_asks_for_is_displayed_and_reachable() -> None:
+    """The general invariant behind `F143`, asserted for every conditional field on every screen.
+
+    `F143` was one missing `@on(...)` decorator, and the specific test beside this one guards that
+    one case. **This asserts the property the decorator was in service of**, so the next
+    conditional field cannot rediscover it:
+
+        for every field, on every screen, at every value of the widget that gates it -
+        `spec.applies(answers)` must equal *the row is displayed* must equal *the widget is
+        reachable*.
+
+    All three, together. A field the plan asks for and the screen hides is `F143`: required, blank,
+    invisible, unreachable, and `Ctrl+S` refusing the section for it. A field the plan does not ask
+    for and the screen shows is the opposite defect and would be caught by the same equality.
+
+    THE TWO GATING WIDGETS DIFFER, WHICH IS THE POINT. The controls screen's conditional fields are
+    gated by a **multiselect** (15 of them at `essential`) and the gates screen's by a **radio set**
+    (66 across 19 gates). `F143` existed because the screen listened for one kind of change and not
+    the other; an invariant that only tested the kind that worked would have proved nothing.
+    """
+    import subprocess
+    import tempfile
+
+    repo = Path(tempfile.mkdtemp(prefix="surfaceplate-reach-")) / "repo"
+    repo.mkdir()
+    for args in (["init", "-q"], ["config", "user.email", "h@example.invalid"],
+                 ["config", "user.name", "H"], ["config", "commit.gpgsign", "false"]):
+        subprocess.run(["git", "-C", str(repo), *args], check=True)
+    (repo / "src").mkdir()
+    (repo / "src" / "app.py").write_text("x = 1\n", encoding="utf-8")
+    (repo / "package.json").write_text('{"name": "fixture"}\n', encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "fixture"], check=True,
+                   capture_output=True)
+    found = plan.discover.scan(repo)
+
+    async def agree(section, gate_id: str, choose) -> tuple[dict, dict, list]:
+        """Answer the gating widget, then read back what the screen displays and what it focuses."""
+        app = Host(FormScreen(section, repo=repo))
+        async with app.run_test(size=(140, 80)) as pilot:
+            await pilot.pause()
+            gate = app.screen.query_one(f"#f-{gate_id.replace('.', '--')}")
+            gate.focus()
+            await pilot.pause()
+            await choose(pilot, gate)
+            await pilot.pause()
+            await pilot.pause()
+            shown = {
+                w.id[len("row-"):].replace("--", "."): w.display
+                for w in app.screen.query("*") if w.id and w.id.startswith("row-")
+            }
+            chain = [w.id[len("f-"):].replace("--", ".")
+                     for w in app.screen.focus_chain if getattr(w, "id", "") and w.id.startswith("f-")]
+            answers = {gate_id: list(getattr(gate, "selected", []))}
+            return shown, dict.fromkeys(chain, True), answers
+
+    async def tick(pilot, widget, index: int):
+        for _ in range(index):
+            await pilot.press("down")
+            await pilot.pause()
+        await pilot.press("space")
+
+    checked = 0
+    for level in ("essential", "standard"):
+        section = plan.controls_plan(level=level, mode="simple", found=found)
+        above = next((f for f in section.fields if f.id == "above_floor"), None)
+        if above is None:
+            continue
+        for index, (control, _label) in enumerate(above.choices):
+            shown, reachable, answers = asyncio.run(
+                agree(section, "above_floor", lambda p, w, i=index: tick(p, w, i))
+            )
+            for spec in section.fields:
+                if spec.depends_on is None or not spec.id.startswith(f"{control}."):
+                    continue
+                wanted = spec.applies(answers)
+                checked += 1
+                check(f"{level}/{control}: {spec.id} displayed == the plan asks for it",
+                      shown.get(spec.id) == wanted, f"asks={wanted} displayed={shown.get(spec.id)}")
+                check(f"{level}/{control}: {spec.id} reachable == the plan asks for it",
+                      (spec.id in reachable) == wanted,
+                      f"asks={wanted} reachable={spec.id in reachable}")
+
+    # THE OTHER GATING WIDGET. The gates screen's conditional fields hang off a RadioSet, not a
+    # multiselect, and `F143` existed precisely because the screen listened for one kind of change
+    # and not the other. An invariant that only tested the kind that worked would have proved
+    # nothing, so it is asserted here too rather than only claimed in this docstring.
+    specs = plan.gate_plan(level="standard", builds_ui=False, mode="simple")
+    gates = plan.gates_plan(level="standard", builds_ui=False, mode="simple", found=found)
+
+    async def choose_status(status: str) -> tuple[dict, set, str]:
+        app = Host(GatesScreen(specs, gates, repo=repo, level="standard"))
+        async with app.run_test(size=(140, 100)) as pilot:
+            await pilot.pause()
+            # `F91`/`DR-56`: the level's floor opens and the rest is FOLDED under a counted
+            # heading. A folded gate's body is hidden, so its fields are legitimately unreachable
+            # until `Ctrl+O` opens it - which is the state an adopter answering a beyond-floor
+            # gate is actually in. Without this the invariant compared `applies()` against a
+            # different visibility axis and reported six failures that were the test's fault.
+            await pilot.press("ctrl+o")
+            await pilot.pause()
+            # DISCOVER the gate to drive rather than naming one, because which gates carry a
+            # status choice is not obvious and guessing it twice already produced a test that
+            # examined nothing. A gate the LEVEL mandates has no status widget at all - its status
+            # is not a choice - and a design gate has none either when the repository builds no
+            # interface. What is wanted is a gate that has both a status radio on screen and
+            # fields conditional on it.
+            gate = next(
+                (s for s in specs
+                 if any(f.depends_on for f in s.fields) and app.screen.query(f"#f-{s.id}--status")),
+                None,
+            )
+            if gate is None:
+                return {}, set(), ""
+            radio = app.screen.query(f"#f-{gate.id}--status").first()
+            radio.focus()
+            await pilot.pause()
+            labels = [str(b.label) for b in radio.query("RadioButton")]
+            if status not in labels:
+                return {}, set(), ""
+            for _ in range(labels.index(status)):
+                await pilot.press("down")
+                await pilot.pause()
+            await pilot.press("space")
+            await pilot.pause()
+            await pilot.pause()
+            shown = {
+                w.id[len("row-"):].replace("--", "."): w.display
+                for w in app.screen.query("*")
+                if w.id and w.id.startswith(f"row-{gate.id}--")
+            }
+            chain = {w.id[len("f-"):].replace("--", ".")
+                     for w in app.screen.focus_chain
+                     if getattr(w, "id", "") and w.id.startswith(f"f-{gate.id}--")}
+            return shown, chain, gate.id
+
+    gate_checked = 0
+    for status in ("required", "deferred", "not_applicable"):
+        shown, chain, gate_id = asyncio.run(choose_status(status))
+        if not gate_id:
+            continue
+        answers = {"status": status}
+        for spec in next(s for s in specs if s.id == gate_id).fields:
+            if spec.depends_on is None:
+                continue
+            wanted = spec.applies(answers)
+            key = f"{gate_id}.{spec.id}"
+            gate_checked += 1
+            check(f"gates/{status}: {key} displayed == the plan asks for it",
+                  shown.get(key) == wanted, f"asks={wanted} displayed={shown.get(key)}")
+            check(f"gates/{status}: {key} reachable == the plan asks for it",
+                  (key in chain) == wanted, f"asks={wanted} reachable={key in chain}")
+
+    check("the invariant examined some fields - an empty sweep proves nothing", checked > 0,
+          f"{checked} conditional field(s)")
+    check("and it examined BOTH gating widgets, not only the one that worked",
+          gate_checked > 0, f"{gate_checked} radio-gated field(s)")
+    print(f"  {checked} multiselect-gated and {gate_checked} radio-gated conditional field(s) checked")
+
+
 def test_ticking_a_control_reveals_the_fields_it_makes_required() -> None:
     """`F143`. The wizard demanded a value for a field it did not show.
 
@@ -1597,6 +1757,7 @@ def main() -> int:
     test_ctrl_q_reaches_the_screens_own_cancel()
     test_choosing_the_create_it_row_commits_without_a_refusal()
     test_continuing_past_the_folded_gates_asks_once()
+    test_every_field_the_plan_asks_for_is_displayed_and_reachable()
     test_ticking_a_control_reveals_the_fields_it_makes_required()
     test_the_help_beside_a_field_states_what_it_decides_and_describes_the_chosen_file()
 

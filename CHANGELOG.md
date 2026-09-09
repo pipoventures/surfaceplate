@@ -3018,3 +3018,32 @@ already covered and still missed. Take out `F142`'s withhold and the dependencie
 `DR-80` states what this is not: three axes are declared, not ten; `installed` is named and covered
 elsewhere rather than pretended at here; and nothing in this file covers what the interface
 **displays**, which is `F143`'s class and lives in `test_adopt_tui.py` driving real keypresses.
+
+### What the interface displays, asserted as an invariant (`ACT-090`)
+
+The second instalment of `DR-80`. `F143` was one missing `@on(...)` decorator; the test beside it
+guards that case. **This asserts the property the decorator was in service of**, so the next
+conditional field cannot rediscover it:
+
+> for every field, on every screen, at every value of the widget that gates it —
+> `spec.applies(answers)` must equal *the row is displayed* must equal *the widget is reachable*.
+
+All three together. A field the plan asks for and the screen hides is `F143`: required, blank,
+invisible, and `Ctrl+S` refusing the section for it. A field the plan does not ask for and the screen
+shows is the opposite defect, caught by the same equality.
+
+**Both gating widgets are covered, and that is the point** — the controls screen's conditional fields
+hang off a **multiselect** (24 checked) and the gates screen's off a **radio set** (12 checked).
+`F143` existed precisely because the screen listened for one kind of change and not the other, so an
+invariant that tested only the kind that worked would have proved nothing.
+
+With `F143` reintroduced the suite reports **51 failures**, naming `asks=True displayed=False` —
+the state a person sat looking at. Restored: 170 checks, up from 96.
+
+Three wrong turns of my own are recorded in the file rather than tidied away, because each is a
+reason the test nearly proved nothing: a target gate guessed twice (a level-mandatory gate has no
+status widget, and a design gate has none when the repository builds no interface), and folding
+mistaken for a defect — a beyond-floor gate's body is hidden until `Ctrl+O`, so the first version
+compared `applies()` against a different visibility axis and blamed the product for six failures of
+its own making. The **"an empty sweep proves nothing"** guard is what caught the first two: it
+reported zero radio-gated fields examined and refused to pass.
