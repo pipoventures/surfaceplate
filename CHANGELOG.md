@@ -2762,3 +2762,40 @@ inside it can be recovered from git.
 
 `INSTALL.md` and `SUPPORT.md` now say how to leave, which is the half `PW-13` was actually about.
 A standard a repository cannot leave is a harder thing to adopt than one it can.
+
+### What each level requires, by topic (`ACT-071`, `DR-76`)
+
+The fourth of `DR-69`'s five surfaces, **amended rather than executed** — for the reason `DR-71`
+gave about the second one.
+
+`DR-69` said a conformance level would become "a floor within each topic" and that
+`CONFORMANCE_LEVELS` would be re-keyed by topic. Reading before deciding: that structure has **58
+usages across 16 files, and every one asks *"is this control required at this level"***. Not one
+asks which topics a level touches. Re-keying would have changed all of them to obtain an answer
+nothing needed — and would have held the topic mapping **twice inside the framework**, once in
+`rules.CONTROL_TOPICS` and once in the level structure, with nothing comparing them. That is
+`F130`'s shape, raised four commits earlier.
+
+`DR-71`'s reasoning transposes, and the transposition is worth stating rather than assuming. There,
+nesting was rejected because the *adopter* would restate the framework's fact. Here the file is the
+framework's own, so the objection is not *"they would restate ours"* but *"we would restate our
+own"*. Both land in the same place: **the goal was never nesting — it was that a reader sees twelve
+named subjects.**
+
+So `CONFORMANCE_LEVELS.md` gains a **generated** table — *What each level requires, by topic* —
+built from the checker's own levels and the topic map, written by
+`tests/check_code_registers.py --write` and failed in CI when it drifts. Before this, no document
+answered *"what does Topic 7 require of me at `standard`?"*; a reader had to hold two lists in their
+head.
+
+Two details worth the space. **The three baseline controls get their own column**: they are required
+at every level and so appear in no level's set, and omitting them made Topics 3 and 8 read as rows
+of em-dashes — topics that oblige every adopter, shown as obliging none. And **the generated text
+says what an empty row does not mean**, since the nineteen prerequisite gates are a separate
+obligation on a different axis.
+
+**A bare "twelve" is now a check, and it found one on its first run.** In the shipped corpus
+"twelve" names three different things — twelve controls, twelve topics, twelve cross-application
+control principles — so `CONFORMANCE_LEVELS.md`'s *"ten of the twelve, as stated above"* was
+ambiguous in the very document that now also carries a twelve-**topic** table. Corrected to "ten of
+the twelve controls".
