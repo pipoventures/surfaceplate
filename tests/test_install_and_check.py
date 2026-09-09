@@ -1180,8 +1180,10 @@ def test_the_standard_can_be_removed_and_takes_nothing_of_the_adopters(tmp: Path
         check(f"{adopter_owned} is NOT in the record - the installer manages a block in it, or it "
               "is the adopter's outright", adopter_owned not in owned)
 
-    from surfaceplate import install_standard as _installer
-
+    # `_installer` is the module-level, FLAT import at the top of this file. CI runs this suite
+    # with the payload directory on `sys.path` and the package NOT installed, so
+    # `from surfaceplate import install_standard` fails there and passes locally in an editable
+    # venv - which is exactly how this line got pushed.
     code, lines = _installer.uninstall(repo, dry_run=True)
     check("a dry run reports and writes nothing", code == 0 and (repo / ".standards").is_dir())
     check("and says so", any("nothing was written" in ln.lower() for ln in lines), "\n".join(lines))
