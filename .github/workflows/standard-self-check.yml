@@ -112,6 +112,15 @@ jobs:
         if: ${{ !cancelled() }}
         run: python tests/test_discover.py
 
+      # `F132`, `F142`, `F144`: the properties of a repository that change this framework's
+      # behaviour, named and covered. The matrix walks every reachable DECISION; this walks the
+      # repository SHAPES those decisions are made about, and asks the question the matrix cannot:
+      # is what the tool proposed capable of implementing the control it was proposed for?
+      - name: Check every repository property that changes behaviour
+        id: shapes
+        if: ${{ !cancelled() }}
+        run: python tests/test_repository_shapes.py
+
       # DR-43: the tool writes files into an adopting repository for the first time. The
       # load-bearing half is that a seed survives SP032, and that nothing is ever overwritten.
       - name: Check the artefacts the wizard offers to create
@@ -192,6 +201,7 @@ jobs:
             snapshots=${{ steps.snapshots.outcome }}
             matrix=${{ steps.matrix.outcome }}
             discover=${{ steps.discover.outcome }}
+            shapes=${{ steps.shapes.outcome }}
             scaffold=${{ steps.scaffold.outcome }}
             audit_packet=${{ steps.audit_packet.outcome }}
             manifest=${{ steps.manifest.outcome }}

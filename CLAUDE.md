@@ -12,12 +12,17 @@ here was done by an agent that had never read them. The import above is what clo
 
 ## Working here
 
-- **Fourteen suites**, and each reports a count on success so "everything passed" is distinguishable
+- **Fifteen suites**, and each reports a count on success so "everything passed" is distinguishable
   from "nothing ran". `.github/workflows/standard-self-check.yml` is the authority for the full set
-  and the order — it runs every one and then asserts that every one actually ran. Six need no
+  and the order — it runs every one and then asserts that every one actually ran. Seven need no
   optional dependency: `validate_contracts.py`, `test_install_and_check.py`, `check_identifiers.py`,
   `check_code_registers.py`, `check_vendored_current.py`, and `check_audit_packet.py` — which exists
-  because `F50` let the item 9 hand-off name a file deleted three packets earlier. Four more cover
+  because `F50` let the item 9 hand-off name a file deleted three packets earlier — plus
+  `test_repository_shapes.py`, which names the **properties of a repository** that change this
+  framework's behaviour and covers them. That one exists because a person driving the wizard by hand
+  found five defects in an afternoon (`F132`, `F142`, `F143`, `F144`, `F145`) that fifty thousand
+  checks could not reach: the suites walked every *decision* and never varied the *repository* the
+  decisions were about. Four more cover
   `adopt`: `test_adopt.py`, `test_provenance.py`, `test_discover.py`, `test_scaffold.py`. Three need `textual` and so must be run
   from the virtualenv (`.venv/bin/python`): `test_render.py`, `test_adopt_tui.py`, and
   `test_adopt_snapshots.py`, which also needs the `test` extra (`pytest`, `pytest-textual-snapshot`,
@@ -28,9 +33,9 @@ here was done by an agent that had never read them. The import above is what clo
   `audit/validation/ADOPT_MATRIX.md` byte for byte; a change to what the wizard asks regenerates it
   with `--write`, and the diff is read, never absorbed. `scripts/front_door.sh` is not a suite: it is every documented
   command run on a clean machine, by `.github/workflows/front-door.yml`.
-  *(This line said "the five suites" until `ACT-033`, six suites after that stopped being true, and
-  thirteen until `ACT-057`; it is corrected in the same change that adds one, which is the habit that
-  keeps it true.)*
+  *(This line said "the five suites" until `ACT-033`, six suites after that stopped being true,
+  thirteen until `ACT-057` and fourteen until `ACT-089`; it is corrected in the same change that adds
+  one, which is the habit that keeps it true.)*
 - After changing anything the standard ships: `scripts/build_release.py`, reinstall from a clean
   source copy, re-pin `adoption.framework_digest` from `.standards/INSTALL.json`, and then **build
   the manifest again, last**. The order matters and CI fails on it otherwise: the checker compares

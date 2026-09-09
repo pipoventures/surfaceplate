@@ -2985,3 +2985,36 @@ the adopter's own claim about the distribution they assessed against, and re-pin
 would let a version change through with nobody re-reading the profile. Three routes are costed in
 `F146` and the decision is `H23`; the recommendation is an explicit `--repin`, which keeps the claim
 the adopter's while removing the part that is merely clerical.
+
+### The properties of a repository, named and covered (`ACT-089`, `DR-80`)
+
+In one afternoon a person driving the wizard by hand found five defects — `F132`, `F142`, `F143`,
+`F144`, `F145`, four of them `high` — that some fifty thousand automated checks could not reach,
+including a 208-case matrix walking every reachable decision.
+
+**The tempting conclusion was "test against more repositories", and it was wrong.** The maintainer's
+objection is recorded in `DR-80` because it changed the work: Surfaceplate is agnostic by design, so
+its behaviour cannot depend on *which* repository it meets — only on a small set of **properties**
+that repository has. Enumerate the properties and a handful of synthetic fixtures covers every
+repository there will ever be. The proof is that all five findings now reproduce from a fixture of a
+few files; the real repositories were needed to **find** them and are not needed to **prevent** them.
+
+The sharper diagnosis followed: the matrix already had a shape axis —
+`SHAPES = ("bare", "rich", "mixed")` — chosen for **how much discovery finds**, not for **which
+properties change behaviour**. `bare` has no dependency manifest and `F132` still got through,
+because the fixture had the property and no oracle asked the question.
+
+So there is now a fifteenth suite, `tests/test_repository_shapes.py`, which declares the axes and
+exercises each in both directions — **and asserts one thing none of the others do: that what the
+tool proposes is capable of implementing the control it is proposed for.** Fixtures alone would not
+have caught `F144`; the `rich` shape *has* CI steps. What was missing was an oracle asking whether
+what was written is **true** rather than whether it matched expectation, because asserting that
+output matches expectation cannot catch an expectation that was wrong.
+
+**Verified by removing the fixes it guards.** Take out `F144`'s proposal filter and the invariant
+fails eight times — including on a shape with *real test steps*, which is the case the matrix
+already covered and still missed. Take out `F142`'s withhold and the dependencies axis fails twice.
+
+`DR-80` states what this is not: three axes are declared, not ten; `installed` is named and covered
+elsewhere rather than pretended at here; and nothing in this file covers what the interface
+**displays**, which is `F143`'s class and lives in `test_adopt_tui.py` driving real keypresses.
