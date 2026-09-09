@@ -3066,3 +3066,29 @@ file checks them all.
 Verified by removing the fix each axis guards. Take out `F93`'s fit filter and the registers axis
 reports all four pattern-C controls proposed `config/accounts` — a directory of account
 configuration — which is that finding verbatim.
+
+### `adopt --repin`, and the difference between a claim and a clerk (`ACT-092`, `DR-81`, closing `F146`)
+
+Every upgrade left `adoption.framework_version` and `framework_digest` stale **by construction**: the
+installer reports `keep governance/application-profile.yaml (yours; never overwritten)` and the next
+command reports `SP048` and `SP049`. The adopter cleared them by hand-copying a 64-character digest
+out of a JSON file the installer itself wrote. This repository did it twice in one day.
+
+**The installer still does not re-pin, and that is the decision.** `DR-45` reads `framework_digest`
+as the **adopter's claim** about the distribution they assessed against, and `SP049` exists to catch
+a profile claiming an install that is not present. An installer that re-pinned silently would let a
+version change through with nobody re-reading the profile — the assertion `review_by` exists to make.
+
+So the claim and the clerk are separated. **Running `surfaceplate adopt --repin` is the deliberate
+act**, which is what `DR-45` wants asserted; the *value* was never the adopter's contribution — it is
+the installer's own record of what it wrote — so typing it accomplishes nothing but the chance of
+typing it wrong. That is also why the sidecar records both fields as **`fact of record`, not
+`typed`**: the adopter chose to re-pin, and did not choose the digest.
+
+Verified on the real adopter that produced the finding — the one repository that has adopted this
+standard, upgraded `0.16.0` → `0.18.0`: `WARN` with two findings, one command,
+`PASS - all conformance checks satisfied`. Idempotent: run it again and it says
+`Already pinned … nothing to change.`
+
+`DR-81` states the honest limit: it moves the clerical half and cannot move the reading half.
+Nothing here asserts an adopter has read what changed — `review_by` remains the field for that.

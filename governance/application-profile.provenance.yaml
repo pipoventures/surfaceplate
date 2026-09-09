@@ -1,0 +1,29 @@
+# Machine-owned. Written by `surfaceplate adopt`; do not edit by hand.
+#
+# For every field of application-profile.yaml, where its value came from:
+#   typed            entered at the keyboard (typed_at is set for an edit made on the review)
+#   discovered       read out of this repository
+#   example          this framework's own worked example, shown and reviewed
+#   computed         derived from an answer already given, or from a fixed rule
+#   fact of record   a date, a version, a digest
+#   scaffolded       a file this tool created and therefore knows
+# Approval is recorded once, for the whole document, at the review. A line changed after
+# the write with `surfaceplate adopt --edit` is typed, with typed_at and the reason given,
+# and listed under edits.
+
+fields:
+  adoption.framework_version:
+    origin: fact of record
+    detail: 're-pinned to the installed standard: 0.18.0 -> 0.18.0, 5d1013304368… -> f2d5194c966f…, read from .standards/INSTALL.json'
+    typed_at: '2026-09-09T22:18:35+01:00'
+  adoption.framework_digest:
+    origin: fact of record
+    detail: 're-pinned to the installed standard: 0.18.0 -> 0.18.0, 5d1013304368… -> f2d5194c966f…, read from .standards/INSTALL.json'
+    typed_at: '2026-09-09T22:18:35+01:00'
+edits:
+- path: adoption.framework_version
+  at: '2026-09-09T22:18:35+01:00'
+  reason: 're-pinned to the installed standard: 0.18.0 -> 0.18.0, 5d1013304368… -> f2d5194c966f…, read from .standards/INSTALL.json'
+- path: adoption.framework_digest
+  at: '2026-09-09T22:18:35+01:00'
+  reason: 're-pinned to the installed standard: 0.18.0 -> 0.18.0, 5d1013304368… -> f2d5194c966f…, read from .standards/INSTALL.json'

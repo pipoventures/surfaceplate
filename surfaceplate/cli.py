@@ -82,10 +82,24 @@ def _cmd_adopt(argv: list[str]) -> int:
         help="Change one line of the written profile (e.g. owner, or prerequisites[2].owner) and record the edit beside it. Needs no terminal.",
     )
     parser.add_argument("--because", metavar="REASON", default="", help="With --edit: why, recorded with the edit.")
+    parser.add_argument(
+        "--repin",
+        action="store_true",
+        help=(
+            "Re-pin adoption.framework_version and framework_digest to the installed standard, "
+            "after an upgrade. The values come from .standards/INSTALL.json; running this is the "
+            "deliberate act, and the typing is what it removes."
+        ),
+    )
     args = parser.parse_args(argv)
     repo = Path(args.target).resolve()
 
     try:
+        if args.repin:
+            written, lines = wizard.repin(repo)
+            for line in lines:
+                print(line)
+            return 0
         if args.edit:
             path, value = args.edit
             # `F140` (`PW-07`): an edit to a governance profile without a stated reason is the

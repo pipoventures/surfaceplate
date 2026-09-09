@@ -211,7 +211,7 @@ an unknown number of releases with nothing noticing.
 | F143 | Ticking a control in the above-floor list never revealed the fields it makes required: the screen listened for every widget's change event except the multiselect's, so the wizard demanded a value for a field it did not show and no key could reach | high | Closed — `ACT-086`, 2026-09-09; see the body |
 | F144 | Any CI step was proposed as the implementation of `deterministic_tests` and `contract_tests`: on the maintainer's walkthrough a **checkout** step was written into the profile as `discovered`, and the checker reported the control verified against it | high | Closed — `ACT-087`, 2026-09-09; see the body |
 | F145 | `F144` fixed the proposal and not the profiles already carrying a bad one: the only real adopter had two controls credited to a checkout step and passed every run | medium | Closed — `ACT-088`, 2026-09-09; see the body |
-| F146 | An upgrade leaves `framework_version` and `framework_digest` stale by construction, so every upgrading adopter is handed `SP048` and `SP049` and must hand-copy a 64-character digest | medium | Open — the remedy changes what a profile asserts; the decision is `H23` |
+| F146 | An upgrade leaves `framework_version` and `framework_digest` stale by construction, so every upgrading adopter is handed `SP048` and `SP049` and must hand-copy a 64-character digest | medium | Closed — `ACT-092` (`DR-81`), 2026-09-09; see the body |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1545,7 +1545,7 @@ field is asked with its seed row first.
 
 ## F146 — An upgrade guarantees two findings the adopter must fix by hand
 
-**Severity: medium. Open — the remedy changes what a profile asserts; the decision is `H23`.**
+**Severity: medium. Closed — `ACT-092` (`DR-81`), 2026-09-09.**
 
 Observed on the maintainer's walkthrough, upgrading a real adopter from `0.16.0` to `0.18.0`. The
 installer reports `keep governance/application-profile.yaml (yours; never overwritten)` — correct,
@@ -1583,6 +1583,18 @@ and quietly weakens an assertion; (3) leaves a guaranteed two-finding tax on eve
 
 **Not decided here**, because it changes what a profile asserts and `DR-45` is the record it would
 be read against.
+
+**Closed by `ACT-092` (`DR-81`), 2026-09-09 — the maintainer chose route (2).**
+`surfaceplate adopt --repin` reads `.standards/INSTALL.json` and sets both fields. **The act stays
+deliberate and only the typing goes**: a person runs it, which is the assertion `DR-45` wants, and
+nobody copies a 64-character digest by hand, which was never a claim about anything.
+
+The sidecar records both as **`fact of record`, not `typed`** — the adopter chose to re-pin and did
+not choose the value — with a reason naming what moved and where it was read from. Running it again
+changes nothing and says so.
+
+Verified on the real adopter that produced this finding: `WARN` with `SP048` and `SP049` → one
+command → `PASS`.
 
 ## F145 — The fix stopped new bad references and left the existing one passing
 
