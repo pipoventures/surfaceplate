@@ -309,7 +309,7 @@ def load_yaml(path: Path) -> tuple[Any, str | None]:
         return None, "PyYAML is not installed"
     try:
         with path.open("r", encoding="utf-8") as handle:
-            return yaml.safe_load(handle), None
+            return rules.dates_as_strings(yaml.safe_load(handle)), None
     except Exception as exc:  # noqa: BLE001 - report any parse failure verbatim
         return None, f"{type(exc).__name__}: {exc}"
 
@@ -2439,7 +2439,7 @@ def load_staged_profile(repo: Path) -> tuple[dict | None, str | None]:
         return None, f"{PROFILE_PATH} is absent from the staged snapshot"
     try:
         import yaml
-        data = yaml.safe_load(raw.decode("utf-8"))
+        data = rules.dates_as_strings(yaml.safe_load(raw.decode("utf-8")))
     except Exception as exc:  # noqa: BLE001 - report the staged parse failure
         return None, f"{PROFILE_PATH} is unreadable in the staged snapshot: {type(exc).__name__}: {exc}"
     if not isinstance(data, dict):
@@ -2963,7 +2963,7 @@ def load_staged_exceptions(repo: Path, findings: list[Finding]) -> dict[str, set
         if code != 0:
             continue
         try:
-            data = yaml.safe_load(raw.decode("utf-8"))
+            data = rules.dates_as_strings(yaml.safe_load(raw.decode("utf-8")))
         except Exception as exc:  # noqa: BLE001 - report malformed staged records
             findings.append(
                 Finding(
@@ -3006,7 +3006,7 @@ def earliest_declared_effective_from(repo: Path, gate_id: str) -> str | None:
         if code != 0 or not blob:
             continue
         try:
-            data = yaml.safe_load(blob)
+            data = rules.dates_as_strings(yaml.safe_load(blob))
         except Exception:  # noqa: BLE001 - a historical profile may be malformed
             continue
         if not isinstance(data, dict):

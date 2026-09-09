@@ -1035,3 +1035,127 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+# ---------------------------------------------------------------------------
+# Removal (`F138`, `DR-75`). Until now there was none: no command, no flag, no document, and the
+# pathway sweep found that by looking. A standard a repository cannot leave is a harder thing to
+# adopt than one it can, and "you can get out" is part of what makes "try it" a reasonable ask.
+#
+# THE RECORD IS THE AUTHORITY, NOT THE CURRENT PAYLOAD. `.standards/INSTALL.json` lists every file
+# this installer wrote, with the digest it wrote. Removing what the RECORD names removes exactly
+# what was installed - including files a newer payload no longer ships, and excluding anything the
+# adopter added since. Deriving the list from `build_payload()` instead would delete by guess.
+#
+# Three things are never removed, and each is stated in the output rather than left to be noticed:
+# the adopter's own content outside the managed blocks, their application profile (their decisions,
+# not this framework's), and anything not in the record.
+
+def uninstall(target: Path, *, dry_run: bool = False) -> tuple[int, list[str]]:
+    """Remove the standard from `target`. Returns `(exit_code, lines)`.
+
+    `2` when nothing is installed - the same code `check` uses for that state, so a wrapper can
+    tell "not installed" from "failed".
+    """
+    lines: list[str] = []
+    record_path = target / ".standards" / "INSTALL.json"
+    if not record_path.is_file():
+        return 2, [f"Surfaceplate is not installed in {target}: {record_path} is absent."]
+
+    try:
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return 4, [f"{record_path} is unreadable: {type(exc).__name__}: {exc}"]
+
+    recorded: dict = record.get("files") or {}
+    removed: list[str] = []
+    modified: list[str] = []
+    already_gone: list[str] = []
+
+    for rel in sorted(recorded):
+        path = target / rel
+        if not path.is_file():
+            already_gone.append(rel)
+            continue
+        try:
+            current = sha256_text(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError):
+            current = None
+        if current is not None and current != recorded[rel]:
+            modified.append(rel)
+        removed.append(rel)
+        if not dry_run:
+            path.unlink()
+
+    # The two files the installer manages a BLOCK inside. The file is the adopter's; only the
+    # block is ours, so the block goes and the file stays - even if what remains is empty, because
+    # an empty `AGENTS.md` the adopter created is still theirs to delete.
+    blocks_cleared: list[str] = []
+    for rel in ("AGENTS.md", ".github/copilot-instructions.md"):
+        path = target / rel
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        start, end = text.find(BLOCK_BEGIN), text.find(BLOCK_END)
+        if start < 0 or end < 0:
+            continue
+        cleaned = (text[:start] + text[end + len(BLOCK_END):]).rstrip() + "\n"
+        blocks_cleared.append(rel)
+        if not dry_run:
+            path.write_text(cleaned, encoding="utf-8")
+
+    # The hook path, only where this installer is what set it.
+    hooks_unset = False
+    code, value = git(target, "config", "--local", "--get", "core.hooksPath")
+    if code == 0 and value.strip().rstrip("/") == ".githooks":
+        hooks_unset = True
+        if not dry_run:
+            git(target, "config", "--local", "--unset", "core.hooksPath")
+
+    if not dry_run:
+        for directory in sorted({(target / rel).parent for rel in removed}, reverse=True):
+            _prune_empty(directory, target)
+        standards = target / ".standards"
+        if standards.is_dir():
+            shutil.rmtree(standards)
+        _prune_empty(standards.parent, target)
+
+    lines.append(f"{'Would remove' if dry_run else 'Removed'}: {len(removed)} file(s) named in the install record")
+    if already_gone:
+        lines.append(f"  {len(already_gone)} were already absent")
+    if modified:
+        lines.append(f"  {len(modified)} had been EDITED since install, and are removed anyway "
+                     "(they are standard-owned; if any of it was yours, recover it from git):")
+        lines.extend(f"    {rel}" for rel in modified)
+    for rel in blocks_cleared:
+        lines.append(f"{'Would clear' if dry_run else 'Cleared'} the managed block in {rel}; the rest of that file is untouched")
+    if hooks_unset:
+        lines.append(f"{'Would unset' if dry_run else 'Unset'} core.hooksPath (it pointed at .githooks)")
+    lines.append(f"{'Would remove' if dry_run else 'Removed'} .standards/, including the install record")
+
+    profile = target / str(record.get("profile_path") or PROFILE_PATH)
+    if profile.is_file():
+        lines.append("")
+        lines.append(f"LEFT IN PLACE: {profile.relative_to(target)} - your control decisions are yours, "
+                     "not this framework's, and nothing here deletes the record of what you decided. "
+                     "Delete it yourself if you want it gone.")
+    lines.append("Nothing outside the install record was touched.")
+    if dry_run:
+        lines.append("")
+        lines.append("Dry run: nothing was written.")
+    return 0, lines
+
+
+def _prune_empty(directory: Path, stop: Path) -> None:
+    """Remove `directory` and its now-empty parents, never passing `stop` and never removing a
+    directory that still holds anything of the adopter's."""
+    current = directory
+    while current != stop and stop in current.parents:
+        try:
+            next(current.iterdir())
+            return
+        except StopIteration:
+            current.rmdir()
+        except OSError:
+            return
+        current = current.parent

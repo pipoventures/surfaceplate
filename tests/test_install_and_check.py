@@ -1151,6 +1151,73 @@ def test_currency_is_reported_where_integrity_cannot_be(tmp: Path) -> None:
     )
 
 
+def test_the_standard_can_be_removed_and_takes_nothing_of_the_adopters(tmp: Path) -> None:
+    """`F138`. There was no way out: no command, no flag, no document. The pathway sweep found that
+    by looking for one, and *the absence of an answer is the finding* - a standard a repository
+    cannot leave is a harder thing to adopt than one it can.
+
+    The install record is the authority, not the current payload. It names every file the installer
+    wrote, so removal takes out exactly what was installed - including files a newer payload no
+    longer ships, and excluding anything the adopter added since. Deriving the list from
+    `build_payload()` would delete by guess.
+    """
+    repo = make_git_repo(tmp, "removable")
+    (repo / "src").mkdir()
+    (repo / "src" / "app.py").write_text("x = 1\n", encoding="utf-8")
+    (repo / "package.json").write_text('{"name": "theirs"}\n', encoding="utf-8")
+    (repo / "AGENTS.md").write_text(
+        "# Agent instructions\n\nOUR OWN RULES, above the block.\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "theirs"], check=True,
+                   capture_output=True)
+    install(repo, "--no-hooks")
+
+    record = json.loads((repo / ".standards" / "INSTALL.json").read_text(encoding="utf-8"))
+    owned = sorted(record["files"])
+    check("the install record names the files it wrote, which is what removal reads", len(owned) > 50)
+    for adopter_owned in ("AGENTS.md", ".github/copilot-instructions.md",
+                          "governance/application-profile.yaml"):
+        check(f"{adopter_owned} is NOT in the record - the installer manages a block in it, or it "
+              "is the adopter's outright", adopter_owned not in owned)
+
+    # `_installer` is the module-level, FLAT import at the top of this file. CI runs this suite
+    # with the payload directory on `sys.path` and the package NOT installed, so
+    # `from surfaceplate import install_standard` fails there and passes locally in an editable
+    # venv - which is exactly how this line got pushed.
+    code, lines = _installer.uninstall(repo, dry_run=True)
+    check("a dry run reports and writes nothing", code == 0 and (repo / ".standards").is_dir())
+    check("and says so", any("nothing was written" in ln.lower() for ln in lines), "\n".join(lines))
+
+    code, lines = _installer.uninstall(repo)
+    report = "\n".join(lines)
+    check("removal succeeds", code == 0, report)
+    check("every standard-owned file is gone",
+          not [rel for rel in owned if (repo / rel).exists()],
+          str([rel for rel in owned if (repo / rel).exists()][:5]))
+    check("and .standards/ with it", not (repo / ".standards").exists())
+
+    # The half that matters: nothing of the adopter's went with it.
+    check("their source survives", (repo / "src" / "app.py").is_file())
+    check("their manifest survives", (repo / "package.json").is_file())
+    check("their profile survives, and the report says why it was left",
+          (repo / "governance" / "application-profile.yaml").is_file()
+          and "LEFT IN PLACE" in report, report)
+    agents = (repo / "AGENTS.md").read_text(encoding="utf-8")
+    check("AGENTS.md survives with the adopter's own words intact",
+          "OUR OWN RULES, above the block." in agents, agents)
+    check("and with this standard's block gone",
+          _installer.BLOCK_BEGIN not in agents and "operates under **Surfaceplate**" not in agents,
+          agents)
+
+    # The loop closes: the checker agrees it is gone, and it can be installed again.
+    after = verify(repo)
+    check("the checker now reports not-installed, exit 2", after.returncode == 2, after.stdout[-300:])
+    code, _ = _installer.uninstall(repo)
+    check("removing what is not there is exit 2, not an error", code == 2)
+    again = install(repo, "--no-hooks")
+    check("and the standard installs again afterwards", again.returncode == 0, again.stderr[-300:])
+
+
 def test_a_copy_is_not_a_former_name_and_a_missing_git_asserts_nothing(tmp: Path) -> None:
     """`F133`, and the class it belongs to.
 
@@ -1436,6 +1503,9 @@ def main() -> int:
 
         print("\na declared canon artefact is checked, not trusted (DR-71, WI-2)")
         test_a_declared_canon_artefact_is_checked_for_existence_and_tracking(tmp)
+
+        print("\nthe standard can be removed, and takes nothing of the adopter's (F138)")
+        test_the_standard_can_be_removed_and_takes_nothing_of_the_adopters(tmp)
 
         print("\na copy is not a former name, and a missing git asserts nothing (F133)")
         test_a_copy_is_not_a_former_name_and_a_missing_git_asserts_nothing(tmp)

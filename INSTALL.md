@@ -70,6 +70,14 @@ before it. Declaring `local_hook` enforcement anyway is a finding (`SP038`), and
 the hook Git will actually run against the one this standard installed — an unrelated pre-commit
 hook does not satisfy the claim.
 
+**And you can take it out again.** `surfaceplate uninstall --target <repo>` removes exactly what
+was installed — it reads `.standards/INSTALL.json`, which records every file the installer wrote,
+rather than guessing from whatever the current version would install. Your own content is not
+touched: the managed block is stripped from `AGENTS.md` and `.github/copilot-instructions.md` and
+the rest of those files stays, and **`governance/application-profile.yaml` is never removed**,
+because your control decisions are yours. `--dry-run` shows you the list first. Knowing you can
+leave is part of what makes trying it reasonable.
+
 ---
 
 ## Install

@@ -202,6 +202,8 @@ an unknown number of releases with nothing noticing.
 | F134 | A refused `--answers` replay writes `.standards/adopt-draft.json` while printing *"Nothing was written"*, and that draft then makes a corrected record fail with the old value's error | high | Closed — `ACT-080` (`DR-74`), 2026-09-09; raised as `PW-02`; confirmed on the sweep's controlled isolation |
 | F135 | `pyproject.toml` is offered and proposed as a dependency **lock** file, and `SP051` accepts any tracked non-empty file as one — a manifest is not a lock | high | Closed — `ACT-080` (`DR-74`), 2026-09-09; raised as `PW-03`; confirmed at `HEAD` |
 | F136 | The pathway sweep's remaining fifteen findings (`PW-04` to `PW-18`), reported with evidence and **not yet adjudicated here** — held as one entry so none is lost and none is given a verified finding's status | medium | Open — each splits into its own `F<n>` as it is adjudicated |
+| F137 | The natural completion of a shipped template is invalid: an unquoted `YYYY-MM-DD` parses as a YAML date and every schema here says `type: string` — it defeats the FAQ's own remedy for a bypassed gate, and `adoption_date` for anyone filling the profile by hand | medium | Closed — `ACT-081` (`DR-75`), 2026-09-09; see the body |
+| F138 | There was no way to remove the standard from a repository — no command, no flag, no document | medium | Closed — `ACT-081` (`DR-75`), 2026-09-09; see the body |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1533,6 +1535,83 @@ field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
 
+## F138 — There was no way to remove the standard from a repository
+
+**Severity: medium. Closed — `ACT-081` (`DR-75`), 2026-09-09.**
+
+Raised from the pathway sweep (`PW-13`) and adjudicated here. **The absence of an answer is the
+finding**: there was no `uninstall` command, no installer flag, and no document anywhere describing
+how an adopter takes this standard back out. Established rather than assumed — the search that
+found nothing did find the installer's own *"remove … (no longer part of the standard)"* line, so it
+was capable of finding a removal path had one existed.
+
+**Why it is worth more than its severity suggests.** This programme's stated purpose is that the
+product be adoptable by strangers. A standard a repository cannot leave is a harder thing to adopt
+than one it can, and *"you can get out"* is part of what makes *"try it"* a reasonable ask. It also
+had a sharper edge here: every installed file is integrity-checked, so an adopter who deleted them
+by hand would fail their own conformance check on the way out.
+
+**Remedy — `surfaceplate uninstall [--target] [--dry-run]`.**
+
+**The install record is the authority, not the current payload.** `.standards/INSTALL.json` already
+recorded every file the installer wrote, with its digest. Removal reads that, so it takes out
+exactly what was installed — including files a newer payload no longer ships, and excluding
+anything the adopter added since. Deriving the list from `build_payload()` would have deleted by
+guess.
+
+Three things are never removed, and each is stated in the output rather than left to be noticed:
+
+- **The adopter's own content.** `AGENTS.md` and `.github/copilot-instructions.md` have the managed
+  block stripped and keep everything else, verbatim.
+- **`governance/application-profile.yaml`.** Their control decisions are theirs, not this
+  framework's, and nothing here deletes the record of what they decided.
+- **Anything not in the record.** A file the standard never wrote is never touched.
+
+`core.hooksPath` is unset only where it points at `.githooks`. A file edited since install is
+removed — it is standard-owned by contract — but is **named in the report**, so anything of theirs
+that ended up inside it can be recovered from git.
+
+**Verified by effect**, 17 checks: every recorded file gone and `.standards/` with it; the
+adopter's source, manifest, profile and their own words in `AGENTS.md` all intact; the checker then
+reports not-installed with exit 2; removing what is not there is exit 2 rather than an error; and
+the standard installs again afterwards. `INSTALL.md` and `SUPPORT.md` now say so, which is the half
+`PW-13` was actually about.
+
+## F137 — The natural completion of a shipped template is invalid
+
+**Severity: medium. Closed — `ACT-081` (`DR-75`), 2026-09-09.**
+
+Raised from the pathway sweep (`PW-09`), and **larger than reported** once adjudicated here.
+
+The shipped gate-exception template says `raised_on: replace-me  # YYYY-MM-DD`. An adopter who does
+exactly that writes `raised_on: 2026-09-09`, which is a valid YAML date scalar, which
+`yaml.safe_load` returns as `datetime.date`, which the schema rejects:
+
+```
+[SP043] Gate exception '...' is invalid: raised_on: datetime.date(2026, 9, 9) is not of type 'string'
+```
+
+**The template warns about quoting a SHA and not about quoting a date**, and that asymmetry is the
+tell: the case was thought about once and not generalised.
+
+**What the sweep did not reach: the application profile has the same trap.** Confirmed here —
+setting `adoption_date` to an unquoted date produces
+`adoption.adoption_date: datetime.date(...) is not of type 'string'`. That is the path of an adopter
+who fills the profile template **by hand**, the documented alternative to running the wizard. The
+wizard's own output is unaffected, because it quotes; so the defect fell precisely on the adopter
+who did it the manual way, and the fixture-based suites never saw it.
+
+**Remedy: normalise, do not merely document.** `rules.dates_as_strings` converts `date`/`datetime`/
+`time` to ISO 8601 text, applied at all four points where the checker loads a hand-written YAML
+record — immediately after parsing, before anything looks at it. Nothing is lost: a `datetime.date`
+can only have come from a date-shaped scalar, and `.isoformat()` is exactly the value the schema's
+`format: date` wanted.
+
+**The templates are deliberately left unquoted.** Quoting them would work and would rely on the
+adopter reading a comment; the normaliser does not. The `commits:` entry keeps its quoting warning,
+because that one is a different defect — an all-digit SHA prefix parses as a number — and is not
+fixed by this.
+
 ## F136 — The pathway sweep's remaining fifteen findings, held pending adjudication
 
 **Severity: medium (the holding entry; individual severities below are the reporter's).
@@ -1561,11 +1640,10 @@ moved. Re-testing against `HEAD` is part of adjudicating each, not an optional e
 | `PW-06` | medium | `README.md`'s "Working on the standard itself" block fails as written: its venv lacks `textual` and `build_release.py` then refuses |
 | `PW-07` | medium | `adopt --edit` without `--because` is accepted and recorded with a canned reason, and the CLI says it was recorded "with the reason" |
 | `PW-08` | medium | Installing over a newer recorded version is labelled "an UPGRADE, 99.0.0 -> 0.17.0"; `doctor` prints two different installed versions in one run |
-| `PW-09` | medium | The gate-exception template's natural completion is invalid — an unquoted `raised_on` parses as a date and fails the schema |
 | `PW-10` | medium | The answers record does not say that `contract_tests`/`deterministic_tests` want a *workflow step name*; a gate answered `not_applicable` still demands an artefact path |
 | `PW-11` | medium | `doctor` crashes with `UnicodeEncodeError` when C-locale coercion is disabled |
 | `PW-12` | medium | `adopt --edit` on the installer's template profile fails with `KeyError: 'scanner'`, exit 4 |
-| `PW-13` | low / medium | `RECONCILIATION.md` cannot be followed literally by a pip adopter; **and there is no removal procedure anywhere** |
+| `PW-13` | low | `RECONCILIATION.md` cannot be followed literally by a pip adopter. **Its removal half left this table as `F138`** |
 | `PW-14` | low | `RECONCILIATION.md` overstates what the standard owns under `.github/instructions/` |
 | `PW-15` | low | Changing `--agents` leaves empty `.claude/rules` and `.claude/skills` directories |
 | `PW-16` | low | The `--propose` preview substitutes silent defaults for undecided answers |
@@ -1574,7 +1652,8 @@ moved. Re-testing against `HEAD` is part of adjudicating each, not an optional e
 
 **`PW-04` has left this table.** It was adjudicated with `F133` under `DR-74` as an instance of the
 same class — a negative asserted from an observation that could not have found the thing — and
-`doctor` now reports an unanswerable hooks path as unanswerable. Fourteen remain.
+`doctor` now reports an unanswerable hooks path as unanswerable. `PW-09` has left it as `F137`, and
+`PW-13`'s removal half as `F138`. Twelve remain, `PW-13`'s reconciliation half among them.
 
 **Two of these deserve flagging now, before adjudication, because they are not what their severity
 suggests.** `PW-13`'s second half — *no removal procedure exists anywhere* — is the packet's own
