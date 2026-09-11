@@ -1068,19 +1068,15 @@ class GatesScreen(_SectionScreenBase):
     def _compose_gate_fields(self, spec: plan.GateSpec) -> ComposeResult:
             for field_spec in spec.fields:
                 key = f"{spec.id}.{field_spec.id}"
-                prefixed = plan.FieldSpec(
-                    id=key,
-                    label=field_spec.label,
-                    kind=field_spec.kind,
-                    help=field_spec.help,
-                    default=field_spec.default,
-                    choices=field_spec.choices,
-                    validate=field_spec.validate,
-                    suggestions=field_spec.suggestions,
-                    decides=field_spec.decides,
-                    wrong=field_spec.wrong,
-                    context=field_spec.context,
-                )
+                # `F161`: `dataclasses.replace`, NOT a hand-copied constructor. This listed eleven
+                # named fields, so every field added to `FieldSpec` since has been silently
+                # dropped on this screen alone - `seed`, and then `found_total`, which is why a
+                # gate's dropdown read `(12 found)` where the controls form read `(12 of 30
+                # found)`. The correct form was already used ten lines below, in `_refresh_help`.
+                #
+                # A copy that must be updated whenever the thing it copies grows is a copy that
+                # will not be. `replace` cannot fall behind.
+                prefixed = dataclasses.replace(field_spec, id=key)
                 seed = self.initial.get(key)
                 with HorizontalGroup(classes="followups", id=f"row-{key.replace('.', '--')}"):
                     if field_spec.kind == "choice":
@@ -1291,9 +1287,20 @@ class GatesScreen(_SectionScreenBase):
         answers = self._answers() if answers is None else answers
         return sum(1 for spec in self.specs if self._gate_is_complete(spec, answers))
 
-    def _set_hint(self, error: str = "") -> None:
+    def _set_hint(self, error: str | None = None) -> None:
         """`F43` and R3: the counter says what matters - how many gates will be audited, how
-        many are still undecided, and how many are complete (a status and every field it needs)."""
+        many are still undecided, and how many are complete (a status and every field it needs).
+
+        `F161`: `error` DEFAULTS TO THE PENDING ONE, rather than to blank. `F74` fixed exactly
+        this on the decisions form and never reached here: `action_commit` reported the refusal,
+        the next keypress moved focus, the focus handler redrew the hint with no error, and the
+        refusal was on screen for one frame. From the adopter's side `Ctrl+S` did nothing - which
+        is how the maintainer reported it, on a gates screen with three blank artefacts.
+
+        Passing `""` explicitly still clears it. That is what the next `Ctrl+S` does.
+        """
+        if error is None:
+            error = getattr(self, "_pending_error", "")
         total = len(self.specs)
         answers = self._answers()
         statuses = [self._status_of(spec, answers) for spec in self.specs]
@@ -1397,6 +1404,7 @@ class GatesScreen(_SectionScreenBase):
         return [s for s in self.specs if s.id in beyond and self._status_of(s, answers) is None] if self._folded else []
 
     def action_commit(self) -> None:
+        self._pending_error = ""  # `F161`: a fresh attempt starts without the last refusal
         # `F96` / `DR-57`: with the fold closed and gates behind it undecided, refusing by naming
         # one of them named something the reader could not see. Ask once, naming the count.
         folded = self._undecided_folded()
@@ -1407,7 +1415,8 @@ class GatesScreen(_SectionScreenBase):
         for spec in self.specs:
             status = self._status_of(spec, answers)
             if status is None:
-                self._set_hint(f"{spec.id}: choose a status before continuing.")
+                self._pending_error = f"{spec.id}: choose a status before continuing."
+                self._set_hint(self._pending_error)
                 return
             for field_spec in spec.fields:
                 key = f"{spec.id}.{field_spec.id}"
@@ -1423,7 +1432,8 @@ class GatesScreen(_SectionScreenBase):
                     field_spec.validate, answers.get(key, ""), repo=self.repo
                 )
                 if problem:
-                    self._set_hint(f"{spec.id} · {field_spec.label}: {problem}")
+                    self._pending_error = f"{spec.id} · {field_spec.label}: {problem}"
+                    self._set_hint(self._pending_error)
                     return
         # Statuses that were settled rather than chosen are recorded explicitly, so the answers
         # this screen returns describe the whole section rather than only its free choices.

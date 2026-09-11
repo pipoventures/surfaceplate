@@ -452,6 +452,134 @@ def test_every_select_field_can_be_answered_off_the_list() -> None:
           "nothing exists at that path" in hint.lower(), f"hint: {hint!r}")
 
 
+def test_the_gates_screen_renders_the_spec_the_plan_built() -> None:
+    """`F161`. `_compose_gate_fields` rebuilt each `FieldSpec` with a hand-written constructor
+    listing eleven named fields, so every field added to `FieldSpec` since was silently dropped on
+    this screen alone - `seed`, and then `found_total`, which is why a gate's dropdown read
+    `(12 found)` where the controls form read `(12 of 30 found)` for the same repository.
+
+    **A copy that must be updated whenever the thing it copies grows is a copy that will not be**,
+    so this asserts the rendered widget against what the plan built rather than against a literal.
+    Any future field `_select_prompt` reads is covered without anyone remembering to add a case.
+    """
+    import subprocess
+    import tempfile
+
+    from textual.widgets import Select
+
+    from surfaceplate.adopt import discover
+    from surfaceplate.adopt.tui.screens import _select_prompt
+
+    repo = Path(tempfile.mkdtemp(prefix="surfaceplate-gatespec-")) / "repo"
+    (repo / "docs").mkdir(parents=True)
+    for args in (["init", "-q"], ["config", "user.email", "h@e.invalid"],
+                 ["config", "user.name", "H"], ["config", "commit.gpgsign", "false"]):
+        subprocess.run(["git", "-C", str(repo), *args], check=True)
+    # More candidates than the cap, so `found_total` and the shown count genuinely differ - the
+    # fixture has to truncate or the assertion cannot tell the two prompts apart.
+    for index in range(discover.SHOWN + 6):
+        (repo / "docs" / f"note-{index:03d}.md").write_text(f"# {index}\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "fixture"], check=True,
+                   capture_output=True)
+    found = discover.scan(repo)
+    specs = plan.gate_plan(level="standard", builds_ui=True, mode="simple", found=found)
+    section = plan.gates_plan(level="standard", builds_ui=True, mode="simple", found=found)
+
+    async def prompts() -> dict:
+        app = Host(GatesScreen(specs, section, repo=repo, level="standard"))
+        async with app.run_test(size=(140, 80)) as pilot:
+            await pilot.pause()
+            await pilot.press("ctrl+o")  # `F91`: beyond-floor gates are folded until opened
+            await pilot.pause()
+            out = {}
+            for widget in app.screen.query(Select):
+                if widget.id and widget.id.startswith("f-"):
+                    out[widget.id[len("f-"):].replace("--", ".")] = str(widget.prompt)
+            return out
+
+    shown = asyncio.run(prompts())
+    wanted = {
+        f"{spec.id}.{field.id}": _select_prompt(field)
+        for spec in specs for field in spec.fields if field.kind == "select"
+    }
+    checked = 0
+    for key, prompt in wanted.items():
+        if key not in shown:
+            continue
+        checked += 1
+        check(f"gates screen renders the plan's prompt for {key}", shown[key] == prompt,
+              f"screen={shown[key]!r} plan={prompt!r}")
+    check("the sweep examined some dropdowns - an empty sweep proves nothing", checked > 0,
+          f"{checked} of {len(wanted)} select field(s) on screen")
+    check("and the fixture truncates, so the two prompt forms differ",
+          any("of" in p for p in wanted.values()), str(list(wanted.values())[:1]))
+
+
+def test_a_gates_refusal_survives_the_keypress_that_follows_it() -> None:
+    """`F161`, the other half. `F74` fixed exactly this on the decisions form and never reached
+    the gates screen: `action_commit` reported the refusal, the next keypress moved focus, the
+    focus handler redrew the hint **with no error**, and the refusal was on screen for one frame.
+
+    From the adopter's side `Ctrl+S` did nothing. That is how the maintainer reported it.
+    """
+    import subprocess
+    import tempfile
+
+    from textual.widgets import Static
+
+    from surfaceplate.adopt import discover
+
+    repo = Path(tempfile.mkdtemp(prefix="surfaceplate-gatehint-")) / "repo"
+    repo.mkdir(parents=True)
+    for args in (["init", "-q"], ["config", "user.email", "h@e.invalid"],
+                 ["config", "user.name", "H"], ["config", "commit.gpgsign", "false"]):
+        subprocess.run(["git", "-C", str(repo), *args], check=True)
+    (repo / "src.py").write_text("x = 1\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "fixture"], check=True,
+                   capture_output=True)
+    found = discover.scan(repo)
+    specs = plan.gate_plan(level="standard", builds_ui=True, mode="simple", found=found)
+    section = plan.gates_plan(level="standard", builds_ui=True, mode="simple", found=found)
+
+    async def press_then_move() -> tuple[str, str, str]:
+        app = Host(GatesScreen(specs, section, repo=repo, level="standard"))
+        async with app.run_test(size=(140, 80)) as pilot:
+            await pilot.pause()
+            await pilot.press("ctrl+s")           # the fold question, if gates are undecided
+            for _ in range(3):
+                await pilot.pause()
+            if not isinstance(app.screen, GatesScreen):
+                await pilot.press("y")            # declare the folded ones not applicable
+                for _ in range(4):
+                    await pilot.pause()
+            await pilot.press("ctrl+s")           # the refusal under test
+            for _ in range(4):
+                await pilot.pause()
+            def line() -> str:
+                return str(app.screen.query_one("#hint", Static).content).splitlines()[0]
+            after = line()
+            await pilot.press("tab")
+            for _ in range(3):
+                await pilot.pause()
+            tabbed = line()
+            await pilot.press("down")
+            for _ in range(3):
+                await pilot.pause()
+            arrowed = line()
+            app.exit(None)
+            return after, tabbed, arrowed
+
+    after, tabbed, arrowed = asyncio.run(press_then_move())
+    check("Ctrl+S reports why it refused", "cannot be blank" in after.lower() or ":" in after,
+          f"hint: {after!r}")
+    check("and the refusal survives the Tab that follows it (F74's rule, this screen)",
+          tabbed == after, f"before={after!r} after={tabbed!r}")
+    check("and survives an arrow key too", arrowed == after,
+          f"before={after!r} after={arrowed!r}")
+
+
 def test_ticking_a_control_reveals_the_fields_it_makes_required() -> None:
     """`F143`. The wizard demanded a value for a field it did not show.
 
@@ -1904,6 +2032,10 @@ def main() -> int:
 
     print("\nF147: a discovered list is an offer, not the only permitted answer")
     test_every_select_field_can_be_answered_off_the_list()
+
+    print("\nF161: the gates screen renders the plan, and keeps its refusal on screen")
+    test_the_gates_screen_renders_the_spec_the_plan_built()
+    test_a_gates_refusal_survives_the_keypress_that_follows_it()
 
     print("\nF64: an empty choice or dropdown is refused where it is made")
     test_an_empty_choice_is_refused_at_the_field()
