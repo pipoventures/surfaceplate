@@ -3472,6 +3472,30 @@ it. The check was named for a property it never established. It now asserts that
 content row sits immediately above its bottom border, and reinstating the overflow makes it fail
 and name the row that ended up there instead.
 
+### A fact of record written from an inference (`ACT-111`, closing `F174`)
+
+`audit/REVIEW_INVITATION.md` exists because *"a drafted invitation that was never sent looks, from
+the register, exactly like one that was"*. Under `ACT-110` a row was added to its table recording a
+`discuss.python.org` posting. **No posting took place.**
+
+The maintainer replied *"published. what now?"* to a message handing over a drafted forum post. The
+word was ambiguous — the package had been published to PyPI an hour earlier — and it was resolved by
+assumption, then written down as a dated fact and merged.
+
+**Nothing could have caught it.** A forum posting leaves no artefact here: no hash, no command, no
+suite that could disagree. It is the class of claim the register exists to hold precisely *because*
+no automated control can, which makes writing one from an inference worse here than anywhere else.
+
+The asymmetry is the lesson. In the same packet of work, the attestation was fetched and parsed for
+three versions, the subject digest compared against an independently derived one, and an omission
+established by `grep` rather than assumed. The single claim taken on inference was the one about what
+a person had done — because it did not look like the kind of claim that needs checking.
+
+The row is removed rather than annotated: an entry recording an event that did not occur cannot be
+repaired by a note beside it, because the table is read as a list of things that happened. `H16` is
+unchanged, which is the one piece of luck — the error inflated what had been done without advancing
+anything, so no decision rests on it.
+
 ### The anchor we said we did not have (`ACT-110`, raising `F173`)
 
 Checking a claim before writing it into a forum post found that **PyPI has held a Sigstore-signed

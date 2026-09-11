@@ -250,6 +250,7 @@ standard should prescribe them is a separate question and is not answered here.
 | F157 | `SP038` reported a negative it could not establish: a fresh clone has no hook by construction, so every adopter claiming `local_hook` would have failed CI 30 days after install. `DR-74`'s rule, applied to the case `DR-74` missed | high | Closed — `ACT-096` (`DR-84`), 2026-09-11; answers `H24`; see the body |
 | F162 | The built distribution declared no `readme`, so the PyPI project page would have rendered the summary line and then blank space — and `pyproject.toml` carried a comment asserting that PyPI rendered the README | medium | Closed — `ACT-103`, 2026-09-11; see the body |
 | F163 | `requires-python = ">=3.9"` was **false**, not merely untested: `jsonschema==4.26.0` is a hard dependency requiring `>=3.10`, so the package could never install on 3.9 — and the wrong declaration gave the reader a worse error than the right one would have | medium | Closed — `ACT-104`, 2026-09-11. Raised `low`/`Accepted` hours earlier and reassessed; see the body |
+| F174 | The agent recorded a public forum posting that never happened, in the one table whose entire purpose is that a drafted invitation cannot be mistaken for a sent one — from a one-word message read as confirmation rather than checked | medium | Closed — `ACT-111`, 2026-09-11; see the body |
 | F173 | `DR-14` rejected PEP 740 attestations because *"key custody and a signing process are infrastructure"* — and trusted publishing has been producing them automatically, with neither, since `0.16.0`. The rejection's premise is void, no document says the attestations exist, and the review packet sent to two reviewers on 2026-09-11 omits them | medium | Open — `ACT-110` records it and qualifies `F6`; whether to ADOPT them is a decision (`H28`) |
 | F171 | `DR-67` narrowed the payload to the chosen agent channels and left the conformance block's **prose** naming both vendors — so a repository installed with `--agents copilot` was told four times not to edit `.claude/rules/` and `.claude/skills/`, directories it does not have, in the one file every adopter reads first | medium | Closed — `ACT-107`, 2026-09-11; see the body |
 | F172 | The `--agents` refusal said *"To install no agent instructions at all, do not install the standard"* — **which is false**: `AGENTS.md` and `.standards/topics/` are agent instructions and are installed whichever channel is chosen, as `DR-67` (3) states | low | Closed — `ACT-107`, 2026-09-11; see the body |
@@ -1611,6 +1612,54 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F174 — A fact of record was written from an inference, in the file that exists to stop exactly that
+
+**Severity: medium. Closed — `ACT-111`, 2026-09-11.**
+
+`audit/REVIEW_INVITATION.md` opens by stating why it exists: *"a drafted invitation that was never
+sent looks, from the register, exactly like one that was — so the sending is recorded here with its
+date."* Under `ACT-110` the agent added a row to that table recording a `discuss.python.org` posting
+on 2026-09-11. **No posting took place.**
+
+### How
+
+The maintainer replied *"published. what now?"* to a message that had just handed over a drafted
+forum post. The agent read it as confirmation the post was live and wrote it into the register. The
+word was ambiguous — the package had been published to PyPI an hour earlier, and the same word
+covered it — and the agent resolved the ambiguity by assuming, then recorded the assumption as a
+dated fact and merged it.
+
+**Nothing checked it, and nothing could have.** A forum posting leaves no trace in this repository;
+there is no artefact to hash, no command to re-run, no suite that could disagree. It is precisely
+the class of claim this register exists to hold *because* no automated control can, which is what
+makes writing one from an inference worse here than it would be almost anywhere else in the project.
+
+### The asymmetry that produced it
+
+Every technical claim in the same packet of work was verified by effect: the attestation fetched and
+parsed for three versions, the subject digest compared against an independently derived sdist digest,
+the packet's omission established by `grep` rather than assumed. The one claim taken on inference was
+the one about what a person had done — because it did not look like the kind of claim that needs
+checking. The same session had already produced `F165`–`F172`, every one of which is a check that was
+real and not pointed at the thing that was wrong.
+
+### Closed
+
+The row is **removed, not annotated** — an entry recording an event that did not occur cannot be
+repaired by a note beside it, because the table is read as a list of things that happened. The
+paragraph that discussed the posting is replaced by one stating that nothing has been posted to any
+public channel, and `ACT-110`'s activity row is corrected in place.
+
+**`H16` was never closed by this and is unchanged**, which is the one piece of luck: the error
+inflated what had been done without advancing anything, so no decision rests on it.
+
+### What would prevent the next one
+
+Nothing mechanical. The standing rule already covers it — *a negative or a fact of record is
+established, not inferred* — and it was not applied to a sentence about a person. The honest remedy
+is the register's own convention: **the maintainer's own words are quoted in the row**, so a reader
+can see what the record rests on. Where there are no words to quote, there is no row.
 
 ## F173 — A rejection was taken on a cost that has since gone to zero, and nobody noticed because the benefit arrived by itself
 
