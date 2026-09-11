@@ -250,6 +250,7 @@ standard should prescribe them is a separate question and is not answered here.
 | F157 | `SP038` reported a negative it could not establish: a fresh clone has no hook by construction, so every adopter claiming `local_hook` would have failed CI 30 days after install. `DR-74`'s rule, applied to the case `DR-74` missed | high | Closed — `ACT-096` (`DR-84`), 2026-09-11; answers `H24`; see the body |
 | F162 | The built distribution declared no `readme`, so the PyPI project page would have rendered the summary line and then blank space — and `pyproject.toml` carried a comment asserting that PyPI rendered the README | medium | Closed — `ACT-103`, 2026-09-11; see the body |
 | F163 | `requires-python = ">=3.9"` was **false**, not merely untested: `jsonschema==4.26.0` is a hard dependency requiring `>=3.10`, so the package could never install on 3.9 — and the wrong declaration gave the reader a worse error than the right one would have | medium | Closed — `ACT-104`, 2026-09-11. Raised `low`/`Accepted` hours earlier and reassessed; see the body |
+| F164 | `scripts/front_door.sh` wrote its stranger identity and its global `core.hooksPath` into the **invoking user's real `~/.gitconfig`**, then deleted the directory it had pointed the hooks at — so every git hook on the machine was silently skipped, and later commits in any repository without a local identity were authored by "A stranger" | high | Closed — `ACT-105`, 2026-09-11; see the body. The machine repair is `H27` |
 | F161 | The gates screen rebuilt each `FieldSpec` by hand and dropped every field added since, and its `Ctrl+S` refusal was wiped by the next keypress — `F74`'s defect, fixed on the other screen only | medium | Closed — `ACT-099`, 2026-09-11; see the body |
 | F160 | `SP047` read a `run:` block line by line, so a scan disarmed across continuation lines was invisible to the check built to find it — while a step that merely READ the scanner's report was reported as the scan command | high | Closed — `ACT-098`, 2026-09-11; see the body |
 | F159 | `--repin` refused a profile that had not been written yet by listing six lines it does not write, so the command read as broken when the profile was simply unfinished | medium | Closed — `ACT-097`, 2026-09-11; see the body |
@@ -1585,6 +1586,113 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F164 — The front-door script rewrote the operator's own git configuration, and the damage was invisible from inside this repository
+
+**Severity: high. Closed — `ACT-105`, 2026-09-11.**
+
+**Reported by another agent session working in `plyego`, not found here.** It observed that every
+git hook on this machine had stopped running and traced the cause back to this repository's script.
+The report was verified by effect before being acted on, and verification found it understated: the
+script clobbers **three** global settings, not one.
+
+`scripts/front_door.sh` opened with, unconditionally and at global scope:
+
+```sh
+git config --global user.email stranger@example.invalid
+git config --global user.name "A stranger"
+git config --global core.hooksPath "$work/global-hooks"     # the machine the review met
+```
+
+`$work` is a `mktemp -d` directory. The script does not remove it, but the system does, so what
+remains after a run is a **global `core.hooksPath` pointing at a directory that does not exist**.
+
+### Why that is worse than a broken path
+
+`core.hooksPath` **replaces** `.git/hooks`; it does not add to it. A hook that no longer runs
+therefore produces no error, no warning, and no diff — the hook file is still on disk, still
+tracked, still executable, and git simply never calls it. Every reader's check for "is the gate
+installed?" answers *yes*. This repository's own concurrency topic states exactly this hazard
+(`.claude/rules/surfaceplate-11-concurrency.md`: *"a repo-local hook can stop running the moment a
+hooks path is set, with no error and no diff to show for it"*). The script that caused it was
+written after that text.
+
+### Established state, at the time of the fix
+
+```
+$ git config --show-origin --get-all core.hooksPath
+file:/home/mps2210/.gitconfig   /tmp/tmp.EUkPfcFmMb/global-hooks     <- does not exist
+file:.git/config                …/surfaceplate/.git/hooks-chain
+
+$ git config --global --get user.name ; git config --global --get user.email
+A stranger
+stranger@example.invalid
+```
+
+Of the seven repositories under `~/github`, **only `surfaceplate` sets `core.hooksPath` and
+`user.email` locally**. A local value wins over a global one, so this repository's pre-commit gate
+kept running and its commits kept Mario's authorship throughout — **the defect was undetectable
+from inside the repository that caused it.** The six that carry no local override lost both:
+`mnemosyne` and `plyego` have `pre-commit` hooks, and all seven have `post-commit`.
+
+The authorship damage is measurable and is on `main`:
+
+| Repository | Commits authored `A stranger <stranger@example.invalid>` |
+|---|---|
+| `plyego` | 165 (83 on 09-09, 4 on 09-10, 78 on 09-11), plus 13 earlier |
+| `actually-using-ai` | 7 |
+
+Recovered from history, the identity the script overwrote was `mps2210 <mps2210@outlook.com>`.
+**The 13 earlier commits date this defect to before 9 September** — it has been present since
+`ACT-045` created the script, not since the run the other session noticed.
+
+### The fix, and what it deliberately does not change
+
+**The global settings stay global.** `F70` — the finding this script exists to hold closed — is
+precisely *a stranger meeting a machine with a global `core.hooksPath`*. Making the setting
+repository-local would have quietly retired that coverage while appearing to fix a bug. What was
+wrong was never *that* the scope was global; it was **which file the global scope was**.
+
+`GIT_CONFIG_GLOBAL` moves the global scope itself into `$work`. Git still reads and writes it as
+the global scope, so `F70`'s condition is reproduced exactly rather than approximated, and
+`~/.gitconfig` is never opened. `GIT_CONFIG_NOSYSTEM=1` goes with it.
+
+**This is the second site of a fix this repository already made.**
+`tests/test_install_and_check.py:neutralise_ambient_git_config` has done exactly this since 0.13.0,
+for exactly this reason, and its docstring argues the case. The shell script never received it —
+`F58`, `F143`, `F157` and `F161`'s class, and the fourth this release: *two sites, one updated*.
+
+### The guard, because the failure mode was silence
+
+A git older than 2.32 does not know `GIT_CONFIG_GLOBAL`. It would ignore the variable and write to
+`~/.gitconfig` exactly as before, silently, which is how this survived. The script therefore
+**establishes that the redirection took effect before writing anything**, by a read rather than a
+write: it plants a key in the sandbox file and asks git, at global scope, to read it back. If the
+answer is wrong the script refuses to run.
+
+### Evidence
+
+- **Both directions on the static check.** `tests/check_code_registers.py` now requires every
+  script under `scripts/` that writes global git config to export `GIT_CONFIG_GLOBAL` *above* the
+  first such write — checked by line position, because an export below the write protects nothing.
+  Removing the export makes the suite fail and name it: *"front_door.sh redirects the global git
+  scope before writing to it: first write at line 36, no export"*.
+- **The runtime guard, by effect, against a simulated old git.** The real, unmodified script was
+  run with a `git` shim earlier on `PATH` that unsets `GIT_CONFIG_GLOBAL` and execs the real git —
+  emulating a git that ignores the variable. It refused, exited 1, and `~/.gitconfig` was byte
+  identical afterwards (sha256 compared before and after).
+- **The whole script, by effect.** `sh scripts/front_door.sh .` → `FRONT_DOOR=PASS`, `~/.gitconfig`
+  sha256 unchanged, and `core.hooksPath (global)` still the pre-existing value rather than a fresh
+  temp directory.
+
+### What this finding does not fix
+
+**The machine is still in the damaged state and this repository cannot repair it.** The settings
+live in `~/.gitconfig`, outside any repository, and the correct previous value of `core.hooksPath`
+(most likely unset) is not recoverable from evidence — only the identity is. Raised as `H27`.
+**The 172 misattributed commits are not repairable either**: they are pushed history on `main` in
+two other repositories, and rewriting that is a destructive operation on repositories outside this
+one's scope. Recorded as fact, not remedied.
 
 ## F163 — `requires-python` was not merely untested; it was false
 

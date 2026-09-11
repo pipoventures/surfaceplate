@@ -3471,3 +3471,50 @@ last four rows. The hint is **docked below the frame**, so it is present whateve
 it. The check was named for a property it never established. It now asserts that the frame's last
 content row sits immediately above its bottom border, and reinstating the overflow makes it fail
 and name the row that ended up there instead.
+
+### The front-door script rewrote the operator's own git configuration (`ACT-105`, closing `F164`)
+
+**Found by another agent session working in a different repository.** It noticed that every git
+hook on the machine had stopped running, and traced the cause back to here.
+
+`scripts/front_door.sh` opened by setting a git identity and a global `core.hooksPath` — both
+deliberate, both required, because `F70` is *a stranger meeting a machine with a global
+`core.hooksPath`* and reproducing that is the script's entire job. What was wrong was **which file
+the global scope was**: it wrote straight into the invoking user's real `~/.gitconfig`, and pointed
+the hooks at a `mktemp -d` directory that does not survive the run.
+
+In the container the script was built for, that is harmless. Run by hand — which the script's own
+header invites — it is not:
+
+- **Every git hook on the machine stopped running.** `core.hooksPath` *replaces* `.git/hooks` rather
+  than adding to it, so a hook that is never called produces no error, no warning and no diff. The
+  file is still on disk, still tracked, still executable. Every check for *"is the gate installed?"*
+  answers yes.
+- **Later commits were misattributed.** With the global identity overwritten, any repository without
+  a local one produced commits authored `A stranger <stranger@example.invalid>` — 172 of them across
+  two repositories, on `main`, 13 of which predate 9 September and date the defect to the script's
+  creation rather than to the run that exposed it.
+
+The fix keeps the settings global and moves the *scope* instead: `GIT_CONFIG_GLOBAL` points git's
+global configuration at the script's own work directory. Git still reads and writes it as the global
+scope, so `F70`'s condition is reproduced exactly rather than approximated, and `~/.gitconfig` is
+never opened.
+
+**This repository had already made this fix once.**
+`tests/test_install_and_check.py:neutralise_ambient_git_config` has used exactly this isolation
+since 0.13.0, for exactly this reason, and its docstring argues the case. The shell script never
+received it — the fourth instance this release of *two sites, one updated* (`F58`, `F143`, `F157`,
+`F161`).
+
+Because the failure mode was **silence**, the fix is guarded twice. A git older than 2.32 ignores
+`GIT_CONFIG_GLOBAL` and would write to `~/.gitconfig` exactly as before, so the script now proves
+the redirection took effect *before writing anything* — by planting a key in the sandbox file and
+asking git, at global scope, to read it back — and refuses to run if the answer is wrong. And
+`check_code_registers.py` requires every script under `scripts/` that writes global git config to
+export `GIT_CONFIG_GLOBAL` **above** the first such write, checked by line position, because an
+export below the write protects nothing.
+
+**What this does not fix is the machine, and it says so.** The damaged settings live outside any
+repository, and the misattributed commits are pushed history elsewhere. Both are recorded as `H27`
+with the repair commands and the prior identity recovered from history — not performed, because
+machine state is not this repository's to change.
