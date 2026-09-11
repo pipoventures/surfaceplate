@@ -188,6 +188,12 @@ class OpeningApp(App, inherit_bindings=False):
         if begin is None:
             self.exit(None)
             return
+        if begin == WelcomeScreen.AGENT:
+            # `ACT-101`: leave the interface with the choice intact. The prompt is printed by the
+            # CLI once the app has released the terminal - inside a full-screen app it could be
+            # read and not copied, which is the one thing it exists to be.
+            self.exit(WelcomeScreen.AGENT)
+            return
         if self.welcome.draft is None:
             self.exit(True)
             return

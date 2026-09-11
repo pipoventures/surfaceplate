@@ -24,6 +24,12 @@ surfaceplate doctor --repo "$target" || true            # warnings are allowed; 
 surfaceplate install --target "$target" --dry-run --no-hooks
 surfaceplate install --target "$target" --no-hooks
 surfaceplate doctor --report --repo "$target" >/dev/null || true   # offline; must not need the network this script disabled
+# `ACT-100`: the prompt is an instruction someone will follow, so it is run here rather than
+# trusted - `S3`, and `F57`'s lesson. Piped through grep so a prompt that renders empty, or that
+# silently loses its contract, fails the front door rather than an adopter's agent.
+surfaceplate agent-prompt --target "$target" | grep -q "MUST NOT" \
+  || { echo "agent-prompt produced no contract"; exit 1; }
+surfaceplate agent-prompt --target "$target" --register advanced >/dev/null
 set +e
 surfaceplate check --repo "$target"; code=$?
 set -e

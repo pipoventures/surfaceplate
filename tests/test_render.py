@@ -145,9 +145,28 @@ def test_the_opening_screen_names_the_tool_the_install_and_what_will_be_written(
     text = screen_text(lines)
     for needle in ("Surfaceplate 0.16.0", "Apache-2.0", "Pipo Ventures Ltd", "01cb1b5892…", "2026-09-02",
                    "/home/someone/github/plutos", "application-profile.yaml", "provenance record",
-                   "Nothing is written", "[Enter] begin", "[Ctrl+Q] quit"):
+                   "Nothing is written", "[Enter] set it up here", "[A] AI-assisted", "[Ctrl+Q] quit"):
         check(f"the opening screen shows {needle!r}", needle in text, text[:400])
-    check("it fits: nothing is pushed off 24 rows", "[Enter] begin" in screen_text(lines[-4:]), screen_text(lines[-4:]))
+
+    # `ACT-101`: this read `"[Enter] begin" in lines[-4:]` and was named "it fits". It could not
+    # establish that. The hint is DOCKED BELOW THE FRAME, so it is in the last rows whatever
+    # happens inside - and when three rows of route text overflowed the frame and pushed the `[A]`
+    # option off the bottom, the hint sat there unchanged and this check passed.
+    #
+    # The thing that overflows is the frame's LAST CONTENT ROW, so that is what is asserted: the
+    # final line the screen composes must actually be on screen, above the frame's bottom border.
+    check(
+        "it fits: the frame's last content row is on screen, not pushed off",
+        "Get an AI assistant to help" in text,
+        text[-400:],
+    )
+    bottom = next((i for i, line in enumerate(lines) if "╰" in line), None)
+    last_content = screen_text(lines[bottom - 1:bottom]) if bottom else ""
+    check(
+        "and it is the row immediately above the frame's bottom border",
+        "[A]" in last_content,
+        f"row above the border: {last_content!r}",
+    )
     for row in mark.slab():
         check(f"the slab row {row.strip()[:12]!r}… is on screen", row.strip() in text, text[:600])
     letter_rows = [s for s in strips if "█████" in s.text]

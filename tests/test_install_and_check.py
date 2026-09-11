@@ -3785,6 +3785,64 @@ def main() -> int:
         check("a hook that does not reach the gate is still SP038", "[SP038]" in foreign,
               sp038_line(foreign))
 
+        # `ACT-100`: the prompt is about to be pasted into a third party's service, so what it
+        # leaves out matters as much as what it says - and the contract it carries is the feature.
+        print("\nACT-100: the agent prompt")
+
+        # Run as a SUBPROCESS, the way an adopter runs it. `assist` reads `surfaceplate.adopt`,
+        # and `adopt/plan.py` imports `surfaceplate.rules` absolutely - so the wizard package has
+        # no flat form and this module cannot be imported the way the payload modules above are.
+        # Invoking the command is also the better test: it exercises the CLI wiring too.
+        def agent_prompt(repo: Path, *extra: str) -> str:
+            out = subprocess.run(
+                [sys.executable, "-m", "surfaceplate.cli", "agent-prompt", "--target", str(repo), *extra],
+                capture_output=True, text=True, cwd=str(ROOT),
+                env={**os.environ, "PYTHONPATH": str(ROOT)},
+            )
+            assert out.returncode == 0, out.stdout + out.stderr
+            return out.stdout
+
+        prompt_repo = make_git_repo(tmp, "promptable")
+        (prompt_repo / "src.py").write_text("x = 1\n", encoding="utf-8")
+        subprocess.run(["git", "-C", str(prompt_repo), "add", "-A"], check=True)
+        subprocess.run(["git", "-C", str(prompt_repo), "commit", "-qm", "fixture"], check=True,
+                       capture_output=True)
+        text = agent_prompt(prompt_repo)
+
+        # Redaction, the same assertion `doctor --report` already carries, on the new output.
+        for probe, what in (
+            (str(prompt_repo.resolve()), "the repository path"),
+            (str(Path.home()), "the home directory"),
+            (os.environ.get("USER") or os.environ.get("USERNAME") or "", "the username"),
+        ):
+            if not probe:
+                continue
+            check(f"the prompt does not leak {what}", probe not in text, f"found {probe!r}")
+
+        # The contract IS the feature. Asserted by its rules rather than by a word count, so
+        # rewording the prose cannot quietly remove a prohibition.
+        for rule in ("MUST NOT", "needs-human", "choose a conformance level"):
+            check(f"the prompt states the rule about {rule!r}", rule in text, "missing")
+
+        # `core/CONFORMANCE_LEVELS.md`: the level "is not derived automatically from the stack".
+        # The prompt asks the two questions and must NOT answer them - naming a level here would
+        # be the exact substitution the whole command exists to prevent.
+        lowered = text.lower()
+        for phrase in ("recommended level", "i recommend", "you should choose"):
+            check(f"the prompt does not recommend a level ({phrase!r})", phrase not in lowered,
+                  f"found {phrase!r}")
+
+        # It must work at BOTH ends of the range: a repository that has never adopted, and one
+        # that has. Without the second, the installed branch is never rendered.
+        check("it renders for a repository that has never adopted",
+              "not installed here yet" in text, text[:200])
+        install(prompt_repo)
+        after = agent_prompt(prompt_repo, "--register", "advanced")
+        check("and for one that has, naming the installed version",
+              "is installed" in after and "not installed here yet" not in after, after[:200])
+        check("and the chosen register reaches the agent's instructions",
+              "advanced register" in after, after[-600:])
+
         # `F149`: `doctor` and `doctor --report` died on an ASCII stdout - and `doctor --report`
         # is the command `SUPPORT.md` names for reporting a problem, so the diagnostic failed
         # exactly where it was needed.

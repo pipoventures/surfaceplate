@@ -1701,8 +1701,15 @@ class WelcomeScreen(Screen):
 
     BINDINGS = [
         Binding("enter", "begin", "begin", show=True),
+        # `ACT-101`: the AI-assisted route, offered where the choice is actually made. A
+        # subcommand nobody knows exists is barely a feature, and the person this route is for is
+        # the least likely to go looking for it in `--help`.
+        Binding("a", "agent", "AI-assisted", show=True),
         Binding("ctrl+q", "cancel", "quit", show=True),
     ]
+
+    #: What `action_agent` dismisses with; `tui/app.py` and `wizard._opening` both key on it.
+    AGENT = "agent"
 
     def __init__(self, welcome) -> None:
         super().__init__()
@@ -1761,17 +1768,41 @@ class WelcomeScreen(Screen):
                 yield Static(f"  {w.draft_note}", classes="error", markup=False)
             else:
                 yield Static("", classes="recap")
+            # THREE ROWS, and that is the whole budget. This screen fits 24 rows with one spare
+            # (`F59`, and the class docstring above), so the first draft of these lines - seven
+            # rows of prose - pushed the `[A]` option itself off the bottom of the frame. The
+            # option that could not be seen was the one being added. Rendered at 80x24 and
+            # counted rather than assumed; `tests/test_adopt_snapshots.py` holds it at that size.
             yield Static(
-                "Next: three screens ask what only you can answer, the level and the gates; the "
-                "rest is proposed from this repository and shown with its origin on a review. "
-                "Nothing is written until you approve it.",
+                "Two routes, both asking you the same questions:", classes="recap", markup=False
+            )
+            yield Static(
+                "  [Enter]  Answer them here. Nothing is written until you approve.",
                 classes="recap",
                 markup=False,
             )
-        yield Static("[Enter] begin  [Ctrl+Q] quit, nothing is written", id="hint", markup=False)
+            yield Static(
+                "  [A]      Get an AI assistant to help. Needs one you already use.",
+                classes="recap",
+                markup=False,
+            )
+        yield Static(
+            "[Enter] set it up here  [A] AI-assisted  [Ctrl+Q] quit, nothing is written",
+            id="hint",
+            markup=False,
+        )
 
     def action_begin(self) -> None:
         self.dismiss(True)
+
+    def action_agent(self) -> None:
+        """Leave the interface and print the prompt (`ACT-101`).
+
+        Printed to the terminal rather than shown on a screen, because the point of it is to be
+        COPIED - and text inside a full-screen Textual app is the one thing a reader cannot easily
+        take out of it. `doctor --report` makes the same choice for the same reason.
+        """
+        self.dismiss(self.AGENT)
 
     def action_cancel(self) -> None:
         self.dismiss(None)
