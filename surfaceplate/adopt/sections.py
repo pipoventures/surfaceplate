@@ -40,14 +40,21 @@ DECISION_REQUIRED = "required"
 # so - which is what the run's closing message tells them.
 DERIVED_ENFORCEMENT = ["history_audit", "review"]
 
-# `F156` / `DR-83`. A repository installed with `--chain` keeps its own hook system and delegates
-# to this standard's gate, so a local hook DOES gate its staged changes - and the profile may
-# honestly say so. Claiming `local_hook` is what makes `SP038` engage: every one of the checker's
-# hook checks is gated on a gate claiming it, so a profile that never claims it is never checked.
+# `F156` / `DR-83`, extended by `F157` / `DR-84`. A repository whose hook is installed - its own
+# delegating to the gate (`chained`), or this standard's directly (`installed`) - has a local hook
+# that genuinely gates its staged changes, and the profile may honestly say so. Claiming
+# `local_hook` is what makes `SP038` engage at all: every hook check is gated on a gate claiming
+# it, so a profile that never claims it is never checked.
 #
-# Only for a chained install. `--no-hooks` must never claim this, and `check_conformance` says why
-# in its own words: *"claiming an inactive control is worse than not claiming it"*.
-CHAINED_ENFORCEMENT = ["history_audit", "local_hook", "review"]
+# **Never for `declined`.** `--no-hooks` has no local hook and must not claim one -
+# `check_conformance` says why in its own words: *"claiming an inactive control is worse than not
+# claiming it"*.
+#
+# Safe to claim only because `DR-84` fixed `SP038` first: before that, claiming this failed every
+# adopter's CI 30 days after install, because a fresh clone has no hook by construction and the
+# check reported that absence as a negative rather than as something it could not establish.
+LOCAL_HOOK_ENFORCEMENT = ["history_audit", "local_hook", "review"]
+HOOKS_WITH_A_LOCAL_GATE = ("installed", "chained")
 
 # The path this standard installs its gate at. Held here rather than imported from the checker so
 # `adopt` keeps working where the checker is not importable; `tests/check_code_registers.py`
@@ -222,7 +229,7 @@ def build_gate(spec: plan.GateSpec, answers: dict, *, hooks: str = "") -> dict:
             },
             "enforcement": _enforcement_list(
                 answers.get("enforcement")
-                or (CHAINED_ENFORCEMENT if hooks == "chained" else DERIVED_ENFORCEMENT)
+                or (LOCAL_HOOK_ENFORCEMENT if hooks in HOOKS_WITH_A_LOCAL_GATE else DERIVED_ENFORCEMENT)
             ),
         }
 
@@ -302,7 +309,7 @@ def build_wrap(answers: dict) -> dict:
     }
 
 
-def build_profile(state: dict, *, framework_version: str, framework_digest: str) -> dict:
+def build_profile(state: dict, *, framework_version: str, framework_digest: str, hooks: str = "") -> dict:
     """The whole profile, from every section's answers. Pure - the same state always produces the
     same dict, apart from `adoption_date`, which is today's."""
     level = state["level"]["conformance_level"]
@@ -313,12 +320,13 @@ def build_profile(state: dict, *, framework_version: str, framework_digest: str)
     stack = build_stack(state["stack"])
     risk = build_risk(state["risk"])
     controls = build_controls(state["controls"], level=level)
-    # `F156` / `DR-83`. Derived from the answers, NOT from a fresh scan, so `build_profile` stays
-    # pure - which is what makes `--answers` replay deterministic and the matrix's report
-    # comparable (the same reasoning `DR-73` records for `build_controls`). The plan asks
-    # `hook_chain_rationale` only of a chained install, so its presence IS the chained state, and a
-    # replayed record carries it exactly as the interactive run did.
-    hooks = "chained" if (state.get("adoption") or {}).get("hook_chain_rationale") else ""
+    # `F157` / `DR-84`: supplied by the caller from ONE scan, exactly as `framework_version` and
+    # `framework_digest` are. `build_profile` stays pure - same inputs, same output - which is what
+    # `DR-73` protects for `build_controls`: it forbids a fresh scan INSIDE the builder, not a fact
+    # handed to it. A chained install is still recognisable from its rationale, so a replayed
+    # record with no `hooks` supplied behaves as it did under `DR-83`.
+    if not hooks and (state.get("adoption") or {}).get("hook_chain_rationale"):
+        hooks = "chained"
     gates = build_gates(state["gates"], level=level, builds_ui=builds_ui, mode=mode, hooks=hooks)
     adoption = build_adoption(
         state["adoption"],

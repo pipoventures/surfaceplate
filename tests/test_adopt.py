@@ -2708,9 +2708,14 @@ def test_a_chained_install_declares_the_chain_and_claims_local_hook(tmp: Path) -
     answers = {"artefact": "activity/register.md", "paths": "src/**"}
 
     chained = sections.build_gate(spec, answers, hooks="chained")
-    plain = sections.build_gate(spec, answers, hooks="installed")
+    installed = sections.build_gate(spec, answers, hooks="installed")
+    declined = sections.build_gate(spec, answers, hooks="declined")
     check("a chained install claims local_hook", "local_hook" in chained["enforcement"], str(chained["enforcement"]))
-    check("and an unchained one does not", "local_hook" not in plain["enforcement"], str(plain["enforcement"]))
+    # `F157` / `DR-84`: an ordinary install has a local hook too, and may say so - safe only
+    # because `SP038` no longer reports a negative it cannot establish in CI.
+    check("and so does an ordinary install", "local_hook" in installed["enforcement"], str(installed["enforcement"]))
+    check("but --no-hooks never claims a control it does not have",
+          "local_hook" not in declined["enforcement"], str(declined["enforcement"]))
 
     asked = [f.id for f in plan.adoption_plan(owner="o", hooks="chained").fields]
     not_asked = [f.id for f in plan.adoption_plan(owner="o", hooks="declined").fields]

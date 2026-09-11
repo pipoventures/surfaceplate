@@ -2286,10 +2286,23 @@ def shallow_clone(repo: Path) -> bool:
     return code == 0 and out.strip() == "true"
 
 
+# `F157` / `DR-84`. Three states, not two. `local_hook` is a property of a DEVELOPER'S CHECKOUT,
+# and `core.hooksPath` is local Git configuration that is never tracked - so a fresh clone has no
+# hook by construction, always, and a CI runner is a fresh clone. Asking there whether the local
+# hook is in place has no answer, and returning `False` answered it anyway.
+#
+# That is `DR-74`'s rule - *a check may not report a negative it was not in a position to
+# establish* - which this repository wrote for `F133`, applied to `doctor`, and never swept across
+# the checker. `SP038` was the case it missed.
+HOOK_ACTIVE = "active"        # the hook Git will run reaches this standard's gate
+HOOK_WRONG = "wrong"          # a hook IS there and does not reach the gate - a real negative
+HOOK_UNESTABLISHED = "absent"  # nothing at the resolved path: a fresh checkout, or a deleted hook
+
+
 def active_pre_commit_hook(
     repo: Path, record: dict | None = None, chain: dict | None = None
-) -> tuple[bool, str]:
-    """Return whether the STANDARD'S pre-commit hook is what Git will actually run.
+) -> tuple[str, str]:
+    """Return `(one of the three states above, detail)` for the hook Git will actually run.
 
     F28. This asked only whether an executable `pre-commit` existed in the active hooks
     directory - ANY hook, from anyone. So a gate could claim `local_hook` enforcement and be
@@ -2305,6 +2318,12 @@ def active_pre_commit_hook(
     `.githooks/pre-commit`, so the active hook can be compared against the hook this standard
     shipped. A record with no such entry - because hooks were declined - cannot support the
     claim, which is exactly right.
+
+    `F157`: **no hook at all is `HOOK_UNESTABLISHED`, not `HOOK_WRONG`.** The two look identical
+    from inside the checkout - a fresh clone and a deleted hook are the same state, because the
+    configuration that would tell them apart is untracked - and one of them is the normal condition
+    of every CI runner. A hook that IS there and does not reach the gate stays a finding: that is a
+    negative this check is genuinely in a position to establish.
     """
     code, configured = git(repo, "config", "--local", "--get", "core.hooksPath")
     if code == 0 and configured:
@@ -2314,23 +2333,25 @@ def active_pre_commit_hook(
         hook = hooks_dir / "pre-commit"
         present = hook.is_file() and (os.name == "nt" or os.access(hook, os.X_OK))
         if not present:
-            return False, f"core.hooksPath={configured!r}, expected executable hook {hook}"
-        return standard_hook_installed(
+            return HOOK_UNESTABLISHED, f"core.hooksPath={configured!r} holds no executable hook ({hook})"
+        ok, detail = standard_hook_installed(
             hook, record, f"core.hooksPath={configured!r}", repo=repo, chain=chain
         )
+        return (HOOK_ACTIVE if ok else HOOK_WRONG), detail
 
     code, default_hook = git(repo, "rev-parse", "--git-path", "hooks/pre-commit")
     if code != 0 or not default_hook:
-        return False, "Git could not resolve its active hooks directory"
+        return HOOK_UNESTABLISHED, "Git could not resolve its active hooks directory"
     hook = Path(default_hook)
     if not hook.is_absolute():
         hook = repo / hook
     present = hook.is_file() and (os.name == "nt" or os.access(hook, os.X_OK))
     if not present:
-        return False, f"default hooks path, expected executable hook {hook}"
-    return standard_hook_installed(
+        return HOOK_UNESTABLISHED, f"no executable hook at the default hooks path ({hook})"
+    ok, detail = standard_hook_installed(
         hook, record, "default hooks path", repo=repo, chain=chain
     )
+    return (HOOK_ACTIVE if ok else HOOK_WRONG), detail
 
 
 def probe_delegating_hook(repo: Path, hook: Path) -> tuple[bool, str]:
@@ -2675,16 +2696,48 @@ def check_staged_prerequisites(repo: Path, profile: dict, findings: list[Finding
             )
 
 
+def _first_audited_second(since: _dt.date | str) -> str:
+    """`since`, advanced by one second: the first instant the audit covers (`F158`).
+
+    Parsing failures fall back to the value as given. This runs inside the history audit, and a
+    boundary that cannot be advanced should audit MORE rather than less - the safe direction when
+    the alternative is silently narrowing a window nobody asked to narrow.
+    """
+    text = since if isinstance(since, str) else f"{since.isoformat()}T00:00:00"
+    try:
+        moment = _dt.datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return text
+    return (moment + _dt.timedelta(seconds=1)).isoformat()
+
+
 def commits_touching(
     repo: Path, paths: list[str], since: _dt.date | str
 ) -> tuple[list[str], str | None]:
     """`since` may be a date or a full ISO instant. Git accepts both, and an instant is what makes
-    an adoption-day gate bind from the moment it was adopted rather than from that midnight."""
+    an adoption-day gate bind from the moment it was adopted rather than from that midnight.
+
+    `F158` / `H25`: **the window opens at the first second Git can distinguish from the
+    declaration.** `git log --since` is inclusive at second granularity, and a Git commit timestamp
+    is whole seconds - so a commit made in the same second as `effective_from`, whether just before
+    or just after it, is indistinguishable from one made at it. Left inclusive, a commit made
+    *moments before* adoption is reported as crossing a gate that did not yet exist.
+
+    That false positive is the one an adopter **cannot clear**: they cannot rewrite history that
+    predates their adoption, so their only remedy is to file a gate exception for a commit that did
+    nothing wrong - which teaches them to record exceptions for non-events and devalues the
+    mechanism. The cost of excluding the boundary is that a commit made in that same second *after*
+    the gate took effect goes unaudited. One second, against a ceremony that erodes a real control.
+
+    For a date-only `effective_from` this excludes only the midnight second and leaves the whole day
+    audited, so `F48`'s fix - that a bare date means midnight, not "whenever you run the check" -
+    is untouched.
+    """
     code, out, error = git_diagnostic(
         repo,
         "log",
         f"-{MAX_HISTORY_COMMITS}",
-        f"--since={since if isinstance(since, str) else since.isoformat()}",
+        f"--since={_first_audited_second(since)}",
         "--format=%H",
         "--",
         *paths,
@@ -3227,15 +3280,27 @@ def check_prerequisites(
         for gate in gates_raw
     )
     declared_chain = (profile.get("adoption") or {}).get("hook_chain")
-    hook_active, hook_detail = (
+    hook_state, hook_detail = (
         active_pre_commit_hook(
             repo,
             install_record,
             chain=declared_chain if isinstance(declared_chain, dict) else None,
         )
         if needs_hook_check
-        else (True, "no gate claims local hook enforcement")
+        else (HOOK_ACTIVE, "no gate claims local hook enforcement")
     )
+    # `F157` / `DR-84`. Reported on EVERY run where it applies, because a control that reports
+    # findings but not liveness cannot be told apart, while silent, from one that is passing. An
+    # adopter running the checker in CI is told what this run could and could not see, rather than
+    # being handed a negative about a machine where a local hook was never going to exist.
+    if needs_hook_check and hook_state == HOOK_UNESTABLISHED:
+        notes.append(
+            f"local_hook is claimed and this run cannot establish it: {hook_detail}. "
+            "core.hooksPath is local Git configuration and is never tracked, so a fresh clone - "
+            "which is what a CI runner checks out - has no hook by construction. Run the checker "
+            "in a working checkout to verify the claim; a hook that IS present and does not reach "
+            "the gate is still reported as SP038."
+        )
     history_available = git_history_available(repo)
     exceptions = (
         load_staged_exceptions(repo, findings)
@@ -3340,7 +3405,9 @@ def check_prerequisites(
 
         # An enforcement list that cannot be contradicted is decoration. The hook must be in
         # Git's active hooks directory, not merely present somewhere in the working tree.
-        if "local_hook" in (gate.get("enforcement") or []) and not hook_active:
+        # `F157`: only where a hook IS present and does not reach the gate. Nothing at all is
+        # reported above as not-established, never as a finding.
+        if "local_hook" in (gate.get("enforcement") or []) and hook_state == HOOK_WRONG:
             findings.append(
                 Finding(
                     "SP038",

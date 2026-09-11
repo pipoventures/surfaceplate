@@ -3652,6 +3652,75 @@ def main() -> int:
               (channel / ".claude" / "NOTES.md").is_file()
               and (channel / ".claude" / "skills" / "ours" / "SKILL.md").is_file())
 
+        # `F157` / `DR-84`: SP038's three states. A claim it cannot check in CI would have failed
+        # every claiming adopter's build 30 days after install, because SP038 is graceable.
+        print("\nF157: SP038 reports only what it can establish")
+        # A REAL git repository: the three states are about what Git resolves as its hooks path,
+        # which `make_repo`'s stub `.git` directory cannot answer for.
+        hooks_repo = make_git_repo(tmp, "hookstates")
+        install(hooks_repo)
+        profile = hooks_repo / "governance" / "application-profile.yaml"
+        text = profile.read_text(encoding="utf-8")
+        profile.write_text(
+            text.replace("[history_audit, review]", "[history_audit, local_hook, review]"),
+            encoding="utf-8",
+        )
+        subprocess.run(["git", "-C", str(hooks_repo), "add", "-A"], check=True)
+        # `--no-verify`: the installer has just put its own gate in this repository's hooks path,
+        # and that gate refuses a commit whose profile does not yet conform. The fixture is
+        # deliberately mid-adoption, so the hook is right to refuse and the commit is not the
+        # thing under test.
+        subprocess.run(["git", "-C", str(hooks_repo), "commit", "--no-verify", "-qm", "claim local_hook"],
+                       check=True, capture_output=True)
+        claimed = "local_hook" in profile.read_text(encoding="utf-8")
+        check("the fixture actually claims local_hook - otherwise this proves nothing", claimed)
+
+        def verdict(repo: Path) -> str:
+            # Inherits the environment deliberately: `main()` already neutralises the developer's
+            # global Git config for the whole run, and without that a machine with its own
+            # `core.hooksPath` would make this fixture see a foreign hook rather than none - the
+            # answer would be a property of who ran the test, not of the repository.
+            out = subprocess.run(
+                [sys.executable, str(PAYLOAD / "check_conformance.py"), "--repo", str(repo), "--no-grace"],
+                capture_output=True, text=True,
+            )
+            return out.stdout + out.stderr
+
+        # The resolved hooks path is PINNED to a directory this test owns, rather than unset and
+        # left to whatever the run's shared Git config happens to hold by now. An earlier scenario
+        # in this suite sets `core.hooksPath` genuinely, and inheriting it would make these three
+        # states a property of test ordering instead of the repository - which is the same mistake
+        # `topics/11-concurrency.md` warns about: establish what actually runs by reading the
+        # resolved path, never by assuming a default.
+        hooks_dir = hooks_repo / ".probe-hooks"
+        hooks_dir.mkdir(parents=True, exist_ok=True)
+        hook = hooks_dir / "pre-commit"
+        subprocess.run(["git", "-C", str(hooks_repo), "config", "--local", "core.hooksPath",
+                        str(hooks_dir)], check=True, capture_output=True)
+        if hook.exists():
+            hook.unlink()
+        absent = verdict(hooks_repo)
+
+        def sp038_line(text: str) -> str:
+            """The line the assertion is ABOUT - not the last 300 characters of a long report,
+            which is what this printed first and why three wrong guesses followed it."""
+            return next((ln.strip() for ln in text.splitlines() if "SP038" in ln), "(no SP038)")
+
+        # `[SP038]`, not `SP038`: the ADVISORY names the code too, in the sentence explaining that
+        # a hook which is present and does not reach the gate is still reported. A bare substring
+        # matched the help text and read it as the finding.
+        check("nothing at the resolved path is NOT a finding (a fresh clone is what CI checks out)",
+              "[SP038]" not in absent, sp038_line(absent))
+        check("and it is reported on the run, so the control is not silently skipped",
+              "cannot establish" in absent, absent[-300:])
+
+        # BOTH DIRECTIONS: a hook that IS there and does not reach the gate is a real negative.
+        hook.write_text("#!/bin/sh\necho 'I never run the gate'\nexit 0\n", encoding="utf-8")
+        hook.chmod(0o755)
+        foreign = verdict(hooks_repo)
+        check("a hook that does not reach the gate is still SP038", "[SP038]" in foreign,
+              sp038_line(foreign))
+
         # `F149`: `doctor` and `doctor --report` died on an ASCII stdout - and `doctor --report`
         # is the command `SUPPORT.md` names for reporting a problem, so the diagnostic failed
         # exactly where it was needed.

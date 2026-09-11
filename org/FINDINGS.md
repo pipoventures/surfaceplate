@@ -221,6 +221,8 @@ an unknown number of releases with nothing noticing.
 | F153 | `RECONCILIATION.md` claimed the standard owns `.github/instructions/*.instructions.md` as a glob; it owns twelve named files and seven named skills, and the adopter's own files were never at risk | low | Closed — `ACT-094`, 2026-09-11; see the body |
 | F154 | Three documented things that were not true: `SP001`'s remedy named an internal script, the documented `pip install` resolves to `@main` rather than a release, and the install block did not say what to do when it stops on a global `core.hooksPath` | low | Closed — `ACT-094`, 2026-09-11; see the body |
 | F155 | `RECONCILIATION.md`'s first command assumed a clone of this repository beside the adopter's; a pip adopter gets `No such file or directory` on step 1 | low | Closed — `ACT-094`, 2026-09-11; see the body |
+| F157 | `SP038` reported a negative it could not establish: a fresh clone has no hook by construction, so every adopter claiming `local_hook` would have failed CI 30 days after install. `DR-74`'s rule, applied to the case `DR-74` missed | high | Closed — `ACT-096` (`DR-84`), 2026-09-11; answers `H24`; see the body |
+| F158 | The history audit's window was inclusive at second granularity, so a commit made moments BEFORE adoption was reported as crossing a gate that did not yet exist — and could never be remediated | low | Closed — `ACT-096`, 2026-09-11; decided at `H25`; see the body |
 | F156 | No wizard-written profile ever claimed `local_hook`, so `SP038` and `DR-66`'s verification-by-effect could not fire for any adopter; a `--chain` install never declared the delegation it had deliberately chosen | medium | Closed for the chained case — `ACT-095` (`DR-83`), 2026-09-11; the wider case is `H24`; see the body |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
@@ -1552,6 +1554,78 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F158 — The history audit accused commits made before the gate existed
+
+**Severity: low. Closed — `ACT-096`, 2026-09-11.** `F136`'s `PW-18`, decided at `H25`.
+
+`git log --since` is inclusive at second granularity and a Git commit timestamp is whole seconds, so
+a commit made in the same second as `effective_from` — **whether just before it or just after** — is
+indistinguishable from one made at it. Left inclusive, a commit made moments *before* adoption was
+reported as crossing a gate that did not yet exist.
+
+Verified directly rather than read: `git log --since=<a commit's exact instant>` returns that commit,
+and one second later returns nothing. And this repository's own matrix fixture already back-dates its
+commits *"so a gated commit made in the same second as a seed's instant never reads as crossing a
+gate"* — a workaround for this, in this tree, written by someone who met it and routed around it.
+
+**What decided it is which error the adopter can act on.** A commit that predates adoption **cannot
+be remediated**: they cannot rewrite history from before they adopted, so their only route is a gate
+exception for a commit that did nothing wrong — which teaches them to record exceptions for
+non-events and devalues the mechanism. The cost of the fix is that a commit made in that same second
+*after* the gate took effect goes unaudited. One second of silence against a ceremony that erodes a
+real control.
+
+**Closed** by opening the window at the first second Git can distinguish from the declaration. For a
+date-only `effective_from` this excludes only the midnight second and leaves the whole day audited,
+so `F48`'s fix is untouched.
+
+**A correction to this register's own costing.** `H25` as first written offered a route (b) —
+*"filter the boundary commit by comparing timestamps after `git log` returns, which is exact"*. **It
+does not exist.** Git stores commit times as whole seconds, so there is no sub-second information to
+compare and no exact filter to write. The recommendation was re-costed before it was taken.
+
+## F157 — `SP038` reported a negative it was not in a position to establish, and would have failed every adopter's CI
+
+**Severity: high. Closed — `ACT-096` (`DR-84`), 2026-09-11.** Answers `H24`; corrects `ACT-095`.
+
+`local_hook` is a property of a **developer's checkout**. `core.hooksPath` is local Git
+configuration and is **never tracked**, so a fresh clone has no hook by construction — and a CI
+runner is a fresh clone, which also has no staged changes to gate. Asking there whether the local
+hook is in place has no answer. `SP038` answered it anyway, with `False`.
+
+Reproduced on a runner-shaped checkout of this repository:
+
+```
+[SP038] Gate 'work_registration' claims hook enforcement that is not in place
+FAIL - adoption is incomplete and grace disabled by --no-grace
+```
+
+`SP038` is `graceable`, so this is **masked for 30 days after install and then fails**. This
+repository's own profile claims `local_hook` and its own CI was on that clock.
+
+**This is `DR-74`'s rule — *a check may not report a negative it was not in a position to
+establish* — which this repository wrote for `F133`, applied to `doctor`, and never swept across the
+checker.** `SP038` is the case it missed.
+
+**It also explains `F156`'s silence.** The wizard never claimed `local_hook`, and that omission was
+load-bearing without anyone knowing: claiming it was unsafe, so the derivation that never claimed it
+was accidentally protecting every adopter from a check that cannot hold in CI. `ACT-095` removed that
+accidental protection for chained adopters a day before this was found — **a regression introduced by
+the previous activity and caught by the decision this one answers.**
+
+**Closed** by giving the hook three states where it had two. A hook that reaches the gate passes; a
+hook that **is present and does not reach it** is still `SP038`, because that is a negative the check
+genuinely establishes; **nothing at the resolved path at all** is reported as *not established*, in an
+advisory line printed on every run so the control still says it ran. All three verified by effect.
+
+**The honest cost, stated rather than implied.** A deleted hook and a fresh clone are
+**indistinguishable from inside the checkout**, because the configuration that would tell them apart
+is untracked. So this trades *catches a deleted hook, breaks every CI* for *never breaks CI, cannot
+catch a deleted hook*. The local hook is one of three enforcement routes and the other two still run.
+
+With `SP038` safe, the claim became safe: `local_hook` is now derived for `installed` **and**
+`chained` — never for `declined` — so the control finally reaches the adopters it was built for.
 
 ## F156 — A chained install never declared its delegation, so `SP038` could not fire for anyone
 
