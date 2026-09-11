@@ -3386,6 +3386,55 @@ That change was nearly a quiet failure worth recording: the first draft of the t
 **seven rows of a three-row budget**, and pushed the `[A]` option off the bottom of the frame at
 80×24. The option that could not be seen was the one being added.
 
+### A finding can now be accepted without being closed (`ACT-102`, `DR-86`)
+
+`org/FINDINGS.md` had two statuses for three situations, and the maintainer caught it from both
+sides at once: *"close F55 if it can't be fixed"*, and on `F131`, *"why open?"*
+
+He was right that `Open` was wrong — it implies work pending, and for both findings there is none.
+But `Closed` is also wrong: in the index column, an accepted and still-shipping CVE would read
+exactly like a defect that was repaired, and the register's one job is answering **"what is still
+wrong here?"** `F131`'s own body had made that argument and then drawn the opposite conclusion from
+it, because only two words were on offer.
+
+So there is a third: **`Accepted`** — decided, no action pending, and the condition persists.
+`F55` and `F131` move to it, leaving **`F6` as the only `Open` finding**. An `Accepted` finding
+must state *what would reopen it*, or acceptance is abandonment with better manners; the suite
+refuses one that does not. `F131`'s trigger is an upstream release, and checking for it is now
+`H26` — a calendar item, which is exactly where the maintainer said it belonged.
+
+**No adopter inherits this.** `assurance_findings` is a pattern-A control: the checker requires the
+register to exist, be tracked, be non-empty and carry no placeholder, and never reads its contents.
+Whether the standard should prescribe a status vocabulary is a separate question `DR-86` declines
+to answer.
+
+### The published package would have had an empty page (`ACT-103`, closing `F162`)
+
+Built the real sdist and read its `PKG-INFO`: **24 lines, every one a header, no body.** `readme`
+was never declared in `pyproject.toml`, so the distribution carried no description and no
+`Description-Content-Type` — the PyPI project page would have shown one summary line and then blank
+space, for a project whose whole claim is that a stranger can pick it up and adopt it.
+
+**And the file asserted the opposite.** A comment above `[project.urls]` read *"until then the
+README, which PyPI renders, carries them in prose"*. PyPI did not render it, because the field that
+would have made it render was absent from that same file.
+
+Fixed with `readme`, ten keywords, eight classifiers, and the README's ten relative file links made
+absolute — GitHub resolves those, PyPI resolves them against `pypi.org` and produces 404s.
+
+**Which classifiers are absent is the more interesting half**, and it is this project's own rule
+turned on its own packaging: a classifier is a claim, and a claim nothing checks is the defect
+`SP021` exists to catch. `Programming Language :: Python :: 3.9`–`3.11`/`3.13` are not there
+because CI runs 3.12 alone; `Operating System :: OS Independent` is not there because nothing has
+ever run on Windows or macOS; `Typing :: Typed` is not there because PEP 561 makes that a shipped
+`py.typed` file and there isn't one. The gap between `requires-python = ">=3.9"` and what CI
+actually tests is recorded as **`F163`**, accepted, with a CI matrix named as the remedy.
+
+The link change kept a property it could easily have lost: `check_code_registers.py` skipped any
+link containing `://`, so going absolute would have traded a 404 on PyPI for a link to a deleted
+file that nothing checks. It now resolves this repository's own blob URLs by their path, so a
+target that stops existing still fails the suite.
+
 **There was an assertion for this and it could not have caught it.** `test_render` carried a check
 named *"it fits: nothing is pushed off 24 rows"* — which tested that the hint line appeared in the
 last four rows. The hint is **docked below the frame**, so it is present whatever overflows inside

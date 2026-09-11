@@ -28,9 +28,48 @@ description = "A governance framework that installs into a repository and checks
 requires-python = ">=3.9"
 license = "Apache-2.0"
 authors = [{ name = "Pipo Ventures Ltd" }]
+
+# `F162`: WITHOUT THIS THE PROJECT PAGE IS EMPTY. `readme` was absent, so the built distribution
+# carried no `Description` and no `Description-Content-Type` at all - verified by building the
+# sdist and reading its `PKG-INFO`: 24 lines, every one a header, no body. PyPI would have shown
+# the summary line above and then blank space, for a project whose whole claim is that a stranger
+# can adopt it. The comment below `[project.urls]` asserted the opposite and was wrong.
+readme = "README.md"
+
 # `DR-61`: the name is reserved on PyPI before 1.0, and the index says so beside it. The
-# classifier moves to Production/Stable only with the release that item 10 authorises.
-classifiers = ["Development Status :: 3 - Alpha"]
+# Development Status classifier moves to Production/Stable only with the release that item 10
+# authorises.
+#
+# `F162`: the rest were absent. Classifiers are how PyPI filters and how a reader decides in five
+# seconds whether a package is for them - a page carrying one classifier is a page that answers
+# neither. Each below is a fact about this package and is checked against one: the Python versions
+# against `requires-python`, the licence against `license`.
+# WHAT IS NOT HERE IS THE POINT, and it is this project's own rule turned on its own packaging:
+# a classifier is a claim, and a claim nothing checks is the defect `SP021` exists to catch.
+#
+#   - `Programming Language :: Python :: 3.9/3.10/3.11/3.13` - `requires-python` admits them and
+#     CI runs 3.12 alone, so listing them would assert five supported versions on the evidence of
+#     one. `F163` records the gap; a CI matrix is what would earn them.
+#   - `Operating System :: OS Independent` - never run on Windows or macOS. The code has
+#     `os.name == "nt"` branches, which is consideration, not verification.
+#   - `Typing :: Typed` - PEP 561 makes that marker a shipped `py.typed` file. There isn't one.
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing",
+]
+
+# `F162`: the words someone searching PyPI would actually type. Not a keyword-stuffing exercise -
+# every one of these describes something this package does.
+keywords = [
+    "governance", "conformance", "compliance", "software-delivery", "standard",
+    "pre-commit", "ci", "audit", "provenance", "ai-agents",
+]
 
 # Exact pins, deliberately. `>=` would reintroduce the exposure this file closes: a breaking
 # release would reach every adopting repository at once, with no record of which version worked.
@@ -58,7 +97,12 @@ dependencies = [
 # `mdit-py-plugins`, `mdurl`, `linkify-it-py`, `platformdirs`, `pygments`) where `questionary`
 # brought two. That is a real increase, and it lands only on someone who installs the extra.
 # `ACT-061`: the links PyPI renders beside the package. They appear on the index with the next
-# upload, not by editing this file; until then the README, which PyPI renders, carries them in prose.
+# upload, not by editing this file.
+#
+# `F162` corrected the second half of this comment, which read "until then the README, which PyPI
+# renders, carries them in prose". **PyPI did not render the README**, because `readme` was never
+# declared above - so the sentence described a fallback that did not exist, in the file that would
+# have had to declare it. It does now.
 [project.urls]
 Homepage = "https://github.com/pipoventures/surfaceplate"
 Repository = "https://github.com/pipoventures/surfaceplate"

@@ -61,6 +61,32 @@ an unknown number of releases with nothing noticing.
 
 ---
 
+## Status convention (`DR-86`)
+
+Three states, because two could not answer the question this register exists for.
+
+| Status | Means | Example |
+|---|---|---|
+| **Open** | Outstanding. Work is pending and someone can do it | `F6` |
+| **Accepted** | Decided, no action pending, **and the condition persists** | `F55`, `F131` |
+| **Closed** | Fixed. The condition is gone | everything else |
+
+**Why `Accepted` exists.** `Open` overstates a decided limitation — it implies work outstanding,
+and a reader scanning for what to do next is misled. `Closed` understates it — in the index column
+an accepted, still-shipping CVE reads exactly like a defect that was repaired. Neither answers
+*"what is still wrong here?"*, which is the only question this file exists to answer, and
+`CONTROL_PRINCIPLES.md:7` is explicit that limitations are recorded rather than smoothed away.
+
+**An `Accepted` finding must say what would reopen it**, or it is an abandonment wearing a
+decision's clothes. `tests/check_code_registers.py` refuses one that does not.
+
+**This is this register's own convention, not the standard's.** `assurance_findings` is a
+pattern-A control: the checker requires the register to exist, be tracked, be non-empty and carry
+no placeholder, and never reads its contents. No adopter inherits these three words. Whether the
+standard should prescribe them is a separate question and is not answered here.
+
+---
+
 ## Live register
 
 | ID | Title | Severity | Status |
@@ -119,7 +145,7 @@ an unknown number of releases with nothing noticing.
 | F52 | `CONFORMANCE_LEVELS.md` claimed both that two baseline controls are unchecked and that nothing is declared-only | medium | Closed — `ACT-038`; the absolute claim was the false one |
 | F53 | An adopter could not tell a machine-verified control from a declared one by reading their own profile; `VERIFIED_CONTROLS` was itself incomplete | medium | Closed — `ACT-038`; each control is labelled from the checker's own set, and the set corrected |
 | F54 | The review packet omitted the artefacts its own question depended on, and asked a text-only reviewer to compute a SHA-256 digest | medium | Closed — `ACT-038`; seeds attached, and the recomputation scoped to a reviewer that can execute |
-| F55 | Narrative docstrings can drift from the code beneath them, and twice did | low | Open — recorded as a habit rather than remedied by deletion |
+| F55 | Narrative docstrings can drift from the code beneath them, and twice did | low | Accepted — `ACT-102`, 2026-09-11. Recorded as a habit rather than remedied; not mechanically enforceable, so nothing is pending |
 | F56 | Field labels were clipped at the design width with no ellipsis — 28 of them, including every control's rationale prompt | medium | Closed — `ACT-039`; labels wrap, and the property is asserted of the widget rather than the screen |
 | F58 | Seven skill documents install only to `.github/skills/`. `AGENTS.md` calls their gates "not optional" — and Claude Code loads `.claude/skills/`, which no adopter received | high | Closed — `ACT-041`; `DR-30`'s emitter pattern applied to the half it had missed |
 | F57 | The README, `INSTALL.md` and the tool itself instruct an adopter to `pip install surfaceplate`, which 404s — and the README repeats the binding-rule claim `F51` proved false | high | Closed — `ACT-040`; every live instruction names a command that was run before it was written down |
@@ -196,7 +222,7 @@ an unknown number of releases with nothing noticing.
 | F128 | A skill shipped to every adopter pointed at `activity.instructions.md`, a filename the twelve-topic restructure stopped writing and a Copilot-only emitted name before that; nothing checked what the payload says about itself | medium | Closed — `ACT-073`, 2026-09-08; see the body |
 | F129 | `F123`'s ruling was applied to the document it was found in and nowhere else: Topic 7 still told every agent that stack-specific commands and test areas belong in `copilot-instructions.md` | medium | Closed — `ACT-073`, 2026-09-08; see the body |
 | F130 | The same dependency version is pinned in five places — `pyproject.toml`, two workflows, the payload's copy of one of them, and `INSTALL.md` — and nothing compared them, so a dependency change was judged green by a CI run that installed the old version | high | Closed — `ACT-074`, 2026-09-08; see the body |
-| F131 | `CVE-2025-71176` in pytest cannot be remediated within the pinned test set: `pytest-textual-snapshot` pins `syrupy==4.8.0`, which caps `pytest<9.0.0`, and the fix is only in `9.0.3` | medium | Open — **accepted, not remediated**: the maintainer took route (1) at `H21`, 2026-09-08. The condition persists |
+| F131 | `CVE-2025-71176` in pytest cannot be remediated within the pinned test set: `pytest-textual-snapshot` pins `syrupy==4.8.0`, which caps `pytest<9.0.0`, and the fix is only in `9.0.3` | medium | Accepted — the maintainer took route (1) at `H21`, 2026-09-08; recorded as `Accepted` by `ACT-102`. **The CVE is still shipped**; the periodic check is `H26` |
 | F132 | A repository with no dependency manifest of any kind cannot produce a conformant profile at any level, and the wizard dead-ends on the first screen: `dependency_lock` is the sole `essential` floor control and `SP051` requires it to name a real tracked file | high | Closed — `ACT-078` (`DR-73`), 2026-09-09; see the body |
 | F133 | The history audit accepts the installed **seed** as a former name of any artefact `adopt` scaffolded from it, so deleting the artefact never registers as a gate violation — and the seed can never be deleted | high | Closed — `ACT-080` (`DR-74`), 2026-09-09; raised as `PW-01`; confirmed at `HEAD` by the maintainer's session |
 | F134 | A refused `--answers` replay writes `.standards/adopt-draft.json` while printing *"Nothing was written"*, and that draft then makes a corrected record fail with the old value's error | high | Closed — `ACT-080` (`DR-74`), 2026-09-09; raised as `PW-02`; confirmed on the sweep's controlled isolation |
@@ -222,6 +248,8 @@ an unknown number of releases with nothing noticing.
 | F154 | Three documented things that were not true: `SP001`'s remedy named an internal script, the documented `pip install` resolves to `@main` rather than a release, and the install block did not say what to do when it stops on a global `core.hooksPath` | low | Closed — `ACT-094`, 2026-09-11; see the body |
 | F155 | `RECONCILIATION.md`'s first command assumed a clone of this repository beside the adopter's; a pip adopter gets `No such file or directory` on step 1 | low | Closed — `ACT-094`, 2026-09-11; see the body |
 | F157 | `SP038` reported a negative it could not establish: a fresh clone has no hook by construction, so every adopter claiming `local_hook` would have failed CI 30 days after install. `DR-74`'s rule, applied to the case `DR-74` missed | high | Closed — `ACT-096` (`DR-84`), 2026-09-11; answers `H24`; see the body |
+| F162 | The built distribution declared no `readme`, so the PyPI project page would have rendered the summary line and then blank space — and `pyproject.toml` carried a comment asserting that PyPI rendered the README | medium | Closed — `ACT-103`, 2026-09-11; see the body |
+| F163 | `requires-python = ">=3.9"` admits five Python versions; CI runs 3.12 on Linux and nothing else, so four are declared and none of them tested | low | Accepted — `ACT-103`, 2026-09-11. The remedy is a CI matrix; see the body |
 | F161 | The gates screen rebuilt each `FieldSpec` by hand and dropped every field added since, and its `Ctrl+S` refusal was wiped by the next keypress — `F74`'s defect, fixed on the other screen only | medium | Closed — `ACT-099`, 2026-09-11; see the body |
 | F160 | `SP047` read a `run:` block line by line, so a scan disarmed across continuation lines was invisible to the check built to find it — while a step that merely READ the scanner's report was reported as the scan command | high | Closed — `ACT-098`, 2026-09-11; see the body |
 | F159 | `--repin` refused a profile that had not been written yet by listing six lines it does not write, so the command read as broken when the profile was simply unfinished | medium | Closed — `ACT-097`, 2026-09-11; see the body |
@@ -1558,6 +1586,69 @@ field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
 
+## F163 — `requires-python` admits five versions and CI tests one
+
+**Severity: low. Accepted — `ACT-103`, 2026-09-11. The declaration stands; nothing verifies it.**
+
+`pyproject.toml` declares `requires-python = ">=3.9"`, so pip will install this package on 3.9
+through 3.13. `.github/workflows/standard-self-check.yml` runs **`ubuntu-latest`, Python 3.12**,
+and nothing else. Four of the five admitted versions have never run a single suite, and no
+platform other than Linux ever has.
+
+**Found while fixing `F162`**, by asking whether a `Programming Language :: Python :: 3.9`
+classifier would be true. It would not be, so it is not there — `pyproject.toml` lists only
+`3` and `3.12`, with the omission and its reason written beside it.
+
+This is `SP021`'s own defect shape turned on this repository's packaging: **a declaration with
+nothing behind it.** It is recorded rather than removed because `>=3.9` is probably correct — the
+code uses nothing newer, and `from __future__ import annotations` is used throughout — but
+"probably correct" is what this framework exists to refuse from everyone else.
+
+**What would reopen it:** a report that the package fails to install or run on an admitted
+version. The remedy either way is a CI matrix across 3.9–3.13, which would make the declaration
+true and let the classifiers follow; that is a workflow change and its own activity.
+
+## F162 — The package's PyPI page would have been empty, and the file said otherwise
+
+**Severity: medium. Closed — `ACT-103`, 2026-09-11.**
+
+Found by building the real sdist and reading its `PKG-INFO` rather than reading `pyproject.toml`:
+
+```
+Metadata-Version: 2.5
+Name: surfaceplate
+...
+Requires-Dist: syrupy==4.8.0; extra == 'test'
+```
+
+**Twenty-four lines, every one a header, no body.** `readme` was never declared, so the
+distribution carried no `Description` and no `Description-Content-Type`. The PyPI project page
+would have rendered the one-line summary and then blank space — for a project whose entire claim
+is that a stranger can pick it up and adopt it.
+
+**And `pyproject.toml` asserted the opposite, in the file that would have had to declare it.** The
+comment above `[project.urls]` read *"until then the README, which PyPI renders, carries them in
+prose"*. PyPI did not render it. A statement about this package, in this package, contradicted by
+this package.
+
+Three smaller gaps in the same place: **one classifier** (`Development Status`), where PyPI filters
+and ranks on them; **no keywords**; and **ten relative links** in `README.md` — `](INSTALL.md)` and
+the like — which GitHub resolves and PyPI resolves against `pypi.org`, producing ten 404s on the
+page.
+
+**Closed by `ACT-103`.** `readme = "README.md"` declared; eight classifiers, each one true (see
+`F163` for the four deliberately absent); ten keywords; the README's file links made absolute.
+
+**The link change kept a property it could have lost.** `check_code_registers.py` skipped any
+target containing `://`, so absolute links would have traded a 404 on PyPI for a link to a deleted
+file that nothing checks. It now resolves this repository's own blob URLs by their path, so a
+target that stops existing still fails the suite — verified by pointing one at a file that does
+not exist.
+
+**Verified by effect, both before and after**: the rebuilt sdist carries
+`Description-Content-Type: text/markdown` and a 406-line `PKG-INFO` whose body begins
+`# Surfaceplate`.
+
 ## F161 — The gates screen dropped every field added to `FieldSpec`, and wiped its own refusal
 
 **Severity: medium. Closed — `ACT-099`, 2026-09-11.** Two defects in one screenshot, from the
@@ -2728,7 +2819,8 @@ which fails without the fix in exactly the way the maintainer's run failed.
 
 ## F131 — A security advisory in a pinned test dependency has no satisfiable remedy, because a plugin pins the package that caps it
 
-**Severity: medium. Open — accepted by the maintainer at `H21`, 2026-09-08. Not remediated; the condition persists.**
+**Severity: medium. Accepted — by the maintainer at `H21`, 2026-09-08; recorded as `Accepted` by
+`ACT-102` (`DR-86`), 2026-09-11. Not remediated; the CVE is still shipped.**
 
 Recorded on 2026-09-08 in this session, from GitHub's Dependabot alert 1 on `main`.
 **`GHSA-6w46-j5rx-g56g` / `CVE-2025-71176`** — *"pytest through 9.0.2 on UNIX relies on directories
@@ -2800,9 +2892,13 @@ way would be unable to answer "what is still wrong here?" — which is the only 
 to answer.** `pytest 8.4.2` is still pinned and still carries `CVE-2025-71176`. What changed is that
 someone with the authority to accept it has, on the record, with a reason.
 
-**Review trigger, so this is a deferral and not an abandonment:** a `pytest-textual-snapshot`
-release that permits `syrupy >= 5`. At that point the whole chain unblocks in one bump and this
-finding closes by remediation rather than by acceptance.
+**What would reopen it:** a `pytest-textual-snapshot` release that permits `syrupy >= 5`. At that
+point the whole chain unblocks in one bump and this finding closes by remediation rather than by
+acceptance. **Checking for it is `H26`, not a reason this stays open** — the maintainer's own
+correction on 2026-09-11: *"if it is something I need to check periodically [that] is an action
+that I should have in my calendar but not a finding."* Right about the check, and the limitation
+still belongs here: an independent reviewer at `H6` must meet a shipped, unpatched CVE as a
+recorded limitation rather than infer it from a dependency pin.
 
 **What the acceptance does not extend to.** It covers this advisory, in this dependency, at this
 severity, on this exposure reading. A new advisory in the same package, or a change that puts
@@ -4519,7 +4615,7 @@ question.
 
 ## F55 — Narrative docstrings can drift from the code beneath them
 
-**Severity: low. Open.**
+**Severity: low. Accepted — `ACT-102`, 2026-09-11. Not remediable; nothing is pending.**
 
 Raised by the review as an over-engineering finding: the Python files carry multi-paragraph essays
 citing `DR-*`, `ACT-*` and `F*` codes, and the reviewer's argument is that they will drift.
@@ -4540,7 +4636,16 @@ looked.
 
 **So the remedy is a habit, not a deletion: verify a docstring's claim when touching the code beneath
 it, and treat a comment describing a guarantee as a claim to be checked rather than a fact.** That is
-not mechanically enforceable, which is why this stays open rather than closing with a test.
+not mechanically enforceable, which is why it cannot close with a test.
+
+**Moved from `Open` to `Accepted` on 2026-09-11 (`DR-86`), at the maintainer's prompting:** *"close
+F55 if it can't be fixed."* He was right that `Open` was wrong — it implies work pending, and there
+is none — and `Accepted` is the word for a decision taken about a condition that persists. The
+limitation is unchanged: a docstring here can still be wrong about the code beneath it.
+
+**What would reopen it:** a third docstring found wrong about its own code. Twice in one day was
+evidence the risk is real and the habit is the answer; a third, after this record, would be
+evidence the habit is not working and something mechanical is needed after all.
 
 ---
 
