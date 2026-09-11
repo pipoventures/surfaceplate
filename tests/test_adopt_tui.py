@@ -452,6 +452,47 @@ def test_every_select_field_can_be_answered_off_the_list() -> None:
           "nothing exists at that path" in hint.lower(), f"hint: {hint!r}")
 
 
+def test_the_welcome_screen_offers_both_routes() -> None:
+    """`ACT-101`. The AI-assisted route is offered where the choice is actually made.
+
+    A subcommand nobody knows exists is barely a feature, and the person this route is for - the
+    one the terminal is an obstacle for - is the least likely to find it in `--help`.
+
+    Asserted in both directions: `[A]` leaves with the agent sentinel, `[Enter]` still begins as
+    it always did. Without the second, adding a route could have replaced one.
+    """
+    from textual.widgets import Static
+
+    from surfaceplate.adopt import wizard
+    from surfaceplate.adopt.tui.screens import WelcomeScreen
+
+    welcome = wizard._welcome(
+        Path("."),
+        {"standard_version": "0.18.0", "framework_digest": "a" * 64, "installed_at": "2026-09-11"},
+        None,
+        "",
+    )
+
+    async def press(key: str) -> tuple[str, object]:
+        app = Host(WelcomeScreen(welcome))
+        async with app.run_test(size=(120, 40)) as pilot:
+            await pilot.pause()
+            hint = str(app.screen.query_one("#hint", Static).content)
+            await pilot.press(key)
+            for _ in range(3):
+                await pilot.pause()
+            return hint, app.result
+
+    hint, chose = asyncio.run(press("a"))
+    check("the welcome screen offers the AI-assisted route in its key line",
+          "AI-assisted" in hint, f"hint: {hint!r}")
+    check("and it still offers the manual one first", "set it up here" in hint, f"hint: {hint!r}")
+    check("[A] leaves with the agent sentinel", chose == WelcomeScreen.AGENT, repr(chose))
+
+    _hint, began = asyncio.run(press("enter"))
+    check("[Enter] still begins, unchanged", began is True, repr(began))
+
+
 def test_the_gates_screen_renders_the_spec_the_plan_built() -> None:
     """`F161`. `_compose_gate_fields` rebuilt each `FieldSpec` with a hand-written constructor
     listing eleven named fields, so every field added to `FieldSpec` since was silently dropped on
@@ -2032,6 +2073,9 @@ def main() -> int:
 
     print("\nF147: a discovered list is an offer, not the only permitted answer")
     test_every_select_field_can_be_answered_off_the_list()
+
+    print("\nACT-101: the welcome screen offers both routes")
+    test_the_welcome_screen_offers_both_routes()
 
     print("\nF161: the gates screen renders the plan, and keeps its refusal on screen")
     test_the_gates_screen_renders_the_spec_the_plan_built()

@@ -186,6 +186,21 @@ record in which every decision only a human can make says `needs-human`; complet
 install`/`check` need nothing beyond `PyYAML` and `jsonschema`. Once it has written the profile,
 the checker runs against it and says what is still missing.
 
+**A third route, if the terminal itself is the difficulty.** `surfaceplate agent-prompt --target
+<repo>` prints a prompt to paste into an AI coding assistant — Claude Code, Codex, Copilot,
+whichever you already use. It carries what this repository looks like (counts, never file
+contents, redacted the same way `doctor --report` is), the command sequence, and a contract the
+agent is held to: it may run the commands and explain every decision in plain English, and it may
+**not** write a value into any `needs-human` line, choose your conformance level, or decide a
+gate's status. `--register advanced` switches the explanations it is told to use from the plain
+register to the one that assumes the vocabulary.
+
+Two things to know before you use it. **Read the prompt before you paste it** — it lists at the
+end exactly what it left out, and pasting it sends that content to whichever provider your
+assistant uses. And **nothing makes an agent obey a prompt**: the contract is text, and the
+profile's provenance record cannot today tell a value you typed from one an agent typed on your
+behalf. `org/decisions/DR-85.md` records that limit rather than leaving it to be discovered.
+
 The steps below are what `surfaceplate adopt` does on your behalf — read them if you are filling
 the profile in by hand instead, or want to understand what a generated profile actually contains.
 

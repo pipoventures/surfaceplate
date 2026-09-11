@@ -54,6 +54,12 @@ def _cmd_doctor(argv: list[str]) -> int:
     return doctor.main(argv)
 
 
+def _cmd_agent_prompt(argv: list[str]) -> int:
+    from surfaceplate import assist
+
+    return assist.main(argv)
+
+
 def _cmd_adopt(argv: list[str]) -> int:
     from surfaceplate.adopt import wizard
     from surfaceplate.adopt.interview import Cancelled
@@ -158,6 +164,20 @@ def _cmd_adopt(argv: list[str]) -> int:
 
         written = wizard.run(repo, TextualInterview())
         return _report_written(repo, written)
+    except wizard.ChoseAgentPrompt:
+        # `ACT-101`: the adopter picked the AI-assisted route on the welcome screen. Printed here,
+        # after the interface has released the terminal, so it can be selected and copied.
+        from surfaceplate import assist
+
+        print(assist.build_prompt(repo), end="")
+        print(
+            "\n" + "-" * 78 + "\n"
+            "Copy everything above into your AI coding assistant, in this repository.\n"
+            f"To print it again without opening this screen: surfaceplate agent-prompt --target {args.target}\n"
+            "Nothing has been written here.",
+            file=sys.stderr,
+        )
+        return 0
     except Cancelled:
         print("\nCancelled. Nothing was written; your draft is kept so you can resume.")
         return 1
@@ -285,6 +305,7 @@ _COMMANDS = {
     "check": (_cmd_check, "Check a repository against the standard (--format text|json|sarif)."),
     "adopt": (_cmd_adopt, "Fill in the application profile: interactively, or --propose then --answers."),
     "doctor": (_cmd_doctor, "Report what would stop the first command on this machine; --report assembles a problem report to paste, offline."),
+    "agent-prompt": (_cmd_agent_prompt, "Print a prompt to paste into an AI coding assistant, so it can help you adopt without deciding anything for you."),
     "uninstall": (_cmd_uninstall, "Remove the standard, using the install record so exactly what was installed is removed."),
 }
 

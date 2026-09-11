@@ -16,6 +16,21 @@ You do not need a fix in hand. A clear reproduction — what you ran, what you e
 happened instead — is more useful to a part-time maintainer than a large unreviewed patch; see
 [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
+## The terminal is the problem, not the standard
+
+`surfaceplate agent-prompt --target <repo>` prints a prompt to paste into whatever AI coding
+assistant you already use. It describes your repository in counts rather than contents — redacted
+exactly as `doctor --report` is — and holds the agent to a contract: it may run the commands and
+explain every decision, and it may **not** answer any line marked `needs-human`, choose your
+conformance level, or decide a gate's status.
+
+That boundary is the point. The decisions this standard asks for are yours, and a profile filled
+with an agent's plausible answers is worse than no profile, because it reads as a decision someone
+made. What the prompt gets you is someone to ask, not someone to decide.
+
+Read it before you paste it: the last section lists what it left out, and pasting it sends that
+content to your assistant's provider.
+
 ## A vulnerability
 
 Do not open a public issue. See [`SECURITY.md`](SECURITY.md) for the current reporting route and

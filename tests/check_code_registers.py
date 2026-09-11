@@ -399,6 +399,61 @@ def payload_pointer_checks(targets: set[str]) -> None:
             )
 
 
+def agent_prompt_names_commands_that_exist() -> None:
+    """`ACT-100`: every `surfaceplate …` invocation in the generated prompt parses.
+
+    This is `S3` - *run an instruction before publishing it* - applied to the one output whose
+    entire purpose is to be followed. `F57` is what happens otherwise: a README, an `INSTALL.md`
+    and the tool itself all naming a package that 404s, because a document is read for sense
+    rather than run.
+
+    The prompt is prose that names commands and flags, so it will drift from the CLI unless
+    something compares them. A renamed flag now breaks this suite rather than an adopter who
+    pasted the prompt into an agent and watched it fail.
+    """
+    import sys
+
+    sys.path.insert(0, str(ROOT))
+    from surfaceplate import assist, cli
+
+    prompt = assist.build_prompt(ROOT, register="simple")
+    invocations = re.findall(r"`surfaceplate ([a-z-]+)((?: [^`]*)?)`", prompt)
+    check("the prompt names some commands - an empty sweep proves nothing", bool(invocations),
+          f"{len(invocations)} found")
+
+    for command, tail in invocations:
+        check(
+            f"the prompt's `surfaceplate {command}` is a real command",
+            command in cli._COMMANDS,
+            f"known: {', '.join(sorted(cli._COMMANDS))}",
+        )
+        # Long flags only. A value like `.` or a path placeholder is the adopter's to supply and
+        # cannot be validated here; a FLAG that does not exist is the drift this guards against.
+        for flag in re.findall(r"(--[a-z-]+)", tail):
+            check(
+                f"the prompt's `{flag}` is a real flag of `surfaceplate {command}`",
+                _flag_exists(command, flag),
+                f"{command} does not accept {flag}",
+            )
+
+
+def _flag_exists(command: str, flag: str) -> bool:
+    """Whether `surfaceplate <command> <flag>` is accepted, asked of the real parser.
+
+    Runs the command's own `--help` in a subprocess: each builds its parser inside its handler,
+    so there is no parser object to interrogate without invoking it, and `--help` is the one
+    invocation that is guaranteed to write nothing.
+    """
+    import subprocess
+    import sys
+
+    out = subprocess.run(
+        [sys.executable, "-m", "surfaceplate.cli", command, "--help"],
+        capture_output=True, text=True, cwd=str(ROOT),
+    )
+    return flag in (out.stdout + out.stderr)
+
+
 def nothing_is_defined_below_the_entry_point() -> None:
     """`F152`: a module's `if __name__ == "__main__"` block must be the last thing in it.
 
@@ -462,6 +517,7 @@ def main() -> int:
     payload_pointer_checks(_installed_targets())
     dependency_pin_checks()
     nothing_is_defined_below_the_entry_point()
+    agent_prompt_names_commands_that_exist()
     hook_target_agrees()
 
     # ---- SP codes: declaration against the code that emits them ----

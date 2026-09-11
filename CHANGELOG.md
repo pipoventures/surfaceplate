@@ -3333,3 +3333,62 @@ the next field is covered without anyone remembering to add a case.
 
 This repository keeps meeting this shape — `F58`, `F143`, `F157`, and now both halves of this. The
 duplication is the hazard, not the individual omissions.
+
+### A third route through adoption, for people the terminal blocks (`ACT-100`, `DR-85`)
+
+**`surfaceplate agent-prompt`** prints a prompt to paste into whatever AI coding assistant you
+already use — Claude Code, Codex, Copilot. Adoption had two doors and both assumed a terminal: the
+wizard, and the no-terminal `--propose`/`--answers` path. This is a third.
+
+**It is not a new adoption mechanism.** It is that same `--propose`/`--answers` path *narrated*, by
+an agent that can answer follow-up questions. `DR-35` already recorded why narration was needed — a
+live adoption hit *"I don't know what this is"* three times in a row, and `explanations.py` was
+written in response, 31 items in a `simple` and an `advanced` register. The prompt points an agent
+at that material instead of letting it invent its own, and `--register advanced` exposes a
+distinction that was previously reachable only from inside the wizard.
+
+**The contract is the feature, not the explanation.** The agent may run the commands and explain
+every decision. It may **not** write a value into any `needs-human` line, choose the conformance
+level, decide a gate's status, or write a rationale in the adopter's name. The reason is stated to
+the agent rather than asserted at it: this framework's three most expensive defects of the year —
+`F40`, `F84`, `F144` — were each *the tool supplying a value nobody chose*, and each produced a
+repository that passed every check and guarded nothing. A profile filled with an agent's plausible
+answers is that same failure, one level up, in a friendlier wrapper. The prompt closes by telling
+the agent that refusing *"just pick something sensible"* is the most useful thing it can do.
+
+**It recommends no level**, deliberately. `recommended_level()` needs the adopter's own two risk
+answers, and `core/CONFORMANCE_LEVELS.md` states the level *"is not derived automatically from the
+stack, the repository size, or the data classification"*. The prompt asks the two questions and
+leaves them.
+
+Repository detail travels as **counts, never file contents**, redacted through the same single
+choke point `doctor --report` uses, and the prompt lists what it left out at the end — because
+pasting it sends that content to a third party.
+
+**Two limits are stated rather than left to be found.** Nothing makes an agent obey a prompt; and
+the provenance record cannot today tell a value you typed from one an agent typed on your behalf —
+both are `typed`. Closing that needs an `ai_drafted` origin and a schema change, which is its own
+activity. `DR-85` carries both.
+
+The prompt is prose whose entire purpose is to be followed, so `S3` — *run an instruction before
+publishing it* — applies to it more sharply than to anything else here. Every `surfaceplate …`
+invocation it contains is parsed out and checked against the real CLI, commands and flags alike,
+and the front door runs the command on a clean machine.
+
+**And the choice is offered where it is actually made** (`ACT-101`). The welcome screen now shows
+both routes: `[Enter]` sets up here, `[A]` quits and prints the prompt. A subcommand nobody knows
+exists is barely a feature, and the person this route is for is the least likely to go looking in
+`--help`. The prompt is printed to the terminal rather than shown on a screen, because it exists to
+be *copied* — and text inside a full-screen app is the one thing a reader cannot easily take out of
+it, which is the same reason `doctor --report` prints.
+
+That change was nearly a quiet failure worth recording: the first draft of the two route lines took
+**seven rows of a three-row budget**, and pushed the `[A]` option off the bottom of the frame at
+80×24. The option that could not be seen was the one being added.
+
+**There was an assertion for this and it could not have caught it.** `test_render` carried a check
+named *"it fits: nothing is pushed off 24 rows"* — which tested that the hint line appeared in the
+last four rows. The hint is **docked below the frame**, so it is present whatever overflows inside
+it. The check was named for a property it never established. It now asserts that the frame's last
+content row sits immediately above its bottom border, and reinstating the overflow makes it fail
+and name the row that ended up there instead.

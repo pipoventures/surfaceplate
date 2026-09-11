@@ -99,6 +99,13 @@ each; nothing is pre-marked. Without a terminal, `surfaceplate adopt --propose` 
 proposal and an answers record for a human to complete, and `surfaceplate adopt --answers <file>`
 replays it.
 
+**If the terminal is the obstacle**, `surfaceplate agent-prompt` prints a prompt to paste into
+whatever AI coding assistant you already use. It describes this repository in counts rather than
+contents, redacted the way `doctor --report` is, and it holds the agent to a contract: it may run
+the commands and explain every decision, and it **may not** write a value into any `needs-human`
+line, choose your conformance level, or decide a gate's status. The decisions stay yours; what you
+get is someone to ask. Read it before you paste it — the last section lists what it left out.
+
 **What it will and will not fill in for you**, stated precisely because the looser version of this
 sentence turned out to be false (`F51`): it never chooses your conformance level, writes a
 rationale, or makes a scope decision such as which paths a gate covers or the date it binds from. It

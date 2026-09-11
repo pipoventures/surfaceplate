@@ -98,6 +98,16 @@ class Written:
         return str(self.profile)
 
 
+class ChoseAgentPrompt(Exception):
+    """The adopter chose the AI-assisted route on the welcome screen (`ACT-101`).
+
+    An exception because it unwinds the same way `Cancelled` does - the interface is torn down and
+    the terminal released before anything is printed - and because a sentinel return value would
+    have to be threaded through every layer that currently returns answers, where it would look
+    exactly like a set of answers nobody supplied.
+    """
+
+
 class NotInstalled(Exception):
     """The standard has not been installed here yet - `adopt` has nothing to attach a profile to."""
 
@@ -472,6 +482,10 @@ def _open(repo: Path, record: dict, interview: Interview) -> dict:
     answer = interview.open(_welcome(repo, record, info, note))
     if answer is None:
         raise Cancelled()
+    if answer == "agent":
+        # `ACT-101`: not an error, and not a cancellation - a different route, chosen. Raised
+        # rather than returned so it cannot be mistaken for answers on the way back up.
+        raise ChoseAgentPrompt()
     if info is None:
         return {}
     if not answer:
