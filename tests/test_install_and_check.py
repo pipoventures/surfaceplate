@@ -3622,6 +3622,54 @@ def main() -> int:
         check("a control dropped from the standard is removed", not (stale / ghost).is_file())
         check("and the removal is reported", "no longer part of the standard" in result.stdout)
 
+        # `F151`: declining an agent channel is not the same event as a control leaving the
+        # standard, and the installer said it was. It also left the directories behind.
+        print("\nF151: declining an agent channel")
+        channel = make_repo(tmp, "channel")
+        install(channel)
+        before = len(list((channel / ".claude").rglob("*.md")))
+        (channel / ".claude" / "NOTES.md").write_text("mine\n", encoding="utf-8")
+        (channel / ".claude" / "skills" / "ours").mkdir(parents=True, exist_ok=True)
+        (channel / ".claude" / "skills" / "ours" / "SKILL.md").write_text("mine\n", encoding="utf-8")
+        result = install(channel, "--agents", "copilot")
+        check("declining a channel leaves the installer succeeding", result.returncode == 0,
+              result.stdout[-300:] + result.stderr[-300:])
+        check("it removes that channel's files", before > 0 and not list((channel / ".claude").glob("rules/surfaceplate-*.md")))
+        check(
+            "and says the CHANNEL went, not that the standard dropped them",
+            "this agent channel is no longer installed here" in result.stdout
+            and "no longer part of the standard" not in result.stdout,
+            result.stdout[-400:],
+        )
+        check(
+            "no empty directory is left behind",
+            not [d for d in (channel / ".claude").rglob("*") if d.is_dir() and not any(d.iterdir())],
+            str([str(d) for d in (channel / ".claude").rglob("*") if d.is_dir() and not any(d.iterdir())]),
+        )
+        # BOTH DIRECTIONS: pruning that took the adopter's own content would be far worse than
+        # the litter it removes.
+        check("the adopter's own files survive the pruning",
+              (channel / ".claude" / "NOTES.md").is_file()
+              and (channel / ".claude" / "skills" / "ours" / "SKILL.md").is_file())
+
+        # `F149`: `doctor` and `doctor --report` died on an ASCII stdout - and `doctor --report`
+        # is the command `SUPPORT.md` names for reporting a problem, so the diagnostic failed
+        # exactly where it was needed.
+        print("\nF149: a narrow terminal")
+        narrow = {**os.environ, "PYTHONPATH": str(ROOT), "PYTHONCOERCECLOCALE": "0",
+                  "PYTHONUTF8": "0", "LANG": "C", "LC_ALL": "C"}
+        for mode in ([], ["--report"]):
+            # NOT `run` - `main()` already binds that name to a helper it uses further down, and
+            # assigning to it here shadowed the function for the rest of the suite.
+            probe = subprocess.run(
+                [sys.executable, "-m", "surfaceplate.cli", "doctor", *mode, "--repo", str(stale)],
+                capture_output=True, text=True, env=narrow, cwd=str(ROOT),
+            )
+            label = "doctor --report" if mode else "doctor"
+            check(f"{label} survives an ASCII stdout", "UnicodeEncodeError" not in probe.stderr,
+                  probe.stderr[-200:])
+            check(f"{label} still produces its report", bool(probe.stdout.strip()), probe.stderr[-200:])
+
     print()
     if FAILURES:
         print(f"INSTALL_CONFORMANCE=FAIL  ({len(FAILURES)} failed, {PASSES} passed)")

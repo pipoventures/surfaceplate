@@ -603,6 +603,10 @@ class Discovered:
     # so the wizard cannot stop asking for something the checker will still demand (`F66`).
     has_dependency_manifest: bool = True
     dependency_manifest: str | None = None
+    # `F156` / `DR-83`: how the hook was installed here, from the install record's own `hooks`
+    # field - `installed`, `chained` or `declined`. A fact about this repository, read once,
+    # never asked: the installer already wrote down what it did.
+    hooks: str = ""
 
     def __post_init__(self) -> None:
         for name in ("rejected", "free_seeds", "free_control_seeds", "register_fit"):
@@ -621,6 +625,21 @@ class Discovered:
 # The scanner the examples name; `scan` looks for its workflow, and the field's validator
 # re-checks against whatever name the profile ends up carrying.
 DEFAULT_SCANNER = "gitleaks"
+
+
+def installed_hooks(repo: Path) -> str:
+    """`installed`, `chained`, `declined`, or `""` where there is no install record (`F156`).
+
+    The installer already wrote down what it did. Reading it is not a question for the adopter:
+    whether their hook is chained is a fact about their tree, exactly as `dependency_manifest` is
+    (`DR-73`'s reasoning, one control along).
+    """
+    try:
+        record = json.loads((repo / ".standards" / "INSTALL.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ""
+    value = record.get("hooks")
+    return value if isinstance(value, str) else ""
 
 
 def scan(repo: Path, scanner: str = DEFAULT_SCANNER) -> Discovered:
@@ -644,6 +663,7 @@ def scan(repo: Path, scanner: str = DEFAULT_SCANNER) -> Discovered:
         ci_steps=tuple(candidate_ci_steps(repo)),
         scanner_workflows=tuple(scanner_workflows(repo, scanner)),
         rejected=rejected,
+        hooks=installed_hooks(repo),
         free_seeds=seeds_by_gate,
         free_control_seeds=seeds_by_control,
         register_fit=register_fit,

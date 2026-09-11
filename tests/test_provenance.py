@@ -158,6 +158,11 @@ def allow_list() -> set[str]:
     # adopter to paraphrase the sentence printed above the box.
     allowed |= set(catalogue.GATE_CATALOGUE.values())
     allowed |= set(sections.DERIVED_ENFORCEMENT)  # "history_audit", "review" - a fixed schema enum
+    # `F156` / `DR-83`: a chained install additionally claims `local_hook`, and declares the path
+    # this standard installs its gate at. Both are the framework's own constants, derived from the
+    # install record rather than supplied by anyone - the same status as the two above.
+    allowed |= set(sections.CHAINED_ENFORCEMENT)
+    allowed.add(sections.HOOK_TARGET)
     return allowed
 
 

@@ -40,6 +40,20 @@ DECISION_REQUIRED = "required"
 # so - which is what the run's closing message tells them.
 DERIVED_ENFORCEMENT = ["history_audit", "review"]
 
+# `F156` / `DR-83`. A repository installed with `--chain` keeps its own hook system and delegates
+# to this standard's gate, so a local hook DOES gate its staged changes - and the profile may
+# honestly say so. Claiming `local_hook` is what makes `SP038` engage: every one of the checker's
+# hook checks is gated on a gate claiming it, so a profile that never claims it is never checked.
+#
+# Only for a chained install. `--no-hooks` must never claim this, and `check_conformance` says why
+# in its own words: *"claiming an inactive control is worse than not claiming it"*.
+CHAINED_ENFORCEMENT = ["history_audit", "local_hook", "review"]
+
+# The path this standard installs its gate at. Held here rather than imported from the checker so
+# `adopt` keeps working where the checker is not importable; `tests/check_code_registers.py`
+# compares the two so they cannot drift (`DR-48`'s discipline).
+HOOK_TARGET = ".githooks/pre-commit"
+
 
 def build_mode(answers: dict) -> dict:
     """Session state, not profile content - the chosen register is never written to disk."""
@@ -160,11 +174,14 @@ def _enforcement_list(value: object) -> list[str]:
     return [str(item) for item in value]
 
 
-def build_gate(spec: plan.GateSpec, answers: dict) -> dict:
+def build_gate(spec: plan.GateSpec, answers: dict, *, hooks: str = "") -> dict:
     """One gate's entry, from the answers given for it.
 
     `answers` is keyed without the gate-id prefix - `{"status": ..., "artefact": ...}` - so this
     function is testable against a single gate in isolation.
+
+    `hooks` is the install record's own value (`F156`), not an answer, and defaults to the
+    pre-`DR-83` behaviour so an unscanned caller is unchanged.
     """
     if spec.mandatory:
         status = "required"
@@ -204,7 +221,8 @@ def build_gate(spec: plan.GateSpec, answers: dict) -> dict:
                 ),
             },
             "enforcement": _enforcement_list(
-                answers.get("enforcement") or DERIVED_ENFORCEMENT
+                answers.get("enforcement")
+                or (CHAINED_ENFORCEMENT if hooks == "chained" else DERIVED_ENFORCEMENT)
             ),
         }
 
@@ -220,7 +238,7 @@ def build_gate(spec: plan.GateSpec, answers: dict) -> dict:
     return {"id": spec.id, "status": "not_applicable", "rationale": answers["rationale"]}
 
 
-def build_gates(answers: dict, *, level: str, builds_ui: bool, mode: str) -> list[dict]:
+def build_gates(answers: dict, *, level: str, builds_ui: bool, mode: str, hooks: str = "") -> list[dict]:
     """Every gate this run asked about, in catalogue order.
 
     Walks the same `plan.gate_plan` the screens walked, so a gate the plan did not include cannot
@@ -232,7 +250,7 @@ def build_gates(answers: dict, *, level: str, builds_ui: bool, mode: str) -> lis
         gate_answers = {
             key[len(prefix):]: value for key, value in answers.items() if key.startswith(prefix)
         }
-        gates.append(build_gate(spec, gate_answers))
+        gates.append(build_gate(spec, gate_answers, hooks=hooks))
     return gates
 
 
@@ -261,6 +279,15 @@ def build_adoption(answers: dict, *, framework_version: str, framework_digest: s
     # unlike `independent_validator`, which the schema types as [string, "null"].
     if answers.get("status_rationale"):
         result["status_rationale"] = answers["status_rationale"]
+    # `F156` / `DR-83`: a `--chain` install declares the delegation, so the checker can verify it.
+    # `delegates_to` is DERIVED - it is the path this standard installs its gate at, not a choice -
+    # and only the rationale is the adopter's. Without the declaration `SP038` has nothing to
+    # check, and the arrangement they deliberately chose is invisible to their own profile.
+    if answers.get("hook_chain_rationale"):
+        result["hook_chain"] = {
+            "delegates_to": HOOK_TARGET,
+            "rationale": answers["hook_chain_rationale"],
+        }
     return result
 
 
@@ -286,7 +313,13 @@ def build_profile(state: dict, *, framework_version: str, framework_digest: str)
     stack = build_stack(state["stack"])
     risk = build_risk(state["risk"])
     controls = build_controls(state["controls"], level=level)
-    gates = build_gates(state["gates"], level=level, builds_ui=builds_ui, mode=mode)
+    # `F156` / `DR-83`. Derived from the answers, NOT from a fresh scan, so `build_profile` stays
+    # pure - which is what makes `--answers` replay deterministic and the matrix's report
+    # comparable (the same reasoning `DR-73` records for `build_controls`). The plan asks
+    # `hook_chain_rationale` only of a chained install, so its presence IS the chained state, and a
+    # replayed record carries it exactly as the interactive run did.
+    hooks = "chained" if (state.get("adoption") or {}).get("hook_chain_rationale") else ""
+    gates = build_gates(state["gates"], level=level, builds_ui=builds_ui, mode=mode, hooks=hooks)
     adoption = build_adoption(
         state["adoption"],
         framework_version=framework_version,

@@ -3135,3 +3135,78 @@ living with the widget cannot be half-installed.
 `DR-82` states what this does not fix: at 186–267 candidates neither a cap nor keyword ranking
 discriminates, and a type-to-filter list would. That is recorded as a known limitation rather than
 built on a guess about how adopters would use it.
+
+### The pathway sweep's last ten findings, adjudicated and fixed (`ACT-094`, `ACT-095`, `DR-83`)
+
+`F136` had held ten reported findings as **one** entry since 2026-09-09, deliberately: writing ten
+bodies from a report this repository had not reproduced would have put unverified claims in the
+register at the same status as verified ones. Each was now run here against `HEAD`.
+
+**Eight stand and two fall** — and the two that fall are why the entry was held. `PW-16` described
+`--propose` substituting silent defaults where the record said `needs-human`; at `HEAD` those fields
+read `needs-human` with explicit option notes, and the preview it complained about no longer exists.
+`PW-10`'s second half claimed a gate answered `not_applicable` still demands an artefact; replayed
+with five such gates and every artefact blank, the profile wrote cleanly and the checker passed.
+Neither was issued a finding code: a number issued and closed the same day would sit in the sequence
+permanently describing a non-defect, indistinguishable on inspection from the eight that are real.
+
+What was fixed:
+
+- **The documented way to work on this standard did not work** (`F148`). `README.md`'s contributor
+  block creates a virtual environment without `textual`, then runs a suite that needs it; the suite
+  fails and `build_release.py` refuses to build on it. This is the standard's own `S3` — *run an
+  instruction before publishing it* — in this repository's own README. **Rediscovered in the same
+  session, independently, before the report was re-read.**
+- **`doctor` died on a narrow terminal** (`F149`), and `doctor --report` is the command `SUPPORT.md`
+  names for reporting a problem — so the diagnostic failed exactly where it was needed. Fixed at the
+  CLI boundary rather than at the nine glyphs, because the glyph is not the defect and a rule that
+  must be remembered at every print site will be forgotten at one.
+- **The answers record never said what a control's implementation reference wants** (`F150`). It
+  told an adopter that a gate artefact is a tracked file and said nothing at all about
+  `contract_tests`, which wants the name of a CI step — written down only in `validators.py`, in a
+  record whose header says *"complete them all"*. `F144` made this bite harder: since a CI step is
+  proposed only where its name says it runs tests, adopters now meet that blank field far more often.
+- **Declining an agent channel left litter and a false sentence** (`F151`): eight empty directories,
+  and every removal reported as *"no longer part of the standard"* when the files are still part of
+  it and simply not part of this repository's chosen channels.
+- **Code below a module's entry point is unbound when the file runs as a script** (`F152`), found
+  while fixing the above. `ACT-081` had appended `uninstall` and `_prune_empty` below
+  `install_standard.py`'s `__main__` block. Imported, everything binds; run as a script, `main()`
+  is called first and those definitions do not exist. It showed no symptom because `uninstall` is
+  only ever imported — and because **the defect is a relationship between two line numbers, not
+  anything wrong at either one**. It surfaced as a `NameError` *after one file had already been
+  deleted*.
+- **`RECONCILIATION.md` overstated what the standard owns** (`F153`) and **opened with a command a
+  pip adopter cannot run** (`F155`) — a clone-relative path, on step 1 of the document people are
+  sent to when the installer stops.
+- **Three documented things that were not true** (`F154`): `SP001`'s remedy named an internal script,
+  the documented `pip install` resolves to `@main` rather than a release, and the install block did
+  not say what to do when it stops on a global `core.hooksPath`.
+
+### A control nobody could reach (`ACT-095`, `DR-83`, closing `F156` for chained installs)
+
+The sweep reported that a `--chain` adopter's declared hook chain is never verified. Reproducing it
+found something wider. `SP038` and every other hook check fire **only where a gate claims
+`local_hook`** — and `sections.DERIVED_ENFORCEMENT` was `["history_audit", "review"]` for every gate
+of every adopter. **No profile this wizard has ever written claimed `local_hook`**, so `DR-66`'s
+verification-by-effect — designed, built, probe-tested, and given its own decision record — could not
+fire for anybody through the documented path. The sweep reached it only by hand-editing a profile,
+which is why it read as a `--chain` problem.
+
+That is the finding under the finding, and it generalises: **a control can be built correctly, tested
+thoroughly, and still be unreachable, because nothing that writes a profile ever makes the claim that
+turns it on.** The tests passed because they tested the checker against hand-written profiles. Nothing
+tested that the wizard produces a profile the checker will act on.
+
+A chained install is now asked one thing — *why* it keeps its own hook system — and everything else is
+derived: that it chained comes from the install record, and `delegates_to` is where this standard puts
+its gate, not a choice anyone makes. `DR-81`'s claim/clerk split, one field along. Verified both ways
+on a real repository: `SP038` fires on a declared chain with no delegating hook, and clears with one
+in place. Nobody else is affected — an unchained profile is unchanged byte for byte and never sees the
+question.
+
+**Whether an ordinary install should claim `local_hook` too is `H24`, not decided here**: it would give
+every adopter that protection, and would move a repository whose hook has quietly stopped running from
+passing to failing. `PW-18` — the history audit's window including commits made in the same second as
+`effective_from` — is confirmed and raised as `H25` for the same reason: narrowing an audit window is a
+risk decision.

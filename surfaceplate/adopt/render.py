@@ -253,6 +253,19 @@ def render_profile(profile: dict, *, written_on: str = "") -> str:
         f"\n  status_rationale: {_block(a['status_rationale'], 2)}" if a.get("status_rationale") else ""
     )
     independent_validator = _scalar(a.get("independent_validator"))
+    # `F156` / `DR-83`: written only by a `--chain` install, so an unchained profile is unchanged
+    # byte for byte. The rationale is prose and may span lines, so it takes the same literal block
+    # scalar `DR-38` (3) settled on - a folded scalar would not round-trip, and `wizard._verify`
+    # compares the reparse against what was assembled.
+    hook_chain_block = ""
+    if isinstance(a.get("hook_chain"), dict):
+        hook_chain_block = (
+            "\n  # DR-66: this repository's own hook runs the standard's gate; the checker verifies"
+            "\n  # that BY EFFECT, and the gates below claim local_hook because of it."
+            f"\n  hook_chain:"
+            f"\n    delegates_to: {_scalar(a['hook_chain']['delegates_to'])}"
+            f"\n    rationale: {_block(a['hook_chain']['rationale'], 4)}"
+        )
     # `DR-50` (2): the two reliance answers, when the run recorded them.
     risk_block = ""
     if isinstance(p.get("risk"), dict):
@@ -297,7 +310,7 @@ adoption:
   decision_record_id: {_scalar(a['decision_record_id'])}
   adoption_status: {_scalar(a['adoption_status'])}{status_rationale_line}
   independent_validator: {independent_validator}{not_checked if p['conformance_level'] == 'essential' else ''}
-  deferrals:{deferrals_text}
+  deferrals:{deferrals_text}{hook_chain_block}
 
 # These three cannot be excluded, deferred, or omitted at any conformance level.
 baseline_controls:

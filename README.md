@@ -251,7 +251,7 @@ per-forge emitter is 1.x work, taken up when an adopter on another forge appears
 ## Working on the standard itself
 
 ```bash
-python3 -m venv .venv && .venv/bin/python -m pip install pyyaml jsonschema
+python3 -m venv .venv && .venv/bin/python -m pip install pyyaml jsonschema textual==8.2.8
 . .venv/bin/activate                       # the hook resolves python3 from PATH
 python tests/validate_contracts.py         # contracts
 python tests/test_install_and_check.py     # installer and checker, end to end
@@ -260,6 +260,14 @@ python scripts/build_release.py            # refuses to build unless both pass
 
 A virtual environment is used because most current Linux distributions ship a PEP 668 interpreter
 that refuses `pip install` outright. `referencing` is not named: `jsonschema` pulls it in.
+
+**`textual` is in that line because the block does not work without it** (`F148`). It is optional
+for *using* the standard and not optional for *checking* it: `test_install_and_check.py` asserts
+that `adopt` without a terminal exits 3 naming `--propose`, and on an interpreter with no `textual`
+the command exits 2 saying the dependency is missing instead — a different, also-correct answer to
+a different question. The suite then fails, and `build_release.py` refuses to build on it. The
+version is pinned to match `pyproject.toml`'s `adopt` extra; `tests/check_code_registers.py`
+compares the two so they cannot drift apart (`F130`).
 
 `scripts/build_release.py` regenerates `MANIFEST.sha256` and produces a pinned archive with a
 recorded digest. `scripts/verify_release.py` lets an adopter verify an archive independently.

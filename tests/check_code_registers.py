@@ -399,6 +399,59 @@ def payload_pointer_checks(targets: set[str]) -> None:
             )
 
 
+def nothing_is_defined_below_the_entry_point() -> None:
+    """`F152`: a module's `if __name__ == "__main__"` block must be the last thing in it.
+
+    `ACT-081` appended `uninstall` and `_prune_empty` - some 125 lines - BELOW that block in
+    `install_standard.py`. Imported, the whole module executes and everything binds; run as a
+    script, `main()` is called before the interpreter ever reaches those definitions, so they do
+    not exist. `uninstall` is only ever imported, so it never showed a symptom.
+
+    It surfaced when `install()` - which IS run as a script - first called `_prune_empty`:
+    `NameError`, **after one file had already been deleted**. A half-completed removal.
+
+    Cheap to check and impossible to notice by reading, because the file looks completely normal:
+    the defect is a relationship between two line numbers, not anything at either one.
+    """
+    for path in sorted((ROOT / "surfaceplate").rglob("*.py")) + sorted((ROOT / "scripts").glob("*.py")):
+        lines = path.read_text(encoding="utf-8").splitlines()
+        guard = next((i for i, line in enumerate(lines) if line.startswith('if __name__ == "__main__"')), None)
+        if guard is None:
+            continue
+        below = [
+            f"{path.name}:{i + 1}"
+            for i, line in enumerate(lines[guard + 1:], start=guard + 1)
+            if line.startswith(("def ", "class ")) or (line and not line[0].isspace() and "=" in line.split("#")[0] and not line.startswith(("if ", "raise ")))
+        ]
+        check(
+            f"{path.relative_to(ROOT)}: nothing is defined below the __main__ block",
+            not below,
+            ", ".join(below[:4]),
+        )
+
+
+def hook_target_agrees() -> None:
+    """`F156`: `adopt` names the hook path it declares; the checker names the one it looks for.
+
+    Two copies of one fact, and a profile that declared a path the checker did not check would
+    pass while guarding nothing - `DR-48`'s discipline, applied to the one constant `adopt` could
+    not simply import (it must work where the checker is not importable).
+    """
+    import sys
+
+    sys.path.insert(0, str(ROOT))
+    from surfaceplate.adopt import sections
+
+    checker = re.search(r'^HOOK_TARGET = "([^"]+)"', CHECKER.read_text(encoding="utf-8"), re.M)
+    check("check_conformance.py declares HOOK_TARGET", checker is not None)
+    if checker is not None:
+        check(
+            "adopt declares the same hook path the checker looks for",
+            sections.HOOK_TARGET == checker.group(1),
+            f"adopt={sections.HOOK_TARGET!r} checker={checker.group(1)!r}",
+        )
+
+
 def main() -> int:
     import sys
 
@@ -408,6 +461,8 @@ def main() -> int:
     front_door_checks(checker_text, write)
     payload_pointer_checks(_installed_targets())
     dependency_pin_checks()
+    nothing_is_defined_below_the_entry_point()
+    hook_target_agrees()
 
     # ---- SP codes: declaration against the code that emits them ----
     space = declared_space(findings_text)

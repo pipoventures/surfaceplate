@@ -2692,6 +2692,68 @@ def test_scripted_interview_objects_in_both_directions(tmp: Path) -> None:
         check("an answer nothing asked for is a failure", "nonexistent_field" in str(exc), str(exc))
 
 
+def test_a_chained_install_declares_the_chain_and_claims_local_hook(tmp: Path) -> None:
+    """`F156` / `DR-83`. `SP038` fires only where a gate claims `local_hook`, and no profile the
+    wizard wrote ever claimed it - so `DR-66`'s verification-by-effect was unreachable through the
+    documented path, for every adopter. The sweep reached it only by hand-editing a profile.
+
+    Asserted in BOTH directions, because a claim made unconditionally would be worse than one never
+    made: a `--no-hooks` repository must not claim a control it does not have, and
+    `check_conformance` says so in its own words - *"claiming an inactive control is worse than not
+    claiming it"*.
+    """
+    from surfaceplate.adopt import sections
+
+    spec = plan.gate_plan(level="essential", builds_ui=False, mode="simple")[0]
+    answers = {"artefact": "activity/register.md", "paths": "src/**"}
+
+    chained = sections.build_gate(spec, answers, hooks="chained")
+    plain = sections.build_gate(spec, answers, hooks="installed")
+    check("a chained install claims local_hook", "local_hook" in chained["enforcement"], str(chained["enforcement"]))
+    check("and an unchained one does not", "local_hook" not in plain["enforcement"], str(plain["enforcement"]))
+
+    asked = [f.id for f in plan.adoption_plan(owner="o", hooks="chained").fields]
+    not_asked = [f.id for f in plan.adoption_plan(owner="o", hooks="declined").fields]
+    check("a chained install is asked why it keeps its own hooks", "hook_chain_rationale" in asked)
+    check("nobody else is asked a question about an arrangement they do not have",
+          "hook_chain_rationale" not in not_asked)
+
+    base = {"review_by": "2027-01-01", "framework_maintainer": "m", "repository_classification": "internal",
+            "decision_record_id": "DR-0001", "adoption_status": "complete", "status_rationale": "done",
+            "needs_validator": False}
+    declared = sections.build_adoption({**base, "hook_chain_rationale": "Our own hooks delegate."},
+                                       framework_version="0.0.0", framework_digest="d")
+    silent = sections.build_adoption(base, framework_version="0.0.0", framework_digest="d")
+    check("the profile declares the delegation", declared.get("hook_chain", {}).get("rationale") == "Our own hooks delegate.")
+    check("with delegates_to DERIVED, not typed - the adopter chose to chain, not the path",
+          declared.get("hook_chain", {}).get("delegates_to") == sections.HOOK_TARGET)
+    check("and an unchained profile carries no hook_chain key at all", "hook_chain" not in silent)
+
+
+def test_every_picked_field_says_what_kind_of_value_it_takes(tmp: Path) -> None:
+    """`F150`. The answers record's header says *"complete them all"*, and for two fields it gave
+    the reader nothing to go on: `controls.contract_tests.implementation_reference` wants the name
+    of a CI step, and the only place that was written down was `adopt/validators.py`.
+
+    Asserted as a property of every field answered by picking, not of the two that were reported -
+    the next such field should inherit the sentence rather than the defect.
+    """
+    from surfaceplate.adopt import discover, wizard
+
+    repo = make_installed_repo(tmp, "kinds")
+    found = discover.scan(repo)
+    section = plan.controls_plan(level="full", mode="simple", found=found)
+    picked = [f for f in section.fields if f.context]
+    check("there are fields answered by picking to check", bool(picked), f"{len(picked)} field(s)")
+    missing = [f.id for f in picked if not wizard._what_kind_of_value(f)]
+    check("every one of them says what kind of value it takes", not missing, ", ".join(missing))
+
+    steps = [f for f in picked if f.context == "step"]
+    check("and a CI-step field says so in words a reader can act on",
+          bool(steps) and all("step" in wizard._what_kind_of_value(f) for f in steps),
+          str([wizard._what_kind_of_value(f) for f in steps[:1]]))
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory() as tmp_str:
         tmp = Path(tmp_str)
@@ -2774,6 +2836,12 @@ def main() -> int:
         print("\nDR-49: adoption without a terminal - propose, then replay the human's answers")
         test_propose_writes_a_proposal_and_never_the_profile(tmp)
         test_answers_replays_a_completed_record_through_the_same_code(tmp)
+
+        print("\nF156/DR-83: a chained install declares its delegation")
+        test_a_chained_install_declares_the_chain_and_claims_local_hook(tmp)
+
+        print("\nF150: the answers record says what each field wants")
+        test_every_picked_field_says_what_kind_of_value_it_takes(tmp)
 
         print("\nDR-48: one set of rules for the wizard and the checker")
         test_validators_refuse_what_the_checker_rejects(tmp)

@@ -854,6 +854,42 @@ def _proposal_entry(proposal) -> dict:
     return {"value": proposal.value, "origin": proposal.origin, "detail": proposal.detail}
 
 
+def _what_kind_of_value(spec) -> str:
+    """What a `needs-human` line actually wants, in words. Empty when there is nothing to add.
+
+    `F150`. The answers record told an adopter that `gates.<id>.artefact` wants *a file git tracks
+    in this repository* and said **nothing at all** about
+    `controls.contract_tests.implementation_reference`, which wants something else entirely: the
+    name of a step in a CI workflow. The only place that was written down was
+    `adopt/validators.py`. A record whose header says *"complete them all"* has to be completable
+    from its own contents.
+
+    `F144` made this worse rather than better, and the interaction is worth stating: since a CI
+    step is proposed only where its name says it runs tests, the two test controls are now left
+    blank far more often - so adopters meet the unexplained field far more often than when this
+    was first reported.
+
+    Keyed on `FieldSpec.context`, which `DR-51` (4) already maintains for exactly this purpose -
+    so a new field answered by picking gets its sentence by carrying a context, not by someone
+    remembering to add a line here.
+    """
+    context, _, argument = spec.context.partition(":")
+    return {
+        "step": "the name of a step in one of your CI workflows, copied exactly as it appears there",
+        "lock": "a lock file git tracks in this repository",
+        "register": "a directory of YAML records git tracks in this repository",
+        "artefact": "a file git tracks in this repository",
+        "scanner": f"the workflow file where a step runs {argument}",
+    }.get(context, "")
+
+
+def _note_kind(notes: dict, spec) -> None:
+    """Record what a field wants, where there is anything to say."""
+    kind = _what_kind_of_value(spec)
+    if kind:
+        notes[spec.id] = kind
+
+
 def propose(repo: Path, *, level: str | None = None) -> Proposed:
     """Run discovery and write the answers record - every proposal with its origin, every decision
     only a human can make as a `needs-human` line - and, where `level` is given, a preview of the
@@ -959,10 +995,14 @@ def propose(repo: Path, *, level: str | None = None) -> Proposed:
             # to the controls named in `controls.above_floor` at replay.
             if spec.depends_on is not None and spec.depends_on[0] == "controls.above_floor":
                 conditional[spec.id] = NEEDS_HUMAN
+                # `F150`: a line below the floor is still a line somebody has to complete.
+                _note_kind(notes, spec)
                 continue
             answers[spec.id] = NEEDS_HUMAN
             if spec.kind == "multiselect":
                 notes[spec.id] = "a list of control ids, or []"
+            else:
+                _note_kind(notes, spec)
         if detect.detect_decisions_folder(repo) is None:
             answers.setdefault("adoption.decision_record_id", {
                 "value": scaffold.DECISION_RECORD_ID, "origin": provenance.SCAFFOLDED,

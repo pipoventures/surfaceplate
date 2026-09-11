@@ -1234,11 +1234,39 @@ def gates_plan(
 # ---------------------------------------------------------------------------------------------
 
 
-def adoption_plan(*, owner: str) -> SectionPlan:
+def adoption_plan(*, owner: str, hooks: str = "") -> SectionPlan:
+    """`hooks` is the install record's own `hooks` value, never an answer (`F156`, `DR-83`).
+
+    Asked ONLY of a repository installed with `--chain`. Everyone else is not shown a question
+    about an arrangement they do not have, which is `DR-40`'s rule: ask what a human holds, derive
+    what follows. That they chained is derived; *why* they keep their own hook system is theirs.
+    """
+    chain_fields: tuple[FieldSpec, ...] = ()
+    if hooks == "chained":
+        chain_fields = (
+            FieldSpec(
+                id="hook_chain_rationale",
+                label="Why does this repository keep its own hook system?",
+                kind="textarea",
+                help=(
+                    "you installed with --chain, so your own pre-commit hook runs this standard's "
+                    "gate rather than being replaced by it. One or two sentences on why"
+                ),
+                decides=(
+                    "that the profile DECLARES the delegation, which is what makes the checker "
+                    "verify it by effect: it runs your hook with SURFACEPLATE_HOOK_PROBE set and "
+                    "requires the gate's answer (SP038, DR-66)"
+                ),
+                wrong=(
+                    "left undeclared, the chain is never checked - the hook could stop reaching "
+                    "the gate tomorrow and every run would still pass"
+                ),
+            ),
+        )
     return SectionPlan(
         name="adoption",
         title="A few closing facts",
-        fields=(
+        fields=chain_fields + (
             FieldSpec(
                 id="review_by",
                 label="Review by",
@@ -1430,7 +1458,7 @@ def section_plan(
     if name == "gates":
         return gates_plan(level=level, builds_ui=builds_ui, mode=mode, found=found)
     if name == "adoption":
-        return adoption_plan(owner=owner)
+        return adoption_plan(owner=owner, hooks=found.hooks)
     if name == "wrap":
         return wrap_plan()
     raise KeyError(f"unknown section: {name!r}")
