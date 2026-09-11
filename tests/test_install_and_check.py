@@ -970,6 +970,29 @@ def test_an_agent_channel_can_be_declined_and_the_declining_is_never_silent(tmp:
             "SP006" not in out and "SP007" not in out,
             out[-500:],
         )
+        # `F171`. The PROSE, not only the payload. `DR-67` narrowed what is written and left the
+        # block naming both vendors regardless, so a copilot-only adopter was told four times not
+        # to edit `.claude/rules/` and `.claude/skills/` - in the one file they read first, and
+        # about directories they do not have. Asserted on `AGENTS.md` because that is the neutral
+        # file every adopter gets, whichever channel they chose.
+        block = (repo / "AGENTS.md").read_text(encoding="utf-8")
+        strays = [p for p in channels[other] if p in block]
+        check(
+            f"--agents {chosen}: the conformance block names no path from the declined channel",
+            not strays,
+            f"AGENTS.md still points at {strays}",
+        )
+        mine = [p for p in channels[chosen] if p.rsplit("/", 1)[0] in block]
+        check(
+            f"--agents {chosen}: and does name this channel's own",
+            bool(mine),
+            f"AGENTS.md mentions none of {channels[chosen]}",
+        )
+        check(
+            f"--agents {chosen}: and claims no count the install does not have",
+            "two paths" not in block,
+            "the block still says 'two paths' at one channel",
+        )
 
     # The positive control. Without this, every assertion above would still pass against an
     # installer that had simply stopped writing agent files at all.

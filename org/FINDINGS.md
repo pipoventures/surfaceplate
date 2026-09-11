@@ -250,6 +250,8 @@ standard should prescribe them is a separate question and is not answered here.
 | F157 | `SP038` reported a negative it could not establish: a fresh clone has no hook by construction, so every adopter claiming `local_hook` would have failed CI 30 days after install. `DR-74`'s rule, applied to the case `DR-74` missed | high | Closed — `ACT-096` (`DR-84`), 2026-09-11; answers `H24`; see the body |
 | F162 | The built distribution declared no `readme`, so the PyPI project page would have rendered the summary line and then blank space — and `pyproject.toml` carried a comment asserting that PyPI rendered the README | medium | Closed — `ACT-103`, 2026-09-11; see the body |
 | F163 | `requires-python = ">=3.9"` was **false**, not merely untested: `jsonschema==4.26.0` is a hard dependency requiring `>=3.10`, so the package could never install on 3.9 — and the wrong declaration gave the reader a worse error than the right one would have | medium | Closed — `ACT-104`, 2026-09-11. Raised `low`/`Accepted` hours earlier and reassessed; see the body |
+| F171 | `DR-67` narrowed the payload to the chosen agent channels and left the conformance block's **prose** naming both vendors — so a repository installed with `--agents copilot` was told four times not to edit `.claude/rules/` and `.claude/skills/`, directories it does not have, in the one file every adopter reads first | medium | Closed — `ACT-107`, 2026-09-11; see the body |
+| F172 | The `--agents` refusal said *"To install no agent instructions at all, do not install the standard"* — **which is false**: `AGENTS.md` and `.standards/topics/` are agent instructions and are installed whichever channel is chosen, as `DR-67` (3) states | low | Closed — `ACT-107`, 2026-09-11; see the body |
 | F170 | `CLAUDE.md` gave the release ritual's trigger as "after changing anything the standard ships" — the payload — while the manifest covers **every tracked file outside a short excluded set**, `scripts/` and `tests/` included. Followed exactly, the instruction leaves the manifest stale, and CI then fails with every suite green | medium | Closed — `ACT-106`, 2026-09-11; see the body |
 | F165 | `stack.builds_user_interface` could not be answered `yes` on the non-interactive route at all — the answers record told the reader to write it into the file and re-propose, and `--propose` rebuilds from the repository and discarded it — so a repository that builds an interface could not be adopted through `--propose`/`--answers` | high | Closed — `ACT-106`, 2026-09-11 (`DR-87`); see the body |
 | F166 | `F47`'s remedy was applied at one of two sites: a gate binds from the instant of adoption when a scaffold created its artefact, and from that **midnight** when the adopter named one — so `F47`'s original symptom returned for the adopter who supplies their own artefacts, and the obvious correction is foreclosed by `SP034` | high | Closed — `ACT-106`, 2026-09-11 (`DR-87`); see the body. `F47` stays `Closed`; this is the half its closure did not cover |
@@ -1592,6 +1594,106 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F171 — The installer narrowed what it wrote and not what it said, so a Copilot-only adopter was told about Claude Code four times
+
+**Severity: medium. Closed — `ACT-107`, 2026-09-11.**
+
+**Raised by the maintainer, before publication:** *"the `.standards` folder that is installed reads
+`.claude/` but I wanted this to be provider agnostic."*
+
+Checked by effect rather than against the design intent, and the answer has two halves.
+
+**The canon is provider-agnostic, and that is demonstrable.** `install --agents copilot` on a real
+repository produces no `.claude/` anywhere, its `INSTALL.json` contains zero references to it,
+records `agents: ['copilot']`, and the repository still passes the conformance check. `AGENTS.md`
+and `.standards/topics/` are written whichever channel is chosen — `DR-67` (3) says so and the
+install proves it. Nothing in this standard requires Claude Code.
+
+**The block an adopter reads first says otherwise.** The managed block written into their
+`AGENTS.md` carried, verbatim, in a copilot-only install:
+
+```
+Do not edit anything under `.standards/`, `.claude/rules/`,
+`.claude/skills/`, `.github/instructions/`, or `.github/skills/` …
+…in the location that agent actually loads: `.claude/rules/surfaceplate-*.md` for Claude Code,
+…`.claude/skills/*/SKILL.md` for Claude Code,
+```
+
+Four references to directories that are not in their repository. It also read *"Same body, same
+gates, two paths"*, which is simply false at one channel — a hardcoded count of the kind this
+register has a habit of finding.
+
+**This is `DR-67`'s own principle, unapplied at the site `DR-67` itself flagged.** That record
+states the filter is applied *"once, over the assembled payload"*, precisely because a filter to be
+remembered at several sites will be forgotten at the next — `F58`. It went further and caught that
+the block upsert **creates** `.github/copilot-instructions.md` outside the payload, calling that
+*"the half this decision nearly missed"*. It narrowed **whether that file is created**. It did not
+narrow **what the block says**. The sixth instance of one-site-updated this release.
+
+**Closed by rendering the block from `rules.AGENT_BLOCK_PROSE` at the single point it is read**, so
+each install names only the channels it is getting. The digest recorded in `INSTALL.json` is taken
+from the rendered text, so the checker still compares an adopter's block against what was actually
+written to them — no byte-comparison against the payload file exists to break.
+
+### Evidence
+
+- By effect at all three channel sets. `--agents copilot` renders *"`.standards/`,
+  `.github/instructions/` and `.github/skills/`"*; `--agents claude` the mirror; the default both,
+  joined as prose.
+- Negative control: disabling the narrowing fails the suite and names the strays —
+  *"AGENTS.md still points at ['.github/instructions', '.github/skills']"*, and the mirror.
+- `tests/check_code_registers.py` asserts `AGENT_CHANNELS` and `AGENT_BLOCK_PROSE` name the same
+  channels, so a third agent cannot be added to one table and forgotten in the other.
+
+### A coverage loss this created, and where it was put back
+
+Those four paths used to sit in `conformance-block.md` as prose, where `payload_pointer_checks`
+resolved them against the installer's destinations. Moving them into a Python table took them out
+of that check's reach — `check_code_registers` went 170 → 169, which is how it was noticed. The
+resolution now runs against `AGENT_BLOCK_PROSE` directly, so the **table** is checked rather than
+the sentence it happens to produce, and a path the installer never writes fails the suite by name.
+Stated rather than banked: a gain bought with a silent loss is the trade this project exists to
+notice.
+
+## F172 — The `--agents` refusal told the reader something untrue about this framework's own neutrality
+
+**Severity: low. Closed — `ACT-107`, 2026-09-11.**
+
+Declining every agent channel is refused, deliberately and under test (`DR-67`'s evidence: *"an
+unknown channel and an empty list are refused"*). The refusal said:
+
+```
+error: --agents needs at least one channel. To install no agent instructions
+at all, do not install the standard.
+```
+
+**The second sentence is false.** `AGENTS.md` and the twelve canonical topic documents under
+`.standards/topics/` are agent instructions; they are installed whichever channel is chosen;
+`DR-67` (3) says so in as many words — *"`AGENTS.md` is written either way. It is agent-neutral."*
+A reader following that message would conclude the standard cannot be adopted without taking a
+named vendor's directory, which is the opposite of what the design does.
+
+Low severity because it misleads rather than breaks. Recorded anyway, because it is a false
+statement in a public interface belonging to a framework whose subject is claims that do not hold,
+and because it misdescribes precisely the property the maintainer was asking about.
+
+**Closed.** The message names the known channels, states that `AGENTS.md` and `.standards/topics/`
+arrive either way and that an agent reading neither vendor's directory is expected to load them,
+and says plainly that there is no way to install the vendor mirrors for no vendor — with the issue
+tracker as the route for an agent that needs a channel of its own.
+
+### What this does not change, deliberately
+
+**The floor of one channel stands.** It is `DR-67`'s decision, not an oversight, and overriding a
+recorded decision to add an option nobody has asked for is the speculative generality Topic 5
+forbids — *"a tool built for a process observed once or twice is a maintenance obligation bought
+against a guess"*. `DR-67` also leaves the extension path open: *"A third agent is a new entry in
+`rules.AGENT_CHANNELS` and its emitter, not a change to this decision."*
+
+**What would revisit it is evidence, and the instrument already exists.** `H18` — watching real
+people install this — is where a Cursor, Zed or Aider user balking at carrying a vendor directory
+they do not use would show up as a fact rather than a guess. That is now named in `H18`'s row.
 
 ## F170 — The release ritual's documented trigger is narrower than the manifest it protects
 

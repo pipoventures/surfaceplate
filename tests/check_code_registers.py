@@ -523,6 +523,57 @@ def hook_target_agrees() -> None:
         )
 
 
+def agent_tables_name_the_same_channels() -> None:
+    """`F171`: a third agent must be impossible to add to one table and forget in the other.
+
+    `rules.AGENT_CHANNELS` says which paths a channel owns; `rules.AGENT_BLOCK_PROSE` says how the
+    conformance block describes it. A channel in the first and not the second renders an adopter a
+    block with a missing sentence — or a `KeyError` mid-install. A channel in the second and not
+    the first describes files nobody installs.
+
+    This is `F58`'s shape, which is why it is checked rather than trusted: `DR-30`'s per-agent
+    pattern was applied to six instruction documents and not to seven skills, and nothing noticed
+    for five releases.
+    """
+    import sys
+
+    sys.path.insert(0, str(ROOT / "surfaceplate"))
+    import rules as _rules  # noqa: E402
+
+    channels, prose = set(_rules.AGENT_CHANNELS), set(_rules.AGENT_BLOCK_PROSE)
+    check(
+        "every agent channel has block prose",
+        not (channels - prose),
+        ", ".join(sorted(channels - prose)),
+    )
+    check(
+        "and the block prose names no channel that is not installed",
+        not (prose - channels),
+        ", ".join(sorted(prose - channels)),
+    )
+    bad = sorted(n for n, row in _rules.AGENT_BLOCK_PROSE.items() if len(row) != 3 or not all(row))
+    check("and each row carries a label, a topic path and a skill path", not bad, ", ".join(bad))
+
+    # These four paths used to sit in `conformance-block.md` as prose, where `payload_pointer_checks`
+    # resolved them against the installer's own destinations. Rendering the block from this table
+    # moved them out of the document and out of that check's reach - a silent LOSS of coverage
+    # bought by a gain elsewhere, which is the trade this project is meant to notice rather than
+    # bank. Resolved here instead, against the same destinations, so the table is checked rather
+    # than the sentence it happens to produce.
+    targets = _installed_targets()
+    unresolved = sorted(
+        p
+        for row in _rules.AGENT_BLOCK_PROSE.values()
+        for p in row[1:]
+        if not _resolves_installed(p, targets)
+    )
+    check(
+        "and every path it names is one the installer actually writes",
+        not unresolved,
+        ", ".join(unresolved),
+    )
+
+
 def no_script_writes_the_machine_s_git_config() -> None:
     """`F164`: a script under `scripts/` may set global git config, but only in a sandbox.
 
@@ -566,6 +617,7 @@ def main() -> int:
     agent_prompt_names_commands_that_exist()
     hook_target_agrees()
     no_script_writes_the_machine_s_git_config()
+    agent_tables_name_the_same_channels()
 
     # ---- SP codes: declaration against the code that emits them ----
     space = declared_space(findings_text)

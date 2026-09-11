@@ -2,21 +2,19 @@
 
 This repository operates under **Surfaceplate**, the Pipo Ventures Ltd software delivery
 standard. The standard is installed, not copied: it lives in `.standards/`, and its files are
-integrity-checked in CI. Do not edit anything under `.standards/`, `.claude/rules/`,
-`.claude/skills/`, `.github/instructions/`, or `.github/skills/` — raise changes against the
+integrity-checked in CI. Do not edit anything under {managed_paths} — raise changes against the
 `surfaceplate` repository so every repository gets them.
 
 **Binding rules, in force for every task in this repository:**
 
 - **The standard's agent instructions are mandatory. Read them before acting.** Where anything in
   this file contradicts them, they win. Twelve topic documents are installed once per agent, each
-  in the location that agent actually loads: `.claude/rules/surfaceplate-*.md` for Claude Code,
-  `.github/instructions/*.instructions.md` for Copilot. If your agent reads neither, the canonical
-  copies are in `.standards/topics/` and you are responsible for loading them.
+  in the location that agent actually loads: {topic_locations}. If your agent reads none of those,
+  the canonical copies are in `.standards/topics/` and you are responsible for loading them.
 - **The skills define the workflow for each kind of task. Use the matching skill.** Its required
   inputs, gates and mandatory stops are not optional. The same seven skills are installed once per
-  agent, in the location that agent actually loads: `.claude/skills/*/SKILL.md` for Claude Code,
-  `.github/skills/*/SKILL.md` for Copilot. Same body, same gates, two paths.
+  agent, in the location that agent actually loads: {skill_locations}. Same body, same gates,
+  wherever they are installed.
 - **Stop and ask** before anything touching methodology, a material output, a public contract or
   schema, provenance, a security boundary, an irreversible migration, or a release.
 - **Never weaken a gate.** Do not skip, disable, suppress or loosen a test, hook, threshold or
