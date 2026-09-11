@@ -3472,6 +3472,21 @@ it. The check was named for a property it never established. It now asserts that
 content row sits immediately above its bottom border, and reinstating the overflow makes it fail
 and name the row that ended up there instead.
 
+### 0.18.0 published to PyPI (`ACT-108`)
+
+`pip install surfaceplate==0.18.0`. Published from commit `a345f2b` by a workflow that refuses to run
+on a push or a tag, refuses unless the typed version matches `surfaceplate/VERSION`, and uploads only
+after a named human approves the `pypi` environment.
+
+**Verified by reading the index, not the workflow's exit code:** `requires-python >=3.10` on the
+artefact, a 25,697-character description where the project page would have been blank, 11
+classifiers, and an install from PyPI into a clean virtualenv that runs.
+
+The `pypi/0.18.0` release carries the independent-review packet rebuilt from the published commit,
+the release archive, and `SHA256SUMS`. **Publishing validates nothing.** `F6` stays open, and closes
+only when a recomputation of the anchor is returned by someone who is not the maintainer and is
+recorded under `governance/assurance/`.
+
 ### Provider agnosticism: true in the canon, contradicted in the file adopters read first (`ACT-107`, closing `F171`, `F172`)
 
 Asked before publication whether the standard is really provider-agnostic, given that the installed
