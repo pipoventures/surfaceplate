@@ -25,7 +25,13 @@
 name = "surfaceplate"
 version = "0.18.0"
 description = "A governance framework that installs into a repository and checks it against the standard it publishes."
-requires-python = ">=3.9"
+# `F163`: >=3.10, and it was `>=3.9` until this was TESTED rather than assumed. `jsonschema==4.26.0`
+# — a hard dependency, not an extra — itself requires `>=3.10`, so `pip install surfaceplate` on
+# 3.9 could never have resolved. The declaration was not merely unverified; it was false, and it
+# was false in the direction that gives the reader the worse error: pip trusts `requires-python`,
+# decides the package is compatible, and then fails on a dependency instead of saying plainly that
+# the interpreter is too old.
+requires-python = ">=3.10"
 license = "Apache-2.0"
 authors = [{ name = "Pipo Ventures Ltd" }]
 
@@ -47,9 +53,10 @@ readme = "README.md"
 # WHAT IS NOT HERE IS THE POINT, and it is this project's own rule turned on its own packaging:
 # a classifier is a claim, and a claim nothing checks is the defect `SP021` exists to catch.
 #
-#   - `Programming Language :: Python :: 3.9/3.10/3.11/3.13` - `requires-python` admits them and
-#     CI runs 3.12 alone, so listing them would assert five supported versions on the evidence of
-#     one. `F163` records the gap; a CI matrix is what would earn them.
+#   - `Programming Language :: Python :: 3.9` - the package cannot install there at all; see the
+#     note on `requires-python` above. 3.10 through 3.13 ARE listed, and the `compatibility` job in
+#     `standard-self-check.yml` installs and exercises the package on each one, which is what earns
+#     them. `F163`.
 #   - `Operating System :: OS Independent` - never run on Windows or macOS. The code has
 #     `os.name == "nt"` branches, which is consideration, not verification.
 #   - `Typing :: Typed` - PEP 561 makes that marker a shipped `py.typed` file. There isn't one.
@@ -59,7 +66,10 @@ classifiers = [
     "Intended Audience :: Information Technology",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Quality Assurance",
     "Topic :: Software Development :: Testing",
 ]

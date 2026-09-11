@@ -28,6 +28,78 @@ permissions:
   contents: read
 
 jobs:
+  # `F163`: every version `requires-python` admits, installed and exercised.
+  #
+  # This job exists because the declaration was FALSE, not merely untested: `requires-python` read
+  # `>=3.9` while `jsonschema==4.26.0` - a hard dependency - requires `>=3.10`, so `pip install`
+  # on 3.9 could never have resolved. Nothing noticed, because nothing installed the package on
+  # any version but the one the job below pins.
+  #
+  # DELIBERATELY NOT THE WHOLE SELF-CHECK. Running fifteen suites and a three-minute matrix four
+  # times over would quadruple the cost to re-establish, on each version, things that do not vary
+  # by interpreter. What varies is whether the package INSTALLS, whether its modules IMPORT, and
+  # whether the suites that touch version-sensitive syntax and stdlib behaviour still pass. That
+  # is what runs here; `contracts` below remains the full run, on one version.
+  compatibility:
+    name: Installs and runs on every supported Python
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false  # one version failing must not hide the state of the others
+      matrix:
+        python-version: ['3.10', '3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # the history audit needs it (`F31`), same as the job below
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # A REAL INSTALL of the built package, extras included - not a `pip install -r`. The defect
+      # this job exists for was a resolution failure, and only resolving the real dependency set
+      # can find another one.
+      - name: Install the package and its adopt extra
+        run: python -m pip install --disable-pip-version-check ".[adopt]"
+
+      - name: The command exists and reports its version
+        run: |
+          surfaceplate --version
+          surfaceplate --help > /dev/null
+
+      # Every module, imported. A syntax or typing construct newer than the floor fails here with
+      # the file and line, rather than reaching an adopter as a traceback from a subcommand.
+      - name: Import every module in the package
+        run: |
+          python - <<'PY'
+          import importlib, pkgutil, sys
+          import surfaceplate
+          failed = []
+          for mod in pkgutil.walk_packages(surfaceplate.__path__, "surfaceplate."):
+              try:
+                  importlib.import_module(mod.name)
+              except Exception as exc:            # noqa: BLE001 - reporting every one beats stopping at the first
+                  failed.append(f"{mod.name}: {type(exc).__name__}: {exc}")
+          for line in failed:
+              print("FAILED", line)
+          print(f"imported {len(list(pkgutil.walk_packages(surfaceplate.__path__, 'surfaceplate.'))) - len(failed)} module(s)")
+          sys.exit(1 if failed else 0)
+          PY
+
+      - name: Install and check a real repository end to end
+        run: python tests/test_install_and_check.py
+
+      # `tests/test_adopt.py` is NOT run here, and the omission is a decision rather than an
+      # oversight: `test_package_metadata_agrees_with_pyproject` reads `pyproject.toml` with
+      # `tomllib`, which is 3.11+. That is a property of this repository's DEVELOPMENT TOOLING,
+      # not of the package - `surfaceplate/` imports no stdlib module newer than its own floor,
+      # which is what the import sweep above establishes on every version in the matrix.
+      #
+      # So the wizard's MODULES are verified to import on 3.10; its BEHAVIOUR is verified on one
+      # version, by the full run in `contracts` below. Stated plainly because the alternative -
+      # quietly running a subset and calling the matrix "every supported Python" - is the kind of
+      # claim this repository exists to refuse.
+
   contracts:
     name: Contract and installer tests
     runs-on: ubuntu-latest

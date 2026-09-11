@@ -116,7 +116,7 @@ Working from a clone instead? From inside the clone, `python surfaceplate/instal
 --target ...` does the same thing without installing anything: the installable package is the
 `surfaceplate/` directory inside the clone.
 
-Requirements: Python 3.9 or later, plus `PyYAML` and `jsonschema` in an interpreter available to
+Requirements: Python 3.10 or later, plus `PyYAML` and `jsonschema` in an interpreter available to
 the hook. The virtual environment above provides them; `pip install` into the system interpreter
 does not work on most current Linux distributions, whose Python is a PEP 668 interpreter that
 refuses it ("externally-managed-environment") or ships without pip ("No module named pip"). The
