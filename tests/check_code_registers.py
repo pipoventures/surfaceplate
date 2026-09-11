@@ -523,6 +523,36 @@ def hook_target_agrees() -> None:
         )
 
 
+def no_script_writes_the_machine_s_git_config() -> None:
+    """`F164`: a script under `scripts/` may set global git config, but only in a sandbox.
+
+    `front_door.sh` must set a GLOBAL `core.hooksPath` - that is `F70`'s condition and the whole
+    point of the script. Until this check it wrote that, and a git identity, into the invoking
+    user's real `~/.gitconfig`, then deleted the directory it had pointed the hooks at. Run in a
+    container that is harmless; run by hand it silently disabled every git hook on the machine and
+    misattributed every later commit in any repository without a local identity.
+
+    The property is therefore not "do not set global config" but **"redirect the global scope
+    first"**: `GIT_CONFIG_GLOBAL` must be exported above the first `git config --global` write in
+    the same file. Checked by position, because an export below the write protects nothing.
+    """
+    scripts = sorted((ROOT / "scripts").glob("*.sh"))
+    check("there are shell scripts to check", bool(scripts), str(len(scripts)))
+    for script in scripts:
+        lines = script.read_text(encoding="utf-8").splitlines()
+        writes = [n for n, line in enumerate(lines)
+                  if "git config --global" in line and not line.lstrip().startswith("#")]
+        if not writes:
+            continue
+        redirects = [n for n, line in enumerate(lines) if "export GIT_CONFIG_GLOBAL=" in line]
+        check(
+            f"{script.name} redirects the global git scope before writing to it",
+            bool(redirects) and min(redirects) < min(writes),
+            f"first write at line {min(writes) + 1}, "
+            + (f"export at line {min(redirects) + 1}" if redirects else "no export"),
+        )
+
+
 def main() -> int:
     import sys
 
@@ -535,6 +565,7 @@ def main() -> int:
     nothing_is_defined_below_the_entry_point()
     agent_prompt_names_commands_that_exist()
     hook_target_agrees()
+    no_script_writes_the_machine_s_git_config()
 
     # ---- SP codes: declaration against the code that emits them ----
     space = declared_space(findings_text)
