@@ -222,6 +222,7 @@ an unknown number of releases with nothing noticing.
 | F154 | Three documented things that were not true: `SP001`'s remedy named an internal script, the documented `pip install` resolves to `@main` rather than a release, and the install block did not say what to do when it stops on a global `core.hooksPath` | low | Closed — `ACT-094`, 2026-09-11; see the body |
 | F155 | `RECONCILIATION.md`'s first command assumed a clone of this repository beside the adopter's; a pip adopter gets `No such file or directory` on step 1 | low | Closed — `ACT-094`, 2026-09-11; see the body |
 | F157 | `SP038` reported a negative it could not establish: a fresh clone has no hook by construction, so every adopter claiming `local_hook` would have failed CI 30 days after install. `DR-74`'s rule, applied to the case `DR-74` missed | high | Closed — `ACT-096` (`DR-84`), 2026-09-11; answers `H24`; see the body |
+| F159 | `--repin` refused a profile that had not been written yet by listing six lines it does not write, so the command read as broken when the profile was simply unfinished | medium | Closed — `ACT-097`, 2026-09-11; see the body |
 | F158 | The history audit's window was inclusive at second granularity, so a commit made moments BEFORE adoption was reported as crossing a gate that did not yet exist — and could never be remediated | low | Closed — `ACT-096`, 2026-09-11; decided at `H25`; see the body |
 | F156 | No wizard-written profile ever claimed `local_hook`, so `SP038` and `DR-66`'s verification-by-effect could not fire for any adopter; a `--chain` install never declared the delegation it had deliberately chosen | medium | Closed for the chained case — `ACT-095` (`DR-83`), 2026-09-11; the wider case is `H24`; see the body |
 Closed entries are indexed here and left in their original records; they are not restated.
@@ -1554,6 +1555,56 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F159 — `--repin` blamed six lines it does not write
+
+**Severity: medium. Closed — `ACT-097`, 2026-09-11.**
+
+Found by the maintainer on his own walkthrough, running `--repin` against `A-stranger` — a
+repository still carrying the installer's template:
+
+```
+Refusing to write: the schema installed here does not accept the line `adoption.adoption_date`:
+'replace-me' is not a 'date'; the line `adoption.review_by`: ...; the line
+`builds_user_interface`: ...; the line `prerequisites.0.effective_from`: ...; the line
+`risk.material_quantitative_output`: ...; the line `risk.relied_on_outside_team`: ...
+```
+
+**`--repin` writes two lines. None of those six is either of them.** The substitution had worked
+and both values read back correctly; what refused was `_verify`, which validates the *whole*
+profile — and the template's twenty placeholders fail it.
+
+**Two entirely different facts shared one refusal**: *this profile has not been written yet* and
+*re-pinning it broke something*. The adopter was told the second when the first was true, and the
+message reads as though the command is defective.
+
+**The advice already existed, on the wrong branch.** `repin()`'s `moved != 2` path — the rarer
+failure, where the lines cannot be found at all — says *"...or run `surfaceplate adopt` if this
+profile has not been written yet."* Exactly right, five lines above the branch people actually meet.
+
+**Closed** by establishing which of the two facts is true before refusing: the profile is validated
+**as it was, before any substitution**, and a profile that was already invalid gets a refusal naming
+that and pointing at `adopt`. `_verify` is untouched — on `adopt`'s own write path a schema failure
+genuinely is the wizard's fault, and must keep saying so.
+
+**Both directions verified**: `A-stranger`'s template is refused with the new message; a complete
+profile with a deliberately staled digest still re-pins.
+
+**The fix found a latent unrealism in `ACT-092`'s own fixture, and it is the more interesting half.**
+`test_repin_clears_the_two_findings_an_upgrade_guarantees` built its "complete but stale" profile by
+writing `"0" * 64` as the previous digest — and **sixty-four unquoted zeros parse as the integer 0**,
+not a string, so that profile had never satisfied its own schema. It passed for a day because nothing
+validated the profile before re-pinning it; **the moment something did, the fixture was the thing
+that broke**, and for a moment it looked as though the new guard was too strict. An upgrade leaves an
+old *valid* digest. The fixture now uses one, and asserts that it is a string.
+
+The same YAML trap caught the agent twice in one hour — once staling a fixture by hand, once here —
+which is what a constant that is all digits does in a format with implicit typing.
+
+**And the agent's instruction was wrong before the tool was.** The walkthrough commands handed over
+told the maintainer to expect `--repin` to clear `SP048`/`SP049` — on a repository the agent had
+checked minutes earlier and seen to hold *twenty* placeholders. The install step was dry-run first;
+the re-pin step was not. A sequence verified in part reads exactly like one verified whole.
 
 ## F158 — The history audit accused commits made before the gate existed
 

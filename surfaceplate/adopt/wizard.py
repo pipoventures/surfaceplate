@@ -636,6 +636,32 @@ def _spec_behind(repo: Path, profile: dict, answer_key: str) -> plan.FieldSpec |
     return next((s for s in section_plan.fields if s.id == field_id), None)
 
 
+def _already_invalid(text: str, repo: Path) -> bool:
+    """Did this profile fail its own schema BEFORE anything was changed? (`F159`)
+
+    Answers one question and nothing else, so a caller can tell *your profile is unfinished* apart
+    from *the change I just made broke it*. Deliberately returns `False` when it cannot tell -
+    unparseable YAML, a missing schema - because the guard that follows reports those properly and
+    a maybe here must never pre-empt a definite there.
+    """
+    import yaml
+
+    schema_path = repo / ".standards" / "schemas" / "application-profile.schema.yaml"
+    if not schema_path.is_file():
+        return False
+    try:
+        before = yaml.safe_load(text)
+        schema = yaml.safe_load(schema_path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError):
+        return False
+    try:
+        import jsonschema
+    except ImportError:  # pragma: no cover - jsonschema is a hard dependency
+        return False
+    validator = jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker())
+    return next(validator.iter_errors(before), None) is not None
+
+
 def repin(repo: Path) -> tuple[Path | None, list[str]]:
     """Re-pin `adoption.framework_version` and `framework_digest` to what is installed (`F146`).
 
@@ -693,6 +719,29 @@ def repin(repo: Path) -> tuple[Path | None, list[str]]:
     # Replacing the two lines cannot disturb anything else, and what replaces them is then parsed
     # back and checked rather than assumed.
     text = target.read_text(encoding="utf-8")
+
+    # `F159`: WAS THIS PROFILE ALREADY INVALID? Two entirely different facts share one refusal
+    # otherwise - *this profile has not been written yet* and *re-pinning it broke something* - and
+    # the adopter is told the second when the first is true.
+    #
+    # Found on the maintainer's own walkthrough, running `--repin` against a repository still
+    # carrying the installer's template. The substitution worked, both lines read back correctly,
+    # and `_verify` then refused by listing `adoption.adoption_date`, `review_by`,
+    # `builds_user_interface`, `effective_from` and two `risk.*` keys - **six lines `--repin` does
+    # not write**. It reads as though the command is broken. It is not; there is simply no profile
+    # here yet, and `adopt` is the tool that makes one.
+    #
+    # The advice already existed five lines below, on the `moved != 2` branch, which is the rarer
+    # failure. This puts it on the one people actually meet.
+    if _already_invalid(text, repo):
+        raise WriteRefused(
+            "this profile has not been completed yet, so there is nothing to re-pin against. "
+            "`--repin` replaces two lines and cannot make an unfinished profile valid - the other "
+            "placeholders would still be there. Run `surfaceplate adopt` instead: it writes the "
+            "whole profile, and sets these two values from the install record as it does.",
+            path="adoption",
+        )
+
     rendered, moved = text, 0
     for key, value in (("framework_version", version), ("framework_digest", digest)):
         rendered, hits = re.subn(
