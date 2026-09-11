@@ -222,6 +222,7 @@ an unknown number of releases with nothing noticing.
 | F154 | Three documented things that were not true: `SP001`'s remedy named an internal script, the documented `pip install` resolves to `@main` rather than a release, and the install block did not say what to do when it stops on a global `core.hooksPath` | low | Closed — `ACT-094`, 2026-09-11; see the body |
 | F155 | `RECONCILIATION.md`'s first command assumed a clone of this repository beside the adopter's; a pip adopter gets `No such file or directory` on step 1 | low | Closed — `ACT-094`, 2026-09-11; see the body |
 | F157 | `SP038` reported a negative it could not establish: a fresh clone has no hook by construction, so every adopter claiming `local_hook` would have failed CI 30 days after install. `DR-74`'s rule, applied to the case `DR-74` missed | high | Closed — `ACT-096` (`DR-84`), 2026-09-11; answers `H24`; see the body |
+| F160 | `SP047` read a `run:` block line by line, so a scan disarmed across continuation lines was invisible to the check built to find it — while a step that merely READ the scanner's report was reported as the scan command | high | Closed — `ACT-098`, 2026-09-11; see the body |
 | F159 | `--repin` refused a profile that had not been written yet by listing six lines it does not write, so the command read as broken when the profile was simply unfinished | medium | Closed — `ACT-097`, 2026-09-11; see the body |
 | F158 | The history audit's window was inclusive at second granularity, so a commit made moments BEFORE adoption was reported as crossing a gate that did not yet exist — and could never be remediated | low | Closed — `ACT-096`, 2026-09-11; decided at `H25`; see the body |
 | F156 | No wizard-written profile ever claimed `local_hook`, so `SP038` and `DR-66`'s verification-by-effect could not fire for any adopter; a `--chain` install never declared the delegation it had deliberately chosen | medium | Closed for the chained case — `ACT-095` (`DR-83`), 2026-09-11; the wider case is `H24`; see the body |
@@ -1555,6 +1556,64 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F160 — `SP047` missed every disarmed scan written across lines, and blamed a step that reads the report
+
+**Severity: high. Closed — `ACT-098`, 2026-09-11.** Found on the maintainer's `A-stranger`
+walkthrough, and it is two defects that concealed each other.
+
+`SP047` exists to catch a secret scan that cannot fail the build. On a real adopter's workflow it
+reported:
+
+```
+[SP047] The scan command in .github/workflows/secret-scan.yml discards its exit code
+        what: 'Summarise findings' runs the scanner on a line that swallows a non-zero status
+```
+
+**`Summarise findings` does not run the scanner.** It runs `python3` to read a report, on this line:
+
+```
+count="$(python3 -c "... json.load(open('gitleaks-report.json')) ..." 2>/dev/null || echo 0)"
+```
+
+The scanner's name is in a *filename*; the `|| echo 0` defaults the count when the report is absent.
+The check matched the scanner's name **anywhere on the line** — filename, message text, comment —
+and any neutralising token anywhere on the same line. That is `DR-74`'s rule again: a negative
+reported without being in a position to establish it, and the position it lacked was knowing which
+command the line runs.
+
+**And the scan that WAS disarmed went undetected**, which is the half that matters. The step read:
+
+```
+- name: Run gitleaks (report-only — exit-code 0)
+  run: |
+    ./gitleaks detect \
+      --source . \
+      --exit-code 0 \
+      --verbose
+```
+
+`SP047` iterated `run.splitlines()`. **The line naming the scanner carries no neutralising token,
+and the line carrying one does not name the scanner** — they are one command and the check saw two
+lines. On top of that, `--exit-code 0` was not in `NEUTRALISING_SUFFIXES` at all, so even joined it
+would not have matched.
+
+**So the finding was right by accident and wrong in its detail**, and the true condition — a
+deliberately report-only secret scan, announced in the step's own name — was invisible to the check
+built to find it. A long shell command written across continuation lines is the normal way to write
+one; this check has never seen inside one.
+
+**Closed by three changes**, each verified: `shell_commands()` joins backslash continuations before
+scanning; `line_invokes()` requires the scanner to BE a command in the line rather than appear
+in it; and `--exit-code 0` / `--exit-code=0` join the neutralising tokens.
+
+**Both directions on the real workflow.** With `--exit-code 0` reinstated, `SP047` fires and names
+`'Run gitleaks'` — the step that runs it. With the scan armed, the repository reports `PASS`.
+
+**The false negative was found by the negative control, not by the fix.** Repairing the false
+positive alone would have left `SP047` silent on the case it exists for, and the repository would
+have gone green with a disarmed scanner and a checker that had just been made *more* precise about
+it. Testing that a fix still fails where it should is what separated the two.
 
 ## F159 — `--repin` blamed six lines it does not write
 

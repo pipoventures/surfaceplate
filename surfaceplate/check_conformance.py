@@ -876,7 +876,80 @@ def check_profile_review(
 # Ways a step's exit code stops reaching the job. Narrow on purpose: each of these
 # discards a non-zero status outright. `|| echo` is here because it is not hypothetical -
 # see the run cited in DR-18.
-NEUTRALISING_SUFFIXES = ("|| true", "|| :", "|| exit 0", "|| echo")
+NEUTRALISING_SUFFIXES = (
+    "|| true", "|| :", "|| exit 0", "|| echo",
+    # `F160`: a scanner told to report success is disarmed as surely as one whose status is
+    # swallowed by the shell. `--exit-code 0` is how gitleaks does it, and the step that carried
+    # it in a real adopter's workflow was named `Run gitleaks (report-only - exit-code 0)` - the
+    # intent was never hidden; nothing was looking for it.
+    "--exit-code 0", "--exit-code=0",
+)
+
+
+def shell_commands(run: str) -> list[str]:
+    """The commands in a `run:` block, with backslash continuations JOINED (`F160`).
+
+    `SP047` scanned `run.splitlines()`, and a long shell command is conventionally written across
+    several of them:
+
+        ./gitleaks detect \\
+          --source . \\
+          --exit-code 0 \\
+          --verbose
+
+    The line naming the scanner carries no neutralising token and the line carrying one does not
+    name the scanner, so a disarmed scan written the normal way was invisible to the check that
+    exists to find it. Verified on a real adopter's workflow: `--exit-code 0` present, `SP047`
+    silent.
+    """
+    joined: list[str] = []
+    buffer = ""
+    for raw in run.splitlines():
+        line = raw.strip()
+        if line.endswith("\\"):
+            buffer += line[:-1].rstrip() + " "
+            continue
+        joined.append((buffer + line).strip())
+        buffer = ""
+    if buffer.strip():
+        joined.append(buffer.strip())
+    return [line for line in joined if line]
+
+# `F160`. Shell separators, so a line can be split into the commands it actually runs.
+_COMMAND_BREAK = re.compile(r"\|\||&&|;|\||\$\(|\)|`")
+# `VAR=value cmd` - an assignment prefix is not the command.
+_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+
+
+def line_invokes(line: str, scanner: str) -> bool:
+    """Does this line RUN the scanner, as opposed to merely naming it? (`F160`)
+
+    `SP047` asked whether the scanner's name appeared anywhere on a line that also carried a
+    neutralising suffix. On a real adopter's workflow that flagged this:
+
+        count="$(python3 -c "... json.load(open('gitleaks-report.json')) ..." 2>/dev/null || echo 0)"
+
+    which runs **python3**, reads a report, and defaults the count to zero when the report is
+    absent. The scanner's name is in a *filename*; the `|| echo` guards a missing file. The step
+    was reported as a scan command that discards its exit code, and it is not a scan command.
+
+    That is `DR-74`'s rule - a check may not report a negative it was not in a position to
+    establish - and the position it lacked was knowing which command the line runs.
+
+    So the line is split into its commands and the scanner must BE one of them. A name inside a
+    filename, a quoted message or a comment is not an invocation.
+    """
+    for segment in _COMMAND_BREAK.split(line):
+        for token in segment.split():
+            if _ASSIGNMENT.match(token) or token.startswith(("-", "<", ">", "2>")):
+                continue
+            # The first real token of a command segment is the command. `./gitleaks` and
+            # `/usr/local/bin/gitleaks` are both the scanner; `gitleaks-report.json` is not.
+            command = token.strip("\"'").rsplit("/", 1)[-1].lower()
+            if command in (scanner.lower(), f"{scanner.lower()}.exe"):
+                return True
+            break  # this segment runs something else; try the next one
+    return False
 
 
 def step_mentions(step: dict, scanner: str) -> bool:
@@ -2197,10 +2270,11 @@ def check_secret_hygiene(repo: Path, profile: dict, findings: list[Finding]) -> 
                         graceable=True,
                     )
                 )
-            run = str(step.get("run") or "")
-            for line in run.splitlines():
-                stripped = line.strip()
-                if scanner.lower() not in stripped.lower():
+            # `F160`, both halves: continuations joined so a command split across lines is read
+            # as one, and the command must RUN the scanner rather than merely contain its name -
+            # a report filename and a message string both carry it and neither is an invocation.
+            for stripped in shell_commands(str(step.get("run") or "")):
+                if not line_invokes(stripped, scanner):
                     continue
                 if any(token in stripped for token in NEUTRALISING_SUFFIXES):
                     findings.append(

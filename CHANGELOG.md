@@ -3277,3 +3277,36 @@ staled its digest to `"0" * 64`, and sixty-four unquoted zeros parse as the **in
 validated the profile before re-pinning it. **The moment something did, the fixture was the thing
 that broke**, and for a moment the new guard looked too strict. A real upgrade leaves an old *valid*
 digest; the fixture now uses one, and asserts that it is a string.
+
+### A secret scan could be disarmed in plain sight (`ACT-098`, closing `F160`)
+
+`SP047` exists to catch a scan that cannot fail the build. On a real adopter's workflow it reported
+the wrong step — and missed the right one.
+
+The step it blamed, `Summarise findings`, runs `python3` to read a report; the scanner's name is in
+a *filename* and its `|| echo 0` defaults a missing report to zero. The check matched the scanner's
+name **anywhere on the line**, so a filename, a message or a comment all counted as an invocation.
+`DR-74`'s rule again: a negative reported without being in a position to establish it.
+
+**The step it missed was disarmed in its own name** — `Run gitleaks (report-only — exit-code 0)`:
+
+```
+./gitleaks detect \
+  --source . \
+  --exit-code 0 \
+  --verbose
+```
+
+`SP047` read `run:` blocks **line by line**. The line naming the scanner carries no neutralising
+token; the line carrying one does not name the scanner. They are one command, and the check saw two
+lines. `--exit-code 0` was not among the neutralising tokens either, so even joined it would not
+have matched. A long shell command written across continuations is the normal way to write one —
+**this check had never seen inside one.**
+
+Continuations are now joined, the scanner must *be* a command in the line rather than appear in it,
+and `--exit-code 0` joins the tokens. Verified both ways on the workflow that produced it.
+
+**The false negative was found by the negative control, not by the fix.** Repairing the false
+positive alone would have left `SP047` silent on exactly the case it exists for — and the repository
+would have gone green with a disarmed scanner and a checker that had just been made *more* precise
+about it. The suite's existing case could not have caught it: its command is one line.
