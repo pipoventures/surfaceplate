@@ -16,17 +16,17 @@ pre-commit hook remains bypassable with `--no-verify`. See
 published because its early commits carry an internal namespace belonging to a former employer,
 which is not ours to publish. Nothing was rewritten to produce this repository — a scrubbed history
 would have been a doctored record, and the reasoning is in
-[`DR-23`](org/decisions/DR-23.md).
+[`DR-23`](https://github.com/pipoventures/surfaceplate/blob/main/org/decisions/DR-23.md).
 
 What survives is the documentary record, which is the substantive part: every release from `0.2.0`
-in [`CHANGELOG.md`](CHANGELOG.md), all decision records in [`org/decisions/`](org/decisions/), and
-all findings in [`org/FINDINGS.md`](org/FINDINGS.md) — including the ones this project failed. Commit
+in [`CHANGELOG.md`](https://github.com/pipoventures/surfaceplate/blob/main/CHANGELOG.md), all decision records in [`org/decisions/`](https://github.com/pipoventures/surfaceplate/blob/main/org/decisions/), and
+all findings in [`org/FINDINGS.md`](https://github.com/pipoventures/surfaceplate/blob/main/org/FINDINGS.md) — including the ones this project failed. Commit
 SHAs cited in those documents refer to the private history and will not resolve here.
 
 ---
 
-**New to this?** Start with [`INSTALL.md`](INSTALL.md) for what an adopting repository receives and
-what installing costs, and [`surfaceplate/core/`](surfaceplate/core/) for the control principles themselves. Written for a
+**New to this?** Start with [`INSTALL.md`](https://github.com/pipoventures/surfaceplate/blob/main/INSTALL.md) for what an adopting repository receives and
+what installing costs, and [`surfaceplate/core/`](https://github.com/pipoventures/surfaceplate/blob/main/surfaceplate/core/) for the control principles themselves. Written for a
 non-technical reader
 first and for engineers in the rest.
 
@@ -74,11 +74,11 @@ standard's gate to answer (`DR-66`).
 **Not the instruction to follow yet: `pip install surfaceplate`.** The name is reserved on PyPI —
 `0.16.0` and `0.16.1` are both on the index, each carrying the `Development Status :: 3 - Alpha`
 classifier — but every instruction here keeps naming the git form until 1.0
-([`DR-61`](org/decisions/DR-61.md)). The PyPI upload is a reservation, not the install route: "not
+([`DR-61`](https://github.com/pipoventures/surfaceplate/blob/main/org/decisions/DR-61.md)). The PyPI upload is a reservation, not the install route: "not
 independently audited" should not be contradicted by anything an adopter is told to run. The git
 form was run into a clean virtualenv before being written here, which is more than could be said for
 the instruction it replaced (`F57`). Publishing it as the install route is a release decision and is
-listed in [`org/HUMAN_ACTIONS.md`](org/HUMAN_ACTIONS.md).
+listed in [`org/HUMAN_ACTIONS.md`](https://github.com/pipoventures/surfaceplate/blob/main/org/HUMAN_ACTIONS.md).
 
 Working from a clone instead? `python surfaceplate/install_standard.py --target ...` does the same
 thing without installing anything.
@@ -114,8 +114,8 @@ published prose, such as a gate's definition. Where it can propose an answer it 
 proposal and where it came from, writes nothing you have not approved at the review, and records
 the origin of every value in `governance/application-profile.provenance.yaml` beside the profile.
 
-Full instructions: **[INSTALL.md](INSTALL.md)**.
-If the installer stops because of existing files: **[RECONCILIATION.md](RECONCILIATION.md)**.
+Full instructions: **[INSTALL.md](https://github.com/pipoventures/surfaceplate/blob/main/INSTALL.md)**.
+If the installer stops because of existing files: **[RECONCILIATION.md](https://github.com/pipoventures/surfaceplate/blob/main/RECONCILIATION.md)**.
 
 ---
 
@@ -123,7 +123,7 @@ If the installer stops because of existing files: **[RECONCILIATION.md](RECONCIL
 
 **No independent reviewer has looked at this yet — that is what the status line above is stating,
 not a formality.** Every finding on record was found by the party who maintains it
-([`org/FINDINGS.md`](org/FINDINGS.md) says so in its own closing section). If you have thirty
+([`org/FINDINGS.md`](https://github.com/pipoventures/surfaceplate/blob/main/org/FINDINGS.md) says so in its own closing section). If you have thirty
 minutes or a few hours and owe this project nothing, that is exactly the review it needs.
 
 The [release for `pypi/0.16.1`](https://github.com/pipoventures/surfaceplate/releases/tag/pypi%2F0.16.1)
@@ -134,7 +134,7 @@ carries a self-contained review packet
   package and check it against the anchor this framework publishes. Two independent ways to reach
   the same number are given, so nothing here needs to be taken on trust.
 - **Part B (a few hours, wants judgement):** a scoped audit against
-  [`audit/AUDIT_SCOPE.md`](audit/AUDIT_SCOPE.md)'s ten criteria, with a stated time-boxed minimum
+  [`audit/AUDIT_SCOPE.md`](https://github.com/pipoventures/surfaceplate/blob/main/audit/AUDIT_SCOPE.md)'s ten criteria, with a stated time-boxed minimum
   and an explicit claim-labelling convention (`FACT FROM PACKAGE` / `INFERENCE` / `RECOMMENDATION`
   / `EVIDENCE GAP`) — "I could not establish this" is a legitimate answer.
 
@@ -193,7 +193,7 @@ Four layers, doing four different jobs. Do not conflate them.
    rewritten. It does **not** detect deliberate coordinated modification by someone with write
    access to the repository, because the record the comparison trusts is a plain local file that
    the same person can edit in the same commit. Nothing in this repository signs, publishes, or
-   independently anchors that record. See [`org/FINDINGS.md`](org/FINDINGS.md), finding F6.
+   independently anchors that record. See [`org/FINDINGS.md`](https://github.com/pipoventures/surfaceplate/blob/main/org/FINDINGS.md), finding F6.
 4. **The organisation ruleset** is what makes the server-side check unavoidable. Without it, a
    repository admin can delete the workflow.
 
@@ -223,7 +223,7 @@ running one.
 
 **Prerequisite gates** are rules of the shape *"X must exist before Y may begin"* — a design policy
 before any UI code, a registered activity before implementation, a decision record before a material
-change. See **[`surfaceplate/core/PREREQUISITE_GATES.md`](surfaceplate/core/PREREQUISITE_GATES.md)**.
+change. See **[`surfaceplate/core/PREREQUISITE_GATES.md`](https://github.com/pipoventures/surfaceplate/blob/main/surfaceplate/core/PREREQUISITE_GATES.md)**.
 
 They matter here because the hook can inspect the staged snapshot before a commit, while the
 history audit can inspect the permanent order of events afterwards. Together they produce a
@@ -280,14 +280,14 @@ compares the two so they cannot drift apart (`F130`).
 recorded digest. `scripts/verify_release.py` lets an adopter verify an archive independently.
 `--verify-manifest` checks that the committed manifest still matches the working tree.
 
-Namespace and versioning decisions, and how to reverse them: [`NAMESPACE.md`](NAMESPACE.md).
+Namespace and versioning decisions, and how to reverse them: [`NAMESPACE.md`](https://github.com/pipoventures/surfaceplate/blob/main/NAMESPACE.md).
 
 ---
 
 ## Status and limitations
 
-- **Version 0.18.0.** See [`CHANGELOG.md`](CHANGELOG.md). The 0.6.0 pre-audit defects are
-  remediated — [`audit/PRE_AUDIT_FINDINGS_0.6.0.md`](audit/PRE_AUDIT_FINDINGS_0.6.0.md).
+- **Version 0.18.0.** See [`CHANGELOG.md`](https://github.com/pipoventures/surfaceplate/blob/main/CHANGELOG.md). The 0.6.0 pre-audit defects are
+  remediated — [`audit/PRE_AUDIT_FINDINGS_0.6.0.md`](https://github.com/pipoventures/surfaceplate/blob/main/audit/PRE_AUDIT_FINDINGS_0.6.0.md).
 - **One adopting repository, and it is the owner's own.** Plutos, a private repository of the same
   maintainer, adopted on 2 September 2026 through `surfaceplate adopt` and was upgraded to the
   published 0.16.0 the next day; its check passes. That is real use by one party, not evidence of
@@ -295,14 +295,14 @@ Namespace and versioning decisions, and how to reverse them: [`NAMESPACE.md`](NA
 - **This repository installs its own standard on itself and passes its own check.** It carries an
   application profile, an activity register, the conformance block and the installed hook, and the
   conformance check runs on every pull request. That was not always so:
-  [`org/decisions/DR-13.md`](org/decisions/DR-13.md) declared closing the gap the last ungoverned
-  work here, and everything after it is ordered in [`org/RELEASE_PLAN.md`](org/RELEASE_PLAN.md),
-  which cites [`org/decisions/DR-12.md`](org/decisions/DR-12.md) for the architecture it is
+  [`org/decisions/DR-13.md`](https://github.com/pipoventures/surfaceplate/blob/main/org/decisions/DR-13.md) declared closing the gap the last ungoverned
+  work here, and everything after it is ordered in [`org/RELEASE_PLAN.md`](https://github.com/pipoventures/surfaceplate/blob/main/org/RELEASE_PLAN.md),
+  which cites [`org/decisions/DR-12.md`](https://github.com/pipoventures/surfaceplate/blob/main/org/decisions/DR-12.md) for the architecture it is
   ordered against. Passing its own check is what the check can establish, and no more.
 - **The remediation was performed by the same party that wrote the framework.** An independent
   review is a prerequisite for organisation-wide rollout, not a nice-to-have.
 - **No independent security review has been performed either.** See
-  [`SECURITY.md`](SECURITY.md) for how to report a vulnerability, what actually happens after a
+  [`SECURITY.md`](https://github.com/pipoventures/surfaceplate/blob/main/SECURITY.md) for how to report a vulnerability, what actually happens after a
   report, and what is and is not in scope.
 - **A ruleset is applied to this repository only, and was demonstrated rather than assumed.** No
   organisation-level ruleset exists, so nothing is required of any other repository.
@@ -328,8 +328,8 @@ file you copy is a file you stop having to reason about.
 
 | Licence | What it covers |
 |---|---|
-| **Apache-2.0** — [`LICENSE`](LICENSE) | `scripts/`, `tests/`, `surfaceplate/schemas/`, `surfaceplate/adapters/`, `surfaceplate/install_standard.py`, `surfaceplate/check_conformance.py`, `surfaceplate/standard/.githooks/`, `surfaceplate/standard/.github/workflows/`, and everything not listed opposite |
-| **CC0-1.0** — [`LICENSE-DOCS`](LICENSE-DOCS) | `surfaceplate/core/` (the standard text), `surfaceplate/templates/`, `surfaceplate/standard/topics/`, `surfaceplate/standard/.github/skills/`, `surfaceplate/standard/conformance-block.md` |
+| **Apache-2.0** — [`LICENSE`](https://github.com/pipoventures/surfaceplate/blob/main/LICENSE) | `scripts/`, `tests/`, `surfaceplate/schemas/`, `surfaceplate/adapters/`, `surfaceplate/install_standard.py`, `surfaceplate/check_conformance.py`, `surfaceplate/standard/.githooks/`, `surfaceplate/standard/.github/workflows/`, and everything not listed opposite |
+| **CC0-1.0** — [`LICENSE-DOCS`](https://github.com/pipoventures/surfaceplate/blob/main/LICENSE-DOCS) | `surfaceplate/core/` (the standard text), `surfaceplate/templates/`, `surfaceplate/standard/topics/`, `surfaceplate/standard/.github/skills/`, `surfaceplate/standard/conformance-block.md` |
 
 Apache-2.0 rather than MIT for the software, because of its express patent grant, and because it
 grants no trademark rights. The code is open; the name is not.
@@ -338,7 +338,7 @@ grants no trademark rights. The code is open; the name is not.
 being written in YAML and Markdown. They are contracts a program parses and stack-specific technical
 guidance, so they carry the patent grant with them.
 
-[`NOTICE`](NOTICE) is present as Apache-2.0 requires.
+[`NOTICE`](https://github.com/pipoventures/surfaceplate/blob/main/NOTICE) is present as Apache-2.0 requires.
 
 ---
 
@@ -347,26 +347,26 @@ guidance, so they carry the patent grant with them.
 **One maintainer, part-time, best effort: Mario Pipo.** This is one of several projects the
 maintainer works on alongside other commitments; no fixed hours are guaranteed to this repository
 specifically. There is no service level, no guaranteed response time, and no guaranteed fix for
-anything — for a vulnerability report, see [`SECURITY.md`](SECURITY.md); for everything else, this
+anything — for a vulnerability report, see [`SECURITY.md`](https://github.com/pipoventures/surfaceplate/blob/main/SECURITY.md); for everything else, this
 section.
 
 **What a contribution needs to have a realistic chance.** Small, well-scoped changes with a clear
 rationale, bug reports with reproduction steps, and documentation fixes are the kinds of
 contribution most likely to get looked at. Large or architectural changes are less likely to be
 reviewed promptly, if at all, given the time actually available. A pull request proposing anything
-already permanently ruled out by [`DR-12`](org/decisions/DR-12.md) — hosting, a certification
+already permanently ruled out by [`DR-12`](https://github.com/pipoventures/surfaceplate/blob/main/org/decisions/DR-12.md) — hosting, a certification
 service, vulnerability scanning, and the rest of that list — will not be accepted regardless of how
 well it is written.
 
-**Something wrong, or something you expected and did not get?** See [`SUPPORT.md`](SUPPORT.md).
+**Something wrong, or something you expected and did not get?** See [`SUPPORT.md`](https://github.com/pipoventures/surfaceplate/blob/main/SUPPORT.md).
 `surfaceplate doctor --report` assembles a paste-ready report on your own machine — nothing is sent
 anywhere until you post it — and names what it collected and what it never gathers at all.
 
-**Every pull request needs a DCO sign-off** (see [`CONTRIBUTING.md`](CONTRIBUTING.md)) before it is
+**Every pull request needs a DCO sign-off** (see [`CONTRIBUTING.md`](https://github.com/pipoventures/surfaceplate/blob/main/CONTRIBUTING.md)) before it is
 looked at — that is a mechanical prerequisite, checked automatically, and is unrelated to
 whether the change itself will be accepted.
 
-**If maintenance stops entirely:** see [`org/SUNSET_PLAN.md`](org/SUNSET_PLAN.md) for what happens
+**If maintenance stops entirely:** see [`org/SUNSET_PLAN.md`](https://github.com/pipoventures/surfaceplate/blob/main/org/SUNSET_PLAN.md) for what happens
 to the repository, to anything published under this name, and to what you have already installed.
 
 Change authority: the maintainer, until a governance owner is designated.

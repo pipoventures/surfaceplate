@@ -65,6 +65,9 @@ TOPICS_END = "<!-- END GENERATED: levels by topic -->"
 # documents" is exactly what is wanted and must not be flagged.
 BARE_TWELVE = re.compile(r"\btwelve(?=[\s]*[.,;)]|\s+(?:are|is|were|of\b))", re.IGNORECASE)
 LINK = re.compile(r"\[[^\]]*\]\(([^)\s#]+)(?:#[^)]*)?\)")
+# `F162`: this repository's own blob URLs, so an absolute link in README.md is still checked
+# for existence rather than waved through because it has a scheme.
+OWN_BLOB = re.compile(r"^https://github\.com/pipoventures/surfaceplate/blob/main/(.+)$")
 PATHISH = re.compile(r"`((?:\.standards|\.github|surfaceplate|org|audit|core|prompts|tests|scripts|docs)/[A-Za-z0-9_./*-]+)`")
 # `F130`: a `name==version` pin, wherever it is written. Anchored on a digit so that a comparison
 # written in prose or code ("x == y") cannot be read as a pin.
@@ -244,6 +247,19 @@ def front_door_checks(checker_text: str, write: bool) -> None:
     for doc in (README, INSTALL):
         text = doc.read_text(encoding="utf-8")
         for target in sorted(set(LINK.findall(text))):
+            # `F162`: README.md is rendered by PyPI as well as by GitHub, and PyPI resolves a
+            # relative link against `pypi.org` - so `](INSTALL.md)` became a 404 on the project
+            # page. The README's file links are therefore absolute.
+            #
+            # Absolute links used to be SKIPPED here, which would have traded a 404 on PyPI for a
+            # link to a deleted file nobody checks. This repository's own blob URLs are resolved
+            # by their path instead, so both properties hold: the reader gets a link that works
+            # from either renderer, and a target that stops existing still fails this suite.
+            own = OWN_BLOB.match(target)
+            if own:
+                check(f"{doc.name}: link `{target}` resolves in this repository",
+                      (ROOT / own.group(1)).exists(), f"no such path: {own.group(1)}")
+                continue
             if "://" in target or target.startswith("mailto:"):
                 continue
             check(f"{doc.name}: link `{target}` resolves in this repository", (doc.parent / target).exists())
@@ -605,9 +621,17 @@ def main() -> int:
         for m in re.finditer(r"^## F(\d+) [^\n]*\n\n\*\*Severity: [^.]*\. ([^*]*)\*\*", findings_text, re.MULTILINE)
     }
 
+    # `DR-86`: three states, not two. `Accepted` is decided, no action pending, and the condition
+    # PERSISTS - which `Open` overstates (it implies work outstanding) and `Closed` understates
+    # (it reads identically to a defect that was fixed). The register's whole job is answering
+    # *what is still wrong here*, and it could not distinguish an accepted risk from a repaired
+    # one without this.
     def word(status: str) -> str:
         head = status.lower()
-        return "closed" if head.startswith("closed") else "open" if head.startswith("open") else "?"
+        for known in ("closed", "accepted", "open"):
+            if head.startswith(known):
+                return known
+        return "?"
 
     disagree = sorted(
         n for n in body_status if n in index_status and word(index_status[n]) != word(body_status[n])
@@ -619,9 +643,23 @@ def main() -> int:
     )
     unparsed = sorted(n for n in body_status if word(body_status[n]) == "?")
     check(
-        "every body status line leads with Open or Closed",
+        "every body status line leads with Open, Accepted or Closed",
         not unparsed,
         ", ".join(f"F{n}: {body_status[n][:40]!r}" for n in unparsed),
+    )
+    # `DR-86`: an accepted finding says what would reopen it, or it is an abandonment wearing a
+    # decision's clothes. `F131`'s trigger is an upstream release; `F55`'s is the habit failing.
+    accepted = [n for n in body_status if word(body_status[n]) == "accepted"]
+    bodies = {
+        int(m.group(1)): m.group(2)
+        for m in re.finditer(r"^## F(\d+) [^\n]*\n(.*?)(?=^## F\d+ |\Z)", findings_text,
+                             re.MULTILINE | re.DOTALL)
+    }
+    silent = [n for n in accepted if "what would reopen" not in bodies.get(n, "").lower()]
+    check(
+        "every Accepted finding states what would reopen it (DR-86)",
+        not silent,
+        ", ".join(f"F{n}" for n in silent),
     )
 
     if FAILURES:
