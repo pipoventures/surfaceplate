@@ -2653,6 +2653,70 @@ def main() -> int:
             result.stdout[-300:],
         )
 
+        # `F160`, and the case above could not reach it: that command is ONE LINE. A long shell
+        # command is conventionally written across continuations, and `SP047` read the block
+        # line by line - so the line naming the scanner carried no neutralising token, the line
+        # carrying one did not name the scanner, and a deliberately disarmed scan was invisible
+        # to the check built to find it. Found on a real adopter's workflow.
+        scan_workflow.write_text(
+            wired_workflow.replace(
+                "        run: gitleaks detect --exit-code 1\n",
+                "        run: |\n"
+                "          gitleaks detect \\\n"
+                "            --source . \\\n"
+                "            --exit-code 0 \\\n"
+                "            --verbose\n",
+            ),
+            encoding="utf-8",
+        )
+        result = gate_check(essential_src)
+        check(
+            "a scan disarmed across continuation lines is rejected (F160)",
+            result.returncode == 1 and "SP047" in result.stdout,
+            result.stdout[-300:],
+        )
+
+        # And the same shape ARMED must stay clean, or the check above is satisfied by anything
+        # multi-line rather than by the disarming.
+        scan_workflow.write_text(
+            wired_workflow.replace(
+                "        run: gitleaks detect --exit-code 1\n",
+                "        run: |\n"
+                "          gitleaks detect \\\n"
+                "            --source . \\\n"
+                "            --exit-code 1 \\\n"
+                "            --verbose\n",
+            ),
+            encoding="utf-8",
+        )
+        result = gate_check(essential_src)
+        check(
+            "the same command armed, across the same lines, is accepted",
+            "SP047" not in result.stdout,
+            result.stdout[-300:],
+        )
+
+        # `F160`'s other half: a step that READS the report is not the scan command. The
+        # scanner's name is in a filename here and the `|| echo 0` defaults a missing report to
+        # zero - both legitimate, and both were reported as a scan discarding its exit code.
+        scan_workflow.write_text(
+            wired_workflow.replace(
+                "        run: gitleaks detect --exit-code 1\n",
+                "        run: gitleaks detect --exit-code 1\n"
+                "      - name: Summarise findings\n"
+                "        run: |\n"
+                "          count=\"$(python3 -c \"import json; print(len(json.load(open('gitleaks-report.json'))))\" 2>/dev/null || echo 0)\"\n"
+                "          echo \"gitleaks found $count finding(s)\"\n",
+            ),
+            encoding="utf-8",
+        )
+        result = gate_check(essential_src)
+        check(
+            "a step that reads the scanner's report is not a scan command (F160)",
+            "SP047" not in result.stdout,
+            result.stdout[-300:],
+        )
+
         # The negative direction: a correctly wired scanner raises neither code. Without
         # this, every assertion above would still pass if the control fired unconditionally.
         scan_workflow.write_text(wired_workflow, encoding="utf-8")
