@@ -333,7 +333,10 @@ def check_install_record(repo: Path, findings: list[Finding]) -> dict | None:
                 "SP001",
                 "Surfaceplate is not installed",
                 f"{INSTALL_RECORD} is missing.",
-                "Run install_standard.py from the surfaceplate repository.",
+                # `F154`: this said "Run install_standard.py from the surfaceplate repository",
+                # which names an internal script a pip adopter does not have and sends them to a
+                # clone they may have no reason to make. The command is the one the tool installs.
+                "Run: surfaceplate install --target <this repository>",
                 graceable=False,
             )
         )

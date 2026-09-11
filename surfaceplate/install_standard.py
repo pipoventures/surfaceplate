@@ -794,14 +794,37 @@ def install(
             hook_path.chmod(hook_path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
         written += 1
 
-    # Remove controls the previous version installed that this version no longer ships.
+    # Remove controls the previous version installed that this version no longer ships - and say
+    # WHICH of the two reasons applies, because they are different facts (`F151`).
+    #
+    # `(no longer part of the standard)` was printed for both, and for a declined channel it is
+    # simply untrue: `.claude/rules/surfaceplate-01-authority.md` is still very much part of the
+    # standard, and an adopter who reads that line and later wonders where Topic 1 went has been
+    # told the wrong thing about their own repository.
+    declined_prefixes = tuple(
+        prefix
+        for name, prefixes in AGENT_CHANNELS.items()
+        if agents is not None and name not in agents
+        for prefix in prefixes
+    )
     stale = sorted(set(previous.get("files", {})) - set(payload))
     for rel in stale:
         path = target / rel
         if path.is_file():
-            print(f"  remove  {rel}  (no longer part of the standard)")
+            why = (
+                "this agent channel is no longer installed here"
+                if declined_prefixes and rel.startswith(declined_prefixes)
+                else "no longer part of the standard"
+            )
+            print(f"  remove  {rel}  ({why})")
             if not dry_run:
                 path.unlink()
+                # `F151`: and take the directory with it when nothing is left. Declining a channel
+                # left eight empty directories behind - `.claude/rules` and seven skill folders -
+                # which read as "the standard is installed here" to anyone looking, and to any
+                # tool that tests a path rather than its contents. `_prune_empty` is the same
+                # function `uninstall` uses, and it stops at anything the adopter still owns.
+                _prune_empty(path.parent, target)
 
     block = (source / "standard" / "conformance-block.md").read_text(encoding="utf-8")
     # AGENTS.md is agent-neutral and always written. `.github/copilot-instructions.md` is
@@ -1055,10 +1078,6 @@ def main(argv: list[str] | None = None) -> int:
     )
 
 
-if __name__ == "__main__":
-    raise SystemExit(main())
-
-
 # ---------------------------------------------------------------------------
 # Removal (`F138`, `DR-75`). Until now there was none: no command, no flag, no document, and the
 # pathway sweep found that by looking. A standard a repository cannot leave is a harder thing to
@@ -1181,3 +1200,21 @@ def _prune_empty(directory: Path, stop: Path) -> None:
         except OSError:
             return
         current = current.parent
+
+
+# THE ENTRY POINT IS LAST, and it has to be (`F152`).
+#
+# `ACT-081` appended the removal section - `uninstall`, `_prune_empty`, some 125 lines - BELOW this
+# block, where it had sat since the file was written. Everything after `if __name__ == "__main__"`
+# is unbound when the file is executed as a script, because `main()` runs before the interpreter
+# reaches it. Imported, the whole module executes first and it all works, which is why `uninstall`
+# via `surfaceplate uninstall` never showed a symptom and nothing caught it.
+#
+# It surfaced when `install()` - reachable as a script - first called `_prune_empty`:
+# `NameError: name '_prune_empty' is not defined`, after one file had already been deleted. A
+# half-completed removal is the worst shape this could have taken.
+#
+# `tests/check_code_registers.py` now refuses any definition below this line, so the trap cannot be
+# reset by the next person appending a section to the end of a file.
+if __name__ == "__main__":
+    raise SystemExit(main())

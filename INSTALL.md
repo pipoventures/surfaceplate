@@ -94,11 +94,23 @@ surfaceplate install --target /path/to/your-repo
 surfaceplate check --repo /path/to/your-repo
 ```
 
+**`@main` is the current tip of the default branch, not a release** (`F154`). `pip freeze` will
+record the commit it resolved to, and two people running that line a week apart may not get the
+same code. There is no versioned install to point at yet — the PyPI name is reserved and unused,
+and the published tags stop at `0.16.1`. Pin the commit yourself if you need two machines to agree:
+`pip install 'git+https://github.com/pipoventures/surfaceplate@<sha>'`.
+
 Always run `--dry-run` first. It writes nothing and shows you exactly what would change.
 `surfaceplate doctor` says, one line each, what on this machine would stop the next commands: a
 global `core.hooksPath`, a Python without pip, a virtual environment the hook cannot find, an
 installed copy of the standard that is not the release this tool ships (`adopt` refuses until it
 is upgraded, and names the command).
+
+**If `doctor` warns about `core.hooksPath`, the install above will stop** — it refuses rather than
+replace a hook path you set. That is not a failure to work around; it is the third command telling
+you the truth about the machine. Two supported answers, both in "Hooks" below: `--chain` keeps your
+hook system and delegates to the standard's gate, and `--no-hooks` installs no hook at all and
+leaves the other two enforcement routes doing the work. Pick one and re-run; nothing was written.
 
 Working from a clone instead? From inside the clone, `python surfaceplate/install_standard.py
 --target ...` does the same thing without installing anything: the installable package is the

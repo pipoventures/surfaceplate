@@ -14,12 +14,12 @@
 fields:
   adoption.framework_version:
     origin: fact of record
-    detail: 're-pinned to the installed standard: 0.18.0 -> 0.18.0, f644e2f7dfa4… -> 63702d13883b…, read from .standards/INSTALL.json'
-    typed_at: '2026-09-09T23:39:33+01:00'
+    detail: 're-pinned to the installed standard: 0.18.0 -> 0.18.0, 63702d13883b… -> 1931509d67e4…, read from .standards/INSTALL.json'
+    typed_at: '2026-09-11T12:01:54+01:00'
   adoption.framework_digest:
     origin: fact of record
-    detail: 're-pinned to the installed standard: 0.18.0 -> 0.18.0, f644e2f7dfa4… -> 63702d13883b…, read from .standards/INSTALL.json'
-    typed_at: '2026-09-09T23:39:33+01:00'
+    detail: 're-pinned to the installed standard: 0.18.0 -> 0.18.0, 63702d13883b… -> 1931509d67e4…, read from .standards/INSTALL.json'
+    typed_at: '2026-09-11T12:01:54+01:00'
 edits:
 - path: adoption.framework_version
   at: '2026-09-09T22:18:35+01:00'
@@ -39,3 +39,9 @@ edits:
 - path: adoption.framework_digest
   at: '2026-09-09T23:39:33+01:00'
   reason: 're-pinned to the installed standard: 0.18.0 -> 0.18.0, f644e2f7dfa4… -> 63702d13883b…, read from .standards/INSTALL.json'
+- path: adoption.framework_version
+  at: '2026-09-11T12:01:54+01:00'
+  reason: 're-pinned to the installed standard: 0.18.0 -> 0.18.0, 63702d13883b… -> 1931509d67e4…, read from .standards/INSTALL.json'
+- path: adoption.framework_digest
+  at: '2026-09-11T12:01:54+01:00'
+  reason: 're-pinned to the installed standard: 0.18.0 -> 0.18.0, 63702d13883b… -> 1931509d67e4…, read from .standards/INSTALL.json'

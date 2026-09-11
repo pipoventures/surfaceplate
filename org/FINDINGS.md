@@ -201,7 +201,7 @@ an unknown number of releases with nothing noticing.
 | F133 | The history audit accepts the installed **seed** as a former name of any artefact `adopt` scaffolded from it, so deleting the artefact never registers as a gate violation — and the seed can never be deleted | high | Closed — `ACT-080` (`DR-74`), 2026-09-09; raised as `PW-01`; confirmed at `HEAD` by the maintainer's session |
 | F134 | A refused `--answers` replay writes `.standards/adopt-draft.json` while printing *"Nothing was written"*, and that draft then makes a corrected record fail with the old value's error | high | Closed — `ACT-080` (`DR-74`), 2026-09-09; raised as `PW-02`; confirmed on the sweep's controlled isolation |
 | F135 | `pyproject.toml` is offered and proposed as a dependency **lock** file, and `SP051` accepts any tracked non-empty file as one — a manifest is not a lock | high | Closed — `ACT-080` (`DR-74`), 2026-09-09; raised as `PW-03`; confirmed at `HEAD` |
-| F136 | The pathway sweep's remaining fifteen findings (`PW-04` to `PW-18`), reported with evidence and **not yet adjudicated here** — held as one entry so none is lost and none is given a verified finding's status | medium | Open — each splits into its own `F<n>` as it is adjudicated |
+| F136 | The pathway sweep's remaining fifteen findings (`PW-04` to `PW-18`), held as one entry so none was lost and none was given a verified finding's status before it had been reproduced here | medium | Closed — `ACT-094`/`ACT-095`, 2026-09-11. All adjudicated: eight confirmed as `F148`–`F156`, `PW-18` as `H25`, two refuted and issued no code |
 | F137 | The natural completion of a shipped template is invalid: an unquoted `YYYY-MM-DD` parses as a YAML date and every schema here says `type: string` — it defeats the FAQ's own remedy for a bypassed gate, and `adoption_date` for anyone filling the profile by hand | medium | Closed — `ACT-081` (`DR-75`), 2026-09-09; see the body |
 | F138 | There was no way to remove the standard from a repository — no command, no flag, no document | medium | Closed — `ACT-081` (`DR-75`), 2026-09-09; see the body |
 | F139 | `adopt --edit` against the installer's template profile ended in `KeyError: 'scanner'`, exit 4 — a crash where a refusal belongs | medium | Closed — `ACT-083` (`DR-78`), 2026-09-09; see the body |
@@ -213,6 +213,15 @@ an unknown number of releases with nothing noticing.
 | F145 | `F144` fixed the proposal and not the profiles already carrying a bad one: the only real adopter had two controls credited to a checkout step and passed every run | medium | Closed — `ACT-088`, 2026-09-09; see the body |
 | F146 | An upgrade leaves `framework_version` and `framework_digest` stale by construction, so every upgrading adopter is handed `SP048` and `SP049` and must hand-copy a 64-character digest | medium | Closed — `ACT-092` (`DR-81`), 2026-09-09; see the body |
 | F147 | A dropdown of discovered candidates was the only answer a human could give, though nothing but the widget held that rule: the validator was always the real gate and a scripted adoption could name any tracked file. The list was also truncated 12-of-30 while claiming to be the finding | high | Closed — `ACT-093` (`DR-82`), 2026-09-09; see the body |
+| F148 | `README.md`'s contributor block cannot be completed as written: its venv omits `textual`, so the suite it runs fails and `build_release.py` refuses to build | medium | Closed — `ACT-094`, 2026-09-11; see the body |
+| F149 | `doctor` and `doctor --report` crash with `UnicodeEncodeError` on an ASCII stdout — and `doctor --report` is the command `SUPPORT.md` names for reporting a problem | medium | Closed — `ACT-094`, 2026-09-11; see the body |
+| F150 | The answers record says what a gate artefact is and nothing about what a control's implementation reference is, though one wants a file and the other a CI step name; `F144` made adopters meet the unexplained field far more often | medium | Closed — `ACT-094`, 2026-09-11; see the body |
+| F151 | Declining an agent channel left eight empty directories and reported the files as "no longer part of the standard" when they are still part of it | low | Closed — `ACT-094`, 2026-09-11; see the body |
+| F152 | `uninstall` and `_prune_empty` sat below `install_standard.py`'s `__main__` block, so they are unbound when the file runs as a script — a `NameError` after one file had already been deleted | medium | Closed — `ACT-094`, 2026-09-11; see the body |
+| F153 | `RECONCILIATION.md` claimed the standard owns `.github/instructions/*.instructions.md` as a glob; it owns twelve named files and seven named skills, and the adopter's own files were never at risk | low | Closed — `ACT-094`, 2026-09-11; see the body |
+| F154 | Three documented things that were not true: `SP001`'s remedy named an internal script, the documented `pip install` resolves to `@main` rather than a release, and the install block did not say what to do when it stops on a global `core.hooksPath` | low | Closed — `ACT-094`, 2026-09-11; see the body |
+| F155 | `RECONCILIATION.md`'s first command assumed a clone of this repository beside the adopter's; a pip adopter gets `No such file or directory` on step 1 | low | Closed — `ACT-094`, 2026-09-11; see the body |
+| F156 | No wizard-written profile ever claimed `local_hook`, so `SP038` and `DR-66`'s verification-by-effect could not fire for any adopter; a `--chain` install never declared the delegation it had deliberately chosen | medium | Closed for the chained case — `ACT-095` (`DR-83`), 2026-09-11; the wider case is `H24`; see the body |
 Closed entries are indexed here and left in their original records; they are not restated.
 `F1`–`F3` — `org/decisions/DR-5.md:53,75,87`, fixed per `CHANGELOG.md:490-508`.
 `F4` — stated in prose at `org/decisions/DR-6.md:34-39`, never given a heading or a severity;
@@ -1544,6 +1553,217 @@ field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
 
+## F156 — A chained install never declared its delegation, so `SP038` could not fire for anyone
+
+**Severity: medium. Closed — `ACT-095` (`DR-83`), 2026-09-11.** Adjudicated from `F136`'s `PW-05`.
+
+Reproduced at `HEAD` on a `--chain` install: every gate was written `enforcement: [history_audit,
+review]` and **no `hook_chain` block was written at all**. `grep hook_chain surfaceplate/adopt/*.py`
+returned nothing — the wizard had no concept of chaining — and `local_hook` appeared only as a
+permitted enum value in `validators.ENFORCEMENT_VALUES` that nothing ever proposed.
+
+**Wider than reported, and the wider form is the real finding.** Every one of the checker's hook
+checks is gated on `"local_hook" in gate["enforcement"]` — `SP038` at two sites, and the staged-gate
+check. `sections.DERIVED_ENFORCEMENT` was `["history_audit", "review"]` for **every gate of every
+adopter**, so **no wizard-written profile has ever claimed `local_hook`**, and `DR-66`'s
+verification-by-effect was unreachable through the documented adoption path for everybody, not only
+for chained installs. The sweep reached it only by hand-editing a profile, which is why it read as a
+`--chain` problem.
+
+**Closed by `ACT-095`.** `discover.installed_hooks` reads the install record's own `hooks` value —
+a fact about the tree, never a question, on `DR-73`'s reasoning. A chained install is asked one
+thing: *why* it keeps its own hook system. `delegates_to` is derived, because the adopter chose to
+chain and did not choose where this standard installs its gate — `DR-81`'s claim/clerk split, one
+field along. Gates then claim `local_hook`, and `SP038` engages.
+
+**Scope held deliberately.** A normal (`installed`) adoption still does not claim `local_hook`, so
+this closes the chained case and leaves the wider one open as a decision: whether an adopter whose
+hook *is* the standard's should claim it too. That is more assurance for every adopter and a larger
+blast radius, and it is not an agent's call. **Recorded as `H24`.**
+
+**Evidence — both directions, on a real repository.** With the chain declared and no delegating hook
+in place, `SP038` fires naming the gate and the hook Git would actually run. With a delegating hook
+at the *resolved* hooks path, it clears and the checker reports `PASS`. The first attempt at that
+second half was wrong — a hook was placed in `.git/hooks` on a machine whose **global**
+`core.hooksPath` means Git never looks there, and the checker correctly said so; the fixture was at
+fault, not the check. `tests/test_adopt.py::test_a_chained_install_declares_the_chain_and_claims_local_hook`
+asserts both directions plus the two negatives: an unchained profile carries no `hook_chain` key,
+and is never asked the question.
+
+**Three things the round-trip guard and the suites caught mid-implementation**, recorded because
+each was a real defect in the first attempt: `test_provenance` refused the two new derived strings
+until they were declared; the provenance **router** had no rule for `adoption.hook_chain.*` and the
+real command failed where the suite had passed (the allow-list check and the router are different
+mechanisms, and only the first had been updated); and `render_profile` did not write `hook_chain`,
+so the round-trip guard refused to write anything — the same guard that caught `DR-81`'s re-render
+flaw.
+
+## F155 — `RECONCILIATION.md` could not be followed by an adopter who installed with pip
+
+**Severity: low. Closed — `ACT-094`, 2026-09-11.** Adjudicated from `F136`'s `PW-13`.
+
+Step 1 of the procedure — the first command an adopter runs when the installer has stopped — read:
+
+```bash
+diff .github/skills/change/SKILL.md ../surfaceplate/surfaceplate/standard/.github/skills/change/SKILL.md
+```
+
+That path assumes a clone of this repository sitting beside theirs. An adopter who installed with
+`pip` gets `No such file or directory`, on the first step of the document they were sent to.
+
+**Closed** by asking the installed package where its own copy is, which works for both install
+routes. Step 6 is corrected in the same change: it said to note the reconciliation *"in the
+application profile's decision record"*, and `adoption.decision_record_id` is a **pointer**, not
+somewhere to write prose.
+
+**`PW-13`'s other half was `F138`** and closed separately — there was no removal procedure at all,
+and `surfaceplate uninstall` now exists.
+
+## F154 — Three documented things that were not true
+
+**Severity: low. Closed — `ACT-094`, 2026-09-11.** Adjudicated from `F136`'s `PW-17`, which bundled
+four sub-claims; three were checked and confirmed here.
+
+1. **`SP001`'s remedy named an internal script.** *"Run install_standard.py from the surfaceplate
+   repository"* — a file a pip adopter does not have, sending them to a clone they have no reason to
+   make. It now names `surfaceplate install --target <repository>`, the command the tool installs.
+2. **The documented `pip install` resolves to `@main`, not a release.** Two people running the
+   documented line a week apart may not get the same code. There is no versioned install to point at
+   — the PyPI name is reserved and unused, and the published tags stop at `0.16.1` — so this is
+   **stated** rather than repointed, with the commit-pinning form given for anyone who needs two
+   machines to agree. Creating a release tag is a publication decision and is not one this change
+   takes.
+3. **The install block stops on a machine with a global `core.hooksPath`** and did not say what to
+   do about it. `doctor` predicted it; the block then ran `install`, which refused. The two supported
+   answers (`--chain`, `--no-hooks`) are now named at the point the reader meets the problem.
+
+## F153 — `RECONCILIATION.md` claimed the standard owns files it does not
+
+**Severity: low. Closed — `ACT-094`, 2026-09-11.** Adjudicated from `F136`'s `PW-14`.
+
+The page said *"The standard owns fixed paths: `.github/instructions/*.instructions.md`"* — a glob,
+which claims every file in the directory. The installer owns only its **twelve named topic documents
+and seven named skills**, per channel: an adopter's own `team.instructions.md` is neither overwritten
+nor listed as a conflict.
+
+**The behaviour was always the narrower and better one; only the page was wrong** — which is the
+uncomfortable direction, because an adopter who believed it would have moved a file that never
+needed moving, on this document's authority. Corrected to a table of what is actually owned, with
+`surfaceplate install --dry-run` named as the authority over any sentence in the page. The Claude
+channel, which the page omitted entirely, is included in the same correction.
+
+## F152 — Code below a module's entry point is unbound when the file runs as a script
+
+**Severity: medium. Closed — `ACT-094`, 2026-09-11.** Found in this session while fixing `F151`, not
+reported by the sweep.
+
+`ACT-081` appended the removal section — `uninstall`, `_prune_empty`, some 125 lines — **below**
+`install_standard.py`'s `if __name__ == "__main__": raise SystemExit(main())`. Imported, the module
+executes fully and everything binds. Run as a script, `main()` is called before the interpreter
+reaches those lines, so they do not exist.
+
+**It showed no symptom for two reasons, and both are the interesting part.** `uninstall` is only
+ever reached by import (`surfaceplate uninstall`), so it always worked. And the file reads perfectly
+normally: **the defect is a relationship between two line numbers, not anything wrong at either
+one**, so no amount of reading either function finds it.
+
+It surfaced when `install()` — which *is* run as a script — first called `_prune_empty` as part of
+`F151`'s fix: `NameError: name '_prune_empty' is not defined`, **after one file had already been
+deleted**. A half-completed removal is the worst shape this could have taken.
+
+**Closed** by moving the entry point to the end of the file, where it belongs, and by
+`tests/check_code_registers.py::nothing_is_defined_below_the_entry_point`, which refuses any
+definition below that block in any shipped module. Verified against the version that carried the
+defect: it reports both `uninstall` and `_prune_empty`.
+
+**This also corrects a verification failure of my own, recorded because the shape matters.** `F151`
+was reported here as fixed and verified — *"0 empty directories"* — from a run that had **crashed**.
+The check grepped for `remove` lines and counted empty directories without reading the exit code, so
+"no empty directories" meant "it died before making any", not "it pruned them". A negative finding
+must establish that the observation was capable of succeeding, and that one was not.
+
+## F151 — Declining an agent channel left empty directories and misstated why
+
+**Severity: low. Closed — `ACT-094`, 2026-09-11.** Adjudicated from `F136`'s `PW-15`.
+
+Worse at `HEAD` than reported: **eight** empty directories, not two — `.claude/rules` plus seven
+empty `.claude/skills/<name>` folders. An empty `.claude/rules` reads as *"the standard is installed
+here"* to anyone looking, and to any tool that tests a path rather than its contents.
+
+And the message was wrong. Every removal printed `(no longer part of the standard)`, which for a
+declined channel is simply untrue: `.claude/rules/surfaceplate-01-authority.md` is still very much
+part of the standard — it is no longer part of *this repository's chosen channels*. An adopter
+reading that line and later wondering where Topic 1 went has been told the wrong thing about their
+own repository.
+
+**Closed** by distinguishing the two causes in the output, and by reusing `_prune_empty` — the same
+function `uninstall` already used, which stops at anything the adopter still owns. Verified in both
+directions: nineteen files removed with no directory left behind, and an adopter's own `NOTES.md`
+and `skills/ours/SKILL.md` untouched with their directories intact.
+
+## F150 — The answers record never said what kind of value a control's reference takes
+
+**Severity: medium. Closed — `ACT-094`, 2026-09-11.** Adjudicated from `F136`'s `PW-10`, first half.
+
+The record's `choices:` block told an adopter that `gates.<id>.artefact` wants *a file git tracks in
+this repository*, and said **nothing at all** about `controls.contract_tests.implementation_reference`
+or `controls.deterministic_tests.implementation_reference`, which want something else entirely: the
+name of a step in a CI workflow. The only place that was written down was `adopt/validators.py`. The
+record's own header says *"complete them all"*.
+
+**`F144` made this bite harder, and that interaction is the uncomfortable part.** Since a CI step is
+proposed only where its name says it runs tests, the two test controls are now left blank far more
+often than when this was reported — so the fix in `ACT-087` increased the reach of this defect.
+
+**Closed** generally rather than for the two reported fields: the sentence is keyed on
+`FieldSpec.context`, which `DR-51` (4) already maintains for exactly this purpose, so all four
+control patterns and the scanner field gained one and a new picked field inherits it by carrying a
+context. `tests/test_adopt.py` asserts the property over every field answered by picking, not over
+the two that were reported.
+
+## F149 — `doctor` died on a narrow terminal, and it is the command for reporting problems
+
+**Severity: medium. Closed — `ACT-094`, 2026-09-11.** Adjudicated from `F136`'s `PW-11`.
+
+Both `doctor` and `doctor --report` crash with
+`UnicodeEncodeError: 'ascii' codec can't encode character '…'` when stdout cannot represent the
+truncation ellipsis in the digest columns. Reached by `PYTHONCOERCECLOCALE=0` or `PYTHONUTF8=0` on an
+ASCII locale; plain `LANG=C` is coerced by Python and was never affected.
+
+**The failing command is the one `SUPPORT.md` tells people to run when something is already wrong**,
+so the diagnostic died exactly where it was needed.
+
+**Fixed at the boundary, not at the nine glyphs.** The glyph is not the defect: any future one would
+reintroduce it, and a rule that must be remembered at every print site is a rule that will be
+forgotten at one. The CLI entry reconfigures stdout and stderr with `errors="replace"`; a decoration
+degrades to `?` and the output survives. A report a human can read imperfectly beats a traceback they
+cannot use at all.
+
+**A verification note worth keeping.** The first check of this reported `rc=0` and looked clean —
+because the command was piped to `tail`, which returns its own exit status. The crash was real and
+the check could not see it.
+
+## F148 — The documented way to work on the standard does not work
+
+**Severity: medium. Closed — `ACT-094`, 2026-09-11.** Adjudicated from `F136`'s `PW-06` — and
+**independently rediscovered in this session before the report was re-read**, which is the strongest
+form of corroboration available here.
+
+`README.md`'s *"Working on the standard itself"* block creates a virtual environment with
+`pyyaml jsonschema` and then runs `tests/test_install_and_check.py`, which asserts that `adopt`
+without a terminal exits 3 naming `--propose`. On an interpreter with no `textual` the command exits
+2 saying the dependency is missing instead — a different, also-correct answer to a different
+question. The suite fails, and `scripts/build_release.py` then refuses to build on it.
+
+So the first and only documented path for a contributor ends in a failing suite and a refused build,
+with nothing in the block explaining why. This is the standard's own `S3` — a documented path that
+cannot be completed as documented — in this repository's own README.
+
+**Closed** by installing `textual` in that block, pinned to match `pyproject.toml`'s `adopt` extra,
+with the reason stated inline: it is optional for *using* the standard and not optional for
+*checking* it. `tests/check_code_registers.py` already compares pins in `README.md` against
+`pyproject.toml` (`F130`), so the two cannot drift.
+
 ## F147 — A discovered list was offered as the only permitted answer
 
 **Severity: high. Closed — `ACT-093` (`DR-82`), 2026-09-09.**
@@ -1954,7 +2174,54 @@ fixed by this.
 ## F136 — The pathway sweep's remaining fifteen findings, held pending adjudication
 
 **Severity: medium (the holding entry; individual severities below are the reporter's).
-Open — raised 2026-09-09.**
+Closed — `ACT-094` and `ACT-095`, 2026-09-11. All ten remaining were adjudicated by reproduction
+against `HEAD`; eight stand and carry their own codes, two were refuted.**
+
+### The adjudication, 2026-09-11
+
+| | Claimed | Verdict at `HEAD` | Now |
+|---|---|---|---|
+| `PW-05` | medium | confirmed, **wider than reported** | `F156` |
+| `PW-06` | medium | confirmed, **rediscovered independently** the same day | `F148` |
+| `PW-10` | medium | **split** — first half confirmed, second refuted | `F150` |
+| `PW-11` | medium | confirmed | `F149` |
+| `PW-13` (reconciliation half) | low | confirmed | `F155` |
+| `PW-14` | low | confirmed | `F153` |
+| `PW-15` | low | confirmed, **worse than reported** | `F151` |
+| `PW-16` | low | **refuted** | — |
+| `PW-17` | low | confirmed (3 of its 4 sub-claims checked) | `F154` |
+| `PW-18` | low | confirmed | `H25` |
+
+**The two refutations are recorded here and issued no code, deliberately.** A finding that was never
+true of this repository is not a finding of this register; a number issued and closed the same day
+would sit in the sequence forever describing a non-defect, indistinguishable on inspection from the
+eight that are real. That is the property this holding entry was created to protect, and it paid:
+adjudicating rather than transcribing removed two entries that would otherwise have been permanent.
+
+- **`PW-16` — refuted.** It described `--propose` substituting silent defaults where the record said
+  `needs-human`, and an empty-list sentence. At `HEAD` `risk.data_classification`,
+  `relied_on_outside_team` and `material_quantitative_output` all read `needs-human` with explicit
+  option notes, there is no empty-list sentence and no double full stop. **The preview it describes
+  no longer exists** — `--propose` writes an answers record instead. Fixed by later work
+  (`ACT-081`/`DR-75`'s neighbourhood) without anyone connecting the two.
+- **`PW-10`, second half — refuted.** *"A gate answered `not_applicable` still demands an artefact
+  path."* Replayed with five gates `not_applicable` and every one of their artefacts blank: the
+  profile wrote cleanly and `check_conformance` reported `PASS`. The first two attempts at this
+  refused on `controls.scanner.wired_in` and `dependency_lock` — confounds in the fixture, not the
+  finding — and neither refusal ever mentioned a gate artefact.
+
+**`PW-18` is confirmed and not fixed here**, because the fix changes audit semantics rather than a
+document: `git log --since=<instant>` is inclusive at second granularity, so a commit made in the
+same second as `effective_from` falls inside the audit window and is judged as crossing the gate.
+Verified directly — `--since` at a commit's exact instant returns it, one second later returns
+nothing — and this repository's own matrix fixture already back-dates its commits *"so a gated
+commit made in the same second as a seed's instant never reads as crossing a gate"*, a workaround
+for exactly this, in this tree. Narrowing the window is a change to what every adopter's history
+audit examines. **Recorded as `H25`.**
+
+### The original entry, as raised
+
+**Raised 2026-09-09.**
 
 `audit/PATHWAY_SWEEP_REPORT_2026-09-09.md` reports eighteen findings from 35 scenarios executed by a
 separate session against `30bba44`, with raw logs under

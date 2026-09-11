@@ -73,6 +73,10 @@ _CONSTANT = {
     "adoption.framework_digest": Origin(FACT, "read from .standards/INSTALL.json"),
     "adoption.adoption_date": Origin(FACT, "the date adopt wrote this profile"),
     "adoption.deferrals": Origin(COMPUTED, "nothing can be deferred through the wizard"),
+    # `F156` / `DR-83`. The adopter chose to chain, and said why; they did not choose the PATH -
+    # it is where this standard installs its gate. The same claim/clerk split `DR-81` records for
+    # `--repin`: a `FACT` of the framework's own making, not something anyone typed.
+    "adoption.hook_chain.delegates_to": Origin(FACT, "where this standard installs its hook"),
     "exclusions": Origin(COMPUTED, "nothing is excluded through the wizard"),
 }
 
@@ -92,6 +96,8 @@ _DIRECT = {
     "adoption.framework_maintainer": "adoption.framework_maintainer",
     "adoption.repository_classification": "adoption.repository_classification",
     "adoption.decision_record_id": "adoption.decision_record_id",
+    # `F156`: the half that IS the adopter's - why they keep their own hook system.
+    "adoption.hook_chain.rationale": "adoption.hook_chain_rationale",
     "adoption.adoption_status": "adoption.adoption_status",
     "adoption.status_rationale": "adoption.status_rationale",
     "adoption.independent_validator": "adoption.independent_validator",
@@ -170,7 +176,9 @@ def answer_key_for(path: str, profile: dict) -> tuple[str | None, Origin | None]
 _DERIVED_WHEN_ABSENT = {
     "precondition_description": Origin(COMPUTED, "the framework's own definition of the gate"),
     "gated_description": Origin(COMPUTED, "= the gated paths"),
-    "enforcement": Origin(COMPUTED, "history audit and review, the two needing no tooling"),
+    # `F156`: and `local_hook` as well where the install record says the hook is chained - the
+    # sentence names what is derived, so it has to name all of it.
+    "enforcement": Origin(COMPUTED, "history audit and review, plus the local hook where one is chained"),
     "status": Origin(COMPUTED, "settled by the level, or by having no user interface"),
     "independent_validator": Origin(COMPUTED, "no independent review declared"),
 }

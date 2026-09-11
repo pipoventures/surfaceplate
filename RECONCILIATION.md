@@ -4,10 +4,26 @@ The installer stops rather than overwrite files you wrote. This is how to resolv
 
 ## Why it stops
 
-The standard owns fixed paths: `.github/instructions/*.instructions.md` and
-`.github/skills/<name>/SKILL.md`. If your repository already has a file at one of those paths, the
-installer cannot tell whether it is a rough draft or the most carefully considered document in the
-repository. So it refuses, lists the conflicts, and writes nothing.
+The standard owns **named files, not directories** — twelve topic documents and seven skills, per
+agent channel:
+
+| Channel | Topic documents | Skills |
+|---|---|---|
+| Claude Code | `.claude/rules/surfaceplate-<nn>-<topic>.md` | `.claude/skills/<name>/SKILL.md` |
+| Copilot | `.github/instructions/<nn>-<topic>.instructions.md` | `.github/skills/<name>/SKILL.md` |
+
+If your repository already has a file at one of *those* paths, the installer cannot tell whether it
+is a rough draft or the most carefully considered document in the repository. So it refuses, lists
+the conflicts, and writes nothing.
+
+**Anything else in those directories is yours and is not touched** (`F153`). This page used to say
+the standard owned `.github/instructions/*.instructions.md` — a glob, which claims every file in the
+directory. It does not: a `team.instructions.md` of your own is neither overwritten nor listed as a
+conflict. The behaviour was always the narrower one; only this page was wrong, and an adopter who
+believed it would have moved a file that never needed moving.
+
+`surfaceplate install --dry-run --target <repo>` lists exactly what would be written, which is the
+authority over any sentence here.
 
 The case this exists for is a repository that already carries some or all of the seven skill names
 and the twelve topic document names, with its own stack and methodology detail in them that the
@@ -27,11 +43,18 @@ Almost every existing skill file is a blend. Split it.
 
 ## Procedure
 
-1. **Diff, don't assume.** For each conflicting file, compare it with the standard's version:
+1. **Diff, don't assume.** For each conflicting file, compare it with the standard's version. Ask
+   the installed package where its copy is rather than guessing a path — `pip install` puts it in
+   site-packages and a `git clone` puts it beside you, and only this works for both (`F155`):
 
    ```bash
-   diff .github/skills/change/SKILL.md ../surfaceplate/surfaceplate/standard/.github/skills/change/SKILL.md
+   STANDARD=$(python3 -c "import surfaceplate, pathlib; print(pathlib.Path(surfaceplate.__file__).parent)")
+   diff .github/skills/change/SKILL.md "$STANDARD/standard/.github/skills/change/SKILL.md"
    ```
+
+   *(This read `../surfaceplate/surfaceplate/standard/…` until `F155`, which assumed the reader had
+   a clone of this repository sitting next to theirs. A pip adopter got `No such file or
+   directory` on the first command of the procedure.)*
 
 2. **Classify every paragraph** as control or stack-specific.
 
@@ -48,8 +71,10 @@ Almost every existing skill file is a blend. Split it.
 5. **Re-run the installer** with `--replace-existing` once the conflicting files contain nothing
    you still need.
 
-6. **Record what you did.** The reconciliation is a change to how the repository is controlled.
-   Note it in the application profile's decision record.
+6. **Record what you did.** The reconciliation is a change to how the repository is controlled, so
+   it belongs in the decision record that `adoption.decision_record_id` **names** — that field is a
+   pointer, not somewhere to write prose, and `surfaceplate adopt` creates the record it points at
+   if you have none.
 
 ## What must not happen
 

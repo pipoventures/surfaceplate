@@ -301,7 +301,35 @@ def _parser() -> _Parser:
     return parser
 
 
+def _survive_a_narrow_terminal() -> None:
+    """No command may die because the terminal cannot render a decorative glyph (`F149`).
+
+    `doctor` and `doctor --report` both crashed with `UnicodeEncodeError` on an ASCII stdout -
+    `'ascii' codec can't encode character '\\u2026'` - from the truncation ellipsis in the digest
+    columns. The failing command is the one `SUPPORT.md` tells people to run **when something is
+    already wrong**, so the diagnostic died exactly where it was needed.
+
+    Fixed at the boundary rather than at the nine glyphs, because the glyph is not the defect: any
+    future one would reintroduce it, and a rule that must be remembered at every print site is a
+    rule that will be forgotten at one. `errors="replace"` degrades a decoration to `?` and keeps
+    the output; nothing here is load-bearing enough that losing a character loses meaning, and a
+    report a human can read imperfectly beats a traceback they cannot use at all.
+
+    Narrow stdout is reached by `PYTHONCOERCECLOCALE=0` or `PYTHONUTF8=0` on an ASCII locale;
+    plain `LANG=C` is coerced to UTF-8 by Python and was never affected.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:  # a redirected stream that is not a TextIOWrapper
+            continue
+        try:
+            reconfigure(errors="replace")
+        except (ValueError, OSError):  # already detached, or not reconfigurable
+            pass
+
+
 def main(argv: list[str] | None = None) -> int:
+    _survive_a_narrow_terminal()
     argv = sys.argv[1:] if argv is None else argv
     parser = _parser()
     # The top level owns `--help` and `--version` and names the commands; each command owns its
