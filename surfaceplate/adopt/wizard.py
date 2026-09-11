@@ -505,6 +505,9 @@ def assemble(state: dict, record: dict) -> dict:
         state,
         framework_version=record.get("standard_version", ""),
         framework_digest=record.get("framework_digest", ""),
+        # `F157`: the install record's own account of what it did with the hook. One source, read
+        # where the other two framework facts are read, so the preview and the write cannot differ.
+        hooks=str(record.get("hooks") or ""),
     )
 
 
@@ -1028,7 +1031,9 @@ def propose(repo: Path, *, level: str | None = None) -> Proposed:
         for key in ("adoption.repository_classification",):
             preview_state["adoption"].setdefault(key.split(".")[1], NEEDS_HUMAN)
         profile = sections.build_profile(
-            preview_state, framework_version=record.get("standard_version", ""), framework_digest=record.get("framework_digest", "")
+            preview_state, framework_version=record.get("standard_version", ""),
+            framework_digest=record.get("framework_digest", ""),
+            hooks=str(record.get("hooks") or ""),  # `F157`
         )
         profile["prerequisites"] = [g for g in profile["prerequisites"] if g["id"] not in undecided]
         rendered = render.render_profile(profile, written_on=flow.adoption_date)

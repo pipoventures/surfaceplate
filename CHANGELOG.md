@@ -3210,3 +3210,46 @@ every adopter that protection, and would move a repository whose hook has quietl
 passing to failing. `PW-18` — the history audit's window including commits made in the same second as
 `effective_from` — is confirmed and raised as `H25` for the same reason: narrowing an audit window is a
 risk decision.
+
+### The check that would have failed every adopter's CI (`ACT-096`, `DR-84`, closing `F157`, `F158`)
+
+Answering `H24` found something the question had not asked about. **`local_hook` is a property of a
+developer's checkout**, and `core.hooksPath` is local Git configuration that is *never tracked* — so a
+fresh clone has no hook by construction, and a CI runner is a fresh clone with no staged changes to
+gate. `SP038` asked there whether the local hook was in place, got no answer, and reported `False`.
+
+`SP038` is `graceable`. So any adopter claiming `local_hook` passed for thirty days and then failed —
+including, from the day before, every `--chain` adopter that the previous release had just taught to
+claim it. **The previous activity shipped that regression and the decision answering its own follow-up
+question caught it.**
+
+This is `DR-74`'s rule — *a check may not report a negative it was not in a position to establish* —
+which this repository wrote for `F133`, applied to `doctor`, and never swept across the checker.
+
+**It also explains a silence nobody had read as meaningful.** The wizard had never claimed
+`local_hook`, and `F156` treated that as the defect. It was also the only thing protecting adopters
+from this.
+
+The hook now has three states where it had two:
+
+| The hook Git will actually run | Verdict |
+|---|---|
+| reaches this standard's gate | passes |
+| **is present and does not reach the gate** | `SP038` — a negative the check establishes |
+| **is not there at all** | *not established* — an advisory on every run, never a finding |
+
+With the check safe, the claim became safe, and `local_hook` is now derived for **`installed` and
+`chained`** installs — never for `declined`. The control finally reaches the adopters it was built for.
+
+**The cost is stated rather than implied**: a deleted hook and a fresh clone are indistinguishable
+from inside the checkout, because the configuration that would separate them is untracked. This trades
+*catches a deleted hook, breaks every CI* for *never breaks CI, cannot catch a deleted hook*. The local
+hook is one of three enforcement routes and the other two still run.
+
+**And the history audit stops accusing commits that predate the gate** (`F158`, `H25`). `git log
+--since` is inclusive at second granularity and a Git commit timestamp is whole seconds, so a commit
+made in the same second as `effective_from` — before it or after it — was indistinguishable from one
+made at it. The window now opens at the first second Git can distinguish from the declaration. What
+decided it was which error the adopter can act on: **a commit that predates adoption cannot be
+rewritten**, so the only remedy was a gate exception for a commit that did nothing wrong, which teaches
+people to record exceptions for non-events. One second of silence is the cheaper error.

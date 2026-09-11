@@ -376,6 +376,7 @@ class Flow:
             self.state,
             framework_version=self.record.get("standard_version", ""),
             framework_digest=self.record.get("framework_digest", ""),
+            hooks=str(self.record.get("hooks") or ""),  # `F157`
         )
 
     def field_spec(self, key: str) -> plan.FieldSpec | None:
