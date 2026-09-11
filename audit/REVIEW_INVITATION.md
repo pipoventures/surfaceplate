@@ -123,6 +123,7 @@ in place when it changes.
 |---|---|---|---|
 | 2026-09-11 | Part A **and** Part B, bundled but separately costed — twenty minutes and a few hours, with explicit permission to take only the first | A software engineer known to the maintainer, approached directly | all three |
 | 2026-09-11 | Product-fit evaluation against real repositories, **and** an independent review of the framework itself | A partner at a professional-services firm, approached directly | the packet page |
+| 2026-09-11 | Part A, reframed as a packaging question — *what binds an artefact to its contents, given attestations bind it to a build?* | `discuss.python.org`, Packaging category — public | linked, not attached |
 
 **Why no names here, yet.** Approaching someone is not the same as their agreeing to participate,
 and this register is public. Being asked to review something is the recipient's business to disclose,
@@ -130,7 +131,19 @@ not the sender's. Names belong in `governance/assurance/` when a reviewer return
 consents to being recorded — which is what `F6` requires of them anyway: *the reviewer is named, and
 is not the maintainer*. The form on the packet page asks for that consent explicitly.
 
-**These are direct approaches and they do not close `H16`.** That item asks for the Part A
+**The `discuss.python.org` post does not close `H16` either, and neither do the direct approaches.**
+`H16` asks specifically for the Part A invitation to reach **at least the Reproducible Builds
+channel**, which is named because that community does this kind of check as a matter of routine.
+`discuss.python.org` is an additional channel, not that one.
+
+**The posted text is not the draft below.** The drafted version asks strangers for a favour, and the
+Packaging category is for packaging discussion — it would have landed flat. What went up leads with
+a genuine question (attestations bind an artefact to a build; what binds it to its contents?), admits
+the gap, and puts the recomputation third, saying explicitly that a good answer to the first two
+would make it unnecessary. That reframe came out of discovering `F173`. The draft below is left as
+the record of what was written before that was known.
+
+**On the direct approaches.** That item asks for the Part A
 invitation to be posted to a public Part-A channel — Reproducible Builds, `discuss.python.org`, or
 Show HN — which recruits from people who owe the maintainer nothing at all, and is a different and
 stronger kind of independence than asking someone you know. Both are worth having. Only one has
