@@ -3253,3 +3253,27 @@ made at it. The window now opens at the first second Git can distinguish from th
 decided it was which error the adopter can act on: **a commit that predates adoption cannot be
 rewritten**, so the only remedy was a gate exception for a commit that did nothing wrong, which teaches
 people to record exceptions for non-events. One second of silence is the cheaper error.
+
+### `--repin` blamed six lines it does not write (`ACT-097`, closing `F159`)
+
+Found by the maintainer running `--repin` against a repository still carrying the installer's
+template. The substitution worked and both values read back correctly; the guard that follows then
+refused by listing `adoption_date`, `review_by`, `builds_user_interface`, `effective_from` and two
+`risk.*` keys — **six lines the command does not write**, because it validates the whole profile
+while changing two.
+
+**Two different facts shared one refusal**: *this profile has not been written yet* and *re-pinning
+it broke something*. The adopter was told the second when the first was true, and the message reads
+as though the command is defective. The right advice already existed five lines away, on the rarer
+failure path.
+
+Refusing is still correct — an unfinished profile has nothing to re-pin against, and `adopt` sets
+these values as it writes. So the guard now establishes **which** fact it found, by validating the
+profile as it was *before* any substitution, and names `adopt` where that is the answer.
+
+**The fix found a latent unrealism in the test that was meant to guard this.** `ACT-092`'s fixture
+staled its digest to `"0" * 64`, and sixty-four unquoted zeros parse as the **integer 0** — so its
+"complete but stale" profile had never satisfied its own schema. It passed for a day because nothing
+validated the profile before re-pinning it. **The moment something did, the fixture was the thing
+that broke**, and for a moment the new guard looked too strict. A real upgrade leaves an old *valid*
+digest; the fixture now uses one, and asserts that it is a string.

@@ -1014,12 +1014,21 @@ def test_repin_clears_the_two_findings_an_upgrade_guarantees(tmp: Path) -> None:
     answers = answers_for(repo, level="essential", builds_ui=False, mode="simple",
                           overrides={"controls.above_floor": []})
     wizard.run(repo, ScriptedInterview(answers=answers))
+    # `F159`: the previous digest must be a digest a PREVIOUS RELEASE could have left - which means
+    # it has to survive YAML. This read `"0" * 64`, and sixty-four unquoted zeros parse as the
+    # INTEGER 0, so the fixture's "complete but stale" profile was never schema-valid. It passed
+    # only because nothing validated the profile before re-pinning it; the moment something did,
+    # the fixture was the thing that broke. An upgrade leaves an old valid digest, not an integer.
+    previous_digest = "d0" * 32
     text = profile_path.read_text(encoding="utf-8")
-    stale = text.replace(record["framework_digest"], "0" * 64).replace(
+    stale = text.replace(record["framework_digest"], previous_digest).replace(
         f"framework_version: {record['standard_version']}", "framework_version: 0.0.1")
     profile_path.write_text(stale, encoding="utf-8")
     check("the fixture really is stale - the premise, not an assumption",
-          "0" * 64 in profile_path.read_text(encoding="utf-8"))
+          previous_digest in profile_path.read_text(encoding="utf-8"))
+    check("and stale in a way a real upgrade could produce - a string, not an integer",
+          isinstance((__import__("yaml").safe_load(profile_path.read_text(encoding="utf-8"))
+                      ["adoption"]["framework_digest"]), str))
 
     written, lines = wizard.repin(repo)
     report = "\n".join(lines)
@@ -2735,6 +2744,49 @@ def test_a_chained_install_declares_the_chain_and_claims_local_hook(tmp: Path) -
     check("and an unchained profile carries no hook_chain key at all", "hook_chain" not in silent)
 
 
+def test_repin_says_which_of_two_things_is_wrong(tmp: Path) -> None:
+    """`F159`. *This profile has not been written yet* and *re-pinning it broke something* are
+    different facts, and they shared one refusal - which listed six lines `--repin` does not write.
+
+    Both directions, because a guard that refuses everything would pass the first half of this.
+    """
+    from surfaceplate.adopt import wizard
+
+    repo = make_installed_repo(tmp, "repin-template")
+    profile = repo / "governance" / "application-profile.yaml"
+    check("the fixture is the unfinished template - otherwise this proves nothing",
+          "replace-me" in profile.read_text(encoding="utf-8"))
+    try:
+        wizard.repin(repo)
+        refusal = ""
+    except wizard.WriteRefused as exc:
+        refusal = str(exc)
+    check("an unfinished profile is refused", bool(refusal), "it was accepted")
+    check("and told that it is unfinished, not that six other lines are wrong",
+          "has not been completed" in refusal and "surfaceplate adopt" in refusal, refusal[:200])
+    for line in ("adoption_date", "review_by", "builds_user_interface", "effective_from"):
+        check(f"the refusal does not blame `{line}`, which --repin never writes",
+              line not in refusal, refusal[:200])
+
+    # THE OTHER DIRECTION, and it is the one that matters: a guard that refused everything would
+    # pass every check above. A complete profile with a stale digest must still re-pin.
+    done = make_installed_repo(tmp, "repin-complete")
+    seed_referenced_files(done)  # `ESSENTIAL_ANSWERS` names real files; this is what creates them
+    wizard.run(done, ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS)))
+    stale = done / "governance" / "application-profile.yaml"
+    # `[ \t]*`, not `\s*`: `\s` matches a newline, so a greedy `\s*` after the colon runs past the
+    # end of the line and `.*$` then eats the NEXT one. `repin()`'s own pattern is guarded by a
+    # `\S` immediately after; this one has to say what it means instead.
+    stale.write_text(
+        re.sub(r"^([ \t]*framework_digest:[ \t]*).*$", r"\g<1>" + "de07" * 16,
+               stale.read_text(encoding="utf-8"), count=1, flags=re.MULTILINE),
+        encoding="utf-8",
+    )
+    written, lines = wizard.repin(done)
+    check("a complete profile with a stale digest still re-pins", written is not None,
+          "; ".join(lines)[:200])
+
+
 def test_every_picked_field_says_what_kind_of_value_it_takes(tmp: Path) -> None:
     """`F150`. The answers record's header says *"complete them all"*, and for two fields it gave
     the reader nothing to go on: `controls.contract_tests.implementation_reference` wants the name
@@ -2844,6 +2896,9 @@ def main() -> int:
 
         print("\nF156/DR-83: a chained install declares its delegation")
         test_a_chained_install_declares_the_chain_and_claims_local_hook(tmp)
+
+        print("\nF159: --repin refuses for the right reason")
+        test_repin_says_which_of_two_things_is_wrong(tmp)
 
         print("\nF150: the answers record says what each field wants")
         test_every_picked_field_says_what_kind_of_value_it_takes(tmp)
