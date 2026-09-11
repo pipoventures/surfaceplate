@@ -57,6 +57,7 @@ PROFILE_PATH = "governance/application-profile.yaml"
 # privileging the agent its author happens to use. Both channels are selectable, both are on by
 # default, and no existing adopter's install changes.
 AGENT_CHANNELS = rules.AGENT_CHANNELS
+AGENT_BLOCK_PROSE = rules.AGENT_BLOCK_PROSE
 
 COPILOT_INSTRUCTIONS = ".github/copilot-instructions.md"
 # The neutral canonical instruction file DR-12 committed to and never built. Read by Codex,
@@ -599,6 +600,49 @@ def configure_standard_hook(target: Path, dry_run: bool) -> tuple[bool, str]:
     return True, "configure core.hooksPath=.githooks"
 
 
+def _english_list(items: list[str]) -> str:
+    """`a`, `a and b`, `a, b and c` - so the block reads as prose at one channel or at three."""
+    if len(items) <= 1:
+        return items[0] if items else ""
+    return f"{', '.join(items[:-1])} and {items[-1]}"
+
+
+def render_conformance_block(block: str, agents: tuple[str, ...] | None) -> str:
+    """Name only the channels this repository is actually getting (`F171`).
+
+    `DR-67` made the channels selectable and narrowed the payload and the one Copilot artefact the
+    upsert creates outside it. The block's PROSE stayed fixed, so a repository installed with
+    `--agents copilot` was told four times not to edit `.claude/rules/` and `.claude/skills/` -
+    directories it does not have - in the file every adopter reads first. It also read "Same body,
+    same gates, two paths", which is simply false at one channel.
+
+    Rendered HERE, once, from `rules.AGENT_BLOCK_PROSE`, rather than by filtering at each of the
+    three spans that mention a vendor: `DR-67`'s own reasoning, that a filter which must be
+    remembered at several sites is one that will be forgotten at the next, and `F58` is what that
+    costs. The digest recorded in `INSTALL.json` is taken from the rendered text, so the checker
+    compares the adopter's block against what was actually written to them.
+    """
+    chosen = tuple(agents) if agents is not None else tuple(AGENT_CHANNELS)
+    ordered = [name for name in AGENT_CHANNELS if name in chosen]
+
+    managed = [f"`{VENDOR_DIR}/`"]
+    for name in ordered:
+        # The payload prefixes, less the one file that is not a directory: the sentence is about
+        # what not to EDIT, and `.github/copilot-instructions.md` is covered by its own markers.
+        managed += [f"`{p}`" for p in AGENT_CHANNELS[name] if p.endswith("/")]
+
+    topics = [f"`{AGENT_BLOCK_PROSE[n][1]}` for {AGENT_BLOCK_PROSE[n][0]}" for n in ordered]
+    skills = [f"`{AGENT_BLOCK_PROSE[n][2]}` for {AGENT_BLOCK_PROSE[n][0]}" for n in ordered]
+
+    for token, value in (
+        ("{managed_paths}", _english_list(managed)),
+        ("{topic_locations}", _english_list(topics)),
+        ("{skill_locations}", _english_list(skills)),
+    ):
+        block = block.replace(token, value)
+    return block
+
+
 def upsert_conformance_block(
     target_repo: Path, block: str, dry_run: bool, rel: str = COPILOT_INSTRUCTIONS,
     header_title: str = "Copilot instructions",
@@ -826,7 +870,9 @@ def install(
                 # function `uninstall` uses, and it stops at anything the adopter still owns.
                 _prune_empty(path.parent, target)
 
-    block = (source / "standard" / "conformance-block.md").read_text(encoding="utf-8")
+    block = render_conformance_block(
+        (source / "standard" / "conformance-block.md").read_text(encoding="utf-8"), agents
+    )
     # AGENTS.md is agent-neutral and always written. `.github/copilot-instructions.md` is
     # Copilot's own file and is created by this upsert rather than by the payload (F122), so
     # declining that channel has to skip it here as well - filtering the payload alone would
@@ -1035,8 +1081,20 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         if not agents:
             print(
-                "error: --agents needs at least one channel. To install no agent instructions "
-                "at all, do not install the standard.",
+                # `F172`: the second sentence used to read "To install no agent instructions at
+                # all, do not install the standard." That is FALSE, and false about this
+                # framework's own neutrality claim: `AGENTS.md` and `.standards/topics/` are agent
+                # instructions, they are written whatever is chosen here (`DR-67` (3)), and a
+                # repository using neither named vendor is served by them. The floor of one is a
+                # real constraint and is stated as one; what it is not is "no instructions".
+                "error: --agents needs at least one channel, from: "
+                f"{', '.join(sorted(AGENT_CHANNELS))}.\n"
+                "Whichever you choose, AGENTS.md and the canonical topic documents under "
+                ".standards/topics/ are installed either way - those are agent-neutral, and an "
+                "agent that reads neither named vendor's directory is expected to load them.\n"
+                "There is no way to install the vendor mirrors for no vendor at all: pick the "
+                "closest, or raise an issue for your agent at "
+                "https://github.com/pipoventures/surfaceplate/issues.",
                 file=sys.stderr,
             )
             return 2

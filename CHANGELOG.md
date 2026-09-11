@@ -3472,6 +3472,40 @@ it. The check was named for a property it never established. It now asserts that
 content row sits immediately above its bottom border, and reinstating the overflow makes it fail
 and name the row that ended up there instead.
 
+### Provider agnosticism: true in the canon, contradicted in the file adopters read first (`ACT-107`, closing `F171`, `F172`)
+
+Asked before publication whether the standard is really provider-agnostic, given that the installed
+payload mentions `.claude/`. Checked by effect, and the answer has two halves.
+
+**The canon is agnostic, demonstrably.** `install --agents copilot` produces no `.claude/`
+anywhere, its install record contains zero references to it, records `agents: ['copilot']`, and the
+repository still passes the conformance check. `AGENTS.md` and the twelve canonical topic documents
+under `.standards/topics/` are written whichever channel is chosen. Nothing here requires Claude
+Code.
+
+**The conformance block said otherwise** (`F171`). A copilot-only adopter was told four times not
+to edit `.claude/rules/` and `.claude/skills/` — directories they do not have — in the one file
+every adopter reads first, and read *"Same body, same gates, two paths"*, which is false at one
+channel. `DR-67` narrowed the payload and narrowed the one Copilot artefact created outside it,
+calling that *"the half this decision nearly missed"*; it narrowed **whether that file is created**
+and not **what the block says**. The block is now rendered from a single table at the single point
+it is read, so each install names only its own channels.
+
+**And the refusal for an empty channel list stated something untrue** (`F172`): *"To install no
+agent instructions at all, do not install the standard."* `AGENTS.md` and `.standards/topics/` are
+agent instructions and arrive either way — `DR-67` (3) says so. The message now says what an
+adopter actually gets.
+
+**`--agents none` was costed and declined.** `DR-67` refuses an empty list deliberately and under
+test; adding the option on the eve of publication, with no adopter asking for it, is the
+speculative generality Topic 5 forbids. `H18` — watching real people install — is the instrument
+that would turn that constraint into evidence, and it now names the question.
+
+**A coverage loss this change created was found and put back rather than banked.** Moving four
+paths out of the block's prose took them out of `payload_pointer_checks`, which used to resolve
+them; the count went 170 → 169 and that is how it surfaced. They are now resolved against the
+table itself, so what is checked is the source of truth rather than the sentence it produces.
+
 ### What the AI-assisted route survived that a person would not have (`ACT-106`, closing `F165`–`F169`, `DR-87`)
 
 An adoption was driven end to end by an AI agent through `surfaceplate agent-prompt`, and the

@@ -84,6 +84,25 @@ AGENT_CHANNELS: dict[str, tuple[str, ...]] = {
     "copilot": (".github/instructions/", ".github/skills/", ".github/copilot-instructions.md"),
 }
 
+# `F171`. How each channel is DESCRIBED in the conformance block the installer writes into an
+# adopting repository's `AGENTS.md`.
+#
+# `DR-67` narrowed the payload to the chosen channels, and narrowed the one Copilot artefact the
+# upsert creates outside the payload - and left the block's PROSE naming both vendors regardless.
+# A repository installed with `--agents copilot` was told four times not to edit `.claude/rules/`
+# and `.claude/skills/`, directories it does not have, in the one file every adopter reads first.
+# That is `DR-67`'s own principle - apply the filter once, over the assembled payload - left
+# unapplied at the site `DR-67` itself called the half it nearly missed.
+#
+# Held here rather than in the installer for the same reason `AGENT_CHANNELS` is: a third channel
+# must be impossible to add to one table and forget in the other, which is `F58` exactly.
+# `tests/check_code_registers.py` asserts the two tables name the same channels.
+AGENT_BLOCK_PROSE: dict[str, tuple[str, str, str]] = {
+    # channel: (how the block names the agent, where its topics land, where its skills land)
+    "claude": ("Claude Code", ".claude/rules/surfaceplate-*.md", ".claude/skills/*/SKILL.md"),
+    "copilot": ("Copilot", ".github/instructions/*.instructions.md", ".github/skills/*/SKILL.md"),
+}
+
 # `application_id`: the schema's own pattern, quoted from `schemas/application-profile.schema.yaml`.
 APPLICATION_ID = re.compile(r"^[a-z0-9][a-z0-9_-]+$")
 
