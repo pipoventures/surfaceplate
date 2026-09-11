@@ -250,6 +250,7 @@ standard should prescribe them is a separate question and is not answered here.
 | F157 | `SP038` reported a negative it could not establish: a fresh clone has no hook by construction, so every adopter claiming `local_hook` would have failed CI 30 days after install. `DR-74`'s rule, applied to the case `DR-74` missed | high | Closed — `ACT-096` (`DR-84`), 2026-09-11; answers `H24`; see the body |
 | F162 | The built distribution declared no `readme`, so the PyPI project page would have rendered the summary line and then blank space — and `pyproject.toml` carried a comment asserting that PyPI rendered the README | medium | Closed — `ACT-103`, 2026-09-11; see the body |
 | F163 | `requires-python = ">=3.9"` was **false**, not merely untested: `jsonschema==4.26.0` is a hard dependency requiring `>=3.10`, so the package could never install on 3.9 — and the wrong declaration gave the reader a worse error than the right one would have | medium | Closed — `ACT-104`, 2026-09-11. Raised `low`/`Accepted` hours earlier and reassessed; see the body |
+| F173 | `DR-14` rejected PEP 740 attestations because *"key custody and a signing process are infrastructure"* — and trusted publishing has been producing them automatically, with neither, since `0.16.0`. The rejection's premise is void, no document says the attestations exist, and the review packet sent to two reviewers on 2026-09-11 omits them | medium | Open — `ACT-110` records it and qualifies `F6`; whether to ADOPT them is a decision (`H28`) |
 | F171 | `DR-67` narrowed the payload to the chosen agent channels and left the conformance block's **prose** naming both vendors — so a repository installed with `--agents copilot` was told four times not to edit `.claude/rules/` and `.claude/skills/`, directories it does not have, in the one file every adopter reads first | medium | Closed — `ACT-107`, 2026-09-11; see the body |
 | F172 | The `--agents` refusal said *"To install no agent instructions at all, do not install the standard"* — **which is false**: `AGENTS.md` and `.standards/topics/` are agent instructions and are installed whichever channel is chosen, as `DR-67` (3) states | low | Closed — `ACT-107`, 2026-09-11; see the body |
 | F170 | `CLAUDE.md` gave the release ritual's trigger as "after changing anything the standard ships" — the payload — while the manifest covers **every tracked file outside a short excluded set**, `scripts/` and `tests/` included. Followed exactly, the instruction leaves the manifest stale, and CI then fails with every suite green | medium | Closed — `ACT-106`, 2026-09-11; see the body |
@@ -291,6 +292,22 @@ was carrying, and part of the evidence behind `F11` below.
 ## F6 — Every integrity anchor sits inside the boundary being checked
 
 **Severity: high. Open.**
+
+> **Precision added 2026-09-11 (`F173`), and the title is left as it stands because it is quoted in
+> the published release notes and in the invitations already sent.** The title is now imprecise as
+> written: since `0.16.0`, PyPI has held a Sigstore-signed PEP 740 attestation for every published
+> artefact, naming the repository, workflow and environment that built it, with the artefact digest
+> as its subject. That is an integrity anchor held by an independent party, and `DR-14:213` names
+> its absence as a limitation — *"not a record held by an independent party the way PyPI holds a
+> per-file hash… which is real but is not third-party attestation."* It now is.
+>
+> **The finding's substance is untouched, for the reason `DR-14` itself gives.** An attestation
+> establishes *authenticity* — who published this — and not *honesty*. A party with write access
+> commits a payload and a manifest that agree, the workflow faithfully builds it, and PyPI
+> faithfully attests that it did. Every signature in that chain is valid and the contents are still
+> whatever that party chose. `F6` is about the second thing, and no attestation reaches it. What the
+> attestation does close is a different branch — a substituted upload — and the register should have
+> said so rather than implying it had nothing external at all.
 
 **The finding is not that `INSTALL.json` is unprotected.** That is the symptom. The finding is
 structural: every value the integrity check trusts is held inside the repository the check is
@@ -1594,6 +1611,76 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F173 — A rejection was taken on a cost that has since gone to zero, and nobody noticed because the benefit arrived by itself
+
+**Severity: medium. Open** — `ACT-110` records the fact and corrects what the register claims;
+whether to *adopt* attestations formally is a decision, raised as `H28`.
+
+**Found while preparing a `discuss.python.org` post**, by checking whether PyPI held attestations
+before writing a sentence about them. It does:
+
+```
+predicateType : https://docs.pypi.org/attestations/publish/v1
+subject       : surfaceplate-0.18.0.tar.gz
+subject sha256: 6bdcacc9b8f815550131dba09b17a293b2696237ae191f833bf607bca1445125
+publisher     : GitHub · pipoventures/surfaceplate · publish.yml · environment pypi
+```
+
+The subject digest is byte-identical to the sdist digest verified independently from the download.
+`0.16.0` and `0.16.1` carry one too, so this has been true since **3 September**.
+
+### Why this is a finding and not a pleasant surprise
+
+`DR-14` considered exactly this and rejected it:
+
+> *"**Rejected: sign the manifest, or adopt PEP 740 attestations.** These add authenticity — who
+> published this — on top of the identity this record settles… Rejected here because **key custody
+> and a signing process are infrastructure**, which `DR-12`'s permanent boundary forecloses."*
+
+**Trusted publishing supplies them with no key custody and no signing process.** The cost the
+rejection turned on is zero and has been zero since the first publish. The decision was right when
+taken and its premise no longer holds, which is a different thing from the decision being wrong.
+
+`DR-14` also wrote, of this project's own anchor:
+
+> *"`MANIFEST.sha256` is a file in this repository's own published tree, **not a record held by an
+> independent party the way PyPI holds a per-file hash**… which is real but **is not third-party
+> attestation**."*
+
+That sentence names precisely the thing that now exists, and the register went eight days without
+noticing.
+
+### What it does and does not change
+
+- **`F6`'s title is imprecise** and is qualified in place rather than rewritten, because it is quoted
+  in the published `pypi/0.18.0` release notes and in invitations already sent.
+- **`F6`'s substance is untouched**, for the reason `DR-14` gives: an attestation establishes
+  authenticity, not honesty. A party with write access commits payload and manifest together, the
+  workflow faithfully builds, PyPI faithfully attests. Every signature is valid; the contents are
+  still whatever that party chose.
+- **What it genuinely closes is a branch `F6` never separated out** — a substituted upload. Anyone
+  can now establish, without trusting this project at all, that the bytes on PyPI are the bytes that
+  workflow produced.
+
+### The part with a consequence already in the world
+
+**The review packet sent on 2026-09-11 does not mention any of this** — `grep` finds no occurrence of
+`attestation`, `sigstore`, `trusted publish` or `PEP 740` in `scripts/build_review_packet.py`, in the
+generated page, or in `audit/AUDIT_SCOPE.md`. Two reviewers are holding a document that understates
+the assurance that exists, and one of them was asked precisely to think about provenance.
+
+The packet is **not** being regenerated: it has been sent, its digest is quoted in both emails and in
+the release notes, and silently replacing a document someone was asked to hash is worse than the
+omission. A short follow-up note is the remedy, and the packet generator should carry it for the next
+release.
+
+### What would close it
+
+A decision on whether to adopt attestations as a *stated* part of this framework's integrity story —
+surfaced by `doctor`, described in the packet, named in `DR-14`'s successor. That is `H28`. Until
+then this stays open, because the register currently describes an assurance position weaker than the
+real one, and under-claiming is still mis-stating.
 
 ## F171 — The installer narrowed what it wrote and not what it said, so a Copilot-only adopter was told about Claude Code four times
 

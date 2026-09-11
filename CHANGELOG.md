@@ -3472,6 +3472,36 @@ it. The check was named for a property it never established. It now asserts that
 content row sits immediately above its bottom border, and reinstating the overflow makes it fail
 and name the row that ended up there instead.
 
+### The anchor we said we did not have (`ACT-110`, raising `F173`)
+
+Checking a claim before writing it into a forum post found that **PyPI has held a Sigstore-signed
+PEP 740 attestation for every release since `0.16.0`** — naming the repository, workflow and
+environment that built each artefact, with the artefact digest as its subject. The subject digest
+matches the sdist verified independently from a fresh download.
+
+`DR-14` rejected adopting attestations because *"key custody and a signing process are
+infrastructure"*. **Trusted publishing supplies them with neither.** The decision was right when
+taken; its premise is now void, which is a different thing from it being wrong.
+
+`DR-14` also wrote that `MANIFEST.sha256` is *"not a record held by an independent party the way PyPI
+holds a per-file hash… which is real but is not third-party attestation"*. That record now exists,
+and the register went eight days without noticing.
+
+**`F6`'s substance is untouched and its title is qualified rather than rewritten.** An attestation
+establishes authenticity, not honesty: a party with write access commits payload and manifest
+together, the workflow faithfully builds, PyPI faithfully attests, and the contents are still
+whatever that party chose. What it does close is a branch `F6` never separated out — a substituted
+upload. The title stays because it is quoted in the published release notes and in invitations
+already sent.
+
+The review packet sent to two reviewers does not mention any of this, so they hold a document that
+**understates** the assurance that exists. It is not being regenerated — its digest is quoted in both
+emails and in the release notes, and silently replacing a document someone was asked to hash is worse
+than the omission. A follow-up note is the remedy; the generator should carry it next release.
+
+Whether attestations become a *stated* part of this framework's integrity story is `H28`, and a no is
+a real answer: an attestation proves provenance, and this framework is about honesty.
+
 ### 0.18.0 published to PyPI (`ACT-108`)
 
 `pip install surfaceplate==0.18.0`. Published from commit `a345f2b` by a workflow that refuses to run
