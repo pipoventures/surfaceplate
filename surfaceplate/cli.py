@@ -76,6 +76,18 @@ def _cmd_adopt(argv: list[str]) -> int:
         choices=("essential", "standard", "full"),
         help="With --propose: the level to build the proposal at. Without it, the record stops at the level.",
     )
+    # `F165`: without this, `stack.builds_user_interface` could not be answered `yes` on the
+    # non-interactive route at all - the record told the reader to write it into the file and
+    # re-propose, and `--propose` rebuilds from the repository and discarded it. The four interface
+    # gates then never appeared, and three of them have no scaffold, so a repository with an
+    # interface had no way through `--propose`/`--answers`.
+    parser.add_argument(
+        "--builds-ui",
+        choices=("yes", "no"),
+        help="With --propose: whether this repository builds a user interface. It is a decision, "
+             "not a description - yes makes all four interface gates required, no makes them "
+             "not_applicable. Without it the proposal assumes no.",
+    )
     parser.add_argument(
         "--answers",
         metavar="FILE",
@@ -122,7 +134,11 @@ def _cmd_adopt(argv: list[str]) -> int:
             print(f"Edited {path} in {written}; the change is recorded beside it as typed, with the reason.")
             return 0
         if args.propose:
-            written = wizard.propose(repo, level=args.level)
+            written = wizard.propose(
+                repo,
+                level=args.level,
+                builds_ui=None if args.builds_ui is None else args.builds_ui == "yes",
+            )
             print(f"Proposed: {written.answers}")
             if written.proposed is not None:
                 print(f"Preview : {written.proposed}")

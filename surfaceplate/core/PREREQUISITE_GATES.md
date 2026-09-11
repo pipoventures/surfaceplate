@@ -140,6 +140,34 @@ be written retrospectively without appearing in history as a retrospective act.
 An accumulation of exception records is a finding in its own right, and should be read as
 evidence that the gate is wrongly scoped or the process is wrong — not as a clean bill of health.
 
+## Where an artefact comes from when you have none
+
+A required gate names a precondition artefact, and `SP032` requires that artefact to exist, to be
+non-empty, to be tracked by git, and to carry no placeholder token. A repository adopting for the
+first time usually has nothing to name — which is the trap `F40` records, because the tempting
+answer is to point the gate at the closest existing file, and a `README.md` named as a work
+register is a gate that reports it points at something while pointing at nothing.
+
+`surfaceplate adopt` offers to create one for the gates where an empty artefact can be written and
+remain a **true statement about the repository**. The seeds it writes from are installed, at
+`.standards/seeds/`, and you can read them before you decide, or copy one into place yourself:
+
+```
+cp .standards/seeds/activity-register.md activity/register.md
+git add activity/register.md
+```
+
+Copying by hand is worth knowing about for two reasons. It lets you see what you are agreeing to
+before the wizard writes it. And a gate whose artefact is one **another** gate's offer will create —
+`authority_same_change` reusing `authority_map`'s map, say — needs the file to exist by the time the
+profile is written; the wizard handles that within a single run, but a record completed across
+several runs may not have reached the offer yet.
+
+**Not every gate has a seed, deliberately.** An equivalence-evidence protocol or an
+output-validation record cannot be created empty and still be true, so those are left to be answered
+by someone who has one. If a gate offers you nothing, that is the framework declining to write a
+claim on your behalf, not an omission.
+
 ## Declaration, and what each level demands
 
 Gates are declared in the `prerequisites` block of `governance/application-profile.yaml`. Each

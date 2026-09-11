@@ -192,13 +192,20 @@ def propose_controls(*, level: str, mode: str, found: discover.Discovered) -> li
 
 
 def propose_gates(
-    *, level: str, builds_ui: bool, mode: str, found: discover.Discovered, adoption_date: str
+    *, level: str, builds_ui: bool, mode: str, found: discover.Discovered, adoption_moment: str
 ) -> list[Proposal]:
     """A precondition for every gate that could be `required`, and nothing for any status.
 
     `DR-47` (4): the tool never supplies a scope decision, `not_applicable` included. `DR-47` (5):
-    `effective_from` is proposed as the adoption date and recorded as computed unless changed - the
-    value is shown, and a human can only widen the audit window from it (`SP033`, `SP034`).
+    `effective_from` is proposed as the MOMENT of adoption and recorded as computed unless changed -
+    the value is shown, and a human can only widen the audit window from it (`SP033`, `SP034`).
+
+    `F166`: it was the adoption DATE until a walkthrough reproduced `F47` against a build where
+    `F47` was recorded closed. A bare date binds from midnight, so every commit made earlier the
+    same day - including the one that installed the standard - falls inside the window, and `SP033`
+    forbids dating the gate tomorrow to escape. `ACT-035` fixed that for a gate whose artefact a
+    scaffold creates and left this site alone, so the adopter who named their own artefacts got the
+    symptom and the one who accepted every scaffold did not.
     """
     out: list[Proposal] = []
     for spec in plan.gate_plan(level=level, builds_ui=builds_ui, mode=mode, found=found):
@@ -233,9 +240,9 @@ def propose_gates(
         out.append(
             Proposal(
                 f"{prefix}.effective_from",
-                adoption_date,
+                adoption_moment,
                 provenance.COMPUTED,
-                "= the adoption date; an earlier date audits more history",
+                "= the moment of adoption; an earlier value audits more history",
             )
         )
     return out
@@ -276,7 +283,7 @@ def propose_wrap() -> list[Proposal]:
 
 
 def propose_after_level(
-    state: dict, *, found: discover.Discovered, adoption_date: str
+    state: dict, *, found: discover.Discovered, adoption_moment: str
 ) -> list[Proposal]:
     """Everything proposable once the level is known."""
     level = state["level"]["conformance_level"]
@@ -287,7 +294,7 @@ def propose_after_level(
     return [
         *propose_controls(level=level, mode=mode, found=found),
         *propose_gates(
-            level=level, builds_ui=builds_ui, mode=mode, found=found, adoption_date=adoption_date
+            level=level, builds_ui=builds_ui, mode=mode, found=found, adoption_moment=adoption_moment
         ),
         *propose_adoption(owner=owner, data_classification=classification),
         *propose_wrap(),

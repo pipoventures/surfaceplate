@@ -3472,6 +3472,63 @@ it. The check was named for a property it never established. It now asserts that
 content row sits immediately above its bottom border, and reinstating the overflow makes it fail
 and name the row that ended up there instead.
 
+### What the AI-assisted route survived that a person would not have (`ACT-106`, closing `F165`–`F169`, `DR-87`)
+
+An adoption was driven end to end by an AI agent through `surfaceplate agent-prompt`, and the
+transcript was then reviewed against the code. The agent's conduct held: it refused to choose a
+conformance level, quoted `CONFORMANCE_LEVELS.md` rather than paraphrasing it, pushed back twice on
+answers that contradicted the level, and closed by saying the `PASS` established less than the word
+suggests.
+
+**Five defects came out of it, and they have one thing in common: every one was survived by reading
+this tool's source code.** Not the twelve topic documents, not `PREREQUISITE_GATES.md` — the Python.
+An adopter has that file on disk and no reason to open it. The route was built for people who find
+the terminal hard; on this evidence it was, for two of the five, the only route that opened at all.
+
+- **`F165` — a repository that builds a user interface could not be adopted on this route.** The
+  answers record told the reader: *"answer stack.builds_user_interface and run `--propose --level`
+  again to see the interface gates."* `--propose` reads the repository, not the record, so the
+  answer was discarded silently, and there was no flag. The field is decisive rather than
+  descriptive — `true` makes all four interface gates `required` — and three of the four have no
+  seed, so they cannot be scaffolded either. `surfaceplate adopt --builds-ui {yes,no}` now exists,
+  and the record names it and says plainly that editing the line will not do it.
+- **`F166` — `F47` was fixed at one of its two sites.** A gate binds from the instant of adoption
+  when a scaffold created its artefact, and from that **midnight** when the adopter named one — so
+  the adoption day's earlier commits, the install commit among them, fell inside the audit window
+  and `SP035` fired on gates that had been honoured. The adopter who supplies their own artefacts
+  got the defect; the one who accepts every offer did not. Worse, the obvious correction is
+  foreclosed: `SP034` reads a forward move of `effective_from` as gate-widening and is never graced,
+  so an adopter who commits the bare dates first has no way back but an exception record per gate.
+  Two tests should have caught it and could not — one supplies `effective_from` itself, and the
+  matrix's 208 runs expected `flow.adoption_date`, enforcing the defect as the property.
+- **`F167` — a wrong-shaped answer returned an internal profile path.** A YAML list written where
+  one value belongs produced `KeyError: "no provenance rule reaches profile path
+  'baseline_controls.secret_hygiene.scanner.wired_in[0][0]'"`. Nothing in that sentence is addressed
+  to the person who has to fix it. The refusal now names their own line.
+- **`F168` — the pairing the catalogue recommends could not be written.**
+  `core/PREREQUISITE_GATES.md` says `authority_map` and `authority_same_change` *"are almost always
+  adopted together"*; naming one gate's artefact as the other's was refused with *"Nothing exists at
+  that path in this repository"*, for a path the same run was about to create. The exemption for
+  not-created-yet artefacts existed but was keyed on the field's own origin, so it reached the gate
+  that took the offer and missed the gate that reused it.
+- **`F169` — the seeds were documented nowhere an adopter reads.** `.standards/seeds/` is installed
+  in every adopting repository and was the only escape from `F168`. It is now a section of the gate
+  catalogue, including the part that must stay: **not every gate has a seed, deliberately**, because
+  an equivalence-evidence protocol cannot be created empty and remain true.
+
+**`F170`, raised by this packet's own CI failure.** `CLAUDE.md` gave the release ritual's trigger as
+*"after changing anything the standard ships"* — the payload. The manifest is not scoped to the
+payload: it hashes every tracked file outside a short excluded set, `scripts/` and `tests/`
+included. Following the instruction exactly left the manifest stale and failed CI with all fifteen
+suites green. The document also said fifteen suites where the workflow reports seventeen outcomes,
+so *"I ran the suites"* read as *"I ran what CI runs"* and was not. Both corrected, with the
+superseded wording kept beside the new one.
+
+**Two claims in the transcript were refuted rather than transcribed.** The digest-mismatch remedy's
+`--source` path is derived from the tool's own install location and is correct; and an invented
+provenance origin (`corrected`) never reached the record — the replay discarded it and recorded the
+value as `typed`, which is what it was.
+
 ### The front-door script rewrote the operator's own git configuration (`ACT-105`, closing `F164`)
 
 **Found by another agent session working in a different repository.** It noticed that every git

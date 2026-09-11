@@ -309,7 +309,7 @@ def test_a_proposal_needs_evidence_not_merely_a_candidate(tmp: Path) -> None:
     )
 
     proposals = defaults.propose_gates(
-        level="essential", builds_ui=False, mode="simple", found=found, adoption_date="2026-09-02"
+        level="essential", builds_ui=False, mode="simple", found=found, adoption_moment="2026-09-02T12:00:00"
     )
     artefact_proposals = [p for p in proposals if p.field.endswith(".artefact")]
     check(
@@ -325,7 +325,7 @@ def test_a_proposal_needs_evidence_not_merely_a_candidate(tmp: Path) -> None:
     subprocess.run(["git", "-C", str(bare), "commit", "-qm", "register"], check=True)
     found = discover.scan(bare)
     proposals = defaults.propose_gates(
-        level="essential", builds_ui=False, mode="simple", found=found, adoption_date="2026-09-02"
+        level="essential", builds_ui=False, mode="simple", found=found, adoption_moment="2026-09-02T12:00:00"
     )
     proposed = {p.field: p.value for p in proposals}
     check(
@@ -388,7 +388,7 @@ def test_discovery_cannot_find_the_framework_in_the_mirror(tmp: Path) -> None:
              "stack": {"builds_user_interface": False}, "risk": {"data_classification": "internal"},
              "level": {"conformance_level": "standard"}}
     proposals = [
-        p for p in defaults.propose_after_level(state, found=found, adoption_date="2026-09-02")
+        p for p in defaults.propose_after_level(state, found=found, adoption_moment="2026-09-02T12:00:00")
         if p.origin == "discovered"
     ]
     check(
@@ -421,7 +421,7 @@ def test_ranking_happens_before_the_cap(tmp: Path) -> None:
     found = discover.scan(repo)
     proposed = {
         p.field: p.value
-        for p in defaults.propose_gates(level="essential", builds_ui=False, mode="simple", found=found, adoption_date="2026-09-02")
+        for p in defaults.propose_gates(level="essential", builds_ui=False, mode="simple", found=found, adoption_moment="2026-09-02T12:00:00")
     }
     check(
         "a real register is proposed even with 300 documents ahead of it",
@@ -544,12 +544,12 @@ def test_the_wizard_proposes_nothing_the_checker_rejects(tmp: Path) -> None:
           "inventory" not in discover.GATE_KEYWORDS["authority_map"]
           and discover.matched_for_gate(found.artefacts, "authority_map") == ["docs/authority.md"],
           str(discover.matched_for_gate(found.artefacts, "authority_map")))
-    proposals = {p.field: p for p in defaults.propose_gates(level="standard", builds_ui=False, mode="simple", found=found, adoption_date="2026-09-02")}
+    proposals = {p.field: p for p in defaults.propose_gates(level="standard", builds_ui=False, mode="simple", found=found, adoption_moment="2026-09-02T12:00:00")}
     check("the proposal for authority_map is the authority map",
           proposals.get("gates.authority_map.artefact") is not None and proposals["gates.authority_map.artefact"].value == "docs/authority.md",
           str(proposals.get("gates.authority_map.artefact")))
     rejected_only = discover.Discovered(artefacts=("docs/implementation/owed_work_inventory_2026-08-24.md",), rejected={"docs/implementation/owed_work_inventory_2026-08-24.md": "contains a template placeholder"})
-    proposals = {p.field: p for p in defaults.propose_gates(level="standard", builds_ui=False, mode="simple", found=rejected_only, adoption_date="2026-09-02")}
+    proposals = {p.field: p for p in defaults.propose_gates(level="standard", builds_ui=False, mode="simple", found=rejected_only, adoption_moment="2026-09-02T12:00:00")}
     check("a rejected file is never proposed, even when it is the only match",
           "gates.work_registration.artefact" not in proposals and "gates.authority_map.artefact" not in proposals, str(list(proposals)))
     controls = {p.field: p for p in defaults.propose_controls(level="essential", mode="simple", found=found)}
@@ -643,7 +643,7 @@ def test_record_directories_and_archived_documents_are_never_proposed(tmp: Path)
     check("archived documents rank last among the matches",
           discover.matched_for_gate(found.artefacts, "equivalence_evidence") == ["docs/testing/EQUIVALENCE_PROTOCOL.md", "docs/archive/old_review_protocol.md"],
           str(discover.matched_for_gate(found.artefacts, "equivalence_evidence")))
-    gate_proposals = {p.field: p for p in defaults.propose_gates(level="full", builds_ui=False, mode="simple", found=found, adoption_date="2026-09-02")}
+    gate_proposals = {p.field: p for p in defaults.propose_gates(level="full", builds_ui=False, mode="simple", found=found, adoption_moment="2026-09-02T12:00:00")}
     check("the live protocol is proposed, not the archived one", gate_proposals["gates.equivalence_evidence.artefact"].value == "docs/testing/EQUIVALENCE_PROTOCOL.md", str(gate_proposals.get("gates.equivalence_evidence.artefact")))
     check("a gate whose only match is archived gets no proposal", "gates.dependency_output_delta.artefact" not in gate_proposals, str(gate_proposals.get("gates.dependency_output_delta.artefact")))
     check("the archived file is still offered", "docs/archive/old_review_protocol.md" in found.artefacts)

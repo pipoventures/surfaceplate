@@ -956,15 +956,24 @@ def _note_kind(notes: dict, spec) -> None:
         notes[spec.id] = kind
 
 
-def propose(repo: Path, *, level: str | None = None) -> Proposed:
+def propose(repo: Path, *, level: str | None = None, builds_ui: bool | None = None) -> Proposed:
     """Run discovery and write the answers record - every proposal with its origin, every decision
     only a human can make as a `needs-human` line - and, where `level` is given, a preview of the
     profile the proposals would produce. Never the profile (`DR-49` (3)).
 
     Without a level the record stops at the level, because nothing after it can be proposed
     until the level is known; the human sets the level and runs `--propose --level` again, or
-    completes the record by hand. With a level, the interface gates are proposed as though the
-    repository builds no user interface, and the record says so beside that line.
+    completes the record by hand. Without `builds_ui` the interface gates are proposed as though
+    the repository builds none, and the record says so beside that line.
+
+    `F165`: `builds_ui` EXISTS BECAUSE THE RECORD USED TO TELL THE READER TO DO SOMETHING THAT
+    COULD NOT WORK. Its header said *"answer stack.builds_user_interface and run --propose --level
+    again to see the interface gates"*, and this function reads the repository, not the record - so
+    an answer written into the file was discarded on the next run, silently. There was no other
+    route: `stack.builds_user_interface` is not descriptive but decisive (`true` makes all four
+    interface gates `required`), and three of the four have no seed in `scaffold.SEEDABLE`, so a
+    repository with an interface could not be adopted through `--propose`/`--answers` at all. The
+    walkthrough that found this diagnosed it by reading this file, which an adopter cannot.
     """
     import yaml
 
@@ -991,6 +1000,11 @@ def propose(repo: Path, *, level: str | None = None) -> Proposed:
             if spec.id in _YES_NO:
                 placeholder[spec.id] = "no"
                 notes[spec.id] = "yes | no"
+                # `F165`: supplied on the command line, so it is the human's answer and is recorded
+                # as one rather than left for them to write again into a line that is already true.
+                if spec.id == "stack.builds_user_interface" and builds_ui is not None:
+                    placeholder[spec.id] = "yes" if builds_ui else "no"
+                    answers[spec.id] = placeholder[spec.id]
             elif spec.kind == "choice":
                 placeholder[spec.id] = spec.choices[0][0]
                 notes[spec.id] = " | ".join(value for value, _ in spec.choices)
@@ -1019,10 +1033,26 @@ def propose(repo: Path, *, level: str | None = None) -> Proposed:
     else:
         flow.answer_level({"conformance_level": level})
         answers["level.conformance_level"] = level
-        header.append(
-            f"# Proposed at level {level}, and as though this repository builds no user interface;"
-        )
-        header.append("# answer stack.builds_user_interface and run --propose --level again to see the interface gates.")
+        # `F165`: this said "answer stack.builds_user_interface and run --propose --level again",
+        # and --propose reads the repository rather than this file, so the answer was discarded
+        # without a word. The flag is the route; the warning is the second half of the correction,
+        # because the old sentence is the obvious thing to try next.
+        if builds_ui is None:
+            header.append(
+                f"# Proposed at level {level}, and as though this repository builds no user interface;"
+            )
+            header.append(
+                f"# if it does, re-run: surfaceplate adopt --propose --level {level} --builds-ui yes"
+            )
+            header.append(
+                "# Editing the line below and re-proposing will NOT do it - --propose rebuilds this"
+            )
+            header.append("# record from the repository every run, and overwrites what you wrote here.")
+        else:
+            header.append(
+                f"# Proposed at level {level}, and as a repository that "
+                f"{'builds a' if builds_ui else 'builds no'} user interface, as you said on the command line."
+            )
         seeds = flow.gate_seeds()
         gate_placeholder: dict = {}
         for spec in flow.gate_specs():
@@ -1140,6 +1170,38 @@ def propose(repo: Path, *, level: str | None = None) -> Proposed:
     return Proposed(answers=answers_path, proposed=proposed_path)
 
 
+# `F167`: the answer lines that really do take several values. Everything else takes one, and
+# writing one as a YAML list is the natural mistake rather than a careless one - the PROFILE stores
+# `scanner.wired_in` and `precondition.artefacts` as lists, and `sections.py` is what wraps the
+# single answer into one. `enforcement` is ticked boxes; `above_floor` is a list of control ids.
+_LIST_ANSWERS = ("controls.above_floor",)
+_LIST_SUFFIXES = (".enforcement",)
+
+
+def _refuse_wrong_shape(key: str, value: object) -> None:
+    """Say which line is wrong, here, rather than three layers down where only a path remains.
+
+    `F167`: a list written where one value was wanted reached `sections.build_profile`, which
+    wrapped it again, and the provenance walk then failed on a path that existed in no rule:
+
+        The wizard could not finish: KeyError: "no provenance rule reaches profile path
+        'baseline_controls.secret_hygiene.scanner.wired_in[0][0]'"
+
+    Exit 4, nothing written, and nothing in that sentence tells the adopter which of their lines to
+    change. The `[0][0]` is the whole diagnosis and it is not addressed to them.
+    """
+    if not isinstance(value, list):
+        return
+    if key in _LIST_ANSWERS or key.endswith(_LIST_SUFFIXES):
+        return
+    only = f" Write it as `{key}: {value[0]}`." if len(value) == 1 and isinstance(value[0], str) else ""
+    raise WriteRefused(
+        f"{key} takes a single value, not a list.{only} "
+        "The profile stores some of these as lists, so the wizard is what wraps your answer - "
+        "writing the brackets yourself nests it one level too deep."
+    )
+
+
 def replay(repo: Path, answers_path: Path) -> Path:
     """Replay a human-completed answers record through the same code as the interface, and
     write the profile. A record with any `needs-human` line left refuses to write anything."""
@@ -1179,6 +1241,7 @@ def replay(repo: Path, answers_path: Path) -> Path:
             scripted[key] = value["value"]
         else:
             scripted[key] = value
+        _refuse_wrong_shape(key, scripted.get(key))
     scripted["level.conformance_level"] = record["level"]
     create = str(record["answers"].get("create_missing_artefacts", "yes")).strip().lower() in ("yes", "true", "y")
     interview = ScriptedInterview(answers=scripted, accept_scaffold=create)
