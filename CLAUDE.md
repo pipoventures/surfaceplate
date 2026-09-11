@@ -38,13 +38,22 @@ here was done by an agent that had never read them. The import above is what clo
   *(This line said "the five suites" until `ACT-033`, six suites after that stopped being true,
   thirteen until `ACT-057` and fourteen until `ACT-089`; it is corrected in the same change that adds
   one, which is the habit that keeps it true.)*
-- After changing anything the standard ships: `scripts/build_release.py`, reinstall from a clean
-  source copy, re-pin `adoption.framework_digest` from `.standards/INSTALL.json`, and then **build
-  the manifest again, last**. The order matters and CI fails on it otherwise: the checker compares
-  the profile against the install record, while `--verify-manifest` compares the manifest against the
-  working tree, so pinning the digest after the final build leaves the manifest stale. The vendored
-  copy under `.standards/` is what the hook and the installed workflow actually execute; source and
-  vendored drifting apart is `F12`.
+- After changing **any tracked file outside the excluded set**: `scripts/build_release.py`, reinstall
+  from a clean source copy, re-pin `adoption.framework_digest` from `.standards/INSTALL.json`, and
+  then **build the manifest again, last**. The order matters and CI fails on it otherwise: the
+  checker compares the profile against the install record, while `--verify-manifest` compares the
+  manifest against the working tree, so pinning the digest after the final build leaves the manifest
+  stale. The vendored copy under `.standards/` is what the hook and the installed workflow actually
+  execute; source and vendored drifting apart is `F12`.
+  *(`F170`: this line read "after changing anything the standard ships", which is the payload — and
+  the manifest is not scoped to the payload. `build_release.py`'s `EXCLUDED_DIRS` names only `.git`,
+  `dist`, `__pycache__`, `.venv`, `.ruff_cache`, `.scratch`, `.pytest_cache` and `.standards`, so
+  `scripts/` and `tests/` are in it too. A change to a test file, made under this instruction and
+  followed exactly, left the manifest stale and failed CI with every suite green.)*
+- **The fifteen suites are not what CI runs.** `standard-self-check.yml` reports seventeen outcomes:
+  the fifteen, plus `manifest` (`build_release.py --verify-manifest`) and `conformance`
+  (`check_conformance.py`). Running the suites and reporting the change verified is a narrower claim
+  than it sounds, and `F170` is what it cost.
 - **`org/HUMAN_ACTIONS.md` is what is waiting on a person.** Read it before proposing work: an item
   there is not blocked on effort and cannot be cleared by an agent with more time. `activity/register.md`
   records work and `org/FINDINGS.md` records defects; neither answered "what needs the maintainer?",

@@ -91,6 +91,20 @@ class Flow:
         self.done: list[str] = list(done)
         self.bulk: list[provenance.BulkDecision] = []
         self.adoption_date = (today or _dt.date.today()).isoformat()
+        # `F166`. THE DATE IS FOR THE PROFILE'S "written on" LINE; A GATE BINDS FROM THE INSTANT.
+        # `F47`/`ACT-035` established that - a gate adopted midway through a day must be able to
+        # say so, or every commit made earlier that same day falls inside its audit window and
+        # `SP033` forbids the obvious escape of dating it tomorrow. That remedy was applied where
+        # a scaffold creates the artefact (`answer_scaffold` below, "the moment the artefact was
+        # created") and NOT here, where the artefact is one the adopter names. So the adopter who
+        # supplies their own artefacts got `F47`'s original symptom back, and the one who accepted
+        # every scaffold did not - the diligent path was the penalised one.
+        self.adoption_moment = (
+            provenance.now_iso() if today is None
+            # A pinned day is for determinism, so keep the instant ON that day rather than
+            # silently returning a real `now` whose date differs from the one asked for.
+            else _dt.datetime.combine(today, _dt.time(12, 0)).astimezone().replace(microsecond=0).isoformat()
+        )
         self.accepted_scaffold: list[scaffold.Offer] = []
         self.proposals: dict[str, defaults.Proposal] = {}
         # The register of explanation. `DR-47`'s flow has no screen for it; plain English is the
@@ -182,7 +196,7 @@ class Flow:
 
     def _propose_after_level(self) -> None:
         for proposal in defaults.propose_after_level(
-            self.state, found=self.found, adoption_date=self.adoption_date
+            self.state, found=self.found, adoption_moment=self.adoption_moment
         ):
             self.proposals[proposal.field] = proposal
             section = proposal.field.split(".")[0]
@@ -405,6 +419,17 @@ class Flow:
                 origin = self.origins.get(f"{name}.{spec.id}")
                 if origin is not None and origin.kind == provenance.SCAFFOLDED:
                     continue  # the file is created when the profile is written, not before
+                # `F168`: and so is a path ANOTHER gate's accepted offer will create. The exemption
+                # above is keyed on this field's own origin, so it reached a gate that took the
+                # scaffold and missed the one that REUSED the same artefact - which is the pairing
+                # `core/PREREQUISITE_GATES.md` recommends: *"the two are almost always adopted
+                # together"*. Following that advice produced "Nothing exists at that path in this
+                # repository." for a path the same run was about to write, so the documented
+                # configuration could not be completed in one pass. The escape - copy the seed out
+                # of `.standards/seeds/` by hand and commit it - is undocumented (`F169`), so the
+                # refusal was a dead end unless you had read `scaffold.py`.
+                if str(answered.get(spec.id) or "").strip() in {o.path for o in self.accepted_scaffold}:
+                    continue
                 problem = validators.check(spec.validate, answered.get(spec.id), repo=self.repo)
                 if problem:
                     return f"{name}.{spec.id}", problem

@@ -250,6 +250,12 @@ standard should prescribe them is a separate question and is not answered here.
 | F157 | `SP038` reported a negative it could not establish: a fresh clone has no hook by construction, so every adopter claiming `local_hook` would have failed CI 30 days after install. `DR-74`'s rule, applied to the case `DR-74` missed | high | Closed — `ACT-096` (`DR-84`), 2026-09-11; answers `H24`; see the body |
 | F162 | The built distribution declared no `readme`, so the PyPI project page would have rendered the summary line and then blank space — and `pyproject.toml` carried a comment asserting that PyPI rendered the README | medium | Closed — `ACT-103`, 2026-09-11; see the body |
 | F163 | `requires-python = ">=3.9"` was **false**, not merely untested: `jsonschema==4.26.0` is a hard dependency requiring `>=3.10`, so the package could never install on 3.9 — and the wrong declaration gave the reader a worse error than the right one would have | medium | Closed — `ACT-104`, 2026-09-11. Raised `low`/`Accepted` hours earlier and reassessed; see the body |
+| F170 | `CLAUDE.md` gave the release ritual's trigger as "after changing anything the standard ships" — the payload — while the manifest covers **every tracked file outside a short excluded set**, `scripts/` and `tests/` included. Followed exactly, the instruction leaves the manifest stale, and CI then fails with every suite green | medium | Closed — `ACT-106`, 2026-09-11; see the body |
+| F165 | `stack.builds_user_interface` could not be answered `yes` on the non-interactive route at all — the answers record told the reader to write it into the file and re-propose, and `--propose` rebuilds from the repository and discarded it — so a repository that builds an interface could not be adopted through `--propose`/`--answers` | high | Closed — `ACT-106`, 2026-09-11 (`DR-87`); see the body |
+| F166 | `F47`'s remedy was applied at one of two sites: a gate binds from the instant of adoption when a scaffold created its artefact, and from that **midnight** when the adopter named one — so `F47`'s original symptom returned for the adopter who supplies their own artefacts, and the obvious correction is foreclosed by `SP034` | high | Closed — `ACT-106`, 2026-09-11 (`DR-87`); see the body. `F47` stays `Closed`; this is the half its closure did not cover |
+| F167 | An answer written as a YAML list where one value belongs reached the profile assembly and failed with `KeyError: "no provenance rule reaches profile path 'baseline_controls.secret_hygiene.scanner.wired_in[0][0]'"` — exit 4, nothing written, and nothing in that sentence addressed to the adopter | medium | Closed — `ACT-106`, 2026-09-11; see the body |
+| F168 | A gate naming the artefact **another** gate's accepted offer will create was refused with "Nothing exists at that path in this repository", for a path the same run was about to write — so the pairing `core/PREREQUISITE_GATES.md` recommends could not be completed in one pass | high | Closed — `ACT-106`, 2026-09-11; see the body |
+| F169 | `.standards/seeds/` — the only escape from `F168`, and the material the wizard writes gate artefacts from — was named in no document an adopter receives | medium | Closed — `ACT-106`, 2026-09-11; see the body |
 | F164 | `scripts/front_door.sh` wrote its stranger identity and its global `core.hooksPath` into the **invoking user's real `~/.gitconfig`**, then deleted the directory it had pointed the hooks at — so every git hook on the machine was silently skipped, and later commits in any repository without a local identity were authored by "A stranger" | high | Closed — `ACT-105`, 2026-09-11; see the body. The machine repair is `H27` |
 | F161 | The gates screen rebuilt each `FieldSpec` by hand and dropped every field added since, and its `Ctrl+S` refusal was wiped by the next keypress — `F74`'s defect, fixed on the other screen only | medium | Closed — `ACT-099`, 2026-09-11; see the body |
 | F160 | `SP047` read a `run:` block line by line, so a scan disarmed across continuation lines was invisible to the check built to find it — while a step that merely READ the scanner's report was reported as the scan command | high | Closed — `ACT-098`, 2026-09-11; see the body |
@@ -1586,6 +1592,246 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F170 — The release ritual's documented trigger is narrower than the manifest it protects
+
+**Severity: medium. Closed — `ACT-106`, 2026-09-11.**
+
+**Found by following the instruction and failing CI.** `ACT-105` changed `scripts/front_door.sh` and
+`tests/check_code_registers.py`, neither of which the standard ships. `CLAUDE.md` said the ritual is
+run *"after changing anything the standard ships"*, so it was not run, the fifteen suites were run
+instead, all fifteen passed, and the change was reported verified. CI then failed:
+
+```
+OUTCOMES: contracts=success installer=success adopt=success provenance=success
+adopt_tui=success render=success snapshots=success matrix=success discover=success
+shapes=success scaffold=success audit_packet=success manifest=failure
+identifiers=success registers=success vendored=success conformance=success
+```
+
+One failure out of seventeen, and it was the one the instruction had excused.
+
+**The manifest is not scoped to the payload.** `build_release.py`'s `EXCLUDED_DIRS` names `.git`,
+`dist`, `__pycache__`, `.venv`, `.ruff_cache`, `.scratch`, `.pytest_cache` and `.standards`.
+Everything else tracked in the repository is hashed into `surfaceplate/MANIFEST.sha256` —
+`scripts/`, `tests/`, `org/`, this file. So the set of changes that invalidate the manifest is very
+nearly *all of them*, and the document named a small subset.
+
+**The second half is the more useful one.** `CLAUDE.md` opens by naming **fifteen suites** and says
+`standard-self-check.yml` "is the authority for the full set". The workflow reports **seventeen**
+outcomes: the fifteen, plus `manifest` and `conformance`. "I ran the fifteen suites" therefore
+sounds like "I ran what CI runs" and is not, and nothing in the document said so.
+
+This is an agent-facing instruction in a repository whose subject is instructions that outrun their
+evidence, so it belongs in the register rather than being quietly edited.
+
+**Closed.** The trigger reads "after changing any tracked file outside the excluded set", with the
+excluded set named; the superseded wording is kept beside it as the record of what it cost. A second
+bullet states that the fifteen suites are not what CI runs, and names the two extra outcomes.
+
+**Not remedied: nothing enforces this.** The instruction is prose, and an agent that skips the
+ritual still discovers it from CI rather than locally. A pre-push hook or a suite that shells out to
+`--verify-manifest` would close that, and both are larger than this packet; the honest position is
+that CI catches it, one round trip later than it should.
+
+## F165 — A repository that builds a user interface could not be adopted through the file-based route, and the record told the reader to do the thing that does not work
+
+**Severity: high. Closed — `ACT-106`, 2026-09-11 (`DR-87`).**
+
+**Found by reviewing an AI-assisted adoption transcript against the code**, at the maintainer's
+request to identify what had succeeded *"just because we used AI"*. This is the clearest case of it.
+
+The answers record `--propose` writes carried this in its own header:
+
+```
+# Proposed at level full, and as though this repository builds no user interface;
+# answer stack.builds_user_interface and run --propose --level again to see the interface gates.
+```
+
+`wizard.propose(repo, *, level)` takes a repository and a level. **It never reads the answers
+record.** An answer written into that line was discarded on the next run, without a word, and there
+was no flag either — so the instruction printed in the file was the one thing that could not work.
+
+**And there was no other way round it.** `stack.builds_user_interface` is decisive rather than
+descriptive: `true` makes `component_library`, `design_authority`, `options_before_build` and
+`prerequisite_state_ui` all `required`, and `false` makes all four `not_applicable`; a contradiction
+is `SP037`. Of the four, only `options_before_build` has a seed in `scaffold.SEEDABLE`, so the other
+three cannot be scaffolded either, and they never appear as `needs-human` lines while the proposal
+is being built as no-UI. **A repository with an interface had no route through
+`--propose`/`--answers` at all** — which is the whole of `DR-49`'s no-terminal path and the whole of
+what `agent-prompt` points an agent at.
+
+The walkthrough diagnosed this by reading `wizard.py`. An adopter has the same file on disk and no
+reason on earth to open it.
+
+**Closed by `--builds-ui {yes,no}`**, honoured by `--propose` and recorded as the human's own answer
+rather than left as a line they must write again. The header now names the flag and states plainly
+that editing the line and re-proposing will not do it — the correction has to include the warning,
+because the old sentence is the obvious next thing to try.
+
+**Evidence.** By effect on a real repository: with `--builds-ui yes`, the four interface gates
+appear in the record (15 mentions where there were none) and `stack.builds_user_interface` is
+recorded as `'yes'` rather than `needs-human`.
+
+## F166 — `F47` was fixed at one of its two sites, so the adopter who supplies their own artefacts got the defect and the one who accepts every scaffold did not
+
+**Severity: high. Closed — `ACT-106`, 2026-09-11 (`DR-87`).**
+
+`F47` in this register reads **Closed by `ACT-035`**, *"`effective_from` accepts an instant, so
+adoption binds from the moment"*. The walkthrough reproduced `F47`'s original symptom, against a
+build where it reads closed, and the checker's output matched the sample quoted inside `F47`'s own
+body almost word for word.
+
+Two sites write a gate's `effective_from`:
+
+| Site | Value |
+|---|---|
+| `flow.py:answer_scaffold` — artefact the **tool scaffolded** | `provenance.now_iso()` — an instant |
+| `defaults.py:propose_gates` — artefact the **adopter named** | `adoption_date` — a bare date, i.e. midnight |
+
+`ACT-035` changed the first. The second kept the date for five months. In the walkthrough's profile
+that produced eight gates safe and seven flagged, all seven with:
+
+```
+[SP035] Gate 'work_contract' was crossed without its precondition
+        1 commit(s) since 2026-09-11T00:00:00 changed a gated path while a required
+        artefact was absent: 32c33e1 2026-09-11 Initial commit
+```
+
+**The inversion is the part worth naming.** A gate whose artefact the tool created binds from the
+instant and is safe. A gate whose artefact the adopter supplied binds from midnight and is not. The
+adopter who does more of the work is the one the check reports on.
+
+### Why it is worse than a returning symptom
+
+The obvious correction — normalise the dates to the instant the others carry — is **permanently
+foreclosed once the profile is committed.** `SP034` reads any forward move of `effective_from` as
+gate-widening, and is never graced. The walkthrough did exactly this, turned a graced `WARN` into an
+ungraced `FAIL`, and recovered only because it had not committed the bare dates first. An adopter
+who commits first has no way back but an exception record per gate.
+
+`SP034` is right to be unforgiving: a good-faith correction of this defect and a bad-faith erasure
+of a violation produce an identical diff. That is exactly why the proposal has to be right the
+first time, and why this is `high` rather than `medium`.
+
+### Why no test caught it
+
+Two reasons, and both are the same shape.
+
+- `tests/test_scaffold.py::test_a_bare_repository_can_reach_a_passing_check` asserts
+  *"no gate reports a violation over commits made before the artefact existed (F47)"* — and
+  **supplies `gates.work_registration.effective_from` itself**, as an instant, in its own answers
+  dict. It never let the tool propose, so it could not have observed the proposal.
+- `tests/adopt_matrix.py` asserted `("gate:<id>.effective_from", flow.adoption_date)` for the
+  non-scaffold branch. The matrix's 208 runs and 44,774 checks were **enforcing the defect as the
+  expected value.**
+
+**Closed.** `Flow` carries `adoption_moment` beside `adoption_date` — the date is for the profile's
+"written on" line, the moment is what a gate binds from — and `propose_gates` proposes the moment.
+The matrix expectation becomes `INSTANT`, the sentinel the scaffold branch already used.
+
+`F47` itself stays `Closed`: its remedy was right and is now applied everywhere. Its body still
+carries the pre-remedy sentence *"Not remedied here, deliberately"* under a `Closed` heading, which
+is superseded prose left standing; that is corrected in the same change.
+
+**Evidence.** Reinstating the date fails the suite and names it —
+*"and every one is an instant, not a bare date (F166): bound from midnight:
+['gates.work_registration.effective_from', 'gates.work_contract.effective_from', …]"*. The matrix
+report regenerates and the diff is read rather than absorbed.
+
+**Cost, stated rather than buried.** One existing assertion no longer covers `effective_from`:
+`test_adopt.py`'s comparison of a proposing run against a typing run, which replays the first run's
+values into a second. A time-valued proposal cannot be "submitted unchanged" across two runs,
+because the second run's proposal is necessarily later. No single adoption exhibits the case — the
+run that proposes the instant is the run that accepts it — but the comparison is two fields
+narrower than it was.
+
+## F167 — A wrong-shaped answer failed with an internal profile path and nothing addressed to the adopter
+
+**Severity: medium. Closed — `ACT-106`, 2026-09-11.**
+
+The walkthrough answered `controls.scanner.wired_in` as a YAML list. That is a reasonable reading:
+the **profile** stores `wired_in` as a list, and the record's `choices:` block says nothing about
+shape for a free-text field. `sections.build_profile` wraps the answer in a list itself, so a list
+answer became a list of lists, and the provenance walk then failed on a path no rule reaches:
+
+```
+The wizard could not finish: KeyError: "no provenance rule reaches profile path
+'baseline_controls.secret_hygiene.scanner.wired_in[0][0]'"
+```
+
+Exit 4, nothing written. The `[0][0]` is the entire diagnosis and it is not addressed to the person
+who has to fix it. The walkthrough recovered by reading `sections.py:135`.
+
+`gates.<id>.precondition.artefacts` is wrapped the same way and would have failed identically.
+
+**Closed.** `wizard.replay` refuses a list where one value belongs, at the point the record is read,
+naming the adopter's own line: *"wrap.release_route takes a single value, not a list. Write it as
+`wrap.release_route: Merged to main.` The profile stores some of these as lists, so the wizard is
+what wraps your answer — writing the brackets yourself nests it one level too deep."* The answers
+that really do take several values (`controls.above_floor`, anything ending `.enforcement`) are
+unaffected.
+
+**Evidence.** A regression test takes a complete, valid record, wraps one scalar answer in a list,
+and asserts both that the refusal names that line and that it hands back no internal profile path.
+
+## F168 — A gate could not name the artefact another gate's offer was about to create, which is the pairing the catalogue recommends
+
+**Severity: high. Closed — `ACT-106`, 2026-09-11.**
+
+`core/PREREQUISITE_GATES.md` says of `authority_map` and `authority_same_change`: *"The two are
+almost always adopted together."* Follow that advice — name one gate's artefact as the other's,
+where the first is one the tool offers to create — and the review refused:
+
+```
+Refusing to write: gates.authority_same_change.artefact:
+Nothing exists at that path in this repository.
+```
+
+For a path the same run was about to write.
+
+`flow._first_problem` already exempts an artefact that is *"created when the profile is written, not
+before"* — but keyed the exemption on **that field's own origin**. The gate that accepted the offer
+has origin `scaffolded` and was exempt. The gate that reused the identical path has origin `typed`
+and was not.
+
+`STAGES = ("decisions", "level", "gates", "remainder", "scaffold", "review")`, so nothing about the
+ordering can be inferred from the stage names either: the artefact genuinely does not exist yet when
+the review runs.
+
+**The escape was undocumented**, which is what made the refusal a dead end rather than an
+inconvenience: copy the seed out of `.standards/seeds/` by hand and commit it — a directory named in
+no adopter-facing document at the time (`F169`). The walkthrough found it by reading `scaffold.py`,
+then *predicted* that `register_currency` would fail identically and pre-empted it. A person meets
+one opaque refusal per gate.
+
+**Closed.** The exemption is keyed on the path rather than on the field: any value among the paths
+an accepted offer will create is exempt, whichever field names it.
+
+**Evidence.** A regression test adopts at `standard` with `register_currency` `required` and naming
+the register `work_registration`'s offer creates, and asserts the profile carries that path twice.
+Reverting the fix fails it with the walkthrough's exact sentence: *"the review refuses to write:
+gates.register_currency.artefact: Nothing exists at that path in this repository."*
+
+## F169 — The seeds an adopter needs were named in no document an adopter receives
+
+**Severity: medium. Closed — `ACT-106`, 2026-09-11.**
+
+`.standards/seeds/` is installed into every adopting repository and holds the material
+`surfaceplate adopt` writes gate artefacts from. Searched across `surfaceplate/standard/`,
+`surfaceplate/core/`, `README.md`, `INSTALL.md` and `SUPPORT.md`, the string `seeds/` appeared
+**nowhere**. The directory was discoverable only by reading `scaffold.py` or by listing
+`.standards/`.
+
+That is a documentation gap on its own and was the load-bearing one for `F168`, whose only remedy
+was to copy a seed by hand.
+
+**Closed.** `core/PREREQUISITE_GATES.md` gains *"Where an artefact comes from when you have none"*:
+what `SP032` demands of a precondition artefact, why pointing a gate at the closest existing file is
+`F40`, the seeds' location with a worked `cp`, why copying by hand is sometimes worth it, and — the
+part that must stay — that **not every gate has a seed, deliberately**, because an
+equivalence-evidence protocol cannot be created empty and remain true. A gate that offers nothing is
+the framework declining to write a claim on the adopter's behalf.
 
 ## F164 — The front-door script rewrote the operator's own git configuration, and the damage was invisible from inside this repository
 
@@ -4977,11 +5223,20 @@ people, because running `adopt` is usually part of a working session rather than
 a quiet morning. It resolves itself the next day - the violation is bounded to commits from the
 adoption date - so it is a poor first impression rather than a lasting defect.
 
-**Not remedied here, deliberately.** The candidates all touch a published control's semantics and
-none is obviously right: making the audit compare commit *timestamps* rather than dates; treating
-the commit that introduces an artefact as the boundary; or letting `effective_from` carry a time.
-`DR-43` records them. Choosing between them is a change to `SP033`/`SP035` and belongs in its own
-packet with its own decision, not as a side effect of adding scaffolding.
+**Remedied by `ACT-035`: `effective_from` carries a time, so a gate binds from the instant of
+adoption.** Of the three candidates `DR-43` recorded — comparing commit *timestamps* rather than
+dates, treating the commit that introduces an artefact as the boundary, or letting `effective_from`
+carry a time — the third was chosen, in its own packet with its own decision.
+
+> *Historical, superseded by the paragraph above and kept as the record of what was decided when.*
+> As first recorded under `ACT-033`: **"Not remedied here, deliberately.** The candidates all touch
+> a published control's semantics and none is obviously right… Choosing between them is a change to
+> `SP033`/`SP035` and belongs in its own packet with its own decision, not as a side effect of
+> adding scaffolding."
+
+**`ACT-035`'s remedy reached one of the two sites that write the value**, and the other kept the
+bare date until `ACT-106`. That is `F166`, which carries the reproduction, the inversion it caused,
+and why no test here could see it.
 
 **What `ACT-033` did instead:** its test asserts the true outcome - the artefact exists, the gate
 names it, and the only outstanding finding is this one - rather than asserting a clean check and

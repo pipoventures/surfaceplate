@@ -909,9 +909,22 @@ def test_defaults_propose_but_never_decide(tmp: Path) -> None:
         "risk": {"data_classification": "internal"},
         "level": {"conformance_level": "standard"},
     }
-    proposals = defaults.propose_after_level(state, found=found, adoption_date="2026-09-02")
+    proposals = defaults.propose_after_level(state, found=found, adoption_moment="2026-09-02T12:00:00")
 
     check("the wizard proposes something to work from", len(proposals) > 20, str(len(proposals)))
+    # `F166`: every gate binds from an INSTANT, including the ones whose artefact the adopter
+    # names rather than accepting a scaffold for. A bare date binds from midnight, so the adoption
+    # day's earlier commits - the install commit among them - fall inside the audit window and
+    # `SP035` fires on a gate that was honoured. `F47` established this and `ACT-035` applied it to
+    # the scaffold path only; the proposal kept the date for another five months.
+    effective = [p for p in proposals if p.field.endswith(".effective_from")]
+    check("a gate proposal carries effective_from at all", bool(effective), str(len(effective)))
+    dateonly = [p.field for p in effective if "T" not in str(p.value)]
+    check(
+        "and every one is an instant, not a bare date (F166)",
+        not dateonly,
+        f"bound from midnight: {dateonly[:3]}",
+    )
     check(
         "every proposal declares an honest origin",
         all(p.origin in {"discovered", "example", "computed"} for p in proposals),
@@ -939,8 +952,10 @@ def test_defaults_propose_but_never_decide(tmp: Path) -> None:
     )
     check("the adoption decision record id is never invented", "adoption.decision_record_id" not in proposed)
     check(
-        "effective_from is proposed as the adoption date, as computed (DR-47 (5))",
-        any(p.field == "gates.work_registration.effective_from" and p.value == "2026-09-02" and p.origin == "computed" for p in proposals),
+        # `F166`: the MOMENT, not the date. This assertion named the date as the property until a
+        # walkthrough reproduced `F47` against a build where `F47` reads as closed.
+        "effective_from is proposed as the moment of adoption, as computed (DR-47 (5))",
+        any(p.field == "gates.work_registration.effective_from" and p.value == "2026-09-02T12:00:00" and p.origin == "computed" for p in proposals),
     )
 
     flow = _flow.Flow(repo, {"standard_version": "0.0.0", "framework_digest": "0"}, state=state, done=("decisions", "level"))
@@ -2289,10 +2304,20 @@ def test_proposing_writes_the_same_profile_as_typing_the_same_values(tmp: Path) 
     )
     record_a = yaml.safe_load((repo_a / provenance.PROVENANCE_PATH).read_text(encoding="utf-8"))
     record_b = yaml.safe_load((repo_b / provenance.PROVENANCE_PATH).read_text(encoding="utf-8"))
+    # `F166`: `effective_from` is excluded, for the reason stated four lines above about the
+    # profile text - it is an INSTANT, so the second run's proposal is necessarily a later one than
+    # the value the second run submits. "Submitted unchanged" cannot be true of a time-valued
+    # proposal replayed into a fresh run, so the property below does not apply to it. NOT a
+    # weakening: no single adoption can exhibit the case, because the run that proposes the instant
+    # is the run that accepts it. The cost is stated rather than hidden - this comparison no longer
+    # covers those two fields.
+    def origins(record: dict) -> dict:
+        return {p: f["origin"] for p, f in record["fields"].items() if not p.endswith(".effective_from")}
+
     check(
         "and a value submitted unchanged is recorded under its proposal's origin either way",
-        {p: f["origin"] for p, f in record_a["fields"].items()} == {p: f["origin"] for p, f in record_b["fields"].items()},
-        str([p for p in record_a["fields"] if record_a["fields"][p]["origin"] != record_b["fields"].get(p, {}).get("origin")][:5]),
+        origins(record_a) == origins(record_b),
+        str([p for p in origins(record_a) if origins(record_a)[p] != origins(record_b).get(p)][:5]),
     )
     check(
         "the record names typed, discovered, example, computed and fact of record among its origins",
@@ -2462,6 +2487,31 @@ def test_answers_replays_a_completed_record_through_the_same_code(tmp: Path) -> 
     record["accept_proposals"] = "yes"  # `F103`: the proposals are accepted as one act
     completed = repo / "answers-completed.yaml"
     completed.write_text(yaml.safe_dump(record, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    # `F167`: the same record with ONE answer written as a YAML list. A walkthrough did exactly
+    # this to `controls.scanner.wired_in` - reasonably, since the profile stores that field as a
+    # list - and got `KeyError: "no provenance rule reaches profile path
+    # 'baseline_controls.secret_hygiene.scanner.wired_in[0][0]'"`, exit 4, nothing written. The
+    # refusal must name the adopter's own line and must not hand them an internal profile path.
+    shaped = dict(record)
+    shaped["answers"] = {**record["answers"], "wrap.release_route": ["Merged to main."]}
+    wrong = repo / "answers-wrong-shape.yaml"
+    wrong.write_text(yaml.safe_dump(shaped, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    try:
+        wizard.replay(repo, wrong)
+        shape_outcome = "wrote it anyway"
+    except wizard.WriteRefused as exc:
+        shape_outcome = str(exc)
+    check(
+        "a single value written as a list is refused by the line's own name (F167)",
+        "wrap.release_route" in shape_outcome and "takes a single value" in shape_outcome,
+        shape_outcome[:160],
+    )
+    check(
+        "and the refusal hands back no internal profile path",
+        "[0][0]" not in shape_outcome and "provenance rule" not in shape_outcome,
+        shape_outcome[:160],
+    )
+
     written = wizard.replay(repo, completed)
     check("a completed record writes the profile", written.is_file())
     data = yaml.safe_load(written.read_text(encoding="utf-8"))

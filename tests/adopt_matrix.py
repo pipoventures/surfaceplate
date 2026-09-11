@@ -615,7 +615,12 @@ def _compose_required_gate(case: Case, s: Script, flow: _flow.Flow, spec: plan.G
     else:
         if not (proposal is not None and value == proposal.value):
             s.answers[f"{prefix}.artefact"] = value
-        s.expect[f"gate:{spec.id}.effective_from"] = (flow.adoption_date, provenance.COMPUTED)
+        # `F166`: an INSTANT here too, not `flow.adoption_date`. A gate binds from the moment of
+        # adoption whether the artefact was scaffolded (the branch above) or named by the adopter
+        # (this one); a bare date binds from midnight and pulls the adoption day's earlier commits
+        # into the audit window. This line expected the date, so the matrix's 208 runs asserted the
+        # defect rather than the property.
+        s.expect[f"gate:{spec.id}.effective_from"] = ("INSTANT", provenance.COMPUTED)
     if case.variant == "effective-from-before-history":
         s.answers[f"{prefix}.effective_from"] = (TODAY - _dt.timedelta(days=3)).isoformat()
         s.expect[f"gate:{spec.id}.effective_from"] = (s.answers[f"{prefix}.effective_from"], provenance.TYPED)

@@ -331,6 +331,128 @@ def test_a_bare_repository_can_reach_a_passing_check(tmp: Path) -> None:
     )
 
 
+def test_a_gate_may_reuse_the_artefact_another_gates_offer_will_create(tmp: Path) -> None:
+    """`F168`. The configuration `core/PREREQUISITE_GATES.md` recommends, which could not be written.
+
+    That document says of `authority_map` and `authority_same_change`: *"The two are almost always
+    adopted together."* Take the advice - name one gate's artefact as another's, where the first is
+    one the tool offers to create - and the review refused:
+
+        Refusing to write: gates.<second>.artefact:
+        Nothing exists at that path in this repository.
+
+    `_first_problem` exempted a path that is "created when the profile is written, not before", but
+    keyed the exemption on THAT FIELD'S OWN ORIGIN. The gate that accepted the offer was exempt; the
+    gate that reused the same path was not, because its origin is `typed`. The path is identical and
+    the same run creates it.
+
+    The pairing here is `work_registration` and `register_currency` at `essential` - the same shape,
+    reachable in one scaffold offer. `register_currency` is deliberately not in `scaffold.SEEDABLE`,
+    so naming an existing artefact is the only route open to it, which is what makes the reuse the
+    natural answer rather than an exotic one.
+    """
+    from surfaceplate.adopt import wizard
+    from surfaceplate.adopt.interview import ScriptedInterview
+
+    sys.path.insert(0, str(ROOT / "surfaceplate"))
+    import install_standard  # noqa: E402
+
+    repo = bare_repo(tmp)
+    assert install_standard.main(
+        ["--source", str(ROOT / "surfaceplate"), "--target", str(repo), "--no-hooks"]
+    ) == 0
+    (repo / "requirements.txt").write_text("PyYAML==6.0.3\n", encoding="utf-8")
+    scan = repo / ".github" / "workflows" / "secret-scan.yml"
+    scan.parent.mkdir(parents=True, exist_ok=True)
+    scan.write_text(
+        "jobs:\n  scan:\n    steps:\n      - name: gitleaks\n        run: gitleaks detect\n",
+        encoding="utf-8",
+    )
+    (scan.parent / "ci.yml").write_text(
+        "jobs:\n  build:\n    steps:\n"
+        "      - name: Run the unit tests\n        run: pytest -q\n"
+        "      - name: Run the contract tests\n        run: pytest -q contracts\n",
+        encoding="utf-8",
+    )
+    earlier = (_dt.datetime.now().astimezone() - _dt.timedelta(hours=1)).replace(microsecond=0).isoformat()
+    backdated = {**os.environ, "GIT_AUTHOR_DATE": earlier, "GIT_COMMITTER_DATE": earlier}
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "seed"], check=True, env=backdated)
+
+    offered = scaffold.offers(repo, ["work_registration"])
+    check("the offer this test turns on is there", len(offered) == 1, str(offered))
+    register = offered[0].path
+    check("and nothing exists at that path yet", not (repo / register).exists(), register)
+
+    now = _dt.datetime.now().astimezone().replace(microsecond=0).isoformat()
+    answers = {
+        "identity.application_id": "reuse-tool",
+        "identity.display_name": "Reuse Tool",
+        "identity.owner": "Sole maintainer",
+        "stack.language": "Python 3.12",
+        "stack.builds_user_interface": False,
+        "risk.risk_profile": "A local utility; nobody else consumes its output.",
+        "risk.materiality_definition": "Nothing it produces is relied on outside this machine.",
+        "risk.relied_on_outside_team": False,
+        "risk.material_quantitative_output": False,
+        "risk.data_classification": "internal",
+        "level.conformance_level": "standard",
+        "controls.agent_work_packets.rationale": "Agent work is briefed before it starts.",
+        "controls.actual_diff_review.rationale": "Changes are read as diffs before merging.",
+        "controls.secret_hygiene.rationale": "No secrets belong in this repository.",
+        "controls.scanner.name": "gitleaks",
+        "controls.scanner.wired_in": ".github/workflows/secret-scan.yml",
+        "controls.dependency_lock.rationale": "Dependencies are pinned regardless of materiality.",
+        "controls.dependency_lock.implementation_reference": "requirements.txt",
+        "controls.deterministic_tests.rationale": "Output-shaping changes are covered by fixed tests.",
+        "controls.deterministic_tests.implementation_reference": "Run the unit tests",
+        "controls.contract_tests.rationale": "The published shapes are asserted, not assumed.",
+        "controls.contract_tests.implementation_reference": "Run the contract tests",
+        "controls.documentation_authority.rationale": "One document governs each path.",
+        "controls.above_floor": [],
+        "gates.work_registration.paths": "**",
+        "gates.work_registration.effective_from": now,
+        # THE CASE. A second gate, required, naming the very artefact the offer above will write.
+        "gates.register_currency.status": "required",
+        "gates.register_currency.artefact": register,
+        "gates.register_currency.paths": "**",
+        "gates.register_currency.effective_from": now,
+        "adoption.review_by": "2027-03-01",
+        "adoption.framework_maintainer": "Sole maintainer",
+        "adoption.repository_classification": "internal-tool",
+        "adoption.decision_record_id": "DR-ADOPT-001",
+        "adoption.adoption_status": "in_progress",
+        "adoption.needs_validator": False,
+        "wrap.human_roles": "Maintainer - sole change authority.",
+        "wrap.release_route": "Merged to main by the maintainer.",
+    }
+    # `standard` requires all nineteen gates declared; everything this test is not about is
+    # answered not_applicable in one act, exactly as the interface's bulk decision does.
+    interview = ScriptedInterview(answers, bulk_not_applicable=True)
+    interview.answers["gates.work_registration.artefact"] = register
+
+    try:
+        written = wizard.run(repo, interview)
+        outcome = ""
+    except Exception as exc:  # noqa: BLE001 - the refusal is the thing under test
+        written = None
+        outcome = f"{type(exc).__name__}: {exc}"
+    check(
+        "a gate reusing an artefact another gate's offer creates is not refused (F168)",
+        written is not None,
+        outcome[:200],
+    )
+    if written is None:
+        return
+    check("and the artefact both gates name really exists afterwards", (repo / register).is_file(), register)
+    profile = (repo / "governance" / "application-profile.yaml").read_text(encoding="utf-8")
+    check(
+        "with both gates pointing at it",
+        profile.count(register) >= 2,
+        f"{register} appears {profile.count(register)} time(s)",
+    )
+
+
 def test_a_parent_that_is_a_file_is_named_as_such(tmp: Path) -> None:
     """Code item 12. `scaffold.write` caught `FileExistsError` around `mkdir` and `open` together,
     so a parent that exists as a regular FILE was reported as "it appeared while this run was
@@ -583,6 +705,8 @@ def main() -> int:
         test_a_failure_after_the_scaffold_wrote_still_reports_what_it_wrote(tmp / "i")
         print("\nand a bare repository can now finish")
         test_a_bare_repository_can_reach_a_passing_check(tmp / "e")
+        print("\nand a gate may name an artefact another gate's offer will create (F168)")
+        test_a_gate_may_reuse_the_artefact_another_gates_offer_will_create(tmp / "j")
 
     print()
     if FAILURES:
