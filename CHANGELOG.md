@@ -3310,3 +3310,26 @@ and `--exit-code 0` joins the tokens. Verified both ways on the workflow that pr
 positive alone would have left `SP047` silent on exactly the case it exists for — and the repository
 would have gone green with a disarmed scanner and a checker that had just been made *more* precise
 about it. The suite's existing case could not have caught it: its command is one line.
+
+### The gates screen dropped the plan, and wiped its own refusal (`ACT-099`, closing `F161`)
+
+Two defects in one screenshot, both "two sites, one updated".
+
+**`Ctrl+S` appeared to do nothing.** It reported `component_library · Precondition artefact: This
+cannot be blank.` and **the next keypress erased it** — so the adopter presses `Ctrl+S`, sees no
+change, moves to look for the problem, and the message is gone. `F74` is precisely this defect,
+fixed on the decisions form and never applied to the gates screen: that fix holds the error on the
+screen so a later focus event redraws it rather than clearing it.
+
+**And the screen rebuilt each `FieldSpec` by hand**, listing eleven named fields — so every field
+added to `FieldSpec` since was silently dropped *on this screen alone*. First `seed`, then
+`found_total`, which is why a gate's dropdown read `(12 found)` where the controls form read
+`(12 of 30 found)` for the same repository. `dataclasses.replace` was already in use ten lines
+below, in the same class.
+
+**A copy that must be updated whenever the thing it copies grows is a copy that will not be.** The
+regression compares the rendered widget against what the plan built, over every `select` field, so
+the next field is covered without anyone remembering to add a case.
+
+This repository keeps meeting this shape — `F58`, `F143`, `F157`, and now both halves of this. The
+duplication is the hazard, not the individual omissions.

@@ -222,6 +222,7 @@ an unknown number of releases with nothing noticing.
 | F154 | Three documented things that were not true: `SP001`'s remedy named an internal script, the documented `pip install` resolves to `@main` rather than a release, and the install block did not say what to do when it stops on a global `core.hooksPath` | low | Closed — `ACT-094`, 2026-09-11; see the body |
 | F155 | `RECONCILIATION.md`'s first command assumed a clone of this repository beside the adopter's; a pip adopter gets `No such file or directory` on step 1 | low | Closed — `ACT-094`, 2026-09-11; see the body |
 | F157 | `SP038` reported a negative it could not establish: a fresh clone has no hook by construction, so every adopter claiming `local_hook` would have failed CI 30 days after install. `DR-74`'s rule, applied to the case `DR-74` missed | high | Closed — `ACT-096` (`DR-84`), 2026-09-11; answers `H24`; see the body |
+| F161 | The gates screen rebuilt each `FieldSpec` by hand and dropped every field added since, and its `Ctrl+S` refusal was wiped by the next keypress — `F74`'s defect, fixed on the other screen only | medium | Closed — `ACT-099`, 2026-09-11; see the body |
 | F160 | `SP047` read a `run:` block line by line, so a scan disarmed across continuation lines was invisible to the check built to find it — while a step that merely READ the scanner's report was reported as the scan command | high | Closed — `ACT-098`, 2026-09-11; see the body |
 | F159 | `--repin` refused a profile that had not been written yet by listing six lines it does not write, so the command read as broken when the profile was simply unfinished | medium | Closed — `ACT-097`, 2026-09-11; see the body |
 | F158 | The history audit's window was inclusive at second granularity, so a commit made moments BEFORE adoption was reported as crossing a gate that did not yet exist — and could never be remediated | low | Closed — `ACT-096`, 2026-09-11; decided at `H25`; see the body |
@@ -1556,6 +1557,37 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F161 — The gates screen dropped every field added to `FieldSpec`, and wiped its own refusal
+
+**Severity: medium. Closed — `ACT-099`, 2026-09-11.** Two defects in one screenshot, from the
+maintainer's `A-stranger` walkthrough. Both are "two sites, one updated".
+
+**The refusal lasted one frame.** `Ctrl+S` on a gates screen with three blank artefacts reported
+`component_library · Precondition artefact: This cannot be blank.` — and the next keypress erased
+it. The adopter presses `Ctrl+S`, sees nothing change, moves to look for the problem, and the
+message is gone. Reported as *"Can't progress here clicking Control + S"*, and reproduced exactly:
+the hint survives until a Tab or an arrow, then the focus handler redraws it with no error.
+
+**`F74` is this defect, fixed on the decisions form and never applied here.** That fix holds the
+error on the screen (`_pending_error`) so a later focus event redraws it rather than clearing it.
+The gates screen had no such hold, and its `_set_hint(error="")` default meant every other caller
+wiped it.
+
+**And the gates screen rebuilt each `FieldSpec` by hand.** `_compose_gate_fields` constructed a new
+one listing **eleven named fields**, so every field added to `FieldSpec` since was silently dropped
+on this screen alone — `seed`, and then `found_total`, which is why a gate's dropdown read
+`(12 found)` where the controls form read `(12 of 30 found)` for the same repository. The correct
+form, `dataclasses.replace`, was already in use **ten lines below** in the same class.
+
+**A copy that must be updated whenever the thing it copies grows is a copy that will not be.** That
+is the finding, not the two fields: `F147` added `found_total` and the omission was invisible
+because nothing compared the rendered widget against what the plan built. The regression now does,
+over every `select` field, so the next field is covered without anyone remembering.
+
+**This repository keeps finding this shape** — `F58` (the per-agent pattern applied to instructions
+and not skills), `F143` (one of two screens wired), `F157` (`DR-74` applied to `doctor` and not the
+checker), and now both halves of this. The hazard is the duplication, not the individual omissions.
 
 ## F160 — `SP047` missed every disarmed scan written across lines, and blamed a step that reads the report
 
