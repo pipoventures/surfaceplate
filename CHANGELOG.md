@@ -3472,6 +3472,35 @@ it. The check was named for a property it never established. It now asserts that
 content row sits immediately above its bottom border, and reinstating the overflow makes it fail
 and name the row that ended up there instead.
 
+### Attestations exist and are declined, on the record (`ACT-112`, `DR-88`, closing `F173` and `F175`)
+
+`H28` asked whether PyPI's PEP 740 attestations should become a stated part of this framework's
+integrity story. **The answer is no**, and `DR-88` records why it holds on the merits rather than as
+a preference: an attestation establishes *authenticity* — who published this — not *honesty*. A party
+with write access commits a payload and manifest that agree, the workflow faithfully builds them,
+PyPI faithfully attests that it did, and the contents are still whatever that party chose.
+
+Claiming it would buy credibility the mechanism has not earned — which is this project's entire
+subject, committed by the tool that names it.
+
+**The attestations exist regardless.** Trusted publishing produces them; a reviewer may weigh them
+and should. What changes is that a document now says so, so the next reader does not rediscover it
+and raise it again, and a reviewer who finds them has something to be pointed at other than silence.
+
+**The `0.18.0` review packet is not regenerated.** It omits the attestations and has been sent; its
+digest is quoted in two emails and in the published release notes. Silently replacing a document
+someone was asked to hash is worse than the omission it would fix.
+
+`F175`, found in the same pass: `F6`'s body claimed an adopter *"cannot recompute the anchor from
+their own repository"*. They can — the manifest ships, and `sha256` of it equals the recorded
+`framework_digest` exactly. **The false claim survived because the conclusion it supported was
+true**: recomputing it teaches an adopter nothing, since both values came from the same installer.
+A wrong premise under a right conclusion reads as sound, and re-reading does not help.
+
+`H16` also closes by decision — the maintainer judged the routes already open to be enough. The
+Reproducible Builds list remains the strongest independence available and declining it is a real
+trade, recorded as one.
+
 ### A fact of record written from an inference (`ACT-111`, closing `F174`)
 
 `audit/REVIEW_INVITATION.md` exists because *"a drafted invitation that was never sent looks, from
