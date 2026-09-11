@@ -250,8 +250,9 @@ standard should prescribe them is a separate question and is not answered here.
 | F157 | `SP038` reported a negative it could not establish: a fresh clone has no hook by construction, so every adopter claiming `local_hook` would have failed CI 30 days after install. `DR-74`'s rule, applied to the case `DR-74` missed | high | Closed — `ACT-096` (`DR-84`), 2026-09-11; answers `H24`; see the body |
 | F162 | The built distribution declared no `readme`, so the PyPI project page would have rendered the summary line and then blank space — and `pyproject.toml` carried a comment asserting that PyPI rendered the README | medium | Closed — `ACT-103`, 2026-09-11; see the body |
 | F163 | `requires-python = ">=3.9"` was **false**, not merely untested: `jsonschema==4.26.0` is a hard dependency requiring `>=3.10`, so the package could never install on 3.9 — and the wrong declaration gave the reader a worse error than the right one would have | medium | Closed — `ACT-104`, 2026-09-11. Raised `low`/`Accepted` hours earlier and reassessed; see the body |
+| F175 | `F6`'s body claimed an adopter *"cannot recompute the anchor from their own repository"*. They can — the manifest ships, and `sha256` of it equals the recorded `framework_digest` exactly. The false capability claim survived because the conclusion it supported was true | low | Closed — `ACT-112`, 2026-09-11; see the body |
 | F174 | The agent recorded a public forum posting that never happened, in the one table whose entire purpose is that a drafted invitation cannot be mistaken for a sent one — from a one-word message read as confirmation rather than checked | medium | Closed — `ACT-111`, 2026-09-11; see the body |
-| F173 | `DR-14` rejected PEP 740 attestations because *"key custody and a signing process are infrastructure"* — and trusted publishing has been producing them automatically, with neither, since `0.16.0`. The rejection's premise is void, no document says the attestations exist, and the review packet sent to two reviewers on 2026-09-11 omits them | medium | Open — `ACT-110` records it and qualifies `F6`; whether to ADOPT them is a decision (`H28`) |
+| F173 | `DR-14` rejected PEP 740 attestations because *"key custody and a signing process are infrastructure"* — and trusted publishing has been producing them automatically, with neither, since `0.16.0`. The rejection's premise is void, no document says the attestations exist, and the review packet sent to two reviewers on 2026-09-11 omits them | medium | Closed — `ACT-112`, 2026-09-11 (`DR-88`): the maintainer declined to adopt them, and the decision is recorded so the next reader does not raise it again |
 | F171 | `DR-67` narrowed the payload to the chosen agent channels and left the conformance block's **prose** naming both vendors — so a repository installed with `--agents copilot` was told four times not to edit `.claude/rules/` and `.claude/skills/`, directories it does not have, in the one file every adopter reads first | medium | Closed — `ACT-107`, 2026-09-11; see the body |
 | F172 | The `--agents` refusal said *"To install no agent instructions at all, do not install the standard"* — **which is false**: `AGENTS.md` and `.standards/topics/` are agent instructions and are installed whichever channel is chosen, as `DR-67` (3) states | low | Closed — `ACT-107`, 2026-09-11; see the body |
 | F170 | `CLAUDE.md` gave the release ritual's trigger as "after changing anything the standard ships" — the payload — while the manifest covers **every tracked file outside a short excluded set**, `scripts/` and `tests/` included. Followed exactly, the instruction leaves the manifest stale, and CI then fails with every suite green | medium | Closed — `ACT-106`, 2026-09-11; see the body |
@@ -338,11 +339,17 @@ it, and the reason is unchanged by the implementation: **both values compared li
 repository being checked.** A party with write access edits the profile and the install record
 together, and both checks pass.
 
-One further limit found while implementing it: `MANIFEST.sha256` is not part of the install payload,
-so an adopter cannot recompute the anchor from their own repository — only compare against what the
-installer wrote for them. Recomputing it independently requires the published tree. `DR-14`'s
-implementation note records this and leaves installing the manifest as an open question for whoever
-revisits `DR-20`'s payload principle.
+**Corrected 2026-09-11 (`F175`).** This paragraph read: *"`MANIFEST.sha256` is not part of the
+install payload, so an adopter cannot recompute the anchor from their own repository — only compare
+against what the installer wrote for them."* **The first half is false and the second is true, which
+is why it survived.** The manifest ships: it is on disk at `.standards/MANIFEST.sha256` in every
+adopting repository, and `sha256` of it equals `INSTALL.json`'s `framework_digest` exactly —
+verified on a real installed repository, both values `3e343951e68d…`.
+
+So an adopter **can** recompute the anchor locally. What they cannot do is learn anything from it
+that they did not already have, because **both values were written by the same installer** — which is
+this finding, and is why the wrong sentence read as plausible for as long as it did. The capability
+claim was wrong; the conclusion it supported was right.
 
 ## What would actually close `F6`
 
@@ -1613,6 +1620,44 @@ field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
 
+## F175 — A false statement survived because the thing it was used to prove was true
+
+**Severity: low. Closed — `ACT-112`, 2026-09-11.**
+
+`F6`'s body carried, as an implementation note: *"`MANIFEST.sha256` is not part of the install
+payload, so an adopter cannot recompute the anchor from their own repository — only compare against
+what the installer wrote for them."*
+
+Established by effect on a real installed repository, while checking a sentence for a forum post:
+
+```
+sha256(.standards/MANIFEST.sha256)  = 3e343951e68d2a60b0ea3a7816316fc1b2c216a32953cecd6e14a4ac3aaa67c4
+INSTALL.json framework_digest       = 3e343951e68d2a60b0ea3a7816316fc1b2c216a32953cecd6e14a4ac3aaa67c4
+```
+
+The manifest ships. The adopter can recompute the anchor. The claim was false.
+
+### Why it lasted
+
+**Because the point it was making is correct.** An adopter recomputing the anchor learns nothing
+they did not already have, since both values were written by the same installer — which is exactly
+`F6`. A wrong premise supporting a right conclusion produces a passage that reads as sound, and
+re-reading it does not help: the eye checks whether the argument works, and it does.
+
+That is the same shape as `F166`, `F170` and `F171` from this release, in a register entry rather
+than in code. It is also why it was found by running a command rather than by reading: nothing about
+the sentence looks wrong.
+
+### Closed
+
+Corrected in place, in `F6`'s body, rather than annotated — a statement of current fact is corrected
+where it is made. The correction keeps both halves explicitly: the capability claim was wrong, the
+conclusion it supported was right, and saying so is more useful to a later reader than quietly
+deleting the sentence.
+
+**`F6` is unaffected.** Its substance never rested on the adopter's ability to recompute, only on
+who wrote the values being compared.
+
 ## F174 — A fact of record was written from an inference, in the file that exists to stop exactly that
 
 **Severity: medium. Closed — `ACT-111`, 2026-09-11.**
@@ -1663,8 +1708,12 @@ can see what the record rests on. Where there are no words to quote, there is no
 
 ## F173 — A rejection was taken on a cost that has since gone to zero, and nobody noticed because the benefit arrived by itself
 
-**Severity: medium. Open** — `ACT-110` records the fact and corrects what the register claims;
-whether to *adopt* attestations formally is a decision, raised as `H28`.
+**Severity: medium. Closed — `ACT-112`, 2026-09-11 (`DR-88`).** The maintainer answered `H28` in
+his own words — *"I don't want these attestations"* — and `DR-88` records why the answer is still no
+on the merits: an attestation establishes authenticity, not honesty, and claiming it would buy
+credibility the mechanism has not earned. The defect this finding names was never that attestations
+were unadopted; it was that a rejection stood on a cost that had expired and **no document said the
+attestations existed**. One now does.
 
 **Found while preparing a `discuss.python.org` post**, by checking whether PyPI held attestations
 before writing a sentence about them. It does:
