@@ -249,7 +249,7 @@ standard should prescribe them is a separate question and is not answered here.
 | F155 | `RECONCILIATION.md`'s first command assumed a clone of this repository beside the adopter's; a pip adopter gets `No such file or directory` on step 1 | low | Closed — `ACT-094`, 2026-09-11; see the body |
 | F157 | `SP038` reported a negative it could not establish: a fresh clone has no hook by construction, so every adopter claiming `local_hook` would have failed CI 30 days after install. `DR-74`'s rule, applied to the case `DR-74` missed | high | Closed — `ACT-096` (`DR-84`), 2026-09-11; answers `H24`; see the body |
 | F162 | The built distribution declared no `readme`, so the PyPI project page would have rendered the summary line and then blank space — and `pyproject.toml` carried a comment asserting that PyPI rendered the README | medium | Closed — `ACT-103`, 2026-09-11; see the body |
-| F163 | `requires-python = ">=3.9"` admits five Python versions; CI runs 3.12 on Linux and nothing else, so four are declared and none of them tested | low | Accepted — `ACT-103`, 2026-09-11. The remedy is a CI matrix; see the body |
+| F163 | `requires-python = ">=3.9"` was **false**, not merely untested: `jsonschema==4.26.0` is a hard dependency requiring `>=3.10`, so the package could never install on 3.9 — and the wrong declaration gave the reader a worse error than the right one would have | medium | Closed — `ACT-104`, 2026-09-11. Raised `low`/`Accepted` hours earlier and reassessed; see the body |
 | F161 | The gates screen rebuilt each `FieldSpec` by hand and dropped every field added since, and its `Ctrl+S` refusal was wiped by the next keypress — `F74`'s defect, fixed on the other screen only | medium | Closed — `ACT-099`, 2026-09-11; see the body |
 | F160 | `SP047` read a `run:` block line by line, so a scan disarmed across continuation lines was invisible to the check built to find it — while a step that merely READ the scanner's report was reported as the scan command | high | Closed — `ACT-098`, 2026-09-11; see the body |
 | F159 | `--repin` refused a profile that had not been written yet by listing six lines it does not write, so the command read as broken when the profile was simply unfinished | medium | Closed — `ACT-097`, 2026-09-11; see the body |
@@ -1586,7 +1586,51 @@ field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
 
-## F163 — `requires-python` admits five versions and CI tests one
+## F163 — `requires-python` was not merely untested; it was false
+
+**Severity: medium. Closed — `ACT-104`, 2026-09-11.**
+
+**Raised as `low`/`Accepted` on the same day and reassessed within hours**, when acting on it
+turned up something worse than the gap it described. The original framing — *"admits five versions
+and CI tests one"* — was accurate and incomplete, and the incompleteness was in the dangerous
+direction: **the package could not install on Python 3.9 at all.**
+
+`pyproject.toml` declared `requires-python = ">=3.9"`. `jsonschema==4.26.0` — a **hard dependency,
+not an extra** — itself requires `>=3.10`. Verified by resolving the real dependency set against
+each interpreter rather than by reading metadata:
+
+```
+python 3.9   FAILS: No matching distribution found
+python 3.10  runtime deps resolve
+python 3.11  runtime deps resolve
+python 3.12  runtime deps resolve
+python 3.13  runtime deps resolve
+```
+
+**And the false claim made the failure worse, not just wrong.** `requires-python` is what pip uses
+to say plainly *"this package requires a different Python"*. Declaring `>=3.9` told pip the package
+was compatible, so a 3.9 user would instead have met a dependency-resolution error naming
+`jsonschema` — a message that points at the wrong thing.
+
+**Closed by `ACT-104`**: the floor is `>=3.10`, corrected in `pyproject.toml` and `INSTALL.md`; the
+classifiers now name 3.10–3.13; and a `compatibility` job installs the real package with its extra
+on each of those four and exercises it. The claim is now true *and* checked, which is the only
+combination this framework accepts from anyone else.
+
+**What the matrix deliberately does not do**, stated so the job's name is not read as more than it
+is: it runs an install, a version and help check, an import sweep over every module, and
+`test_install_and_check.py`. It does **not** run `tests/test_adopt.py`, because that suite imports
+`tomllib` (3.11+) for a metadata check — a property of this repository's development tooling, not
+of the package. The wizard's modules are verified to import on every version; its behaviour is
+verified on one.
+
+**The lesson is about my own severity call.** `low`/`Accepted` was assigned on the reading that the
+declaration was probably right and merely unverified. *Probably right* is exactly what this
+framework refuses from adopters, and the check that would have settled it took one command.
+
+---
+
+### The original entry, as raised
 
 **Severity: low. Accepted — `ACT-103`, 2026-09-11. The declaration stands; nothing verifies it.**
 

@@ -3435,6 +3435,36 @@ link containing `://`, so going absolute would have traded a 404 on PyPI for a l
 file that nothing checks. It now resolves this repository's own blob URLs by their path, so a
 target that stops existing still fails the suite.
 
+### The package could not install on a Python it said it supported (`ACT-104`, closing `F163`)
+
+`F163` was raised hours earlier as `low` and `Accepted` — *"admits five versions and CI tests one"*.
+Acting on it found the description was accurate and incomplete, in the dangerous direction.
+
+`requires-python` read `>=3.9`. `jsonschema==4.26.0` — **a hard dependency, not an extra** — itself
+requires `>=3.10`. Tested by resolving the real dependency set against each interpreter rather than
+by reading metadata: **3.9 fails outright**, 3.10 through 3.13 resolve. The declaration was not
+unverified. It was **false**.
+
+**And being wrong made the failure worse than being right would have.** `requires-python` is what
+pip uses to say plainly *"this package requires a different Python"*. Declaring `>=3.9` told pip the
+package was compatible, so a 3.9 user would have met a dependency-resolution error naming
+`jsonschema` instead — a message pointing at the wrong thing entirely.
+
+The floor is now `>=3.10` in `pyproject.toml` and `INSTALL.md`, the classifiers name 3.10–3.13, and
+a **`compatibility` matrix job** installs the real package with its `adopt` extra on each of those
+four, checks the command runs, sweeps every module for importability, and runs the installer and
+checker end to end against a real repository.
+
+**What that job deliberately does not do is stated in the job itself**, because "runs on every
+supported Python" is exactly the kind of claim that should not outrun its evidence: it does not run
+`tests/test_adopt.py`, which imports `tomllib` (3.11+) for a metadata check. That is a property of
+this repository's development tooling, not of the package. The wizard's modules are verified to
+import on every version; its behaviour is verified on one.
+
+The uncomfortable part is the severity call. `low`/`Accepted` was assigned on the reading that the
+declaration was *probably* right and merely unchecked — and *probably right* is precisely what this
+framework refuses to accept from anyone else. The command that settled it took one line.
+
 **There was an assertion for this and it could not have caught it.** `test_render` carried a check
 named *"it fits: nothing is pushed off 24 rows"* — which tested that the hint line appeared in the
 last four rows. The hint is **docked below the frame**, so it is present whatever overflows inside
