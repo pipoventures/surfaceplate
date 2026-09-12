@@ -340,6 +340,38 @@ guidance, so they carry the patent grant with them.
 
 [`NOTICE`](https://github.com/pipoventures/surfaceplate/blob/main/NOTICE) is present as Apache-2.0 requires.
 
+### Installing Surfaceplate places no licence obligation on your own code
+
+**This is the question a corporate legal reviewer actually asks, so it is answered here rather
+than left to be inferred from the licence texts.**
+
+`surfaceplate install` writes files into your repository — the conformance checker, the installer,
+the schemas and adapters, and the hook and workflow templates under `.standards/` and
+`.githooks/`. Those files are Apache-2.0. **Apache-2.0 is a permissive licence, not a copyleft
+one: its conditions attach to the licensed files and to redistributing them, and they do not
+reach through to other code that happens to sit in the same repository.**
+
+Concretely:
+
+- **Your source does not become a derivative work** because Surfaceplate's files are installed
+  beside it, and **you are not required to license any of your own code under Apache-2.0.**
+- **If you redistribute the Apache-2.0 files** — shipping them onward, vendoring them into
+  something you publish — the licence asks you to keep the licence text and the attribution and
+  `NOTICE` content with *those files* (§4). That is an obligation about the files you received,
+  not about the product you built.
+- **If you only use them internally**, which is the normal case for a checker running in your own
+  CI, redistribution does not arise at all.
+- **The CC0-1.0 documents carry no obligations whatever** — no attribution, no licence link, no
+  indication of changes. That is what the split exists for.
+- **No trademark rights are granted** by either licence (Apache-2.0 §6 withholds them explicitly).
+  You may run, fork and modify the software; the name is a separate matter.
+
+**What this paragraph is and is not.** It is a plain reading of what the two licences say, written
+because "read the licence" is not a usable answer to a reviewer on a deadline. **It is not legal
+advice, and no lawyer has reviewed it** — consistent with how this project states the limits of
+everything else it claims. If your counsel reads Apache-2.0 differently, their reading governs
+your adoption, not this file.
+
 ---
 
 ## Maintenance
