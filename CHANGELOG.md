@@ -2467,10 +2467,11 @@ documentation.
 
 `H19` — whether to pay for independent review if the free channels go quiet — is **closed in the
 negative and standing**: the maintainer's decision is that there is never a paid review, only free
-channels and the PwC route. `H4` and `H6` therefore have no paid fallback behind them, which is now
-a stated property of the plan rather than an option quietly held in reserve. `H18`'s route is
-recorded: the install observations happen inside the PwC integration/testing, which makes them
-downstream of that engagement and of the publication the review packet also waits for.
+channels and a professional-services firm's route. `H4` and `H6` therefore have no paid fallback
+behind them, which is now a stated property of the plan rather than an option quietly held in
+reserve. `H18`'s route is recorded: the install observations happen inside that firm's
+integration/testing, which makes them downstream of that engagement and of the publication the
+review packet also waits for.
 
 **`F128` — a skill shipped to every adopter named an instruction file the installer had stopped
 writing.** `standard/.github/skills/change/SKILL.md` asked for *"the registered activity ID (see
