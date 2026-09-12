@@ -13,13 +13,23 @@ Nothing already public disappears.
 
 ## The PyPI namespace
 
-`surfaceplate` is not currently claimed on PyPI — publication has deliberately not happened yet
-(see `org/RELEASE_PLAN.md`). This section is forward-looking policy for a namespace that does not
-exist yet, not a description of something already published.
+**`surfaceplate` IS claimed on PyPI, and this section now describes something real.**
+Corrected 2026-09-12: it previously read *"not currently claimed on PyPI — publication has
+deliberately not happened yet… not a description of something already published."* That was true
+when written on 2026-08-31 and false from the first publish. **Three releases have shipped since
+— `0.16.0`, `0.16.1` and `0.18.0`** — and the file was not revisited, so a reader consulting the
+sunset policy was told the thing it governs did not exist.
 
-If the name is later claimed and the project is subsequently abandoned, the last published release
-keeps installing indefinitely — `pip` does not depend on ongoing maintenance to keep serving an
-already-published file. There is no mechanism today that automatically transfers PyPI project
+Recorded rather than silently overwritten because this is the **same defect class this project has
+already raised against its own `SECURITY.md` three times** (`F117`, `F118`, `F127`): a
+dated claim that was accurate on the day it was written and decays without anything announcing it.
+It had not been raised against this file. Found by an external reconciliation
+(hermes, 2026-09-12) rather than by any check here — **there is no instrument that would have
+caught it**, which is the more useful finding than the wrong sentence.
+
+**The policy below is unchanged by this correction — it now applies rather than anticipates.**
+If the project is abandoned, the last published release keeps installing indefinitely: `pip` does
+not depend on ongoing maintenance to keep serving an already-published file. There is no mechanism today that automatically transfers PyPI project
 ownership to anyone else. A future maintainer taking the project over (see below) would need PyPI
 access granted to them separately, as its own explicit step.
 
