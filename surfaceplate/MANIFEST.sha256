@@ -9,7 +9,7 @@ a3e8cd32162e8dd71360be22c91b4d71ea3dca39034395b2da5b42bc11d7e98f  surfaceplate-0
 83b4142a39e5bd89f524b6bfffd58a070f34f70ee4d3503e242b0092d993796d  surfaceplate-0.18.0/.github/workflows/secret-scan.yml
 dde743ef216027267334f78c1d8a0461b47aa22435295e59e744433b4efaf302  surfaceplate-0.18.0/.github/workflows/standard-self-check.yml
 b9aab7ce91da441dd7abca66c27894acdd026dbdd34240a946f748eeb7a8f80a  surfaceplate-0.18.0/AGENTS.md
-2055381bbf825e0d491de7860ca9642f0b10987f666bde6b3250c2e0b39a2373  surfaceplate-0.18.0/CHANGELOG.md
+92b9ca7e4d4207059ec23885549d7da321596f503ce699d8372920d9cec4375c  surfaceplate-0.18.0/CHANGELOG.md
 35383cbcfc80e2ec0d5bedfabeddad8861ae7f4cabc1b2ca031d5b2ae78f7c2a  surfaceplate-0.18.0/CLAUDE.md
 299f7305d43d73498646d99f6c994ffe77b9e1ed114a724e211e0cc68136dc69  surfaceplate-0.18.0/CONTRIBUTING.md
 d906c77d631f4d0e080ad91e8e5de1048d5f0d49fcc08c18a7e47f8e80cd50c2  surfaceplate-0.18.0/INSTALL.md
@@ -23,7 +23,7 @@ fddca9faf4e45a086446493a4bacbfbd8bc970247622f8d5995d8325a8901cf5  surfaceplate-0
 a319c3636ff3822299324a7e717d1b8c393f1a4c658cf8b307e0c27d7c0a983d  surfaceplate-0.18.0/SECURITY.md
 a8ffa839e39e9328b5ff53ffbc947d30f6548fb5a4628e36189049fe8fe08518  surfaceplate-0.18.0/SETUP_GUIDE.md
 6828f67b90d6506098cb43a4fef1f1f52380596c6823d8eb25dafab4988013d5  surfaceplate-0.18.0/SUPPORT.md
-ede0303f4b24dfba5af39e284aa587a64c6b016bf1d6d96b3125662eb83b6d43  surfaceplate-0.18.0/activity/register.md
+48f45d2207eeb5822c65cb260aff8eb6aa95614692ce2121ddad2ba340808d0f  surfaceplate-0.18.0/activity/register.md
 91757193c63094f53ce7f7c1dd8c1c172065bf38a925a156cb293296f0456d12  surfaceplate-0.18.0/audit/ADVERSARIAL_PRODUCT_REVIEW_2026-09-02.md
 74a002de361fab6dc8cee995f8d6f406ade6eba0ba2c93d9c6b397407c304ba3  surfaceplate-0.18.0/audit/AUDIT_README.md
 688413d8784273806dfbb388262e0907ecdfbea23c3bc7c4555d0cb80b629780  surfaceplate-0.18.0/audit/AUDIT_SCOPE.md
@@ -87,7 +87,7 @@ c673d5dbcf9f33a3aceeeb87a39f01dd36bcead90801328bf5c5bd184293b678  surfaceplate-0
 7da15b47e2063567122fa6ebb800111ac2f393c53e69e77c41b05fc54ed8805c  surfaceplate-0.18.0/governance/exceptions/GX-0001.yaml
 57003cb9e388b664ae6c7ecb31bf042b4addf86b41c56d1ebd4069bed793d44f  surfaceplate-0.18.0/governance/exceptions/GX-0002.yaml
 dbff44a91c3d7782cb0016dab114fe1fd2f7a6e03d5e81a302ce5caf75a04adb  surfaceplate-0.18.0/org/FINDINGS.md
-4579222cbfaa39b79d554b3b11ee5d508837354e722c7b60eecb94a6de375c30  surfaceplate-0.18.0/org/HUMAN_ACTIONS.md
+ec2d78831353356ce7a36ed22d2aa61ec45a3242311ad1b0e6ad2bbb843006c0  surfaceplate-0.18.0/org/HUMAN_ACTIONS.md
 0928e067ae689f3c7110241cb8b7709ff9879bc342fec3a15ca3985327f43fdc  surfaceplate-0.18.0/org/RELEASE_PLAN.md
 8c1e504d3cf7ca63d836876d2e3cfdabdf325af4cd0d27e99200676f1f3958c6  surfaceplate-0.18.0/org/REMEDIATION_PLAN.md
 6e6a6b16f3193cf960b85ad18ba8f356f2916f83cd3b02b67a251fcd550721b1  surfaceplate-0.18.0/org/ROLLOUT_RUNBOOK.md
