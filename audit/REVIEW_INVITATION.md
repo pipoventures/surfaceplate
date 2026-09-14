@@ -124,29 +124,36 @@ and `AE-0003-independent-audit.yaml` have no dedicated field for it; the packet 
 > https://github.com/pipoventures/surfaceplate/releases/tag/pypi/0.18.0. About thirty minutes.
 > Happy to answer questions about the packaging side here.
 
-### OpenSSF Securing Software Repositories working group
+### OpenSSF Securing Software Repositories working group — SENT 2026-09-14
 
-> Subject: Does an integrity anchor that sits inside its own boundary establish anything?
+**Posted to `#wg_securing_software_repos` on OpenSSF Slack, operator-confirmed. Not independently
+verified from this repo** — no agent has Slack access; this is recorded on the maintainer's report,
+same evidential footing as every other "sent" row in this section.
+
+**Rewritten before sending, to read as a person rather than a document** — dropped the email-style
+`Subject:` line (meaningless in Slack), the numbered-list framing, and the corporate "We", in
+favour of first person throughout and a short self-introduction, since this is a stranger's first
+post in someone else's channel. **Sent text, verbatim:**
+
+> Hi all — new here. I maintain a small open-source governance framework called Surfaceplate
+> (Python, on PyPI). It publishes a SHA-256 anchor over its own manifest as a way to prove the
+> installed copy hasn't drifted from what was published.
 >
-> We publish a SHA-256 over a framework manifest as an integrity anchor for a Python package. Our
-> own findings register states the problem with it plainly rather than burying it — **F6, "every
-> integrity anchor sits inside the boundary being checked"**, severity high, open. A compromised
-> publish could produce a self-consistent anchor, and we have not found a way around that without
-> an external attestation service.
+> Thing I can't get past: that anchor sits inside the same boundary it's supposed to be checking.
+> If a release got compromised, the attacker could produce an anchor that's internally consistent
+> and still wrong. I say this plainly in my own findings register rather than bury it (it's F6,
+> still open) — but I'd genuinely like to know:
 >
-> Two questions, and we would rather be told we are wrong than keep shipping the caveat:
+> - Does an anchor shaped like this actually establish anything, or is it more disclosure than
+>   defence?
+> - Is there prior art in this group's work — Build Provenance, Trusted Publishers — that actually
+>   solves this rather than just naming it?
 >
-> 1. Does an anchor of this shape establish anything useful, or is it theatre with a disclosure
->    attached?
-> 2. Is there prior art in this group's work — Build Provenance, Trusted Publishers — that
->    dissolves the problem rather than restating it?
+> Separately, if anyone fancies checking it themselves — it's on PyPI, reproducing the anchor is
+> about 3 commands and 30 minutes: https://github.com/pipoventures/surfaceplate/releases/tag/pypi/0.18.0.
+> Happy to credit whoever does.
 >
-> Separately and secondarily: the package is on PyPI and reproducing the anchor is three commands
-> and about thirty minutes
-> (https://github.com/pipoventures/surfaceplate/releases/tag/pypi/0.18.0), if anyone would rather
-> check than take our word for it. We would record the name of whoever does.
->
-> Repository: https://github.com/pipoventures/surfaceplate
+> Repo, if useful: https://github.com/pipoventures/surfaceplate
 
 ### Show HN
 
@@ -175,6 +182,7 @@ in place when it changes.
 |---|---|---|---|
 | 2026-09-11 | Part A **and** Part B, bundled but separately costed — twenty minutes and a few hours, with explicit permission to take only the first | A software engineer known to the maintainer, approached directly | all three |
 | 2026-09-11 | Product-fit evaluation against real repositories, **and** an independent review of the framework itself | A partner at a professional-services firm, approached directly | the packet page |
+| 2026-09-14 | Part A, reworked into a first channel post rather than a direct ask (see "OpenSSF Securing Software Repositories working group — SENT" above) | `#wg_securing_software_repos`, OpenSSF Slack — the first public-channel posting `H16` originally asked for and then declined | link to the `pypi/0.18.0` release |
 
 **Why no names here, yet.** Approaching someone is not the same as their agreeing to participate,
 and this register is public. Being asked to review something is the recipient's business to disclose,
@@ -182,10 +190,13 @@ not the sender's. Names belong in `governance/assurance/` when a reviewer return
 consents to being recorded — which is what `F6` requires of them anyway: *the reviewer is named, and
 is not the maintainer*. The form on the packet page asks for that consent explicitly.
 
-**Nothing has been posted to any public channel.** `H16` asks for the Part A invitation to reach
-**at least the Reproducible Builds channel**, and that has not happened. A rewritten
-`discuss.python.org` post exists as a draft — it leads with a genuine packaging question rather than
-a favour, having been reframed once `F173` was found — and it is prepared, not sent.
+~~**Nothing has been posted to any public channel.**~~ 🔴 **SUPERSEDED 2026-09-14 — the OpenSSF
+post above changed this.** `H16` asks for the Part A invitation to reach **at least the
+Reproducible Builds channel**; it has still not reached that specific one, but it has now reached
+**OpenSSF's Securing Software Repositories WG on Slack**, which was not among the three channel
+drafts this file originally carried and was added the same day it was sent. The
+`discuss.python.org` post remains a draft, unsent — blocked on the maintainer's account being
+approved (`H29`), not by choice.
 
 **This paragraph replaces one that said the opposite** (`F174`). On 2026-09-11 this file recorded a
 `discuss.python.org` posting that never took place. The agent read a one-word message as
