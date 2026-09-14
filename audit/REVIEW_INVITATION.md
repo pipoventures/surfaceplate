@@ -19,6 +19,29 @@ built — it did, between the upload and the send, and `sha256sum -c SHA256SUMS`
 failed while the release was correct throughout. Re-fetch with `gh release download pypi/0.18.0`
 and check the sums file before attaching anything.
 
+## One question about tooling, and the reason is specific
+
+Added 2026-09-14, before the two fallback channels below are opened — it protects them, and applies
+retroactively as a request to the two 2026-09-11 recipients as well, since it did not exist when
+they were asked.
+
+Please say, in a line, what tooling you used. Any tool is fine and this is not a request to avoid
+them.
+
+The reason is narrow rather than a general position on AI-assisted review: **the recommendations
+this framework's decision records adopted were produced by Claude (Anthropic)**, and this review
+exists to be independent of that source. A review produced by putting these same questions to
+Claude would not be independent — it would be the same source under a different name, and neither
+party would be able to tell from the result alone.
+
+So: use whatever helps, including Claude, and say what you used. If a model did the substantive
+reasoning, that is still useful to record, not a disqualification — it just cannot be what closes
+the independence gap on its own.
+
+*This is a request, not a schema requirement — `governance/assurance/AE-0002-framework-anchor.yaml`
+and `AE-0003-independent-audit.yaml` have no dedicated field for it; the packet form's free-text
+`scope`/tool prompt is where it lands until, or unless, that changes.*
+
 ---
 
 ## Variant A — the thirty-minute ask (recompute one digest)
@@ -40,6 +63,8 @@ and check the sums file before attaching anything.
 > form on the page composes it for you). If they disagree, that is a defect I need to know about
 > more than I need anything else this project has ever produced.
 >
+> One more thing, and the reason is below rather than here: please say what tooling you used.
+>
 > Repository: https://github.com/pipoventures/surfaceplate
 
 ## Variant B — the scoped audit (a few hours, wants some judgement)
@@ -60,6 +85,8 @@ and check the sums file before attaching anything.
 > establish this" is a legitimate, expected answer, not a failure on your part.
 >
 > I am not asking for approval. I am asking what a reviewer who owes me nothing actually finds.
+>
+> One more thing, and the reason is below rather than here: please say what tooling you used.
 >
 > Repository: https://github.com/pipoventures/surfaceplate
 
@@ -93,8 +120,33 @@ and check the sums file before attaching anything.
 > framework payload as part of how it verifies its own installed copies stay unmodified. I'd like
 > someone outside the project to independently recompute that anchor from the published sdist and
 > confirm it matches. Self-contained instructions, two independent ways to reach the same number,
-> no project familiarity required: [link to the release / packet]. About thirty minutes. Happy to
-> answer questions about the packaging side here.
+> no project familiarity required:
+> https://github.com/pipoventures/surfaceplate/releases/tag/pypi/0.18.0. About thirty minutes.
+> Happy to answer questions about the packaging side here.
+
+### OpenSSF Securing Software Repositories working group
+
+> Subject: Does an integrity anchor that sits inside its own boundary establish anything?
+>
+> We publish a SHA-256 over a framework manifest as an integrity anchor for a Python package. Our
+> own findings register states the problem with it plainly rather than burying it — **F6, "every
+> integrity anchor sits inside the boundary being checked"**, severity high, open. A compromised
+> publish could produce a self-consistent anchor, and we have not found a way around that without
+> an external attestation service.
+>
+> Two questions, and we would rather be told we are wrong than keep shipping the caveat:
+>
+> 1. Does an anchor of this shape establish anything useful, or is it theatre with a disclosure
+>    attached?
+> 2. Is there prior art in this group's work — Build Provenance, Trusted Publishers — that
+>    dissolves the problem rather than restating it?
+>
+> Separately and secondarily: the package is on PyPI and reproducing the anchor is three commands
+> and about thirty minutes
+> (https://github.com/pipoventures/surfaceplate/releases/tag/pypi/0.18.0), if anyone would rather
+> check than take our word for it. We would record the name of whoever does.
+>
+> Repository: https://github.com/pipoventures/surfaceplate
 
 ### Show HN
 
