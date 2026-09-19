@@ -2709,8 +2709,30 @@ def check_staged_integrity(repo: Path, findings: list[Finding]) -> None:
         )
 
 
-def check_staged_prerequisites(repo: Path, profile: dict, findings: list[Finding]) -> None:
-    """Block staged gate crossings whose preconditions are absent from the index."""
+def check_staged_prerequisites(
+    repo: Path,
+    profile: dict,
+    findings: list[Finding],
+    exempt_from_placeholder: set[str] | None = None,
+) -> None:
+    """Block staged gate crossings whose preconditions are absent from the index.
+
+    `exempt_from_placeholder` carries the artefacts the profile declares under
+    `placeholder_scan_exemptions`, and it is NOT optional in practice -- the default
+    exists so an omitted argument is a missing exemption rather than a crash, exactly
+    as `check_prerequisites` defaults it.
+
+    ⚠️ `F176`: this function had no such parameter until 2026-09-19, while its sibling
+    `check_prerequisites` had honoured the same declaration since the mechanism was
+    built. An adopting repository whose precondition artefact legitimately quotes a
+    placeholder word -- an append-only decision log recording that some commit left
+    `TODO` markers, say -- could therefore declare the exemption, see it acknowledged
+    as an advisory on every run, and still be refused by this check on the one path
+    that blocks a commit. plyego hit it: the first change under a gated path after the
+    gate took effect could not be committed at all, and the words in question had been
+    in that log since May.
+    """
+    exempt_from_placeholder = exempt_from_placeholder or set()
     for gate in profile.get("prerequisites") or []:
         if not isinstance(gate, dict) or gate.get("status") != "required":
             continue
@@ -2751,7 +2773,11 @@ def check_staged_prerequisites(repo: Path, profile: dict, findings: list[Finding
                 unusable.append(f"{artefact} (absent from the staged snapshot)")
             elif content is not None and not content.strip():
                 unusable.append(f"{artefact} (empty in the staged snapshot)")
-            elif content is not None and PLACEHOLDER_PATTERN.search(content):
+            elif (
+                content is not None
+                and artefact not in exempt_from_placeholder
+                and PLACEHOLDER_PATTERN.search(content)
+            ):
                 unusable.append(f"{artefact} (unfinished in the staged snapshot)")
 
         if unusable:
@@ -3914,7 +3940,7 @@ def evaluate(repo: Path, today: _dt.date, no_grace: bool, staged: bool, currency
                 install_record=record,
             )
             if staged:
-                check_staged_prerequisites(repo, profile, findings)
+                check_staged_prerequisites(repo, profile, findings, exempt)
     report.profile = profile
 
     # F20 / DR-25. A reader who sees a level pass may reasonably infer that the controls that

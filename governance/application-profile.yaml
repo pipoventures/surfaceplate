@@ -75,13 +75,30 @@ adoption:
   # .standards/INSTALL.json. SP049 fails loudly if it is not, which is the intended
   # behaviour. An adopter meets the same step only on upgrade, where re-pinning is exactly
   # what should happen because the framework has changed.
-  framework_digest: 260c1ff3d67acbd8a1fd986509348321dd4f59322fb617f4f97055a4c720d68e
+  framework_digest: b741498dbc077d6578d96257c4715d331821fb271617e09a92b5e5e4ba36f98c
   adoption_date: "2026-08-31"
   review_by: "2027-02-27"
   framework_maintainer: Mario Pipo
   repository_classification: internal-framework-publisher
   decision_record_id: DR-13
   adoption_status: complete
+  # F177 / H30, 2026-09-19. Declared so SP038 can verify BY EFFECT that the chain reaches
+  # the gate -- it runs the repository's own hook with SURFACEPLATE_HOOK_PROBE set and
+  # reports a finding if the gate is not reached. An unreached gate is a finding, not a
+  # silent pass (DR-66).
+  hook_chain:
+    delegates_to: .githooks/pre-commit
+    rationale: >-
+      This machine sets core.hooksPath at --global scope, and that setting REPLACES
+      .git/hooks rather than adding to it, so Git never looks at this repository's
+      .githooks/ directory. The global file is a delegation shim forwarding to this
+      repository's own default hook path. Configuring core.hooksPath=.githooks here would
+      silently stop that shim serving every other repository on the machine; chaining keeps
+      it and adds this standard's gate to the same run. Until 2026-09-19 nothing sat at the
+      delegation target, so the shim exited 0 having run nothing and this repository's own
+      local_hook claim was false while .githooks/pre-commit sat present, executable and
+      staged 100755 -- the exact silent-false-green this framework's concurrency topic warns
+      about, in the framework's own repository (F177).
   status_rationale: >-
     Self-conformance landed and was reviewed. DR-13's open question — whether this
     repository's CI fails on its own non-conformance — is answered yes, and demonstrated
