@@ -19,6 +19,29 @@ built — it did, between the upload and the send, and `sha256sum -c SHA256SUMS`
 failed while the release was correct throughout. Re-fetch with `gh release download pypi/0.18.0`
 and check the sums file before attaching anything.
 
+## One question about tooling, and the reason is specific
+
+Added 2026-09-14, before the two fallback channels below are opened — it protects them, and applies
+retroactively as a request to the two 2026-09-11 recipients as well, since it did not exist when
+they were asked.
+
+Please say, in a line, what tooling you used. Any tool is fine and this is not a request to avoid
+them.
+
+The reason is narrow rather than a general position on AI-assisted review: **the recommendations
+this framework's decision records adopted were produced by Claude (Anthropic)**, and this review
+exists to be independent of that source. A review produced by putting these same questions to
+Claude would not be independent — it would be the same source under a different name, and neither
+party would be able to tell from the result alone.
+
+So: use whatever helps, including Claude, and say what you used. If a model did the substantive
+reasoning, that is still useful to record, not a disqualification — it just cannot be what closes
+the independence gap on its own.
+
+*This is a request, not a schema requirement — `governance/assurance/AE-0002-framework-anchor.yaml`
+and `AE-0003-independent-audit.yaml` have no dedicated field for it; the packet form's free-text
+`scope`/tool prompt is where it lands until, or unless, that changes.*
+
 ---
 
 ## Variant A — the thirty-minute ask (recompute one digest)
@@ -40,6 +63,8 @@ and check the sums file before attaching anything.
 > form on the page composes it for you). If they disagree, that is a defect I need to know about
 > more than I need anything else this project has ever produced.
 >
+> One more thing, and the reason is below rather than here: please say what tooling you used.
+>
 > Repository: https://github.com/pipoventures/surfaceplate
 
 ## Variant B — the scoped audit (a few hours, wants some judgement)
@@ -60,6 +85,8 @@ and check the sums file before attaching anything.
 > establish this" is a legitimate, expected answer, not a failure on your part.
 >
 > I am not asking for approval. I am asking what a reviewer who owes me nothing actually finds.
+>
+> One more thing, and the reason is below rather than here: please say what tooling you used.
 >
 > Repository: https://github.com/pipoventures/surfaceplate
 
@@ -93,8 +120,40 @@ and check the sums file before attaching anything.
 > framework payload as part of how it verifies its own installed copies stay unmodified. I'd like
 > someone outside the project to independently recompute that anchor from the published sdist and
 > confirm it matches. Self-contained instructions, two independent ways to reach the same number,
-> no project familiarity required: [link to the release / packet]. About thirty minutes. Happy to
-> answer questions about the packaging side here.
+> no project familiarity required:
+> https://github.com/pipoventures/surfaceplate/releases/tag/pypi/0.18.0. About thirty minutes.
+> Happy to answer questions about the packaging side here.
+
+### OpenSSF Securing Software Repositories working group — SENT 2026-09-14
+
+**Posted to `#wg_securing_software_repos` on OpenSSF Slack, operator-confirmed. Not independently
+verified from this repo** — no agent has Slack access; this is recorded on the maintainer's report,
+same evidential footing as every other "sent" row in this section.
+
+**Rewritten before sending, to read as a person rather than a document** — dropped the email-style
+`Subject:` line (meaningless in Slack), the numbered-list framing, and the corporate "We", in
+favour of first person throughout and a short self-introduction, since this is a stranger's first
+post in someone else's channel. **Sent text, verbatim:**
+
+> Hi all — new here. I maintain a small open-source governance framework called Surfaceplate
+> (Python, on PyPI). It publishes a SHA-256 anchor over its own manifest as a way to prove the
+> installed copy hasn't drifted from what was published.
+>
+> Thing I can't get past: that anchor sits inside the same boundary it's supposed to be checking.
+> If a release got compromised, the attacker could produce an anchor that's internally consistent
+> and still wrong. I say this plainly in my own findings register rather than bury it (it's F6,
+> still open) — but I'd genuinely like to know:
+>
+> - Does an anchor shaped like this actually establish anything, or is it more disclosure than
+>   defence?
+> - Is there prior art in this group's work — Build Provenance, Trusted Publishers — that actually
+>   solves this rather than just naming it?
+>
+> Separately, if anyone fancies checking it themselves — it's on PyPI, reproducing the anchor is
+> about 3 commands and 30 minutes: https://github.com/pipoventures/surfaceplate/releases/tag/pypi/0.18.0.
+> Happy to credit whoever does.
+>
+> Repo, if useful: https://github.com/pipoventures/surfaceplate
 
 ### Show HN
 
@@ -123,6 +182,7 @@ in place when it changes.
 |---|---|---|---|
 | 2026-09-11 | Part A **and** Part B, bundled but separately costed — twenty minutes and a few hours, with explicit permission to take only the first | A software engineer known to the maintainer, approached directly | all three |
 | 2026-09-11 | Product-fit evaluation against real repositories, **and** an independent review of the framework itself | A partner at a professional-services firm, approached directly | the packet page |
+| 2026-09-14 | Part A, reworked into a first channel post rather than a direct ask (see "OpenSSF Securing Software Repositories working group — SENT" above) | `#wg_securing_software_repos`, OpenSSF Slack — the first public-channel posting `H16` originally asked for and then declined | link to the `pypi/0.18.0` release |
 
 **Why no names here, yet.** Approaching someone is not the same as their agreeing to participate,
 and this register is public. Being asked to review something is the recipient's business to disclose,
@@ -130,10 +190,13 @@ not the sender's. Names belong in `governance/assurance/` when a reviewer return
 consents to being recorded — which is what `F6` requires of them anyway: *the reviewer is named, and
 is not the maintainer*. The form on the packet page asks for that consent explicitly.
 
-**Nothing has been posted to any public channel.** `H16` asks for the Part A invitation to reach
-**at least the Reproducible Builds channel**, and that has not happened. A rewritten
-`discuss.python.org` post exists as a draft — it leads with a genuine packaging question rather than
-a favour, having been reframed once `F173` was found — and it is prepared, not sent.
+~~**Nothing has been posted to any public channel.**~~ 🔴 **SUPERSEDED 2026-09-14 — the OpenSSF
+post above changed this.** `H16` asks for the Part A invitation to reach **at least the
+Reproducible Builds channel**; it has still not reached that specific one, but it has now reached
+**OpenSSF's Securing Software Repositories WG on Slack**, which was not among the three channel
+drafts this file originally carried and was added the same day it was sent. The
+`discuss.python.org` post remains a draft, unsent — blocked on the maintainer's account being
+approved (`H29`), not by choice.
 
 **This paragraph replaces one that said the opposite** (`F174`). On 2026-09-11 this file recorded a
 `discuss.python.org` posting that never took place. The agent read a one-word message as

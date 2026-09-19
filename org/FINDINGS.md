@@ -250,6 +250,8 @@ standard should prescribe them is a separate question and is not answered here.
 | F157 | `SP038` reported a negative it could not establish: a fresh clone has no hook by construction, so every adopter claiming `local_hook` would have failed CI 30 days after install. `DR-74`'s rule, applied to the case `DR-74` missed | high | Closed — `ACT-096` (`DR-84`), 2026-09-11; answers `H24`; see the body |
 | F162 | The built distribution declared no `readme`, so the PyPI project page would have rendered the summary line and then blank space — and `pyproject.toml` carried a comment asserting that PyPI rendered the README | medium | Closed — `ACT-103`, 2026-09-11; see the body |
 | F163 | `requires-python = ">=3.9"` was **false**, not merely untested: `jsonschema==4.26.0` is a hard dependency requiring `>=3.10`, so the package could never install on 3.9 — and the wrong declaration gave the reader a worse error than the right one would have | medium | Closed — `ACT-104`, 2026-09-11. Raised `low`/`Accepted` hours earlier and reassessed; see the body |
+| F177 | This repository's own `local_hook` enforcement claim was false on the maintainer's machine: `core.hooksPath` is set at `--global` scope and **replaces** `.git/hooks`, so Git never looked at `.githooks/`, and the global shim's delegation target did not exist here — it exited 0 having run nothing, while `.githooks/pre-commit` sat present, executable and staged `100755`. Established by effect with a contrast control: the identical shim runs an adopting repository's whole gate chain. It is also why `F176` was found by an adopter and not here — `SP039` fires only from a local hook. | high | Closed — `ACT-113`, 2026-09-19, by the installer's `--chain` route and `adoption.hook_chain`; `SP038` now verifies the chain by effect. `H30` records the maintainer decision; see the body |
+| F176 | `check_prerequisites` honoured `placeholder_scan_exemptions`; its sibling `check_staged_prerequisites` — the function that raises `SP039` — never received them, from adjacent call sites. An adopter whose precondition artefact legitimately quotes a placeholder word could declare the exemption, see it **acknowledged as an advisory on every run**, and still be refused on the one path that blocks a commit. `plyego` could not commit any change under a gated path at all. | high | Closed — `ACT-113`, 2026-09-19; see the body |
 | F175 | `F6`'s body claimed an adopter *"cannot recompute the anchor from their own repository"*. They can — the manifest ships, and `sha256` of it equals the recorded `framework_digest` exactly. The false capability claim survived because the conclusion it supported was true | low | Closed — `ACT-112`, 2026-09-11; see the body |
 | F174 | The agent recorded a public forum posting that never happened, in the one table whose entire purpose is that a drafted invitation cannot be mistaken for a sent one — from a one-word message read as confirmation rather than checked | medium | Closed — `ACT-111`, 2026-09-11; see the body |
 | F173 | `DR-14` rejected PEP 740 attestations because *"key custody and a signing process are infrastructure"* — and trusted publishing has been producing them automatically, with neither, since `0.16.0`. The rejection's premise is void, no document says the attestations exist, and the review packet sent to two reviewers on 2026-09-11 omits them | medium | Closed — `ACT-112`, 2026-09-11 (`DR-88`): the maintainer declined to adopt them, and the decision is recorded so the next reader does not raise it again |
@@ -1619,6 +1621,135 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F177 — This repository's own `local_hook` enforcement claim is false on the maintainer's machine
+
+**Severity: high. Closed — `ACT-113`, 2026-09-19.**
+
+Resolved by the installer's own option 3, chosen by the maintainer: a local hook at the
+resolved delegation target, `--chain`, and `adoption.hook_chain` declared — so no
+machine-wide setting was touched and no other repository was affected. The chain is
+`git` → the global shim → `.git/hooks/pre-commit` → `.githooks/pre-commit`. `SP038` verifies
+it **by effect** and reports nothing, which is the first time this repository's hook claim
+has been true on this machine. `H30` records the decision.
+
+`governance/application-profile.yaml` claims `local_hook` enforcement. On the machine this
+framework is developed on, **no local hook runs at all.**
+
+Established by effect, with a contrast control, on 2026-09-19:
+
+```
+$ git config --show-origin --get-all core.hooksPath
+file:/home/<user>/.gitconfig    ~/.config/git/hooks
+
+# the shim git actually invokes, run from THIS repository:
+$ bash ~/.config/git/hooks/pre-commit ; echo $?
+0                     <- no output; nothing ran
+
+# the identical shim, run from an adopting repository (plyego):
+$ bash ~/.config/git/hooks/pre-commit
+All generated blocks are current.
+Tracked artefacts OK.
+  ...the full gate chain...
+```
+
+### Why
+
+`core.hooksPath` **replaces** `.git/hooks`; it does not add to it. Set globally, it means git never
+looks at this repository's `.githooks/` directory, so the installed hook there is never invoked.
+The global file is a **delegation shim** that forwards to `$(git rev-parse --git-common-dir)/hooks/pre-commit`
+— and in this repository **that file does not exist**, so the shim exits 0 having run nothing. In
+`plyego` it does exist, which is why the same shim runs the whole chain there.
+
+`.githooks/pre-commit` is present, executable, and staged `100755`. **Every signal a reader would
+check says the gate is installed.** The only thing that would reveal it is asking git which path it
+resolves, or running the shim and watching nothing happen.
+
+### Why this one matters more than its severity suggests
+
+This is the exact failure this framework names in its own concurrency topic: *"`core.hooksPath`
+widens this to the whole machine... so the gate can appear or vanish with nothing in version
+control recording either."* The framework is subject to it, in its own repository, while
+publishing the warning.
+
+It is also **why `F176` went unnoticed here and was found by an adopter.** `SP039` only fires from
+a local hook. A repository whose local hook never runs cannot discover a defect in the check that
+only that hook invokes.
+
+### The choice, and why it was the maintainer's
+
+The installer refused and offered three routes: change a **machine-wide** git setting, lower what
+this repository claims about its own enforcement, or reconcile by installing at the resolved path.
+An agent may not pick among those, so it stopped and asked.
+
+⚠️ **The direction of the error is what made the choice matter.** `--no-hooks` would have made the
+claim *true* by lowering it to match reality. Installing at the resolved path makes reality match
+the *claim*. They are not equivalent, and only the second actually gates anything. The maintainer
+chose the second.
+
+### What this leaves standing
+
+The hook lives at `.git/hooks/pre-commit`, which is **untracked and local to this clone**. A fresh
+clone of this repository on a machine with the same global setting will be in the same state until
+someone puts a hook there, and nothing in version control will say so. That is a property of
+`core.hooksPath`, not of this fix — `SP038`'s by-effect probe is what catches it, and it is now
+declared so the probe runs.
+
+## F176 — A declared exemption was honoured by one prerequisite check and ignored by its sibling, on the only path that blocks a commit
+
+**Severity: high. Closed — `ACT-113`, 2026-09-19.**
+
+`check_prerequisites` takes an `exempt_from_placeholder` argument and applies the artefacts a
+profile declares under `placeholder_scan_exemptions`. `check_staged_prerequisites` — the function
+that raises `SP039` — had the signature `(repo, profile, findings)` and never received it. The two
+call sites are adjacent:
+
+```python
+check_prerequisites(..., exempt_from_placeholder=exempt, ...)   # honoured
+if staged:
+    check_staged_prerequisites(repo, profile, findings)          # `exempt` in scope, not passed
+```
+
+So an adopting repository whose precondition artefact legitimately **contains** a placeholder word
+could declare the exemption, **see it acknowledged as an advisory on every run**, and still be
+refused on the one path that blocks a commit — with nothing connecting the advisory it was shown
+to the refusal it was given.
+
+### What it cost
+
+`plyego` hit it on 2026-09-19. Its `decision_before_implementation` and
+`change_record_before_completion` gates take `docs/governance/decision_log.md` as their
+precondition. That log is **append-only** and contains the word `TODO` (since 2026-05-04, recording
+that a commit left submit handlers stubbed) and `TBC` (since 2026-05-17). Both are historical
+facts, both were properly declared exempt with a rationale.
+
+**The gate was therefore unpassable, and the repository could not commit any change under
+`plyego/**` at all.** It had been dormant only because no change under that path had been staged
+since the gate took effect four days earlier; the first one that was could not be committed.
+
+The available remedies all made it worse: rewriting an append-only record, obscuring the words to
+evade a pattern, dropping `local_hook` from the enforcement claim, or freezing the engine.
+
+### Why it lasted
+
+The exemption mechanism's own docstring says the declaration lives in the profile so that *"a
+reviewer reads it and a diff shows it"*, and that *"a control that has been narrowed must say it
+was narrowed"*. Both held. What neither said is that a second function would read the same profile
+and not look for the declaration. **The advisory made the gap invisible rather than obvious**: the
+operator was told the artefact was exempt on the very run that refused them.
+
+`F14` had already tuned `SP032`'s placeholder heuristic and `ACT-004` added the exemption route.
+The route was built, tested and honoured — in one of the two places that needed it.
+
+### The fix
+
+`check_staged_prerequisites` gains the same parameter with the same default, the condition gains
+`artefact not in exempt_from_placeholder`, and the call site passes `exempt`.
+
+**Two regression cases, and both are required.** A placeholder word with **no** exemption must
+still block; the same artefact **declared** exempt must not. Run against the unfixed checker the
+first passes — blocking is what broken code does here — and only the second fails. One without the
+other would have shipped green.
 
 ## F175 — A false statement survived because the thing it was used to prove was true
 

@@ -2950,6 +2950,80 @@ def main() -> int:
         )
         (pre_commit / "src" / "blocked.py").unlink()
 
+        # ── F176 / ACT-113 ──────────────────────────────────────────────────
+        # A precondition artefact may legitimately CONTAIN a placeholder word:
+        # an append-only decision log recording that some commit left `TODO`
+        # markers is stating a fact, not carrying an unfilled slot. That is what
+        # `placeholder_scan_exemptions` is for, and `check_prerequisites` has
+        # honoured it since the mechanism was built. `check_staged_prerequisites`
+        # did not, so the exemption was acknowledged as an advisory on every run
+        # and ignored on the one path that blocks a commit.
+        #
+        # TWO cases, and BOTH are needed. The first alone passes on the broken
+        # code (it blocks, which is what broken code does); the second alone
+        # cannot tell a working exemption from a placeholder rule that never
+        # fired. Together they discriminate.
+        register_path = pre_commit / "docs" / "DEVELOPMENT_REGISTER.md"
+        register_original = register_path.read_text(encoding="utf-8")
+        register_path.write_text(
+            register_original
+            + "\n| 2026-09-19 | A 2026 commit left submit handlers stubbed with TODO markers. |\n",
+            encoding="utf-8",
+        )
+        (pre_commit / "src").mkdir(exist_ok=True)
+        (pre_commit / "src" / "gated.py").write_text("# gated work\n", encoding="utf-8")
+        subprocess.run(["git", "-C", str(pre_commit), "add", "-A"], check=True)
+        result = subprocess.run(
+            ["git", "-C", str(pre_commit), "commit", "-m", "placeholder word, no exemption"],
+            capture_output=True,
+            text=True,
+        )
+        hook_output = result.stdout + result.stderr
+        check(
+            "a placeholder word in a precondition artefact still blocks when NOT declared exempt",
+            result.returncode != 0 and "SP039" in hook_output,
+            hook_output[-700:],
+        )
+
+        exempt_src = hook_src.replace(
+            "prerequisites:",
+            "placeholder_scan_exemptions:\n"
+            "  - artefact: docs/DEVELOPMENT_REGISTER.md\n"
+            "    rationale: >-\n"
+            "      Append-only record. It quotes the token the scan looks for as a\n"
+            "      historical fact, not as an unfilled template slot.\n"
+            "prerequisites:",
+            1,
+        )
+        (pre_commit / "governance" / "application-profile.yaml").write_text(
+            exempt_src, encoding="utf-8"
+        )
+        subprocess.run(["git", "-C", str(pre_commit), "add", "-A"], check=True)
+        result = subprocess.run(
+            ["git", "-C", str(pre_commit), "commit", "-m", "placeholder word, declared exempt"],
+            capture_output=True,
+            text=True,
+        )
+        hook_output = result.stdout + result.stderr
+        check(
+            "a DECLARED placeholder-scan exemption is honoured by the staged-prerequisite gate too",
+            result.returncode == 0,
+            hook_output[-900:],
+        )
+
+        # Put the fixture back the way the rest of this suite expects it.
+        (pre_commit / "governance" / "application-profile.yaml").write_text(
+            hook_src, encoding="utf-8"
+        )
+        register_path.write_text(register_original, encoding="utf-8")
+        (pre_commit / "src" / "gated.py").unlink()
+        subprocess.run(["git", "-C", str(pre_commit), "add", "-A"], check=True)
+        subprocess.run(
+            ["git", "-C", str(pre_commit), "commit", "-m", "restore fixture"],
+            capture_output=True,
+            text=True,
+        )
+
         checker = pre_commit / ".standards" / "check_conformance.py"
         checker_text = checker.read_text(encoding="utf-8")
         checker.write_text(checker_text + "\n# staged tamper\n", encoding="utf-8")
