@@ -250,6 +250,8 @@ standard should prescribe them is a separate question and is not answered here.
 | F157 | `SP038` reported a negative it could not establish: a fresh clone has no hook by construction, so every adopter claiming `local_hook` would have failed CI 30 days after install. `DR-74`'s rule, applied to the case `DR-74` missed | high | Closed — `ACT-096` (`DR-84`), 2026-09-11; answers `H24`; see the body |
 | F162 | The built distribution declared no `readme`, so the PyPI project page would have rendered the summary line and then blank space — and `pyproject.toml` carried a comment asserting that PyPI rendered the README | medium | Closed — `ACT-103`, 2026-09-11; see the body |
 | F163 | `requires-python = ">=3.9"` was **false**, not merely untested: `jsonschema==4.26.0` is a hard dependency requiring `>=3.10`, so the package could never install on 3.9 — and the wrong declaration gave the reader a worse error than the right one would have | medium | Closed — `ACT-104`, 2026-09-11. Raised `low`/`Accepted` hours earlier and reassessed; see the body |
+| F177 | This repository's own `local_hook` enforcement claim was false on the maintainer's machine: `core.hooksPath` is set at `--global` scope and **replaces** `.git/hooks`, so Git never looked at `.githooks/`, and the global shim's delegation target did not exist here — it exited 0 having run nothing, while `.githooks/pre-commit` sat present, executable and staged `100755`. Established by effect with a contrast control: the identical shim runs an adopting repository's whole gate chain. It is also why `F176` was found by an adopter and not here — `SP039` fires only from a local hook. | high | Closed — `ACT-113`, 2026-09-19, by the installer's `--chain` route and `adoption.hook_chain`; `SP038` now verifies the chain by effect. `H30` records the maintainer decision; see the body |
+| F176 | `check_prerequisites` honoured `placeholder_scan_exemptions`; its sibling `check_staged_prerequisites` — the function that raises `SP039` — never received them, from adjacent call sites. An adopter whose precondition artefact legitimately quotes a placeholder word could declare the exemption, see it **acknowledged as an advisory on every run**, and still be refused on the one path that blocks a commit. `plyego` could not commit any change under a gated path at all. | high | Closed — `ACT-113`, 2026-09-19; see the body |
 | F175 | `F6`'s body claimed an adopter *"cannot recompute the anchor from their own repository"*. They can — the manifest ships, and `sha256` of it equals the recorded `framework_digest` exactly. The false capability claim survived because the conclusion it supported was true | low | Closed — `ACT-112`, 2026-09-11; see the body |
 | F174 | The agent recorded a public forum posting that never happened, in the one table whose entire purpose is that a drafted invitation cannot be mistaken for a sent one — from a one-word message read as confirmation rather than checked | medium | Closed — `ACT-111`, 2026-09-11; see the body |
 | F173 | `DR-14` rejected PEP 740 attestations because *"key custody and a signing process are infrastructure"* — and trusted publishing has been producing them automatically, with neither, since `0.16.0`. The rejection's premise is void, no document says the attestations exist, and the review packet sent to two reviewers on 2026-09-11 omits them | medium | Closed — `ACT-112`, 2026-09-11 (`DR-88`): the maintainer declined to adopt them, and the decision is recorded so the next reader does not raise it again |
@@ -1622,7 +1624,14 @@ field is asked with its seed row first.
 
 ## F177 — This repository's own `local_hook` enforcement claim is false on the maintainer's machine
 
-**Severity: high. OPEN — needs the maintainer (`core.hooksPath` is a machine-wide setting).**
+**Severity: high. Closed — `ACT-113`, 2026-09-19.**
+
+Resolved by the installer's own option 3, chosen by the maintainer: a local hook at the
+resolved delegation target, `--chain`, and `adoption.hook_chain` declared — so no
+machine-wide setting was touched and no other repository was affected. The chain is
+`git` → the global shim → `.git/hooks/pre-commit` → `.githooks/pre-commit`. `SP038` verifies
+it **by effect** and reports nothing, which is the first time this repository's hook claim
+has been true on this machine. `H30` records the decision.
 
 `governance/application-profile.yaml` claims `local_hook` enforcement. On the machine this
 framework is developed on, **no local hook runs at all.**
@@ -1667,15 +1676,24 @@ It is also **why `F176` went unnoticed here and was found by an adopter.** `SP03
 a local hook. A repository whose local hook never runs cannot discover a defect in the check that
 only that hook invokes.
 
-### Not fixed here, and why
+### The choice, and why it was the maintainer's
 
-The installer refuses to proceed and offers three routes, one of which changes a **machine-wide**
-git setting and another of which changes what this repository claims about its own enforcement.
-Both are the maintainer's decision, not an agent's. Recorded in `org/HUMAN_ACTIONS.md`.
+The installer refused and offered three routes: change a **machine-wide** git setting, lower what
+this repository claims about its own enforcement, or reconcile by installing at the resolved path.
+An agent may not pick among those, so it stopped and asked.
 
-⚠️ **Note the direction of the error before choosing.** `--no-hooks` would make the claim *true*
-by lowering it to match reality. Installing a hook at the resolved path would make reality match
-the *claim*. They are not equivalent, and only the second actually gates anything.
+⚠️ **The direction of the error is what made the choice matter.** `--no-hooks` would have made the
+claim *true* by lowering it to match reality. Installing at the resolved path makes reality match
+the *claim*. They are not equivalent, and only the second actually gates anything. The maintainer
+chose the second.
+
+### What this leaves standing
+
+The hook lives at `.git/hooks/pre-commit`, which is **untracked and local to this clone**. A fresh
+clone of this repository on a machine with the same global setting will be in the same state until
+someone puts a hook there, and nothing in version control will say so. That is a property of
+`core.hooksPath`, not of this fix — `SP038`'s by-effect probe is what catches it, and it is now
+declared so the probe runs.
 
 ## F176 — A declared exemption was honoured by one prerequisite check and ignored by its sibling, on the only path that blocks a commit
 
