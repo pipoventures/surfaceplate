@@ -1,0 +1,83 @@
+name: Dependabot alerts check (scheduled)
+
+# Weekly summary of open Dependabot alerts, posted to Slack. Mirrors
+# secret-scan-history.yml's pattern deliberately: an open vulnerability is
+# not this workflow's fault to gate a build on, so it cannot meaningfully
+# "fail" -- which means an if: failure() step would never fire for it. So
+# this speaks UNCONDITIONALLY to #controls every run -- ran, N open
+# alert(s) -- so its silence means the check did not run, not that nothing
+# was found. A non-zero count additionally pings #alerts, since a real
+# open vulnerability is exactly the kind of thing that should interrupt.
+#
+# hermes#ACT-214, 2026-09-20 -- added because Dependabot alerts previously
+# reached nobody automatically; the operator was checking them by hand via
+# the CLI on his own cadence.
+#
+# Requires `security-events: read` to call the Dependabot alerts API
+# (docs.github.com/en/rest/dependabot/alerts). Uses the default
+# GITHUB_TOKEN scoped to this repository -- no new credential.
+
+on:
+  schedule:
+    # Monday 08:00 UTC -- deliberately NOT 06:00, where four other
+    # scheduled workflows across this portfolio already collide
+    # (mnemosyne#ACT-056: five workflows due at 06:00 UTC on one Monday,
+    # exactly one fired). Adding a fifth to that slot would worsen a
+    # measured reliability problem rather than avoid it.
+    - cron: "0 8 * * 1"
+  workflow_dispatch:
+
+permissions:
+  security-events: read
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query open Dependabot alerts and notify Slack
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SLACK_WEBHOOK_CONTROLS: ${{ secrets.SLACK_WEBHOOK_CONTROLS }}
+          SLACK_WEBHOOK_ALERTS: ${{ secrets.SLACK_WEBHOOK_ALERTS }}
+        run: |
+          set -euo pipefail
+
+          post_controls() {
+            [ -n "$SLACK_WEBHOOK_CONTROLS" ] || return 0
+            curl -fsSL -X POST -H 'Content-type: application/json' \
+              --data "{\"text\":\"$1\"}" "$SLACK_WEBHOOK_CONTROLS" \
+              || echo "::warning::failed to post to #controls"
+          }
+          post_alerts() {
+            [ -n "$SLACK_WEBHOOK_ALERTS" ] || return 0
+            curl -fsSL -X POST -H 'Content-type: application/json' \
+              --data "{\"text\":\"$1\"}" "$SLACK_WEBHOOK_ALERTS" \
+              || echo "::warning::failed to post to #alerts"
+          }
+
+          # A response this step cannot read or parse must not be reported
+          # as a clean scan -- same discipline as secret-scan-history.yml's
+          # "Summarise findings" step, for the same reason.
+          if ! alerts_json="$(gh api "repos/$REPO/dependabot/alerts?state=open&per_page=100" 2>&1)"; then
+            echo "::warning::Could not reach the Dependabot alerts API. This establishes NOTHING about whether alerts exist."
+            post_controls "$REPO Dependabot check: ran, but the API call FAILED — this establishes nothing. Investigate the workflow, not the result."
+            exit 0
+          fi
+
+          if ! count="$(printf '%s' "$alerts_json" | jq 'length')"; then
+            echo "::warning::Dependabot alerts response could not be parsed. This establishes NOTHING about whether alerts exist."
+            post_controls "$REPO Dependabot check: ran, but the response could not be PARSED — this establishes nothing. Investigate the workflow, not the result."
+            exit 0
+          fi
+
+          if [ "$count" -gt 0 ]; then
+            high="$(printf '%s' "$alerts_json" | jq '[.[] | select(.security_advisory.severity == "high" or .security_advisory.severity == "critical")] | length')"
+            echo "::warning::$count open Dependabot alert(s), $high high/critical."
+            post_controls "$REPO Dependabot check: ran, $count open alert(s) ($high high/critical) — see #alerts."
+            post_alerts ":warning: *$REPO* has $count open Dependabot alert(s), $high high/critical. <https://github.com/$REPO/security/dependabot|View alerts>"
+          else
+            echo "Dependabot: no open alerts."
+            post_controls "$REPO Dependabot check: ran, 0 open alerts."
+          fi

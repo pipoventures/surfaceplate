@@ -3,11 +3,12 @@ f460de93555069ddb6d6f9ec9b0f234c76d6290ff47682fbde697c11b891ab01  surfaceplate-0
 bc46343e6f92dd2b43d17a51aa1db8bf1da4f1705b6cf5e649155c46b97d5af7  surfaceplate-0.18.0/.github/ISSUE_TEMPLATE/config.yml
 2427e61a05d499372195334ee2ea3b008d4a90f41899a7ea39762665f4ba79a1  surfaceplate-0.18.0/.github/ISSUE_TEMPLATE/standard_change.yml
 523fc1d0a5b8acb382213b22295fdab9e2aee6263585f1d0c2ab9e2ee7d6cf77  surfaceplate-0.18.0/.github/copilot-instructions.md
-bf32da9191d44e6ae9ada39465e8b2af5a92e6c2fbe9d5f8069c1b1eda6e0a65  surfaceplate-0.18.0/.github/workflows/dco-check.yml
-358db88d42f170031742db6ac5014b66cbd9529d2cbfeaab3c4db6375b2bf17a  surfaceplate-0.18.0/.github/workflows/front-door.yml
-a3e8cd32162e8dd71360be22c91b4d71ea3dca39034395b2da5b42bc11d7e98f  surfaceplate-0.18.0/.github/workflows/publish.yml
-83b4142a39e5bd89f524b6bfffd58a070f34f70ee4d3503e242b0092d993796d  surfaceplate-0.18.0/.github/workflows/secret-scan.yml
-dde743ef216027267334f78c1d8a0461b47aa22435295e59e744433b4efaf302  surfaceplate-0.18.0/.github/workflows/standard-self-check.yml
+5700c2724eccb324517fee140ede4ab7165d4b21da792b6a71cd9f19168802e9  surfaceplate-0.18.0/.github/workflows/dco-check.yml
+ef460fb7fdacc8fbad5b8d8834e2c62e626cd6cb9fae727f1d7610d9ffa9d1ab  surfaceplate-0.18.0/.github/workflows/dependabot-alerts-check.yml
+aba06603ce5bf10634aa72700eff7c990c990b0ca82fa8f7c64dd916aba0dd94  surfaceplate-0.18.0/.github/workflows/front-door.yml
+96664f3acef0f83c5bcef7e5d8038d5ba85326ed19da318be7db4a713c616525  surfaceplate-0.18.0/.github/workflows/publish.yml
+1a04bc54aac18d87666fbc14a168f120071daa02974157c3f3a447e14fa40d06  surfaceplate-0.18.0/.github/workflows/secret-scan.yml
+d97cc80f0476be7e67f04e3ff4541b84cacf7d595b235f7f3516fd7621d22ee5  surfaceplate-0.18.0/.github/workflows/standard-self-check.yml
 b9aab7ce91da441dd7abca66c27894acdd026dbdd34240a946f748eeb7a8f80a  surfaceplate-0.18.0/AGENTS.md
 92b9ca7e4d4207059ec23885549d7da321596f503ce699d8372920d9cec4375c  surfaceplate-0.18.0/CHANGELOG.md
 35383cbcfc80e2ec0d5bedfabeddad8861ae7f4cabc1b2ca031d5b2ae78f7c2a  surfaceplate-0.18.0/CLAUDE.md
