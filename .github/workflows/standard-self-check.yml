@@ -299,3 +299,12 @@ jobs:
             echo "not a check that passed - see F13 in org/FINDINGS.md."
           fi
           exit "$status"
+
+      - name: Notify Slack on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v2
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_ALERTS }}
+          webhook-type: incoming-webhook
+          payload: |
+            text: ":red_circle: *${{ github.repository }}* — `${{ github.workflow }}` failed on `${{ github.ref_name }}`\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"

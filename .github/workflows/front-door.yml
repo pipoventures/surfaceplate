@@ -28,3 +28,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run every documented command with a global core.hooksPath
         run: sh scripts/front_door.sh .
+
+      - name: Notify Slack on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v2
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_ALERTS }}
+          webhook-type: incoming-webhook
+          payload: |
+            text: ":red_circle: *${{ github.repository }}* — `${{ github.workflow }}` failed on `${{ github.ref_name }}`\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"

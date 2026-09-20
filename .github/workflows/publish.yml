@@ -71,3 +71,12 @@ jobs:
           name: distributions
           path: dist
       - uses: pypa/gh-action-pypi-publish@release/v1
+
+      - name: Notify Slack on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v2
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_ALERTS }}
+          webhook-type: incoming-webhook
+          payload: |
+            text: ":red_circle: *${{ github.repository }}* — `${{ github.workflow }}` failed on `${{ github.ref_name }}` (release publish)\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
