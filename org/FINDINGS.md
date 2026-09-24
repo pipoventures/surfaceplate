@@ -250,6 +250,7 @@ standard should prescribe them is a separate question and is not answered here.
 | F157 | `SP038` reported a negative it could not establish: a fresh clone has no hook by construction, so every adopter claiming `local_hook` would have failed CI 30 days after install. `DR-74`'s rule, applied to the case `DR-74` missed | high | Closed — `ACT-096` (`DR-84`), 2026-09-11; answers `H24`; see the body |
 | F162 | The built distribution declared no `readme`, so the PyPI project page would have rendered the summary line and then blank space — and `pyproject.toml` carried a comment asserting that PyPI rendered the README | medium | Closed — `ACT-103`, 2026-09-11; see the body |
 | F163 | `requires-python = ">=3.9"` was **false**, not merely untested: `jsonschema==4.26.0` is a hard dependency requiring `>=3.10`, so the package could never install on 3.9 — and the wrong declaration gave the reader a worse error than the right one would have | medium | Closed — `ACT-104`, 2026-09-11. Raised `low`/`Accepted` hours earlier and reassessed; see the body |
+| F180 | `adopt --edit`, `--repin` and `--answers` read with `safe_load` and then rewrite a whole profile, so a repeated key was resolved to its last value and the first dropped **silently**: an `--edit` of `owner` changed a repeated `display_name` and recorded only the `owner` change. Established by effect against this repository's own profile, with a negative control. The wizard-side twin of `F179`, left out of scope by `DR-89` and named there as untested | medium | Closed — `ACT-116`, 2026-09-24; see the body |
 | F179 | `governance/application-profile.yaml` declares `adoption.hook_chain` twice — `DR-66`'s (`ACT-064`) and `F177`'s (`ACT-113`) — and PyYAML keeps the last without warning, so every tool reads the stale `DR-66` rationale describing a local `core.hooksPath` this machine does not have. `SP038` is unaffected (both name the same gate); the record is not. Nothing rejects a duplicate key, in this profile or an adopter's | medium | Closed — `ACT-115` (`DR-89`), 2026-09-24: the profile corrected, and the checker now refuses a repeated key as `SP061`; see the body |
 | F178 | The adopt renderer has no code path for `placeholder_scan_exemptions`: `render_profile` never emits it, so a profile declaring the block re-renders without it and `_verify`'s round-trip guard refuses every `adopt --edit`, whichever field is touched. Established by effect against this repository's own profile (which declares the block), with a negative control. Distinct from `F176`/`ACT-113`, which fixed a different module — the checker's `SP039`, not the adopt wizard's renderer | high | **Open** — `ACT-114` |
 | F177 | This repository's own `local_hook` enforcement claim was false on the maintainer's machine: `core.hooksPath` is set at `--global` scope and **replaces** `.git/hooks`, so Git never looked at `.githooks/`, and the global shim's delegation target did not exist here — it exited 0 having run nothing, while `.githooks/pre-commit` sat present, executable and staged `100755`. Established by effect with a contrast control: the identical shim runs an adopting repository's whole gate chain. It is also why `F176` was found by an adopter and not here — `SP039` fires only from a local hook. | high | Closed — `ACT-113`, 2026-09-19, by the installer's `--chain` route and `adoption.hook_chain`; `SP038` now verifies the chain by effect. `H30` records the maintainer decision; see the body |
@@ -1623,6 +1624,45 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F180 — The wizard rewrote a repeated key to its last value, and recorded only the edit it was asked for
+
+**Severity: medium. Closed — `ACT-116`, 2026-09-24.** `adopt --edit`, `--repin` and `--answers`
+now refuse a file that repeats a key, name the key and both lines, and write nothing.
+
+`DR-89` made the checker refuse a repeated key and left `surfaceplate adopt` out of scope. It
+recorded, from reading the code, that `--edit` would probably resolve one silently, **and that
+this was not tested**. The maintainer asked for it to be tested by effect, and fixed if the test
+confirmed it. It did.
+
+Established by effect on 2026-09-24, against a scratch clone of this repository with a second
+`display_name` line added. The `placeholder_scan_exemptions` block was removed first, so that
+`F178`, which refuses `--edit` for a different reason, could not stand in for the result:
+
+```
+$ surfaceplate adopt --target . --edit owner "Mario Pipo" --because "probe"
+Edited owner in .../governance/application-profile.yaml; the change is recorded beside it ...
+exit 0
+
+display_name: Surfaceplate-DUPLICATE-SECOND  # not checked     <- the first value is gone
+provenance: owner, typed, "probe"                              <- and nothing says so
+```
+
+The negative control is the same edit with no repeat, and it leaves `display_name: Surfaceplate`
+unchanged. Each of the three commands reads with `safe_load`, which keeps the last of two equal
+keys, and then re-renders the whole file. So an edit to one line changed another, and the
+provenance record, whose purpose is to say what changed and why, recorded only the line that was
+asked for.
+
+### Fix
+
+`_refuse_repeated_keys` runs the checker's own refusing loader over the text before each of the
+three reads. It is used to **detect**, not to parse: the checker's parse also turns dates into
+strings, and switching the wizard to it would have changed what it renders for a reason unrelated
+to this finding. A regression test in `tests/test_adopt.py` covers all three commands, each with
+a negative control. Against the unfixed wizard it gave five failures, the profile written in
+every case. After the fix, the same scratch probe refuses, names the key and both lines, and
+leaves the profile byte-identical.
 
 ## F179 — The profile declares `adoption.hook_chain` twice, and the parser keeps the stale one
 
