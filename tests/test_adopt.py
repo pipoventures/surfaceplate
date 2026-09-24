@@ -1827,6 +1827,72 @@ def test_propose_does_not_demand_rationales_for_controls_nobody_declared(tmp: Pa
           and data["control_decisions"]["provenance"]["implementation_reference"] == "governance", str(sorted(data["control_decisions"])))
 
 
+def test_a_repeated_key_is_refused_before_the_wizard_rewrites_anything(tmp: Path) -> None:
+    """`F180` / `DR-89`. `--edit` and `--repin` read the profile, change one line and re-render
+    the whole file; `--answers` writes a profile from a human-authored record. All three read with
+    `safe_load`, which keeps the LAST of two equal keys - so an edit to `owner` rewrote a repeated
+    `display_name` to its second value and recorded only the `owner` change. Established by effect
+    against this repository's own profile before this test existed. Each now refuses, naming the
+    key, and writes nothing; the negative control is the same call without the repeat."""
+    repo = make_installed_repo(tmp, "repeat-refused-repo")
+    seed_referenced_files(repo)
+    wizard.run(repo, ScriptedInterview(answers=dict(ESSENTIAL_ANSWERS)))
+    profile = repo / wizard.PROFILE_PATH
+    clean = profile.read_text(encoding="utf-8")
+    repeated = clean + "display_name: A second name the first one would silently lose to\n"
+
+    for label, call in (
+        ("--edit", lambda: wizard.edit(repo, "owner", "Platform Guild", because="team renamed")),
+        ("--repin", lambda: wizard.repin(repo)),
+    ):
+        profile.write_text(repeated, encoding="utf-8")
+        try:
+            call()
+            outcome = "wrote"
+        except wizard.WriteRefused as exc:
+            outcome = exc.detail
+        check(f"{label} refuses a profile that repeats a key, naming it",
+              outcome != "wrote" and "display_name" in outcome and "twice" in outcome, outcome[:200])
+        check(f"and {label} writes nothing", profile.read_text(encoding="utf-8") == repeated)
+
+    profile.write_text(clean, encoding="utf-8")
+    wizard.edit(repo, "owner", "Platform Guild", because="team renamed")
+    check("without the repeat the same edit applies",
+          yaml.safe_load(profile.read_text(encoding="utf-8"))["owner"] == "Platform Guild")
+
+    # --answers: the record is the human-authored file here, and it drives a whole write.
+    other = make_installed_repo(tmp, "repeat-refused-answers-repo")
+    seed_referenced_files(other, ci=True)
+    proposed = wizard.propose(other, level="essential")
+    record = yaml.safe_load(proposed.answers.read_text(encoding="utf-8"))
+    human = {"identity.owner": "Owner Person", "stack.builds_user_interface": "no",
+             "risk.relied_on_outside_team": "no", "risk.material_quantitative_output": "no",
+             "risk.data_classification": "internal", "wrap.release_route": "Manual.",
+             "adoption.decision_record_id": "DR-1", "create_missing_artefacts": "no"}
+    for key in [k for k, v in record["answers"].items() if v == wizard.NEEDS_HUMAN]:
+        record["answers"][key] = human.get(key, "not_applicable" if key.endswith(".status") else f"answer for {key}")
+    record["accept_proposals"] = "yes"
+    completed = other / "answers-completed.yaml"
+    text = yaml.safe_dump(record, sort_keys=False)
+    # The repeat agrees with the first value, so last-wins would write without complaint: the
+    # refusal has to come from the repeat itself, not from whatever the second value says.
+    completed.write_text(text + "accept_proposals: 'yes'\n", encoding="utf-8")
+    try:
+        wizard.replay(other, completed)
+        outcome = "wrote"
+    except wizard.WriteRefused as exc:
+        outcome = exc.detail
+    except wizard.NeedsHuman as exc:
+        outcome = f"NeedsHuman, not a refusal of the repeat: {exc}"
+    check("--answers refuses a record that repeats a key, naming it",
+          outcome != "wrote" and "accept_proposals" in outcome and "twice" in outcome, outcome[:200])
+    check("and writes no profile", not (other / wizard.PROFILE_PATH).is_file()
+          or "replace-me" in (other / wizard.PROFILE_PATH).read_text(encoding="utf-8"))
+    completed.write_text(text, encoding="utf-8")
+    written = wizard.replay(other, completed)
+    check("without the repeat the same record writes", written.is_file())
+
+
 def test_adopt_edit_applies_the_fields_own_validator(tmp: Path) -> None:
     """`F100`. `--edit` verified the rendered profile against the schema and the placeholder scan
     but applied no field validator, so an artefact edited to an untracked path was written and
@@ -2932,6 +2998,7 @@ def main() -> int:
         test_resuming_after_the_scaffold_stage_still_creates_the_decision_record(tmp)
         test_propose_does_not_demand_rationales_for_controls_nobody_declared(tmp)
         test_adopt_edit_applies_the_fields_own_validator(tmp)
+        test_a_repeated_key_is_refused_before_the_wizard_rewrites_anything(tmp)
         test_a_half_completed_profile_is_not_the_template(tmp)
         test_the_tool_writes_no_note_about_the_adopters_scanner(tmp)
         test_a_failed_write_removes_the_seeds_this_run_created(tmp)

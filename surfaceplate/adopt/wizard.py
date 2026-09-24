@@ -188,6 +188,26 @@ class PartialWrite(Exception):
         self.removed = removed
 
 
+def _refuse_repeated_keys(text: str, what: str) -> None:
+    """`F180` / `DR-89`. Every read below is `safe_load`, which keeps the LAST of two equal keys
+    without a word - so `--edit owner` once rewrote a repeated `display_name` to its second value
+    and recorded only the `owner` change. The checker's loader refuses the repeat; it is used
+    here to detect, not to parse, so what the wizard reads and renders is otherwise unchanged."""
+    import yaml
+
+    from surfaceplate import check_conformance
+
+    try:
+        yaml.load(text, Loader=check_conformance.unique_key_loader())  # noqa: S506 - SafeLoader subclass
+    except check_conformance.DuplicateKeyError as exc:
+        raise WriteRefused(
+            f"{what} repeats a key - {exc}. Delete one of the two and run this again; nothing was "
+            "written, because rewriting the file would keep one value and drop the other silently."
+        ) from None
+    except yaml.YAMLError:
+        pass  # malformed in another way: each caller already reports that in its own terms
+
+
 class WriteRefused(Exception):
     """The assembled profile failed its own verification. Nothing was written. Carries `detail`
     and, where the problem is one line of the profile, its `path` (`F79`, `DR-51` (6))."""
@@ -710,7 +730,9 @@ def repin(repo: Path) -> tuple[Path | None, list[str]]:
     target = repo / str(record.get("profile_path") or PROFILE_PATH)
     if not target.is_file():
         raise WriteRefused(f"{target} does not exist; there is nothing to re-pin.", path="")
-    profile = yaml.safe_load(target.read_text(encoding="utf-8")) or {}
+    text = target.read_text(encoding="utf-8")
+    _refuse_repeated_keys(text, f"{target.name}")
+    profile = yaml.safe_load(text) or {}
     adoption = profile.get("adoption")
     if not isinstance(adoption, dict):
         raise WriteRefused("the profile has no adoption block to re-pin.", path="adoption")
@@ -834,7 +856,9 @@ def edit(repo: Path, path: str, value: str, *, because: str = "") -> Path:
     target = repo / PROFILE_PATH
     if not target.is_file():
         raise WriteRefused(f"{PROFILE_PATH} does not exist; run `surfaceplate adopt` first.")
-    profile = yaml.safe_load(target.read_text(encoding="utf-8"))
+    text = target.read_text(encoding="utf-8")
+    _refuse_repeated_keys(text, PROFILE_PATH)
+    profile = yaml.safe_load(text)
     if not isinstance(profile, dict):
         raise WriteRefused(f"{PROFILE_PATH} is not a profile this tool can edit.")
     known = [p for p, _v in provenance.leaves(profile)]
@@ -1210,8 +1234,13 @@ def replay(repo: Path, answers_path: Path) -> Path:
     from surfaceplate.adopt.interview import ScriptedInterview
 
     try:
-        record = yaml.safe_load(answers_path.read_text(encoding="utf-8"))
-    except (OSError, yaml.YAMLError) as exc:
+        text = answers_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise WriteRefused(f"the answers record could not be read: {exc}") from None
+    _refuse_repeated_keys(text, "the answers record")
+    try:
+        record = yaml.safe_load(text)
+    except yaml.YAMLError as exc:
         raise WriteRefused(f"the answers record could not be read: {exc}") from None
     if not isinstance(record, dict) or record.get("format") != ANSWERS_FORMAT or not isinstance(record.get("answers"), dict):
         raise WriteRefused(f"{answers_path} is not an answers record this version writes (format {ANSWERS_FORMAT}).")
