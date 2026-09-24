@@ -250,6 +250,7 @@ standard should prescribe them is a separate question and is not answered here.
 | F157 | `SP038` reported a negative it could not establish: a fresh clone has no hook by construction, so every adopter claiming `local_hook` would have failed CI 30 days after install. `DR-74`'s rule, applied to the case `DR-74` missed | high | Closed — `ACT-096` (`DR-84`), 2026-09-11; answers `H24`; see the body |
 | F162 | The built distribution declared no `readme`, so the PyPI project page would have rendered the summary line and then blank space — and `pyproject.toml` carried a comment asserting that PyPI rendered the README | medium | Closed — `ACT-103`, 2026-09-11; see the body |
 | F163 | `requires-python = ">=3.9"` was **false**, not merely untested: `jsonschema==4.26.0` is a hard dependency requiring `>=3.10`, so the package could never install on 3.9 — and the wrong declaration gave the reader a worse error than the right one would have | medium | Closed — `ACT-104`, 2026-09-11. Raised `low`/`Accepted` hours earlier and reassessed; see the body |
+| F179 | `governance/application-profile.yaml` declares `adoption.hook_chain` twice — `DR-66`'s (`ACT-064`) and `F177`'s (`ACT-113`) — and PyYAML keeps the last without warning, so every tool reads the stale `DR-66` rationale describing a local `core.hooksPath` this machine does not have. `SP038` is unaffected (both name the same gate); the record is not. Nothing rejects a duplicate key, in this profile or an adopter's | medium | **Open** |
 | F178 | The adopt renderer has no code path for `placeholder_scan_exemptions`: `render_profile` never emits it, so a profile declaring the block re-renders without it and `_verify`'s round-trip guard refuses every `adopt --edit`, whichever field is touched. Established by effect against this repository's own profile (which declares the block), with a negative control. Distinct from `F176`/`ACT-113`, which fixed a different module — the checker's `SP039`, not the adopt wizard's renderer | high | **Open** — `ACT-114` |
 | F177 | This repository's own `local_hook` enforcement claim was false on the maintainer's machine: `core.hooksPath` is set at `--global` scope and **replaces** `.git/hooks`, so Git never looked at `.githooks/`, and the global shim's delegation target did not exist here — it exited 0 having run nothing, while `.githooks/pre-commit` sat present, executable and staged `100755`. Established by effect with a contrast control: the identical shim runs an adopting repository's whole gate chain. It is also why `F176` was found by an adopter and not here — `SP039` fires only from a local hook. | high | Closed — `ACT-113`, 2026-09-19, by the installer's `--chain` route and `adoption.hook_chain`; `SP038` now verifies the chain by effect. `H30` records the maintainer decision; see the body |
 | F176 | `check_prerequisites` honoured `placeholder_scan_exemptions`; its sibling `check_staged_prerequisites` — the function that raises `SP039` — never received them, from adjacent call sites. An adopter whose precondition artefact legitimately quotes a placeholder word could declare the exemption, see it **acknowledged as an advisory on every run**, and still be refused on the one path that blocks a commit. `plyego` could not commit any change under a gated path at all. | high | Closed — `ACT-113`, 2026-09-19; see the body |
@@ -1622,6 +1623,62 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F179 — The profile declares `adoption.hook_chain` twice, and the parser keeps the stale one
+
+**Severity: medium. Open.** Recorded 2026-09-24; no activity registered yet. The correction is a
+change to `governance/application-profile.yaml`, which is the maintainer's to authorise.
+
+`governance/application-profile.yaml` has two `hook_chain:` keys under `adoption:`. The first was
+added by `ACT-064` on 2026-09-08, for `DR-66`. The second was added by `ACT-113` on 2026-09-19, for
+`F177`/`H30`, and it was placed above the first without anyone noticing the first. YAML does not
+permit duplicate keys. PyYAML's `safe_load`, which every profile read in this repository uses
+(`check_conformance.load_yaml`, `load_staged_profile`, `tests/validate_contracts.py`,
+`adopt/wizard.py`), accepts them anyway and keeps **the last one** without warning.
+
+Established by effect on `origin/main` at `c708d81`, 2026-09-24:
+
+```
+# a loader that reports duplicate keys:
+DUPLICATE KEYS at line 55 {'hook_chain'}
+
+# what check_conformance.load_yaml actually returns:
+err: None
+delegates_to: .githooks/pre-commit
+rationale starts: The machine this repository is developed on keeps a personal post-commit hook that refresh…
+```
+
+### What it costs
+
+- **The surviving declaration is the inaccurate one.** Its rationale says `core.hooksPath` is set
+  in `.git/config` and points at an untracked delegating directory inside `.git/` that also runs a
+  personal post-commit mirror-refresh hook. The machine does not match that.
+  `git config --show-origin --get-all core.hooksPath` shows only a `--global` setting
+  (`~/.config/git/hooks`), and no local one. The accurate account is the `F177` declaration, and it
+  is the one the parser discards.
+- **`SP038`'s behaviour does not change**, because both declarations name
+  `delegates_to: .githooks/pre-commit`. That is why nothing failed. The harm is to the record: the
+  profile is this repository's control authority, and the rationale it presents to every tool is
+  false.
+- **Nothing rejects a duplicate key.** The schema never sees one, because the parser has already
+  resolved it, so the second declaration silently overwrote the first. The same silent overwrite
+  is open to any adopter's profile, and the framework ships the checker that reads it.
+- **Not established:** whether `adopt --edit` would re-render the profile with a single
+  `hook_chain` and so quietly settle which one survives. This was not tested.
+
+### Proposed correction (not applied)
+
+1. Delete the second, `DR-66`, block from the profile, comment included, and keep the `F177`
+   block. If the `DR-66` history is worth keeping, put one sentence in the surviving block's
+   comment, **marked historical**, saying that the earlier arrangement was superseded on
+   2026-09-19. Do not leave it as a second live declaration.
+2. Then run the ritual in `CLAUDE.md`: `scripts/build_release.py`, reinstall from a clean source
+   copy, re-pin `adoption.framework_digest` from `.standards/INSTALL.json`, and **build the
+   manifest again, last**.
+3. Separately, and only by decision record under rule 12: make the checker refuse duplicate
+   keys in a profile. A loader that raises on a repeated mapping key is small. It changes what
+   the shipped checker asserts, though, so it needs a new `SP` code or an amended one, plus
+   tests, and adopters with a latent duplicate would start failing on upgrade.
 
 ## F178 — The adopt renderer has no code path for `placeholder_scan_exemptions`, so `--edit` refuses every write to a profile that declares it
 
