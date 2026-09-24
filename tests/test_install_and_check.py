@@ -1481,6 +1481,118 @@ def test_a_declared_canon_artefact_is_checked_for_existence_and_tracking(tmp: Pa
     )
 
 
+def test_a_repeated_key_is_refused_wherever_an_adopter_can_correct_it(tmp: Path) -> None:
+    """`DR-89` / `F179`. PyYAML keeps the LAST of two equal keys and says nothing, so this
+    repository's own profile carried two `adoption.hook_chain` blocks for five days with the
+    stale one winning, and every check passed. `SP061` replaces each site's generic unreadable-file
+    code when a repeated key is the cause, and is never graced: the document being evaluated is not
+    the one its author wrote.
+
+    Each case has its negative, because a loader that refused every file would pass every
+    positive here. The merge-key case is the one a naive implementation gets wrong: an explicit
+    key overriding a `<<:` default is YAML's intended use of merge, not a duplicate.
+    """
+    duplicated = "\nowner: someone-else\n"
+
+    # The working profile, by effect: blocking even inside the adoption grace window.
+    repo = make_git_repo(tmp, "dup-profile")
+    install(repo, "--no-hooks")
+    profile = repo / "governance" / "application-profile.yaml"
+    clean = profile.read_text(encoding="utf-8")
+    before = verify(repo)
+    check("a fresh install's profile raises no SP061", "SP061" not in before.stdout,
+          before.stdout[-300:])
+    profile.write_text(clean + duplicated, encoding="utf-8")
+    result = verify(repo)
+    check("a profile repeating a key raises SP061", "SP061" in result.stdout, result.stdout[-400:])
+    check("in place of SP011, not beside it", "SP011" not in result.stdout, result.stdout[-400:])
+    check("naming the key and both lines",
+          "'owner' appears twice" in result.stdout and "only the value at line" in result.stdout,
+          result.stdout[-400:])
+    check("and it fails the run although the grace window is open",
+          result.returncode != 0 and "WARN" not in result.stdout, result.stdout[-300:])
+
+    # The staged profile - the path the pre-commit hook takes - with the working copy clean.
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    profile.write_text(clean, encoding="utf-8")
+    staged = verify(repo, "--staged")
+    check("a staged profile repeating a key raises SP061, not SP041",
+          "SP061" in staged.stdout and "SP041" not in staged.stdout, staged.stdout[-400:])
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    check("and a clean staged profile raises neither",
+          "SP061" not in verify(repo, "--staged").stdout)
+
+    sys.path.insert(0, str(PAYLOAD))
+    import check_conformance as cc  # noqa: E402
+
+    # The loader itself: a merge override is not a duplicate; a nested repeat is.
+    merged = cc.parse_yaml("base: &b {a: 1, b: 2}\nderived:\n  <<: *b\n  a: 3\n")
+    check("an explicit key overriding a merge default is accepted",
+          merged["derived"] == {"a": 3, "b": 2}, repr(merged))
+    try:
+        cc.parse_yaml("outer:\n  inner: 1\n  inner: 2\n")
+        nested = None
+    except cc.DuplicateKeyError as exc:
+        nested = str(exc)
+    check("a key repeated in a nested mapping is refused, with both lines",
+          nested is not None and "line 2" in nested and "line 3" in nested, repr(nested))
+
+    # A gate exception, read through the same loader.
+    exceptions = repo / "governance" / "exceptions"
+    exceptions.mkdir(parents=True, exist_ok=True)
+    (exceptions / "GX-dup.yaml").write_text("gate_id: g\ngate_id: h\n", encoding="utf-8")
+    found: list = []
+    cc.load_exceptions(repo, found)
+    codes = [f.code for f in found]
+    check("a gate exception repeating a key raises SP061 in place of SP043",
+          "SP061" in codes and "SP043" not in codes, repr(codes))
+    (exceptions / "GX-dup.yaml").write_text("gate_id: g\n", encoding="utf-8")
+    found = []
+    cc.load_exceptions(repo, found)
+    check("and one without a repeat raises no SP061", "SP061" not in [f.code for f in found],
+          repr([f.code for f in found]))
+
+    # A workflow. The step may sit in the file that could not be read, so its absence is not
+    # established - SP053 must not cascade from a file SP061 already reports.
+    workflow = repo / ".github" / "workflows" / "ci.yml"
+    workflow.parent.mkdir(parents=True, exist_ok=True)
+    body = ("jobs:\n  j:\n    runs-on: ubuntu-latest\n    steps:\n"
+            "      - name: Run the tests\n        run: pytest\n")
+    decisions = {"control_decisions": {"deterministic_tests": {
+        "decision": "required", "implementation_reference": "Run the tests"}}}
+    workflow.write_text("name: CI\nname: again\n" + body, encoding="utf-8")
+    found = []
+    cc.check_pattern_b_controls(repo, decisions, found, [])
+    codes = [f.code for f in found]
+    check("a workflow repeating a key raises SP061 once", codes.count("SP061") == 1, repr(codes))
+    check("and no SP053 cascades from it", "SP053" not in codes, repr(codes))
+    workflow.write_text("name: CI\n" + body, encoding="utf-8")
+    found = []
+    cc.check_pattern_b_controls(repo, decisions, found, [])
+    check("the same workflow without the repeat raises no SP061",
+          "SP061" not in [f.code for f in found], repr([f.code for f in found]))
+
+
+def test_every_yaml_file_the_standard_ships_is_free_of_repeated_keys(tmp: Path) -> None:
+    """`DR-89`. The checker now refuses a repeated key; a shipped schema or example carrying one
+    would break every adopter on upgrade, and the loader would report it under the schema's own
+    code rather than naming the framework as the author. Checked at the source."""
+    sys.path.insert(0, str(PAYLOAD))
+    import check_conformance as cc  # noqa: E402
+
+    offenders = []
+    files = sorted(p for p in PAYLOAD.rglob("*") if p.suffix in (".yaml", ".yml"))
+    for path in files:
+        try:
+            cc.parse_yaml(path.read_text(encoding="utf-8"))
+        except cc.DuplicateKeyError as exc:
+            offenders.append(f"{path.relative_to(PAYLOAD)}: {exc}")
+        except Exception:  # noqa: BLE001 - templates may be deliberately partial; not this test
+            pass
+    check(f"none of the {len(files)} shipped YAML files repeats a key", not offenders,
+          "; ".join(offenders))
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory() as raw:
         tmp = Path(raw)
@@ -1639,6 +1751,10 @@ def main() -> int:
 
         print("\na declared canon artefact is checked, not trusted (DR-71, WI-2)")
         test_a_declared_canon_artefact_is_checked_for_existence_and_tracking(tmp)
+
+        print("\na repeated YAML key is refused where it can be corrected (DR-89, F179)")
+        test_a_repeated_key_is_refused_wherever_an_adopter_can_correct_it(tmp)
+        test_every_yaml_file_the_standard_ships_is_free_of_repeated_keys(tmp)
 
         print("\na CI step that is clearly not a test is cautioned (F145)")
         test_a_ci_step_that_is_clearly_not_a_test_is_cautioned(tmp)
@@ -2366,9 +2482,15 @@ def main() -> int:
         run_record.write_text(
             run_src.replace("method_id: METHOD-SEASONALITY-001",
                             "method_id: METHOD-NEVER-REGISTERED", 1), encoding="utf-8")
+        # The whole block, rationale included. Until `DR-89` this removed three of its four lines,
+        # leaving `rationale:` under `run_lineage` beside that control's own - a repeated key the
+        # lenient parser resolved last-wins, so the fixture was malformed and nothing could tell.
         undeclared = full_b.replace(
             "  method_registry:\n    decision: required\n"
-            "    implementation_reference: governance/method-registry\n", "")
+            "    implementation_reference: governance/method-registry\n"
+            "    rationale: Governed rules carry lifecycle, validation, and approval state.\n", "")
+        check("the undeclared fixture really removes the block", undeclared != full_b
+              and "method_registry:" not in undeclared.split("control_decisions:", 1)[1])
         result = gate_check(undeclared)
         check(
             "a dangling reference into an undeclared register raises nothing",

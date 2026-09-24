@@ -536,6 +536,8 @@ SP_TOPICS: dict[str, int] = {
     # The application profile: present, readable, schema-conformant, free of placeholders.
     "SP010": 12, "SP011": 12, "SP012": 12, "SP013": 12, "SP014": 12, "SP015": 12, "SP016": 12,
     "SP020": 12,
+    # Any file an adopter authors, the profile first, read with a key silently discarded (DR-89).
+    "SP061": 12,
     # Levels and their floors; the gate catalogue and what a level obliges of it.
     "SP017": 12, "SP021": 12, "SP022": 12, "SP027": 12, "SP028": 12, "SP029": 12, "SP030": 12,
     "SP037": 12,

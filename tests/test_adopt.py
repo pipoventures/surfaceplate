@@ -2701,6 +2701,7 @@ def test_every_checker_code_has_a_validator_or_an_exemption(tmp: Path) -> None:
         # There is no field at which to refuse it, which is the only honest ground for an
         # exemption here - "the checker checks something the wizard does not write".
         "SP060": (X, "adopter_canon is written by hand, never by the wizard"),
+        "SP061": (X, "the wizard renders from a mapping, one key per entry; the matrix runs the checker over every profile it writes (DR-89)"),
     }
     source = (PAYLOAD / "check_conformance.py").read_text(encoding="utf-8")
     emitted = set(re.findall(r'Finding\(\s*"(SP\d{3})"', source))

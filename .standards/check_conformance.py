@@ -310,14 +310,92 @@ def normalise(text: str) -> str:
     return text.replace("\r\n", "\n").replace("\r", "\n")
 
 
+class DuplicateKeyError(ValueError):
+    """A YAML mapping names the same key twice (`DR-89`, `F179`).
+
+    YAML forbids it; PyYAML's `safe_load` accepts it and keeps the LAST value without a word,
+    so the document the checker evaluates is not the one its author wrote, and the discarded
+    declaration is invisible to every tool that reads it. `F179` is this repository's own
+    profile carrying two `adoption.hook_chain` blocks for five days, the stale one winning.
+    """
+
+
+_UNIQUE_KEY_LOADER: Any = None
+
+
+def unique_key_loader() -> Any:
+    """`yaml.SafeLoader`, refusing a repeated key in any mapping. Requires PyYAML."""
+    global _UNIQUE_KEY_LOADER
+    if _UNIQUE_KEY_LOADER is None:
+        import yaml
+
+        class UniqueKeyLoader(yaml.SafeLoader):
+            def construct_mapping(self, node: Any, deep: bool = False) -> Any:
+                # Only the keys written in THIS mapping. A merge key (`<<`) supplies defaults
+                # that an explicit key may override - that is YAML's intended use of it, not
+                # a duplicate - so the merge is left to SafeLoader, which flattens it after.
+                if isinstance(node, yaml.MappingNode):
+                    seen: dict[Any, int] = {}
+                    for key_node, _ in node.value:
+                        if key_node.tag == "tag:yaml.org,2002:merge":
+                            continue
+                        key = self.construct_object(key_node, deep=deep)
+                        try:
+                            first = seen.get(key)
+                        except TypeError:
+                            continue  # unhashable; SafeLoader raises its own error for it
+                        line = key_node.start_mark.line + 1
+                        if first is not None:
+                            raise DuplicateKeyError(
+                                f"key {key!r} appears twice in one mapping, at line {first} and "
+                                f"line {line}; only the value at line {line} would be read"
+                            )
+                        seen[key] = line
+                return super().construct_mapping(node, deep=deep)
+
+        _UNIQUE_KEY_LOADER = UniqueKeyLoader
+    return _UNIQUE_KEY_LOADER
+
+
+def parse_yaml(stream: Any) -> Any:
+    """Every YAML file an adopter authors is read through here, so none is read last-wins."""
+    import yaml
+
+    return rules.dates_as_strings(yaml.load(stream, Loader=unique_key_loader()))  # noqa: S506 - SafeLoader subclass
+
+
+def is_duplicate_key(error: str | None) -> bool:
+    return bool(error) and f"{DuplicateKeyError.__name__}: " in error
+
+
+def duplicate_key_finding(rel: str, error: str) -> Finding:
+    """`SP061`: raised in place of a site's own unreadable-file code when that is the cause."""
+    return Finding(
+        "SP061",
+        f"'{rel}' repeats a key, so part of it would be silently discarded",
+        error[error.index(f"{DuplicateKeyError.__name__}: "):],
+        "Keep one of the two and delete the other. YAML forbids a repeated key; a lenient "
+        "parser keeps the last and drops the first without a word, so whichever you meant, "
+        "nothing that reads this file can tell.",
+        graceable=False,
+    )
+
+
+def add_once(findings: list[Finding], finding: Finding) -> None:
+    """Append unless an identical finding is already reported - one file read by two checks."""
+    if not any((f.code, f.title, f.detail) == (finding.code, finding.title, finding.detail)
+               for f in findings):
+        findings.append(finding)
+
+
 def load_yaml(path: Path) -> tuple[Any, str | None]:
     try:
-        import yaml
+        import yaml  # noqa: F401 - imported to report its absence distinctly
     except ImportError:
         return None, "PyYAML is not installed"
     try:
         with path.open("r", encoding="utf-8") as handle:
-            return rules.dates_as_strings(yaml.safe_load(handle)), None
+            return parse_yaml(handle), None
     except Exception as exc:  # noqa: BLE001 - report any parse failure verbatim
         return None, f"{type(exc).__name__}: {exc}"
 
@@ -533,6 +611,7 @@ def check_profile(repo: Path, findings: list[Finding]) -> dict | None:
     data, error = load_yaml(path)
     if error:
         findings.append(
+            duplicate_key_finding(PROFILE_PATH, error) if is_duplicate_key(error) else
             Finding(
                 "SP011",
                 "The application profile could not be read",
@@ -1295,6 +1374,25 @@ PATTERN_C_CONTROLS: dict[str, str] = {
 }
 
 
+def workflow_paths(repo: Path) -> list[Path]:
+    """The workflow files `find_workflow_step` searches, in the order it searches them."""
+    paths: list[Path] = []
+    for directory in (repo / ".github" / "workflows", repo / ".gitlab-ci.d"):
+        if directory.is_dir():
+            paths.extend(sorted(directory.glob("*.y*ml")))
+    return paths
+
+
+def workflows_with_duplicate_keys(repo: Path) -> list[tuple[str, str]]:
+    """(path, error) for each searched workflow refused for a repeated key (`DR-89`)."""
+    refused = []
+    for path in workflow_paths(repo):
+        _, error = load_yaml(path)
+        if is_duplicate_key(error):
+            refused.append((path.relative_to(repo).as_posix(), error))
+    return refused
+
+
 def find_workflow_step(repo: Path, step_name: str) -> tuple[str | None, dict | None]:
     """Locate a named step across the repository's workflow files.
 
@@ -1302,22 +1400,19 @@ def find_workflow_step(repo: Path, step_name: str) -> tuple[str | None, dict | N
     name a file too: a step name is what a human recognises, and which file holds it is an
     implementation detail that moves.
     """
-    for directory in (repo / ".github" / "workflows", repo / ".gitlab-ci.d"):
-        if not directory.is_dir():
+    for path in workflow_paths(repo):
+        document, _ = load_yaml(path)
+        if not isinstance(document, dict):
             continue
-        for path in sorted(directory.glob("*.y*ml")):
-            document, _ = load_yaml(path)
-            if not isinstance(document, dict):
+        jobs = document.get("jobs")
+        if not isinstance(jobs, dict):
+            continue
+        for job in jobs.values():
+            if not isinstance(job, dict):
                 continue
-            jobs = document.get("jobs")
-            if not isinstance(jobs, dict):
-                continue
-            for job in jobs.values():
-                if not isinstance(job, dict):
-                    continue
-                for step in job.get("steps") or []:
-                    if isinstance(step, dict) and step.get("name") == step_name:
-                        return path.relative_to(repo).as_posix(), step
+            for step in job.get("steps") or []:
+                if isinstance(step, dict) and step.get("name") == step_name:
+                    return path.relative_to(repo).as_posix(), step
     return None, None
 
 
@@ -1397,6 +1492,7 @@ def check_pattern_b_controls(
     """
     decisions = profile.get("control_decisions")
     decisions = decisions if isinstance(decisions, dict) else {}
+    refused: list[tuple[str, str]] | None = None  # read once, and only if a step is looked up
 
     for control_id in sorted(PATTERN_B_CONTROLS):
         entry = decisions.get(control_id)
@@ -1419,8 +1515,16 @@ def check_pattern_b_controls(
             continue
 
         reference = reference.strip()
+        if refused is None:
+            refused = workflows_with_duplicate_keys(repo)
+            for rel, error in refused:
+                add_once(findings, duplicate_key_finding(rel, error))
         workflow, step = find_workflow_step(repo, reference)
         if step is None:
+            if refused:
+                # The step may be in a workflow that could not be read, so its absence is not
+                # established - and SP061, which is not graceable, already fails the run.
+                continue
             findings.append(
                 Finding(
                     "SP053",
@@ -1805,6 +1909,7 @@ def check_pattern_c_controls(
             data, error = load_yaml(path)
             if error:
                 findings.append(
+                    duplicate_key_finding(rel, error) if is_duplicate_key(error) else
                     Finding(
                         "SP056",
                         f"Record '{rel}' is unreadable",
@@ -2227,7 +2332,12 @@ def check_secret_hygiene(repo: Path, profile: dict, findings: list[Finding]) -> 
         # Structured inspection, only where the file really is a workflow. Anything else
         # gets existence-and-mention only, and this function does not pretend otherwise -
         # a shell hook is not parsed, and no bypass finding is raised for one.
-        document, _ = load_yaml(target)
+        document, error = load_yaml(target)
+        if is_duplicate_key(error) and target.suffix.lower() in (".yml", ".yaml"):
+            # Otherwise the bypass inspection below is skipped in silence, and a scanner
+            # whose exit code is discarded passes because its workflow could not be read.
+            add_once(findings, duplicate_key_finding(rel, error))
+            continue
         if not isinstance(document, dict) or "jobs" not in document:
             continue
 
@@ -2558,8 +2668,7 @@ def load_staged_profile(repo: Path) -> tuple[dict | None, str | None]:
     if code != 0:
         return None, f"{PROFILE_PATH} is absent from the staged snapshot"
     try:
-        import yaml
-        data = rules.dates_as_strings(yaml.safe_load(raw.decode("utf-8")))
+        data = parse_yaml(raw.decode("utf-8"))
     except Exception as exc:  # noqa: BLE001 - report the staged parse failure
         return None, f"{PROFILE_PATH} is unreadable in the staged snapshot: {type(exc).__name__}: {exc}"
     if not isinstance(data, dict):
@@ -3086,6 +3195,8 @@ def load_exceptions(repo: Path, findings: list[Finding]) -> dict[str, set[str]]:
         data, error = load_yaml(path)
         if error:
             findings.append(
+                duplicate_key_finding(path.relative_to(repo).as_posix(), error)
+                if is_duplicate_key(error) else
                 Finding(
                     "SP043",
                     f"Gate exception '{path.relative_to(repo).as_posix()}' is unreadable",
@@ -3116,7 +3227,7 @@ def load_staged_exceptions(repo: Path, findings: list[Finding]) -> dict[str, set
     if code != 0:
         return {}
     try:
-        import yaml
+        import yaml  # noqa: F401 - the guard: no PyYAML, no staged exceptions to read
     except ImportError:
         return {}
 
@@ -3141,13 +3252,15 @@ def load_staged_exceptions(repo: Path, findings: list[Finding]) -> dict[str, set
         if code != 0:
             continue
         try:
-            data = rules.dates_as_strings(yaml.safe_load(raw.decode("utf-8")))
+            data = parse_yaml(raw.decode("utf-8"))
         except Exception as exc:  # noqa: BLE001 - report malformed staged records
+            error = f"{type(exc).__name__}: {exc}"
             findings.append(
+                duplicate_key_finding(rel, error) if is_duplicate_key(error) else
                 Finding(
                     "SP043",
                     f"Staged gate exception '{rel}' is unreadable",
-                    f"{type(exc).__name__}: {exc}",
+                    error,
                     "Correct or unstage the invalid exception. It provides no coverage.",
                     graceable=False,
                 )
@@ -3183,6 +3296,10 @@ def earliest_declared_effective_from(repo: Path, gate_id: str) -> str | None:
         code, blob = git(repo, "show", f"{sha}:{PROFILE_PATH}")
         if code != 0 or not blob:
             continue
+        # Deliberately NOT parse_yaml (`DR-89`): a committed profile cannot be corrected, and
+        # refusing one would change what this function concludes about the past - this
+        # repository's own history carries F179's duplicate from 2026-09-19 to 2026-09-24. A
+        # duplicate is refused where it can still be fixed: the working and staged profile.
         try:
             data = rules.dates_as_strings(yaml.safe_load(blob))
         except Exception:  # noqa: BLE001 - a historical profile may be malformed
@@ -3893,6 +4010,8 @@ def evaluate(repo: Path, today: _dt.date, no_grace: bool, staged: bool, currency
             if staged_error:
                 profile = None
                 findings.append(
+                    duplicate_key_finding(f"{PROFILE_PATH} (staged)", staged_error)
+                    if is_duplicate_key(staged_error) else
                     Finding(
                         "SP041",
                         "The staged application profile cannot be evaluated",
