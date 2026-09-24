@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# This repository's own pre-commit hop. NOT shipped to adopters and NOT the
+# Surfaceplate gate: it runs one machine-level check, then hands over to the
+# gate this standard installs, .githooks/pre-commit.
+#
+# TRACKED ON PURPOSE. The activating hook at .git/hooks/pre-commit is untracked,
+# as every Git hook is, and should stay a shim that execs this file, so the check
+# below is reviewable and diffable rather than living only on one machine (F177).
+#
+# The chain on the host:
+#   git -> ~/.config/git/hooks/pre-commit (global shim, via core.hooksPath)
+#       -> .git/hooks/pre-commit          (untracked shim)
+#       -> scripts/hooks/pre-commit       (this file)
+#       -> .githooks/pre-commit           (Surfaceplate's gate)
+#
+# WHY REFUSE WHEN core.hooksPath IS UNSET (mnemosyne#ACT-114 Owed 10, decided by
+# the maintainer 2026-09-24). This machine's global commit gates, including the
+# commit-msg check that rejects AI co-author trailers, run only through the
+# global core.hooksPath. Claude Cowork's VM shares this repository's .git but
+# runs its own git with no core.hooksPath, so there those gates never run and
+# only .git/hooks does. A Cowork commit carrying a model Co-authored-by trailer
+# was accepted in mnemosyne on 2026-09-23. Refusing here, where core.hooksPath
+# is absent, is how a commit made outside the host's gates is stopped.
+#
+# LIMITS, STATED. It stops unattributed commits only: in Cowork's VM `git add`
+# alone leaves index.lock behind, and nothing here prevents that. `git commit
+# --no-verify` skips it, as it skips every pre-commit hook. It reads whether
+# core.hooksPath is set, not whether the directory it names holds working gates.
+set -uo pipefail
+
+if [ -z "$(git config --get core.hooksPath 2>/dev/null)" ]; then
+  echo "pre-commit: REFUSED — core.hooksPath is not set, so this machine's global commit gates are not running here (for example, inside Claude Cowork's VM). Commit from Claude Code on the host instead." >&2
+  exit 1
+fi
+
+TOPLEVEL="$(git rev-parse --show-toplevel)" || exit 1
+exec "$TOPLEVEL/.githooks/pre-commit" "$@"
