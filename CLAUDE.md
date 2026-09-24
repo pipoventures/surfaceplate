@@ -50,6 +50,12 @@ here was done by an agent that had never read them. The import above is what clo
   `dist`, `__pycache__`, `.venv`, `.ruff_cache`, `.scratch`, `.pytest_cache` and `.standards`, so
   `scripts/` and `tests/` are in it too. A change to a test file, made under this instruction and
   followed exactly, left the manifest stale and failed CI with every suite green.)*
+- **A change adopters can see adds its `CHANGELOG.md` entry in the same pull request**, under
+  `## Unreleased` at the end of the file, which runs oldest first. That means a new or changed
+  check, a changed command, a changed installed file, or anything that can turn an adopter's run
+  from pass to fail, which goes under *Breaking for adopters*. The release skill's step 5 then
+  checks the section rather than writing it from memory. `F181` is why: `SP061` shipped to `main`
+  unannounced while the only safeguard was that one release step, which had already missed once.
 - **The fifteen suites are not what CI runs.** `standard-self-check.yml` reports seventeen outcomes:
   the fifteen, plus `manifest` (`build_release.py --verify-manifest`) and `conformance`
   (`check_conformance.py`). Running the suites and reporting the change verified is a narrower claim

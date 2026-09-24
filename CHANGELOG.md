@@ -2153,14 +2153,6 @@ dropdown that needed two clicks, and forty alphabetical candidates — now ranke
 twelve **after** ranking, since capping first buried the register beneath `docs/archive/`. And the
 run no longer ends in silence: it states the path it wrote and runs the checker against it.
 
-## Unreleased
-
-- 0.16.1 is on PyPI with its five project links (publish run 33734780614). Annotated tags `pypi/0.16.0` and `pypi/0.16.1` now point at the two published commits (`F115`); pushed by the agent and ratified by the maintainer the same day (`H14`, `F115` closed).
-- The independent review packet regenerated for 0.16.1 from its published commit; its tag note now names the `pypi/` tags instead of asserting a stale `v` tag for every version.
-- Three stale self-descriptions corrected: `README.md` no longer claims the package is unpublished (`F117`), `SECURITY.md` no longer claims the repository is private (`F118`).
-- `surfaceplate doctor --report` assembles a paste-ready problem report locally - tool version and anchor, the installed standard's version and digest, Python and OS, optional-dependency availability, the checker's verdict - and states plainly that nothing is sent; refuses `--online`. `about.ISSUES` threaded to the installer's Next steps and the post-`adopt` failure output; `SUPPORT.md` and two GitHub issue forms added (`F119`, `ACT-062`).
-- The independent review packet is distributed for the first time: a GitHub Release on tag `pypi/0.16.1` carries the three packet files, and a "Reviewing this" section in `README.md` and `audit/REVIEW_INVITATION.md` give `H4`/`H6` an actual route to a reviewer (`ACT-062`, `DR-65`).
-
 ## 0.18.0 - the adoption-readiness programme, in one version
 
 **Not 1.0, and the reservation is a decision rather than caution** (`DR-79`). `1.0` is held back
@@ -2178,6 +2170,17 @@ accumulates every phase of the programme and is published **once**, at the end, 
 version per phase. Nothing between `0.16.1` and this is published, so no adopter can observe an
 intermediate `0.17.0` that differs from the final one, and the version number therefore carries no
 claim that changes underneath it. The sections below are the phases as they land.
+
+### After `0.16.1` was published (`ACT-062`)
+
+*These five items stood under a `## Unreleased` heading above this section until `F181`. They
+shipped in this version: `doctor --report`, for one, is absent from `0.16.1` and present here.*
+
+- 0.16.1 is on PyPI with its five project links (publish run 33734780614). Annotated tags `pypi/0.16.0` and `pypi/0.16.1` now point at the two published commits (`F115`); pushed by the agent and ratified by the maintainer the same day (`H14`, `F115` closed).
+- The independent review packet regenerated for 0.16.1 from its published commit; its tag note now names the `pypi/` tags instead of asserting a stale `v` tag for every version.
+- Three stale self-descriptions corrected: `README.md` no longer claims the package is unpublished (`F117`), `SECURITY.md` no longer claims the repository is private (`F118`).
+- `surfaceplate doctor --report` assembles a paste-ready problem report locally - tool version and anchor, the installed standard's version and digest, Python and OS, optional-dependency availability, the checker's verdict - and states plainly that nothing is sent; refuses `--online`. `about.ISSUES` threaded to the installer's Next steps and the post-`adopt` failure output; `SUPPORT.md` and two GitHub issue forms added (`F119`, `ACT-062`).
+- The independent review packet is distributed for the first time: a GitHub Release on tag `pypi/0.16.1` carries the three packet files, and a "Reviewing this" section in `README.md` and `audit/REVIEW_INVITATION.md` give `H4`/`H6` an actual route to a reviewer (`ACT-062`, `DR-65`).
 
 ### The hook chain becomes declarable, and verified
 
@@ -3708,3 +3711,48 @@ export below the write protects nothing.
 repository, and the misattributed commits are pushed history elsewhere. Both are recorded as `H27`
 with the repair commands and the prior identity recovered from history — not performed, because
 machine state is not this repository's to change.
+
+## Unreleased
+
+**This release is breaking for adopters** (`SP061`, below). Its version number is decided when the
+release is prepared, from the change set (the release skill, step 4), and is not fixed here.
+
+Entries are added **in the same pull request as the change**, not at release (`F181`). The release
+skill's step 5 checks this section rather than writing it.
+
+### Breaking for adopters
+
+- **A repeated YAML key now fails the check: `SP061`** (`DR-89`, `ACT-115`, closing `F179`). YAML
+  forbids a mapping from naming the same key twice, but the parser this checker used accepted it and
+  kept the **last** value without a word. The checker was therefore evaluating a document its author
+  did not write. It now refuses the repeat, naming the key and both line numbers.
+  - **It blocks, and it is never graced**, including inside the adoption grace window. An adopter
+    whose files repeat a key fails on the first run after upgrading.
+  - **Files covered:** the application profile (working copy and staged), records under a declared
+    register, gate exceptions (working and staged), the workflow files searched for a CI step, and a
+    scanner's wiring file (`.yml` / `.yaml`). `SP061` replaces that site's own unreadable-file code
+    (`SP011`, `SP041`, `SP043`, `SP056`) when a repeat is the cause. A missing CI step (`SP053`) is
+    not reported against a workflow that could not be read.
+  - **Not covered, deliberately:** profiles read from git history. A past commit cannot be
+    corrected, and refusing one would change what the checker concludes about the past.
+  - **Remedy:** keep one of the two keys and delete the other. To find them before upgrading, run
+    the new checker once; it reports every repeat with its lines.
+
+### Changed
+
+- **`adopt --edit`, `--repin` and `--answers` refuse a file that repeats a key** (`ACT-116`,
+  closing `F180`). Each rewrites a whole profile. Before this, an edit to one field could silently
+  change a repeated field elsewhere to its last value, and the provenance record logged only the edit
+  that was asked for. They now refuse, name the key, and write nothing.
+- `README.md` states that installing Surfaceplate places no obligation on the adopter's own code.
+
+### Fixed
+
+- **`SP039` honours a declared placeholder-scan exemption** (`ACT-113`, closing `F176`). The
+  staged-snapshot check, which is the one that blocks a commit, never received the exemptions, so an
+  adopter could declare one, see it acknowledged on every run, and still be refused.
+
+### Known issues
+
+- **`adopt --edit` refuses every write to a profile that declares `placeholder_scan_exemptions`**
+  (`F178`, open, `ACT-114`). Edit such a profile by hand until it is fixed.
