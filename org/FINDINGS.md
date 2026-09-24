@@ -250,6 +250,7 @@ standard should prescribe them is a separate question and is not answered here.
 | F157 | `SP038` reported a negative it could not establish: a fresh clone has no hook by construction, so every adopter claiming `local_hook` would have failed CI 30 days after install. `DR-74`'s rule, applied to the case `DR-74` missed | high | Closed — `ACT-096` (`DR-84`), 2026-09-11; answers `H24`; see the body |
 | F162 | The built distribution declared no `readme`, so the PyPI project page would have rendered the summary line and then blank space — and `pyproject.toml` carried a comment asserting that PyPI rendered the README | medium | Closed — `ACT-103`, 2026-09-11; see the body |
 | F163 | `requires-python = ">=3.9"` was **false**, not merely untested: `jsonschema==4.26.0` is a hard dependency requiring `>=3.10`, so the package could never install on 3.9 — and the wrong declaration gave the reader a worse error than the right one would have | medium | Closed — `ACT-104`, 2026-09-11. Raised `low`/`Accepted` hours earlier and reassessed; see the body |
+| F178 | The adopt renderer has no code path for `placeholder_scan_exemptions`: `render_profile` never emits it, so a profile declaring the block re-renders without it and `_verify`'s round-trip guard refuses every `adopt --edit`, whichever field is touched. Established by effect against this repository's own profile (which declares the block), with a negative control. Distinct from `F176`/`ACT-113`, which fixed a different module — the checker's `SP039`, not the adopt wizard's renderer | high | **Open** — `ACT-114` |
 | F177 | This repository's own `local_hook` enforcement claim was false on the maintainer's machine: `core.hooksPath` is set at `--global` scope and **replaces** `.git/hooks`, so Git never looked at `.githooks/`, and the global shim's delegation target did not exist here — it exited 0 having run nothing, while `.githooks/pre-commit` sat present, executable and staged `100755`. Established by effect with a contrast control: the identical shim runs an adopting repository's whole gate chain. It is also why `F176` was found by an adopter and not here — `SP039` fires only from a local hook. | high | Closed — `ACT-113`, 2026-09-19, by the installer's `--chain` route and `adoption.hook_chain`; `SP038` now verifies the chain by effect. `H30` records the maintainer decision; see the body |
 | F176 | `check_prerequisites` honoured `placeholder_scan_exemptions`; its sibling `check_staged_prerequisites` — the function that raises `SP039` — never received them, from adjacent call sites. An adopter whose precondition artefact legitimately quotes a placeholder word could declare the exemption, see it **acknowledged as an advisory on every run**, and still be refused on the one path that blocks a commit. `plyego` could not commit any change under a gated path at all. | high | Closed — `ACT-113`, 2026-09-19; see the body |
 | F175 | `F6`'s body claimed an adopter *"cannot recompute the anchor from their own repository"*. They can — the manifest ships, and `sha256` of it equals the recorded `framework_digest` exactly. The false capability claim survived because the conclusion it supported was true | low | Closed — `ACT-112`, 2026-09-11; see the body |
@@ -1621,6 +1622,69 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F178 — The adopt renderer has no code path for `placeholder_scan_exemptions`, so `--edit` refuses every write to a profile that declares it
+
+**Severity: high. Open.**
+
+`edit()` (`surfaceplate/adopt/wizard.py`) loads the profile, applies the one field being changed,
+re-renders the **whole** file through `render_profile` (`surfaceplate/adopt/render.py`), and calls
+`_verify(profile, rendered, repo)`, which refuses to write unless `yaml.safe_load(rendered)` equals
+the in-memory `profile` exactly. `render_profile` has no code path that emits
+`placeholder_scan_exemptions` at all — `grep -rn placeholder_scan_exemptions` over
+`surfaceplate/adopt/` returns nothing; the block is read only by `check_conformance.py`. A profile
+that declares the block therefore re-renders **without it**, the two no longer match, and `_verify`
+refuses the write — whichever field `--edit` was asked to change.
+
+### Established by effect
+
+Reproduced in a scratch copy of this repository's own profile, which declares
+`placeholder_scan_exemptions` (`governance/application-profile.yaml:431`):
+
+```
+>>> wizard.edit(repo, "adoption.framework_maintainer", "Mario Pipo", because="...")
+WriteRefused: the rendered YAML does not round-trip to what was assembled - the renderer has a
+bug, and nothing is written while that is true:
+--- assembled
++++ rendered
+@@ -79,16 +79,6 @@
+...
+   "owner": "Mario Pipo",
+-  "placeholder_scan_exemptions": [
+-    {
+-      "artefact": "org/FINDINGS.md",
+-      "rationale": "..."
+```
+
+An edit to `adoption.framework_maintainer` — a field with nothing to do with the exemptions block —
+is refused solely because the profile also declares it. **Negative control:** the identical edit
+against a copy of the same profile with `placeholder_scan_exemptions` removed writes successfully.
+
+### What it cost
+
+`plyego` declared `placeholder_scan_exemptions` (plyego `D345`, 2026-09-15) and every `adopt --edit`
+against its profile has been refused since, whatever field it targets — for the reason established
+above. It hand-edits `governance/application-profile.yaml` directly instead, recording each edit in
+`governance/application-profile.hand-edits.md`, the exact workaround the tool's own writer exists to
+make unnecessary. Two further hand edits were made under plyego `ACT-878`/`D464` (the
+`component_library` and `design_authority` gate artefacts) while this defect stood.
+
+### Not `F176` / `ACT-113`
+
+`ACT-113` taught `check_staged_prerequisites` — the checker function behind `SP039` — to honour a
+declared exemption; `F176`'s defect and its fix are both in `check_conformance.py`. This defect is
+in a different module entirely, reached only by `adopt --edit`: `surfaceplate/adopt/render.py` and
+the round-trip guard in `surfaceplate/adopt/wizard.py`. `ACT-113`'s commit (`896331c`) touches
+eleven files and none of them is under `surfaceplate/adopt/`. Fixing `SP039` did nothing for this
+refusal, and `ACT-113`'s own record does not claim it did.
+
+### Related limits, not this finding
+
+Recorded in plyego's `hand-edits.md` against surfaceplate `0.18.0` and not resolved by this item:
+`control_decisions` cannot express a deferred control, and `--edit` cannot create list entries at
+all (`placeholder_scan_exemptions[n]`, `adoption.deferrals[n]`). This finding is the round-trip
+refusal specifically — it blocks even a one-line edit to a field with nothing to do with the list.
+The other two may deserve findings of their own; registered as `ACT-114`.
 
 ## F177 — This repository's own `local_hook` enforcement claim is false on the maintainer's machine
 
