@@ -257,7 +257,7 @@ be relied upon.
 
 <!-- BEGIN GENERATED: finding codes (tests/check_code_registers.py --write) -->
 
-57 codes. Generated from the checker's own source by `tests/check_code_registers.py --write`;
+58 codes. Generated from the checker's own source by `tests/check_code_registers.py --write`;
 the same script fails in CI when this table and the checker disagree. A code's title is what
 the report prints; `<gate>`, `<control>`, `<file>` stand for the name the report fills in.
 
@@ -320,6 +320,7 @@ the report prints; `<gate>`, `<control>`, `<file>` stand for the name the report
 | `SP058` | Two records in the '<control>' register claim one identity; Record '<file>' belongs to a different application |
 | `SP059` | Control '<control>' names a step of the workflow this framework installed; Gate '<gate>' names a file this framework installed as its precondition |
 | `SP060` | A declared canon artefact is missing or untracked |
+| `SP061` | '<file>' repeats a key, so part of it would be silently discarded |
 
 <!-- END GENERATED: finding codes -->
 
