@@ -250,6 +250,7 @@ standard should prescribe them is a separate question and is not answered here.
 | F157 | `SP038` reported a negative it could not establish: a fresh clone has no hook by construction, so every adopter claiming `local_hook` would have failed CI 30 days after install. `DR-74`'s rule, applied to the case `DR-74` missed | high | Closed — `ACT-096` (`DR-84`), 2026-09-11; answers `H24`; see the body |
 | F162 | The built distribution declared no `readme`, so the PyPI project page would have rendered the summary line and then blank space — and `pyproject.toml` carried a comment asserting that PyPI rendered the README | medium | Closed — `ACT-103`, 2026-09-11; see the body |
 | F163 | `requires-python = ">=3.9"` was **false**, not merely untested: `jsonschema==4.26.0` is a hard dependency requiring `>=3.10`, so the package could never install on 3.9 — and the wrong declaration gave the reader a worse error than the right one would have | medium | Closed — `ACT-104`, 2026-09-11. Raised `low`/`Accepted` hours earlier and reassessed; see the body |
+| F181 | `CHANGELOG.md` does not announce `SP061`, a blocking, never-graced check that fails an adopter with a repeated YAML key on upgrade, even inside the grace window (`DR-89`). It says nothing of the other two adopter-visible changes since `0.18.0` either (`ACT-113`'s `SP039` fix, `ACT-116`'s `adopt` refusal). Its `## Unreleased` section still holds `0.16.1`-era items above the `0.18.0` heading. The only safeguard is step 5 of the release skill, and it has already missed once, at `0.18.0` | medium | **Open** |
 | F180 | `adopt --edit`, `--repin` and `--answers` read with `safe_load` and then rewrite a whole profile, so a repeated key was resolved to its last value and the first dropped **silently**: an `--edit` of `owner` changed a repeated `display_name` and recorded only the `owner` change. Established by effect against this repository's own profile, with a negative control. The wizard-side twin of `F179`, left out of scope by `DR-89` and named there as untested | medium | Closed — `ACT-116`, 2026-09-24; see the body |
 | F179 | `governance/application-profile.yaml` declares `adoption.hook_chain` twice — `DR-66`'s (`ACT-064`) and `F177`'s (`ACT-113`) — and PyYAML keeps the last without warning, so every tool reads the stale `DR-66` rationale describing a local `core.hooksPath` this machine does not have. `SP038` is unaffected (both name the same gate); the record is not. Nothing rejects a duplicate key, in this profile or an adopter's | medium | Closed — `ACT-115` (`DR-89`), 2026-09-24: the profile corrected, and the checker now refuses a repeated key as `SP061`; see the body |
 | F178 | The adopt renderer has no code path for `placeholder_scan_exemptions`: `render_profile` never emits it, so a profile declaring the block re-renders without it and `_verify`'s round-trip guard refuses every `adopt --edit`, whichever field is touched. Established by effect against this repository's own profile (which declares the block), with a negative control. Distinct from `F176`/`ACT-113`, which fixed a different module — the checker's `SP039`, not the adopt wizard's renderer | high | **Open** — `ACT-114` |
@@ -1624,6 +1625,68 @@ records fail the control's schema is never proposed; otherwise nothing is propos
 field is asked with its seed row first.
 
 **Closed by `ACT-054` (`DR-51` (5)), 2026-09-02.** a record directory is proposed only where its name carries the control's words and every YAML record in it passes the control's schema (`discover.register_dirs_that_fit`, judged against the vendored schema, which is why `adopt` runs only on an installed repository); otherwise nothing is proposed and the field is asked with its seed row first; the fitting directories lead the offer. Found on the way: a directory named for a control that holds no records yet - which is what every seeded directory is - was not offered at all, so a seed would have vanished from the offer the moment it was created; such a directory is offered now. `tests/test_discover.py::test_record_directories_and_archived_documents_are_never_proposed`, seen to fail on all four controls.
+
+## F181 — The changelog does not announce a breaking check, and its one safeguard has already missed once
+
+**Severity: medium. Open.** Recorded 2026-09-24 from a brief written by the Surfaceplate project
+room in Cowork (the first run of the room → Claude Code hand-over, mnemosyne `ACT-115`). It was
+corrected on review before recording (see below). The fix is a separate decision for the
+maintainer.
+
+`DR-89` made the checker refuse a repeated YAML key as `SP061`, which is blocking and never
+graced. Its Impact section says an adopter whose profile, records, exceptions or workflows repeat
+a key *"will fail on upgrade, including inside the adoption grace window"*. `CHANGELOG.md` does
+not say so. Established on `main` at `65c68d4`:
+
+```
+$ git log -1 --format='%h %ad' --date=short -- CHANGELOG.md
+43197f2 2026-09-12
+$ git show --stat --format= ac0a229 9204d04 | grep -c CHANGELOG      # ACT-115, ACT-116
+0
+$ grep -c SP061 CHANGELOG.md
+0
+$ git tag --sort=-creatordate | head -1                               # 2026-09-11, before DR-89
+pypi/0.18.0
+```
+
+Three changes adopters can see have landed since `0.18.0`, and none is in the changelog:
+
+- `ACT-113`: `SP039` now honours a declared placeholder exemption (`F176`).
+- `ACT-115`: `SP061` (`F179`, `DR-89`). This is the breaking one.
+- `ACT-116`: `adopt --edit`, `--repin` and `--answers` refuse a repeated key (`F180`).
+
+### Corrected on review
+
+- **The brief counted `ACT-114` as a fourth behaviour change. It is not one.** `c1d4829` records
+  `F178` and changes no code: register, findings, re-pin. `F178` is an open defect, not a
+  change that has shipped.
+- **No rule here requires a changelog entry per change.** None of `CLAUDE.md`, `AGENTS.md`,
+  `.claude/rules/` or the topics asks for one. The release skill writes the changelog when a
+  release is prepared (step 5). So leaving an entry out of `ACT-113` to `ACT-116` broke no rule,
+  and `ACT-115`'s omission was flagged openly in its pull request (#120). The finding is not
+  that a rule was broken. It is that **the only safeguard is one release step**, and that step
+  has already missed once.
+- **The miss already shown is `0.18.0`'s, not `SP061`'s.** No release has run since `DR-89`,
+  so step 5 has not yet had the chance to miss `SP061`. What it did miss is the `## Unreleased`
+  section (`CHANGELOG.md:2156`): items from after `0.16.1` were published, left under
+  `Unreleased` above the `0.18.0` heading, and never reconciled when `0.18.0` was prepared.
+- Tests do reference `CHANGELOG.md`, as fixtures and as a placeholder-scan exemption. **Nothing
+  checks what it says** against the register or the change set.
+
+### Why medium while nothing has shipped
+
+A blocking check that is never graced is the least forgiving change to release without notice:
+an adopter's first sign of it would be a failing build after an upgrade. The safeguard between
+here and that outcome is a manual step with one miss already on record.
+
+### Recommendation (the room's; not decided)
+
+In one change, reconcile the stale `Unreleased` section, open a fresh one, and add entries for
+`ACT-113`, `ACT-115` and `ACT-116`, leading with `SP061` under *Breaking for adopters*. That entry
+should say it blocks and is never graced, that it applies inside the grace window, which files it
+covers, that the remedy is to delete one of the two keys, and that history stays lenient. No
+changelog-versus-register check yet: this is one run of misses, and a control is not built for a
+problem seen once.
 
 ## F180 — The wizard rewrote a repeated key to its last value, and recorded only the edit it was asked for
 
