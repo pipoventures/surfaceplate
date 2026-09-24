@@ -250,7 +250,7 @@ standard should prescribe them is a separate question and is not answered here.
 | F157 | `SP038` reported a negative it could not establish: a fresh clone has no hook by construction, so every adopter claiming `local_hook` would have failed CI 30 days after install. `DR-74`'s rule, applied to the case `DR-74` missed | high | Closed — `ACT-096` (`DR-84`), 2026-09-11; answers `H24`; see the body |
 | F162 | The built distribution declared no `readme`, so the PyPI project page would have rendered the summary line and then blank space — and `pyproject.toml` carried a comment asserting that PyPI rendered the README | medium | Closed — `ACT-103`, 2026-09-11; see the body |
 | F163 | `requires-python = ">=3.9"` was **false**, not merely untested: `jsonschema==4.26.0` is a hard dependency requiring `>=3.10`, so the package could never install on 3.9 — and the wrong declaration gave the reader a worse error than the right one would have | medium | Closed — `ACT-104`, 2026-09-11. Raised `low`/`Accepted` hours earlier and reassessed; see the body |
-| F179 | `governance/application-profile.yaml` declares `adoption.hook_chain` twice — `DR-66`'s (`ACT-064`) and `F177`'s (`ACT-113`) — and PyYAML keeps the last without warning, so every tool reads the stale `DR-66` rationale describing a local `core.hooksPath` this machine does not have. `SP038` is unaffected (both name the same gate); the record is not. Nothing rejects a duplicate key, in this profile or an adopter's | medium | **Open** |
+| F179 | `governance/application-profile.yaml` declares `adoption.hook_chain` twice — `DR-66`'s (`ACT-064`) and `F177`'s (`ACT-113`) — and PyYAML keeps the last without warning, so every tool reads the stale `DR-66` rationale describing a local `core.hooksPath` this machine does not have. `SP038` is unaffected (both name the same gate); the record is not. Nothing rejects a duplicate key, in this profile or an adopter's | medium | **Open** — the profile was corrected 2026-09-24; the systemic half, a checker that refuses duplicate keys, awaits its decision record |
 | F178 | The adopt renderer has no code path for `placeholder_scan_exemptions`: `render_profile` never emits it, so a profile declaring the block re-renders without it and `_verify`'s round-trip guard refuses every `adopt --edit`, whichever field is touched. Established by effect against this repository's own profile (which declares the block), with a negative control. Distinct from `F176`/`ACT-113`, which fixed a different module — the checker's `SP039`, not the adopt wizard's renderer | high | **Open** — `ACT-114` |
 | F177 | This repository's own `local_hook` enforcement claim was false on the maintainer's machine: `core.hooksPath` is set at `--global` scope and **replaces** `.git/hooks`, so Git never looked at `.githooks/`, and the global shim's delegation target did not exist here — it exited 0 having run nothing, while `.githooks/pre-commit` sat present, executable and staged `100755`. Established by effect with a contrast control: the identical shim runs an adopting repository's whole gate chain. It is also why `F176` was found by an adopter and not here — `SP039` fires only from a local hook. | high | Closed — `ACT-113`, 2026-09-19, by the installer's `--chain` route and `adoption.hook_chain`; `SP038` now verifies the chain by effect. `H30` records the maintainer decision; see the body |
 | F176 | `check_prerequisites` honoured `placeholder_scan_exemptions`; its sibling `check_staged_prerequisites` — the function that raises `SP039` — never received them, from adjacent call sites. An adopter whose precondition artefact legitimately quotes a placeholder word could declare the exemption, see it **acknowledged as an advisory on every run**, and still be refused on the one path that blocks a commit. `plyego` could not commit any change under a gated path at all. | high | Closed — `ACT-113`, 2026-09-19; see the body |
@@ -1626,8 +1626,10 @@ field is asked with its seed row first.
 
 ## F179 — The profile declares `adoption.hook_chain` twice, and the parser keeps the stale one
 
-**Severity: medium. Open.** Recorded 2026-09-24; no activity registered yet. The correction is a
-change to `governance/application-profile.yaml`, which is the maintainer's to authorise.
+**Severity: medium. Open.** Recorded 2026-09-24; no activity registered yet. On the same day the
+maintainer chose to correct the profile, and to have the checker refuse duplicate keys through a
+decision record. The profile is corrected: one declaration, `F177`'s, remains. The finding stays
+open until the checker change lands.
 
 `governance/application-profile.yaml` has two `hook_chain:` keys under `adoption:`. The first was
 added by `ACT-064` on 2026-09-08, for `DR-66`. The second was added by `ACT-113` on 2026-09-19, for
@@ -1666,17 +1668,14 @@ rationale starts: The machine this repository is developed on keeps a personal p
 - **Not established:** whether `adopt --edit` would re-render the profile with a single
   `hook_chain` and so quietly settle which one survives. This was not tested.
 
-### Proposed correction (not applied)
+### Correction
 
-1. Delete the second, `DR-66`, block from the profile, comment included, and keep the `F177`
-   block. If the `DR-66` history is worth keeping, put one sentence in the surviving block's
-   comment, **marked historical**, saying that the earlier arrangement was superseded on
-   2026-09-19. Do not leave it as a second live declaration.
-2. Then run the ritual in `CLAUDE.md`: `scripts/build_release.py`, reinstall from a clean source
-   copy, re-pin `adoption.framework_digest` from `.standards/INSTALL.json`, and **build the
-   manifest again, last**.
-3. Separately, and only by decision record under rule 12: make the checker refuse duplicate
-   keys in a profile. A loader that raises on a repeated mapping key is small. It changes what
+1. **Done, 2026-09-24.** The second, `DR-66`, block was deleted from the profile, comment
+   included, and the `F177` block kept. The surviving block's comment records the removal,
+   **marked historical**. The profile now parses with no duplicate key.
+2. **Done.** Followed by the ritual in `CLAUDE.md`, the manifest built last.
+3. **Decided, not yet implemented:** make the checker refuse duplicate keys in a profile,
+   through a decision record under rule 12. A loader that raises on a repeated mapping key is small. It changes what
    the shipped checker asserts, though, so it needs a new `SP` code or an amended one, plus
    tests, and adopters with a latent duplicate would start failing on upgrade.
 

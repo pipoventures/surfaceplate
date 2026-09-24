@@ -75,7 +75,7 @@ adoption:
   # .standards/INSTALL.json. SP049 fails loudly if it is not, which is the intended
   # behaviour. An adopter meets the same step only on upgrade, where re-pinning is exactly
   # what should happen because the framework has changed.
-  framework_digest: 3f4621411169100c803c54676f7d6d530e18c54a74d03e6392bef8fc73c4b440
+  framework_digest: f6f9fcbae1e1945d8ad8ae2610023c31b08724fbbfac3dc19269ae575a627a4a
   adoption_date: "2026-08-31"
   review_by: "2027-02-27"
   framework_maintainer: Mario Pipo
@@ -86,6 +86,12 @@ adoption:
   # the gate -- it runs the repository's own hook with SURFACEPLATE_HOOK_PROBE set and
   # reports a finding if the gate is not reached. An unreached gate is a finding, not a
   # silent pass (DR-66).
+  #
+  # HISTORICAL (F179, corrected 2026-09-24): a second hook_chain declaration from DR-66
+  # (ACT-064, 2026-09-08) sat further down this block. It described core.hooksPath set in
+  # .git/config to a delegating directory inside .git/, which no longer matched this machine,
+  # and because YAML parsers keep the last duplicate key it silently overrode this one. It
+  # was removed rather than left as a second live answer; this declaration is the only one.
   hook_chain:
     delegates_to: .githooks/pre-commit
     rationale: >-
@@ -111,24 +117,6 @@ adoption:
   # F109: the two gate deferrals once mirrored here as x-…-gate control deferrals are
   # recorded once, under prerequisites, where a gate's deferral belongs.
   deferrals: []
-  # DR-66. This repository's Git hooks run from a machine-local delegating directory, set
-  # in .git/config, so that a personal mirror-refresh post-commit hook survives alongside
-  # this standard's gate - core.hooksPath REPLACES .git/hooks rather than adding to it, so
-  # without the delegation one of the two would silently never run. The delegating hook
-  # execs .githooks/pre-commit and propagates its exit code, so the gate is unchanged.
-  #
-  # Declaring it here is what lets check_conformance.py verify the arrangement instead of
-  # merely tolerating it: it runs the hook Git will actually run with SURFACEPLATE_HOOK_PROBE
-  # set, and requires this standard's gate to answer. Before DR-66 this repository reported
-  # SP038 - a true finding, because nothing established that the chain reached the gate.
-  hook_chain:
-    delegates_to: .githooks/pre-commit
-    rationale: >-
-      The machine this repository is developed on keeps a personal post-commit hook that
-      refreshes a local review mirror. That hook is unrelated to this standard and cannot be
-      committed to a public repository, so core.hooksPath points at an untracked delegating
-      directory inside .git/ which runs both. The delegation is verified by effect on every
-      conformance run rather than trusted.
 
 # These three cannot be excluded, deferred, or omitted at any conformance level.
 baseline_controls:
