@@ -1,0 +1,22 @@
+name: AI attribution
+
+# Refuses AI attribution trailers in the commits, title and body of a pull
+# request; a required check on main. The logic lives once, in the reusable
+# workflow below, pinned to a full commit SHA so a change there reaches this
+# repo only through a pull request that bumps the pin. Contract and the gaps it
+# cannot close (the merge-time squash message): mnemosyne#ACT-139.
+
+on:
+  pull_request:
+    # `edited` re-runs the check when the title or body changes.
+    types: [opened, synchronize, reopened, edited]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  attribution:
+    uses: pipoventures/.github/.github/workflows/no-ai-attribution.yml@9907822d325f60ab49f65a97e75ddd0827bf62fc
+    secrets: inherit
